@@ -1198,6 +1198,35 @@ private theorem lil_sparse_bc
         exact hω.mono (fun k hk => not_lt.mp hk)
     _ = 0 := hbc
 
+/--
+**Lower-side sparse Borel–Cantelli.** Dual to `lil_sparse_bc`.
+For `δ ∈ (0, 1)` and `c > 1`, almost surely the block increments
+`Y_k := S_{⌊c^{k+1}⌋} − S_{⌊c^k⌋}` satisfy
+`Y_k ≥ (1 − δ) · lilNorm(⌊c^{k+1}⌋ − ⌊c^k⌋)` infinitely often.
+
+**Proof strategy (not yet formalized).**
+1. Each `Y_k = walk (shift a ⌊c^k⌋) (⌊c^{k+1}⌋ − ⌊c^k⌋) ω` by
+   `walk_diff_eq_shifted_walk`, and `shift a ⌊c^k⌋` is Rademacher by
+   `isRademacherSequence_shift`.
+2. Apply `lil_tail_lower_at_scale` to each block: the tail probability
+   `ℙ(Y_k ≥ (1-δ) · lilNorm m_k)` is at least `C · (log m_k)^{-((1-δ)² + δ)}`
+   for `m_k = ⌊c^{k+1}⌋ − ⌊c^k⌋`, large `k`.
+3. `∑_k C · (log m_k)^{-((1-δ)² + δ)} = ∞` since `log m_k ~ k log c` and
+   `(1-δ)² + δ < 1` for `δ ∈ (0, 1)`.
+4. The events `E_k := {Y_k ≥ (1-δ)·lilNorm m_k}` depend only on
+   `a_{⌊c^k⌋+1}, …, a_{⌊c^{k+1}⌋}`, disjoint across `k`, so independent
+   (via `iIndepFun.iIndepSet` applied to the generated σ-algebras, using
+   `ha.indep`).
+5. Apply `measure_limsup_eq_one` (2nd Borel–Cantelli).
+-/
+private theorem lil_sparse_lower_bc
+    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) (δ : ℝ) (hδ : 0 < δ) (hδ1 : δ < 1)
+    (c : ℝ) (hc : 1 < c) :
+    ∀ᵐ ω, ∃ᶠ k in atTop,
+      walk a ⌊c ^ (k + 1)⌋₊ ω - walk a ⌊c ^ k⌋₊ ω ≥
+        (1 - δ) * lilNorm (⌊c ^ (k + 1)⌋₊ - ⌊c ^ k⌋₊) := by
+  sorry
+
 -- Shifted Rademacher: (a (m+j))_{j≥0} is still i.i.d. Rademacher for any fixed m.
 private theorem isRademacherSequence_shift
     {Ω' : Type*} [MeasureSpace Ω'] [IsProbabilityMeasure (ℙ : Measure Ω')]
