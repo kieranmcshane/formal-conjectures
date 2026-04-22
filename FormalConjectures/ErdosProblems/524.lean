@@ -411,32 +411,11 @@ theorem erdos_524 :
 
 /- ### Chojecki (January 2026): resolution of the upper envelope -/
 
-/--
-**Theorem 6 (Chojecki 2026): sharp almost-sure upper envelope.**
-Almost surely,
-`lim sup_{n → ∞} M_n(ω) / √(2n log log n) = 1`.
-
-Equivalently, the correct almost-sure upper-envelope order of magnitude of
-`M_n(ω)` is `√(n log log n)`, with sharp constant `√2`.
-
-*Proof.* The lower bound `≥ 1` follows from `M_n ≥ |S_n|` (evaluate at `x = 1`)
-and Kolmogorov's law of the iterated logarithm. The upper bound `≤ 1` follows
-from the two-walk sandwich `M_n ≤ max(max_{k≤n} |S_k|, max_{k≤n} |T_k|)`
-(Corollary 3, via Abel summation) together with Chung's maximal LIL applied
-to each running maximum.
--/
-@[category research solved, AMS 26 60]
-theorem erdos_524.variants.sharp_upper_envelope :
-    ∀ (Ω : Type*) [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-      (a : ℕ → Ω → ℝ), IsRademacherSequence a →
-      ∀ᵐ ω, limsup (fun n : ℕ =>
-        supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) atTop = 1 := by
-  -- TODO: requires Kolmogorov's law of the iterated logarithm (for the ≥ 1 direction via
-  -- M_n ≥ |S_n| and walk_le_supNorm) and Chung's maximal LIL (for the ≤ 1 direction via
-  -- two_walk_sandwich upper bound). Neither is in Mathlib v4.27.0 in usable form.
-  -- Kolmogorov LIL: no Mathlib PR known as of 2026-01.
-  -- Chung's maximal LIL: not in Mathlib; would require Chung's liminf law for running max.
-  sorry
+-- The main theorem `erdos_524.variants.sharp_upper_envelope` and its `≤ 1`
+-- half `sharp_upper_envelope_le` are defined further down (after the two-walk
+-- sandwich `erdos_524.variants.two_walk_sandwich` and the running-max LIL
+-- upper bound `running_max_lil_upper_for_eps`), which are their main
+-- ingredients.
 
 /- #### Probability infrastructure for subgaussian tails -/
 
@@ -1032,6 +1011,44 @@ private theorem lil_tail_at_scale
         have hn' : (n : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
         field_simp
 
+/--
+**Rademacher walk lower tail at the LIL scale.** Complements `lil_tail_at_scale`.
+For any `δ ∈ (0, 1)`, there exist constants `N(δ)` and `C(δ) > 0` such that
+for all `n ≥ N(δ)`:
+`ℙ(S_n ≥ (1 - δ) · √(2n · log log n))
+    ≥ C · exp(-((1 - δ)² + δ) · log log n)
+    = C · (log n)^{-((1-δ)² + δ)}`.
+
+The extra `+δ` slack in the exponent ensures the Borel–Cantelli sum
+`∑_k C · (log n_k)^{-((1-δ)² + δ)}` diverges when summed over the
+exponentially spaced subsequence `n_k = ⌊c^k⌋`, because
+`(1-δ)² + δ = 1 - δ + δ² < 1` for `δ ∈ (0, 1)`.
+
+**Proof strategy (not yet formalized).** Central binomial coefficient via
+Stirling's formula (`Mathlib.Analysis.SpecialFunctions.Stirling`):
+1. `ℙ(S_n = 2k - n) = Nat.choose n k / 2^n` (for `k ∈ [0, n]`).
+2. For `k = ⌈(n + t)/2⌉` with `t = (1-δ)·√(2n log log n)`, the Stirling
+   bound `√(2πn) · (n/e)^n ≤ n!` and its matching upper estimate give
+   `Nat.choose n k / 2^n ≥ Θ(1/√n) · exp(-t²/(2n) - O(t⁴/n³))`.
+3. Summing over `k` in `[⌈(n+t)/2⌉, n]` contributes a further factor
+   `Θ(√n / t)`, since the summand decays geometrically in `k` away from
+   the mode.
+4. Combining: `ℙ(S_n ≥ t) ≥ K · exp(-t²/(2n)) / (t/√n)` for some absolute
+   `K > 0` and `t ≤ √n · √(log n)` (the Gaussian regime).
+5. At the LIL scale: `t²/(2n) = (1-δ)² · log log n`, so
+   `exp(-t²/(2n)) = (log n)^{-(1-δ)²}`. The `/(t/√n) = 1/((1-δ)·√(2 log log n))`
+   factor is absorbed by the `+δ` slack.
+
+The transfer step 4 → LIL-scale bound is classical (cf. Durrett, "Probability:
+Theory and Examples", Thm 2.4.9 and the LIL proof in §4.4).
+-/
+private theorem lil_tail_lower_at_scale
+    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) (δ : ℝ) (hδ : 0 < δ) (hδ1 : δ < 1) :
+    ∃ (N : ℕ) (C : ℝ), 0 < C ∧ ∀ n, N ≤ n →
+      C * Real.exp (-((1 - δ) ^ 2 + δ) * Real.log (Real.log n)) ≤
+        (ℙ {ω | walk a n ω ≥ (1 - δ) * lilNorm n}).toReal := by
+  sorry
+
 -- A.s. eventually S_{n_k} < (1+ε)·φ(n_k) on the sparse subsequence n_k = ⌊c^k⌋.
 -- Proof: lil_tail_at_scale gives ℙ(S_{n_k} ≥ (1+ε)·φ(n_k)) ≤ (log n_k)^{-(1+ε)²},
 -- and ∑_k (log n_k)^{-(1+ε)²} < ∞ (comparable to ∑ k^{-p} for p > 1),
@@ -1612,6 +1629,149 @@ private theorem kolmogorov_lil_upper_bound
   intro m hm
   exact limsup_le_of_le hcobdd (hω_upper m hm)
 
+-- Running-max LIL upper bound: a.s. eventually ∀ j ≤ n, |walk j| ≤ (1+ε)·φ(n).
+-- Follows from kolmogorov_lil_upper_bound: eventually |walk(k)| ≤ (1+ε)φ(k) ≤ (1+ε)φ(n)
+-- for k ≥ N, and the finitely many k < N are dominated by φ(n) → ∞.
+private theorem running_max_lil_upper_for_eps
+    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) (ε : ℝ) (hε : 0 < ε) :
+    ∀ᵐ ω, ∀ᶠ n in atTop,
+      ∀ j ∈ Finset.Icc 1 n, |walk a j ω| ≤ (1 + ε) * lilNorm n := by
+  -- Eventually |walk(n)/φ(n)| ≤ 1+ε/2 (from LIL upper for walk and -walk)
+  have ha_neg := isRademacherSequence_neg a ha
+  have hε2 : 0 < ε / 2 := by positivity
+  have hup := lil_upper_for_eps a ha (ε / 2) hε2
+  have hdown := lil_upper_for_eps (fun j ω => -a j ω) ha_neg (ε / 2) hε2
+  filter_upwards [hup, hdown] with ω hω_up hω_down
+  -- Combine walk and -walk LIL to get |walk| bound (for large n where lilNorm > 0)
+  have habs : ∀ᶠ n in atTop, |walk a n ω| ≤ (1 + ε / 2) * lilNorm n := by
+    filter_upwards [hω_up, hω_down, eventually_ge_atTop 16] with n hu hd hn16
+    rw [walk_neg, neg_div] at hd
+    have hφ_pos : 0 < lilNorm n := by
+      unfold lilNorm; apply Real.sqrt_pos_of_pos
+      have hn_cast : (16 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn16
+      have hlog_gt1 : 1 < Real.log (n : ℝ) := by
+        rw [← Real.log_exp 1]; apply Real.log_lt_log (Real.exp_pos 1)
+        exact lt_of_lt_of_le (Real.exp_one_lt_d9.trans (by norm_num : (2.7182818286:ℝ) < 3))
+          (le_trans (by norm_num : (3:ℝ) ≤ 16) hn_cast)
+      nlinarith [Real.log_pos hlog_gt1]
+    have hφ_pos' : (0 : ℝ) < Real.sqrt (2 * ↑n * Real.log (Real.log ↑n)) := hφ_pos
+    rw [div_le_iff₀ hφ_pos'] at hu
+    have h_neg : -(1 + ε / 2) ≤ walk a n ω / Real.sqrt (2 * ↑n * Real.log (Real.log ↑n)) :=
+      by linarith
+    rw [le_div_iff₀ hφ_pos'] at h_neg
+    unfold lilNorm
+    exact abs_le.mpr ⟨by linarith, by linarith⟩
+  -- Running max: split j into ≥ K (abs bound + monotonicity) vs < K (finite sup, dominated).
+  obtain ⟨N, hN⟩ := Filter.eventually_atTop.mp habs
+  set K := max N 3
+  -- M_val = sup of walk values for j ∈ [0, K] — a fixed finite constant for this ω.
+  set M_val := (Finset.Icc 0 K).sup' ⟨0, Finset.mem_Icc.mpr ⟨le_refl _, Nat.zero_le _⟩⟩
+    (fun i => |walk a i ω|)
+  rw [Filter.eventually_atTop]
+  -- Include ⌈M_val⌉₊²+16 to ensure lilNorm n ≥ M_val for the j < K case.
+  use max K (⌈M_val⌉₊ ^ 2 + 16); intro n hn; intro j hj
+  have hj_bd := Finset.mem_Icc.mp hj
+  have hn_K : K ≤ n := le_of_max_le_left hn
+  have hn_large : ⌈M_val⌉₊ ^ 2 + 16 ≤ n := le_of_max_le_right hn
+  by_cases hjK : K ≤ j
+  · -- j ≥ max(N,3): |walk j| ≤ (1+ε/2)φ(j) ≤ (1+ε)φ(n)
+    have hj3 : 3 ≤ j := le_trans (le_max_right _ _) hjK
+    calc |walk a j ω| ≤ (1 + ε / 2) * lilNorm j :=
+            hN j (le_trans (le_max_left _ _) hjK)
+      _ ≤ (1 + ε) * lilNorm j := by nlinarith [lilNorm_nonneg j]
+      _ ≤ (1 + ε) * lilNorm n :=
+          mul_le_mul_of_nonneg_left (lilNorm_mono hj_bd.2 hj3) (by linarith)
+  · -- j < K: |walk j ω| ≤ M_val ≤ lilNorm n ≤ (1+ε)·lilNorm n
+    push_neg at hjK
+    have hle_M : |walk a j ω| ≤ M_val :=
+      Finset.le_sup'_of_le _ (Finset.mem_Icc.mpr ⟨Nat.zero_le _, hjK.le⟩) le_rfl
+    suffices h : M_val ≤ lilNorm n by nlinarith [hle_M, lilNorm_nonneg n]
+    have hn16 : (16 : ℕ) ≤ n := by omega
+    -- ll(n) ≥ 1 for n ≥ 16 (since log n ≥ exp 1 ≈ 2.718)
+    have hll_ge1 : 1 ≤ Real.log (Real.log (n : ℝ)) := by
+      rw [← Real.log_exp 1]
+      apply Real.log_le_log (Real.exp_pos 1)
+      have : Real.exp 1 < Real.log 16 := by
+        calc Real.exp 1 < 4 * 0.6931471803 := by nlinarith [Real.exp_one_lt_d9]
+          _ ≤ 4 * Real.log 2 := by nlinarith [Real.log_two_gt_d9]
+          _ = Real.log (2 ^ 4 : ℝ) := by rw [Real.log_pow]; push_cast; ring
+          _ = Real.log 16 := by norm_num
+      linarith [Real.log_le_log (by norm_num : (0:ℝ) < 16) (show (16:ℝ) ≤ n by exact_mod_cast hn16)]
+    -- lilNorm n = √(2n·ll n) ≥ √(⌈M_val⌉₊²) = ⌈M_val⌉₊ ≥ M_val
+    unfold lilNorm
+    calc M_val ≤ ⌈M_val⌉₊ := Nat.le_ceil M_val
+      _ = Real.sqrt ((⌈M_val⌉₊ : ℝ) ^ 2) := (Real.sqrt_sq (Nat.cast_nonneg' _)).symm
+      _ ≤ Real.sqrt (2 * ↑n * Real.log (Real.log ↑n)) := by
+          apply Real.sqrt_le_sqrt
+          have hceil_le : (⌈M_val⌉₊ : ℝ) ^ 2 ≤ (n : ℝ) := by
+            exact_mod_cast show ⌈M_val⌉₊ ^ 2 ≤ n by omega
+          have hn_pos : (0 : ℝ) < n := by exact_mod_cast show 0 < n by omega
+          nlinarith
+
+/--
+**Kolmogorov's LIL lower bound for Rademacher walks.**
+Almost surely,
+`lim sup_{n → ∞} walk(a, n, ω) / √(2n · log log n) ≥ 1`.
+
+This is the classical lower bound in the law of the iterated logarithm for
+i.i.d. Rademacher sums, complementing `kolmogorov_lil_upper_bound`. Its
+proof proceeds by:
+1. The Rademacher walk lower tail at the LIL scale (see
+   `lil_tail_lower_at_scale`), complementing `lil_tail_at_scale`.
+2. The second Borel–Cantelli lemma applied to independent block increments
+   `X_k := S_{n_{k+1}} − S_{n_k}` along an exponentially spaced
+   subsequence `n_k := ⌊c^k⌋`. The key input is that
+   `∑_k ℙ(X_k ≥ (1-δ)·√(2·(n_{k+1}-n_k)·log log n_{k+1})) = ∞` by step 1.
+3. Transferring the block bound to the full walk via
+   `kolmogorov_lil_upper_bound` applied to `−a` (so `S_{n_k} ≥ −(1+η)·φ(n_k)`
+   eventually, hence `S_{n_{k+1}} = X_k + S_{n_k}` inherits the block lower
+   bound up to a subleading correction).
+
+Remains `sorry`: the proof reduces to `lil_tail_lower_at_scale` (itself a
+separate sorry) plus the Borel–Cantelli / transfer bookkeeping. -/
+private theorem kolmogorov_lil_lower_bound
+    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) :
+    ∀ᵐ ω, 1 ≤ limsup (fun n : ℕ =>
+      walk a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) atTop := by
+  -- Reduction: suffices to prove, for every positive integer `m`, that a.s.
+  -- `1 - 1/m ≤ limsup walk/φ`. Countable intersection + send `m → ∞`.
+  suffices h_m : ∀ m : ℕ, 0 < m → ∀ᵐ ω,
+      (1 : ℝ) - 1 / (m : ℝ) ≤ limsup (fun n : ℕ =>
+        walk a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) atTop by
+    have h_all : ∀ᵐ ω, ∀ m : ℕ, 0 < m →
+        (1 : ℝ) - 1 / (m : ℝ) ≤ limsup (fun n : ℕ =>
+          walk a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) atTop := by
+      rw [ae_all_iff]; intro m
+      by_cases hm : 0 < m
+      · exact (h_m m hm).mono fun _ h _ => h
+      · exact ae_of_all _ fun _ h => absurd h hm
+    filter_upwards [h_all] with ω hω
+    apply le_of_forall_pos_lt_add; intro ε hε
+    obtain ⟨m, hm_gt⟩ := exists_nat_gt (1 / ε)
+    have hm_pos : 0 < m := Nat.pos_of_ne_zero (by intro h; simp [h] at hm_gt; linarith)
+    -- `1/ε < m` ⟹ `1/m < ε` ⟹ `1 - ε < 1 - 1/m ≤ limsup`, so `1 < limsup + ε`.
+    have h_inv_lt : 1 / (m : ℝ) < ε := by
+      rw [div_lt_iff₀ (Nat.cast_pos.mpr hm_pos)]
+      have := (div_lt_iff₀ hε).mp hm_gt
+      linarith [mul_comm ε (m : ℝ)]
+    have h_bound := hω m hm_pos
+    linarith
+  -- Main step: for each `m ≥ 1`, show `1 - 1/m ≤ limsup walk/φ` a.s.
+  -- Strategy: pick `c = (2m)²` (large enough that `√((c-1)/c) > 1 - 1/(2m)`),
+  -- and `δ = 1/(4m)` (small enough that `(1-δ)·√((c-1)/c) - 2/√c > 1 - 1/m`).
+  -- Along `n_k := ⌊c^k⌋`, use `lil_tail_lower_at_scale δ` + independence of
+  -- block increments `Y_k := S_{n_{k+1}} - S_{n_k}` + 2nd Borel–Cantelli to get
+  -- `∀ᵐ ω, ∃ᶠ k, Y_k ≥ (1-δ)·lilNorm(n_{k+1}-n_k)`. Combine with
+  -- `kolmogorov_lil_upper_bound` on `-a` (giving `S_{n_k} ≥ -(1+δ)·lilNorm n_k`
+  -- eventually) to conclude `∃ᶠ k, S_{n_{k+1}} ≥ (1 - 1/m)·lilNorm n_{k+1}`.
+  --
+  -- This BC + transfer bookkeeping is ~150 lines of formalization: independence
+  -- of block events (via `isRademacherSequence_shift` + disjoint-block iIndep),
+  -- summability via `lil_tail_lower_at_scale`, `measure_limsup_eq_one` for 2nd BC,
+  -- and asymptotic arithmetic `m_k/n_{k+1} → (c-1)/c` etc. Deferred.
+  intro m hm
+  sorry
+
 end LIL
 
 /- ### The two-walk sandwich (Corollary 3, Lemma 2) -/
@@ -1725,6 +1885,223 @@ theorem erdos_524.variants.two_walk_sandwich :
         rw [show x = -(-x) from by ring, randomPoly_neg]
         exact (abel_bound_nonneg b n ω (by linarith) (by linarith [hx.1])
           h0_alt (by simp_rw [hwb] at hle_alt ⊢; exact hle_alt)).trans (le_max_right _ _)⟩
+
+/- ### Resolution of the upper envelope: the `≤ 1` direction -/
+
+set_option linter.style.ams_attribute false in
+set_option linter.style.category_attribute false in
+set_option linter.unusedSectionVars false in
+/-- `(⨆ k ∈ Finset.Icc 1 n, f k) ≤ B` whenever each `f k ≤ B` for `k ∈ [1, n]`
+and `0 ≤ B`. The `0 ≤ B` hypothesis handles the out-of-range case where the
+inner `⨆ (_ : k ∈ _), f k` is `sSup ∅ = 0`. -/
+private lemma biSup_Icc_le {n : ℕ} {f : ℕ → ℝ} {B : ℝ} (hB : 0 ≤ B)
+    (h : ∀ k ∈ Finset.Icc 1 n, f k ≤ B) :
+    (⨆ k ∈ Finset.Icc 1 n, f k) ≤ B := by
+  refine ciSup_le (fun k => ?_)
+  by_cases hk : k ∈ Finset.Icc 1 n
+  · haveI : Nonempty (k ∈ Finset.Icc 1 n) := ⟨hk⟩
+    exact ciSup_le fun _ => h k hk
+  · have h_le0 : (⨆ (_ : k ∈ Finset.Icc 1 n), f k) ≤ 0 := by
+      have hempty : (Set.range fun (_ : k ∈ Finset.Icc 1 n) => f k) = ∅ :=
+        Set.range_eq_empty_iff.mpr ⟨hk⟩
+      simp [iSup, hempty]
+    linarith
+
+set_option linter.style.ams_attribute false in
+set_option linter.style.category_attribute false in
+/--
+**Sharp upper envelope, `≤ 1` direction (Chojecki 2026).**
+Almost surely,
+`lim sup_{n → ∞} M_n(ω) / √(2n log log n) ≤ 1`.
+
+Combines `running_max_lil_upper_for_eps` applied to `a` and to the
+sign-alternated sequence `((-1)^j a_j)` (which is Rademacher by
+`isRademacherSequence_neg_mul`) with the upper half of
+`erdos_524.variants.two_walk_sandwich`. -/
+private theorem sharp_upper_envelope_le
+    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) :
+    ∀ᵐ ω, limsup (fun n : ℕ =>
+      supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) atTop ≤ 1 := by
+  set b : ℕ → Ω → ℝ := fun j ω => (-1 : ℝ) ^ j * a j ω with hb_def
+  have hb : IsRademacherSequence b := isRademacherSequence_neg_mul a ha
+  set f : ℕ → Ω → ℝ := fun n ω =>
+    supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n)) with hf_def
+  -- Step 1: for each ε > 0, a.s. eventually f n ω ≤ 1 + ε.
+  have heps : ∀ ε : ℝ, 0 < ε → ∀ᵐ ω, ∀ᶠ n in atTop, f n ω ≤ 1 + ε := by
+    intro ε hε
+    have hw_a := running_max_lil_upper_for_eps a ha ε hε
+    have hw_b := running_max_lil_upper_for_eps b hb ε hε
+    have hts := erdos_524.variants.two_walk_sandwich Ω a ha
+    filter_upwards [hw_a, hw_b, hts] with ω hω_a hω_b hω_ts
+    filter_upwards [hω_a, hω_b, Filter.eventually_ge_atTop 16] with n hn_a hn_b hn16
+    -- Positivity of φ(n) for n ≥ 16.
+    have hφ_pos : 0 < Real.sqrt (2 * n * Real.log (Real.log n)) := by
+      apply Real.sqrt_pos_of_pos
+      have hn_cast : (16 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn16
+      have hlog_gt1 : 1 < Real.log (n : ℝ) := by
+        rw [← Real.log_exp 1]
+        apply Real.log_lt_log (Real.exp_pos 1)
+        exact lt_of_lt_of_le (Real.exp_one_lt_d9.trans
+          (by norm_num : (2.7182818286 : ℝ) < 3))
+          (le_trans (by norm_num : (3 : ℝ) ≤ 16) hn_cast)
+      nlinarith [Real.log_pos hlog_gt1]
+    -- (1+ε)·lilNorm n ≥ 0, needed for biSup_Icc_le.
+    have hB_nn : 0 ≤ (1 + ε) * lilNorm n := by
+      have := lilNorm_nonneg n; nlinarith
+    -- sup_{k ∈ [1,n]} |walk a k ω| ≤ (1+ε)·lilNorm n.
+    have hsup_walk : (⨆ k ∈ Finset.Icc 1 n, |walk a k ω|) ≤ (1 + ε) * lilNorm n :=
+      biSup_Icc_le hB_nn hn_a
+    -- sup_{k ∈ [1,n]} |alt a k ω| ≤ (1+ε)·lilNorm n, via walk b = alternatingWalk a.
+    have hsup_alt : (⨆ k ∈ Finset.Icc 1 n, |alternatingWalk a k ω|)
+        ≤ (1 + ε) * lilNorm n := by
+      apply biSup_Icc_le hB_nn
+      intro k hk
+      rw [← walk_neg_eq_alternatingWalk]
+      exact hn_b k hk
+    -- supNorm a n ω ≤ (1+ε)·lilNorm n via two-walk sandwich.
+    have hsupNorm_bnd : supNorm a n ω ≤ (1 + ε) * lilNorm n :=
+      calc supNorm a n ω
+          ≤ max (⨆ k ∈ Finset.Icc 1 n, |walk a k ω|)
+                (⨆ k ∈ Finset.Icc 1 n, |alternatingWalk a k ω|) := (hω_ts n).2
+        _ ≤ (1 + ε) * lilNorm n := max_le hsup_walk hsup_alt
+    -- Conclude f n ω ≤ 1 + ε by dividing by √(2n·ll n) = lilNorm n > 0.
+    show supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n)) ≤ 1 + ε
+    rw [div_le_iff₀ hφ_pos]
+    -- `lilNorm n` is definitionally `Real.sqrt (2 * n * Real.log (Real.log n))`.
+    show supNorm a n ω ≤ (1 + ε) * lilNorm n
+    exact hsupNorm_bnd
+  -- Step 2: countable intersection — a.s. for all m ≥ 1, eventually f n ω ≤ 1 + 1/m.
+  have hae_upper : ∀ᵐ ω, ∀ m : ℕ, 0 < m → ∀ᶠ n in atTop, f n ω ≤ 1 + 1 / (m : ℝ) := by
+    rw [ae_all_iff]; intro m
+    by_cases hm : 0 < m
+    · exact (heps (1 / m) (by positivity)).mono fun ω h _ => h
+    · exact ae_of_all _ fun _ h => absurd h hm
+  -- Step 3: lower bound for IsCoboundedUnder — f n ω ≥ 0 trivially.
+  have hae_lower : ∀ᵐ ω, ∀ᶠ n in atTop, (0 : ℝ) ≤ f n ω := by
+    apply ae_of_all; intro ω
+    apply Filter.Eventually.of_forall; intro n
+    show (0 : ℝ) ≤ supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n))
+    exact div_nonneg
+      ((abs_nonneg _).trans (walk_le_supNorm a n ω))
+      (Real.sqrt_nonneg _)
+  -- Step 4: assemble limsup ≤ 1 from the "≤ 1 + 1/m" bounds for all m ≥ 1.
+  filter_upwards [hae_upper, hae_lower] with ω hω_upper hω_lower
+  have hcobdd : IsCoboundedUnder (· ≤ ·) atTop (fun n => f n ω) :=
+    isCoboundedUnder_le_of_eventually_le atTop hω_lower
+  suffices h : ∀ m : ℕ, 0 < m →
+      limsup (fun n => f n ω) atTop ≤ 1 + 1 / (m : ℝ) from by
+    apply le_of_forall_pos_lt_add; intro ε hε
+    obtain ⟨m, hm⟩ := exists_nat_gt (1 / ε)
+    have hm_pos : 0 < m := Nat.pos_of_ne_zero (by intro h; simp [h] at hm; linarith)
+    calc limsup (fun n => f n ω) atTop
+        ≤ 1 + 1 / (m : ℝ) := h m hm_pos
+      _ < 1 + ε := by
+          gcongr
+          rw [div_lt_iff₀ (Nat.cast_pos.mpr hm_pos)]
+          have := (div_lt_iff₀ hε).mp hm
+          linarith [mul_comm ε (m : ℝ)]
+  intro m hm
+  exact limsup_le_of_le hcobdd (hω_upper m hm)
+
+/--
+**Theorem 6 (Chojecki 2026): sharp almost-sure upper envelope.**
+Almost surely,
+`lim sup_{n → ∞} M_n(ω) / √(2n log log n) = 1`.
+
+Equivalently, the correct almost-sure upper-envelope order of magnitude of
+`M_n(ω)` is `√(n log log n)`, with sharp constant `√2`.
+
+*Proof.* The `≤ 1` direction is fully formalized as `sharp_upper_envelope_le`
+(running-max LIL upper bound + two-walk sandwich + sign-flip Rademacher).
+The `≥ 1` direction reduces via `walk_le_supNorm` (i.e. `|S_n| ≤ M_n`) to
+Kolmogorov's LIL lower bound (`limsup |S_n| / φ(n) ≥ 1` a.s.), which is not
+in Mathlib — it requires second-moment methods on an exponentially spaced
+subsequence `n_k = c^k` with a block-independence argument.
+-/
+@[category research solved, AMS 26 60]
+theorem erdos_524.variants.sharp_upper_envelope :
+    ∀ (Ω : Type*) [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+      (a : ℕ → Ω → ℝ), IsRademacherSequence a →
+      ∀ᵐ ω, limsup (fun n : ℕ =>
+        supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) atTop = 1 := by
+  intro Ω _ _ a ha
+  have h_le := sharp_upper_envelope_le a ha
+  -- `≥ 1` direction: reduces via `walk_le_supNorm` to Kolmogorov's LIL lower
+  -- bound (`kolmogorov_lil_lower_bound`, itself still a `sorry`).
+  have h_ge : ∀ᵐ ω, 1 ≤ limsup (fun n : ℕ =>
+      supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) atTop := by
+    have hLIL := kolmogorov_lil_lower_bound a ha
+    -- Eventual lower bound `walk/φ ≥ -2` a.s., for `IsCoboundedUnder` of walk/φ.
+    have hwalk_lb : ∀ᵐ ω, ∀ᶠ n in atTop,
+        (-2 : ℝ) ≤ walk a n ω / Real.sqrt (2 * n * Real.log (Real.log n)) := by
+      have ha_neg := isRademacherSequence_neg a ha
+      have hub := lil_upper_for_eps (fun j ω' => -a j ω') ha_neg 1 one_pos
+      filter_upwards [hub] with ω hω
+      filter_upwards [hω] with n hn
+      have hwn : walk (fun j ω' => -a j ω') n ω = -walk a n ω := walk_neg a n ω
+      rw [hwn, neg_div] at hn
+      linarith
+    -- Eventual upper bound `supNorm/φ ≤ 2` a.s., derived directly from
+    -- `running_max_lil_upper_for_eps` at ε = 1 + two-walk sandwich (mirroring
+    -- the `heps` step inside `sharp_upper_envelope_le`).
+    have hsup_ub : ∀ᵐ ω, ∀ᶠ n in atTop,
+        supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n)) ≤ 2 := by
+      have hw_a := running_max_lil_upper_for_eps a ha 1 one_pos
+      have hb_rad := isRademacherSequence_neg_mul a ha
+      have hw_b := running_max_lil_upper_for_eps _ hb_rad 1 one_pos
+      have hts := erdos_524.variants.two_walk_sandwich Ω a ha
+      filter_upwards [hw_a, hw_b, hts] with ω hω_a hω_b hω_ts
+      filter_upwards [hω_a, hω_b, Filter.eventually_ge_atTop 16] with n hn_a hn_b hn16
+      have hφ_pos : 0 < Real.sqrt (2 * n * Real.log (Real.log n)) := by
+        apply Real.sqrt_pos_of_pos
+        have hn_cast : (16 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn16
+        have hlog_gt1 : 1 < Real.log (n : ℝ) := by
+          rw [← Real.log_exp 1]
+          apply Real.log_lt_log (Real.exp_pos 1)
+          exact lt_of_lt_of_le (Real.exp_one_lt_d9.trans
+            (by norm_num : (2.7182818286 : ℝ) < 3))
+            (le_trans (by norm_num : (3 : ℝ) ≤ 16) hn_cast)
+        nlinarith [Real.log_pos hlog_gt1]
+      have hlil_nn := lilNorm_nonneg n
+      have hB_nn : (0 : ℝ) ≤ 2 * lilNorm n := by nlinarith
+      have hsup_walk : (⨆ k ∈ Finset.Icc 1 n, |walk a k ω|) ≤ 2 * lilNorm n := by
+        apply biSup_Icc_le hB_nn
+        intro k hk; have := hn_a k hk; linarith
+      have hsup_alt : (⨆ k ∈ Finset.Icc 1 n, |alternatingWalk a k ω|)
+          ≤ 2 * lilNorm n := by
+        apply biSup_Icc_le hB_nn
+        intro k hk
+        rw [← walk_neg_eq_alternatingWalk]
+        have := hn_b k hk; linarith
+      rw [div_le_iff₀ hφ_pos]
+      show supNorm a n ω ≤ 2 * lilNorm n
+      calc supNorm a n ω
+          ≤ _ := (hω_ts n).2
+        _ ≤ 2 * lilNorm n := max_le hsup_walk hsup_alt
+    filter_upwards [hLIL, hwalk_lb, hsup_ub] with ω hω hω_lb hω_ub
+    -- `IsCoboundedUnder` for walk/φ via hω_lb, and `IsBoundedUnder` for supNorm/φ via hω_ub.
+    have hcobdd_walk : IsCoboundedUnder (· ≤ ·) atTop
+        (fun n => walk a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) :=
+      isCoboundedUnder_le_of_eventually_le atTop hω_lb
+    have hbdd_sup : IsBoundedUnder (· ≤ ·) atTop
+        (fun n => supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n))) :=
+      ⟨2, hω_ub⟩
+    -- Pointwise `walk/φ ≤ supNorm/φ` via `walk ≤ |walk| ≤ supNorm` and `φ ≥ 0`
+    -- (with the `0/0 = 0` convention for small `n`).
+    have hpoint : ∀ n : ℕ,
+        walk a n ω / Real.sqrt (2 * n * Real.log (Real.log n))
+          ≤ supNorm a n ω / Real.sqrt (2 * n * Real.log (Real.log n)) := by
+      intro n
+      have h_le_pt : walk a n ω ≤ supNorm a n ω :=
+        (le_abs_self _).trans (walk_le_supNorm a n ω)
+      have h_inv_nn : 0 ≤ (Real.sqrt (2 * n * Real.log (Real.log n)))⁻¹ :=
+        inv_nonneg.mpr (Real.sqrt_nonneg _)
+      rw [div_eq_mul_inv, div_eq_mul_inv]
+      exact mul_le_mul_of_nonneg_right h_le_pt h_inv_nn
+    exact hω.trans (Filter.limsup_le_limsup
+      (Filter.Eventually.of_forall hpoint) hcobdd_walk hbdd_sup)
+  filter_upwards [h_le, h_ge] with ω hω_le hω_ge
+  exact le_antisymm hω_le hω_ge
 
 /- ### Lower envelope on a sparse subsequence (Theorem 18) -/
 
