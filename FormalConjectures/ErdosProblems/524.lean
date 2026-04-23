@@ -3145,6 +3145,16 @@ structure GaoLiWellnerConstants where
   upper : ℝ
   lower_pos : 0 < lower
   lower_le_upper : lower ≤ upper
+  /-- Gap constraint `2·lower ≤ upper`. Chojecki's factor of 6 in
+  `α_± = (1 / (6 · {upper, lower}))^{1/3}` decomposes as `6 = 3 · 2`:
+  the `3` comes from the cubic subsequence `log log n_m ~ 3 log m`, and the `2`
+  comes from the endpoint-reparametrization split of `M_n = max(M_n^+, M_n^-)`
+  combined with the asymptotic independence of the two halves. The Borel–Cantelli
+  upper half of Theorem 18 is derivable from the one-sided
+  `polynomial_sup_small_ball_upper` axiom only when `2·lower ≤ upper`;
+  without this gap, BC1 delivers `limsup ≤ (1/(3·upper))^{1/3}` rather than the
+  claimed `α_+ = (1/(6·lower))^{1/3}`. See `524_remarks.tex` for details. -/
+  two_lower_le_upper : 2 * lower ≤ upper
 
 /-- The `GaoLiWellnerConstants` structure is trivially inhabited (e.g. by
 `lower = upper = 1`). The mathematically meaningful content — the specific
@@ -3154,7 +3164,8 @@ constants. Formalizing the Gao–Li–Wellner theorem on small-ball probabilitie
 of the centered Gaussian process `Y(u) = ∫_0^1 e^{-us} dB(s)` is a multi-year
 Mathlib-scale formalization project (requires Karhunen–Loève expansion +
 entropy methods). -/
-instance : Nonempty GaoLiWellnerConstants := ⟨⟨1, 1, one_pos, le_refl 1⟩⟩
+instance : Nonempty GaoLiWellnerConstants :=
+  ⟨⟨1, 2, one_pos, by norm_num, by norm_num⟩⟩
 
 /- #### Atomic sub-axioms for Chojecki Theorem 18
 
