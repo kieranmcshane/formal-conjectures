@@ -239,21 +239,35 @@ sorry-free in the repo.
 \section{Change log}
 
 \begin{itemize}
-  \item \textbf{2026-04-23, commit \texttt{6e7bc7e}.} Refactored the big
+  \item \textbf{Commit \texttt{c6e3cba}.} Added field
+    \texttt{two\_lower\_le\_upper : 2·lower $\le$ upper} to
+    \texttt{GaoLiWellnerConstants}, updating the default instance to
+    $(\texttt{lower},\texttt{upper}) = (1,2)$. This unblocks the BC1 upper
+    half of \texttt{chojecki\_sparse\_lower\_envelope\_proof}.
+  \item \textbf{Commit \texttt{68d7240}.} Added
+    \texttt{Helpers/CubicSubseqAsymptotics.lean} (351 lines, sorry-free):
+    six theorems on the asymptotics of $n_m = \lfloor e^{m^3}\rfloor$
+    needed for the Chojecki assembly. Introduced this \texttt{524\_remarks.tex}
+    memo.
+  \item \textbf{Commit \texttt{6e7bc7e}.} Refactored the big
     \texttt{chojecki\_sparse\_lower\_envelope} axiom into six atomic
     sub-axioms plus two transferred axioms. Closed sorries \#1 and \#5
     (the latter conditionally, via the new sub-axioms).
-  \item \textbf{2026-04-23, commit \texttt{315e8e1}.} Closed sorries \#2,
+  \item \textbf{Commit \texttt{315e8e1}.} Closed sorries \#2,
     \#3, \#4. Added six helper modules (\texttt{StirlingTwoSided},
     \texttt{IndepSetBridge}, \texttt{BlockIndep},
     \texttt{LilNormAsymptotics}, \texttt{CentralBinomLower},
     \texttt{CentralBinomWindowSum}). Added \texttt{walk\_pmf\_binomial} in
     524.lean.
-  \item \textbf{2026-04-23 (uncommitted).} Added field
-    \texttt{two\_lower\_le\_upper : 2·lower $\le$ upper} to
-    \texttt{GaoLiWellnerConstants}, updating the default instance to
-    $(\texttt{lower},\texttt{upper}) = (1,2)$. This unblocks the BC1 upper
-    half of \texttt{chojecki\_sparse\_lower\_envelope\_proof}.
 \end{itemize}
+
+\paragraph{Outstanding.} The \texttt{chojecki\_sparse\_lower\_envelope\_proof}
+theorem is still \texttt{sorry}; closing it requires the Borel–Cantelli +
+block-independence + truncation assembly (see Remark 3 on nested
+prefixes). An in-progress effort to replace the
+\texttt{endpoint\_reparametrization} axiom with an actual theorem proof
+exists in the workspace (file
+\texttt{Erdos524/EndpointReparametrization.lean}) but has ~6 cascading
+algebraic errors in its \texttt{biSup} manipulations; not yet committed.
 
 \end{document}
