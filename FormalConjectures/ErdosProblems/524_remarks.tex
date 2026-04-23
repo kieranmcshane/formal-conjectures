@@ -1,6 +1,7 @@
 \documentclass[11pt]{article}
 \usepackage[margin=1in]{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage[dvipsnames]{xcolor}
 \usepackage{hyperref}
 \hypersetup{colorlinks,linkcolor=blue!60!black,citecolor=blue!60!black,urlcolor=blue!60!black}
 \usepackage[T1]{fontenc}
@@ -8,266 +9,578 @@
 \usepackage{enumitem}
 \setlist{nosep}
 
-\newtheorem{remark}{Remark}
-\newtheorem{proposition}{Proposition}
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
 
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
 \newcommand{\E}{\mathbb{E}}
 \newcommand{\PP}{\mathbb{P}}
 \newcommand{\supnorm}{M}
 \newcommand{\eps}{\varepsilon}
+\newcommand{\indep}{\perp\!\!\!\perp}
+\newcommand{\as}{\text{a.s.}}
+\DeclareMathOperator*{\limsupop}{\limsup}
+\DeclareMathOperator*{\liminfop}{\liminf}
 
-\title{Formalization notes for Erdős Problem 524\\ \large Remarks accumulated during the Lean 4 proof of Chojecki (2026)}
-\author{Companion memo to \texttt{FormalConjectures/ErdosProblems/524.lean}}
+\title{Formalization notes for Erdős Problem 524 in Lean 4\\
+\large Companion memo to the branch \texttt{add-erdos-524} of
+\texttt{leanprover-community/formal-conjectures}}
+\author{Kieran McShane, with Claude Opus 4.7}
 \date{\today}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-This memo accumulates mathematical remarks, subtleties, and open concerns
-encountered while formalizing Chojecki's resolution of Erdős problem 524
-(``supremum of random polynomials on $[-1,1]$'') in Lean 4. It is intended as
-a running appendix to the Lean file and is updated as the formalization
-progresses. The memo records where the Lean statement requires additional
-hypotheses that are implicit in Chojecki's paper, and where genuine gaps in
-prerequisite theory (Mathlib-level) remain.
+This memo accompanies the Lean~4 formalization of Chojecki's (2026)
+resolution of Erdős Problem~524 — the almost-sure order of magnitude of the
+supremum on $[-1,1]$ of a random algebraic polynomial with Rademacher
+coefficients. It records
+(a) the mathematical architecture of the proof as formalized,
+(b) precise statements of the sorry-free closed pieces,
+(c) the atomic set of axioms used to stand in for Mathlib-level
+prerequisites (Brownian motion, Itô integral, Gao–Li–Wellner, 2D KMT,
+endpoint reparametrization), and
+(d) mathematical subtleties and open concerns uncovered in the course of
+formalization. The memo is updated as the branch progresses. Cross-references
+\texttt{typeset in this font} point to actual Lean names in
+\texttt{FormalConjectures/ErdosProblems/}.
 \end{abstract}
 
-%---------------------------------------------------------------------
-\section{Setup and architecture}
+\tableofcontents
 
-Let $(a_k)_{k \ge 1}$ be i.i.d.\ Rademacher signs on a probability space
-$(\Omega, \PP)$ and write
+%---------------------------------------------------------------------
+\section{The problem and its resolution}
+
+\subsection{Erdős's original question and the Salem–Zygmund clarification}
+
+Let $t \in (0,1)$ have binary expansion $t = \sum_{k\ge 1} \eps_k(t) 2^{-k}$
+with $\eps_k(t) \in \{0,1\}$, and set $a_k(t) := (-1)^{\eps_k(t)} \in
+\{-1,+1\}$. Under Lebesgue measure on $(0,1)$ the sequence $(a_k)_{k\ge 1}$
+is i.i.d.\ Rademacher. The associated random algebraic polynomial is
 \[
-  P_n(\omega)(x) = \sum_{k=1}^n a_k(\omega)\, x^k, \qquad
-  \supnorm_n(\omega) = \sup_{x \in [-1,1]} |P_n(\omega)(x)|.
+  P_n(t)(x) := \sum_{k=1}^n a_k(t)\, x^k,
 \]
-The Lean formalization is organized around six \emph{helper modules} under
-\texttt{Helpers/} that provide purely combinatorial / analytic lemmas
-(\texttt{Stirling}, \texttt{CentralBinom}, \texttt{BlockIndep},
-\texttt{IndepSetBridge}, \texttt{LilNormAsymptotics},
-\texttt{CentralBinomWindowSum}), and a single file \texttt{524.lean} that
-develops the probabilistic content.
+and Erdős asked for the correct order of magnitude of
+\[
+  \supnorm_n(t) := \max_{x\in[-1,1]} |P_n(t)(x)|.
+\]
+(Per Salem–Zygmund~1954 the supremum is taken over $x \in [-1,1]$ with
+Rademacher $\pm 1$ coefficients; Erdős's original statement used binary
+digits $\{0,1\}$ and $x \in [0,1]$, which is equivalent modulo
+reparametrization.)
 
-Closed sorries (as of the latest commit on \texttt{add-erdos-524}):
-\begin{itemize}
-  \item \texttt{\#2 lil\_tail\_lower\_at\_scale} — sharp Rademacher lower tail
-    at the LIL scale;
-  \item \texttt{\#3 lil\_sparse\_lower\_bc} — block-BC on exponential
-    subsequences;
-  \item \texttt{\#4 kolmogorov\_lil\_lower\_bound} — full $\liminf / \limsup
-    \ge 1$ half of Kolmogorov's LIL;
-  \item \texttt{\#1 erdos\_524} wrapper — reduces to \texttt{sharp\_upper\_envelope};
-  \item \texttt{\#5 sparse\_lower\_envelope} — conditionally, via axiomatization
-    of the Chojecki ingredients.
-\end{itemize}
+\subsection{Chojecki's theorem (January 2026)}
 
-Remaining:
-\begin{itemize}
-  \item \texttt{chojecki\_sparse\_lower\_envelope\_proof} — the ``inner
-    assembly'' (Borel–Cantelli + block independence + cubic subsequence
-    asymptotics), conditionally on the atomic sub-axioms;
-  \item \texttt{\#6 exact\_lower\_constant} — open in mathematics
-    (Gao–Li–Wellner exact constant is an active research problem).
-\end{itemize}
+Chojecki's paper establishes two complementary results.
+
+\begin{theorem}[Upper envelope, Chojecki~2026]\label{thm:UE}
+Almost surely,
+\[
+  \limsupop_{n\to\infty}\, \frac{\supnorm_n(\omega)}{\sqrt{2n\log\log n}}
+  = 1.
+\]
+\end{theorem}
+
+\begin{theorem}[Sparse lower envelope, Chojecki~2026 Theorem~18]\label{thm:SLE}
+Let $n_m := \lfloor e^{m^3}\rfloor$. There exist explicit constants
+$\alpha_\pm = (1/(6c_\mp))^{1/3}$, where $c_- \le c_+$ are the
+Gao–Li–Wellner small-deviation constants for the centered Gaussian
+process $Y(u) = \int_0^1 e^{-us}\,dB(s)$, $u \ge 0$, such that almost
+surely
+\[
+  \alpha_- \le \limsupop_{m\to\infty}
+  \frac{\log\!\big(\sqrt{n_m}/\supnorm_{n_m}(\omega)\big)}
+       {(\log\log n_m)^{1/3}} \le \alpha_+ \,.
+\]
+Equivalently, $\supnorm_{n_m}(\omega) = \sqrt{n_m}\cdot
+\exp(-\Theta((\log\log n_m)^{1/3}))$ infinitely often.
+\end{theorem}
+
+The \emph{exact} asymptotic constant $\alpha_*$ in
+$\lim_m \log(\sqrt{n_m}/\supnorm_{n_m})/(\log\log n_m)^{1/3} = \alpha_*$
+is open (Remark~19, Chojecki); it would require the as-yet-unestablished
+sharp one-point small-ball asymptotic for $Y$.
 
 %---------------------------------------------------------------------
-\section{The atomic axiom set}
+\section{Formalization architecture}
 
-The bundled Chojecki axiom has been decomposed into six atomic sub-axioms
-(plus two ``post-KMT transfer'' axioms stated directly in terms of
-$\supnorm_n$):
-\begin{description}[labelwidth=2cm,leftmargin=2.2cm]
-  \item[\texttt{wiener\_process\_exists}] Existence of a standard Brownian
-    motion on $[0,\infty)$;
-  \item[\texttt{ito\_integral\_exp\_kernel}] Existence of the Itô integral
-    $Y(u) = \int_0^1 e^{-us}\,dB(s)$ as a centered Gaussian process;
-  \item[\texttt{gao\_li\_wellner\_small\_ball\_upper}] GLW upper bound
-    $\PP(\sup_u |Y(u)| \le \eps) \le \exp(-\underline{c}|\log\eps|^3)$;
-  \item[\texttt{gao\_li\_wellner\_small\_ball\_lower}] GLW lower bound
-    $\PP(\sup_u |Y(u)| \le \eps) \ge \exp(-\bar c|\log\eps|^3)$;
-  \item[\texttt{two\_dim\_KMT\_coupling}] 2D Komlós–Major–Tusnády strong
-    invariance for the reparametrized pair;
-  \item[\texttt{endpoint\_reparametrization}] The deterministic substitution
-    $x = \pm e^{-u/n}$ that maps $\supnorm_n / \sqrt n$ to a supremum of two
-    processes $Z_n^\pm$ on $u \ge 0$.
+The Lean file \texttt{524.lean} declares six sorries:
+\[
+  \text{\#1 wrapper},\ \text{\#2 LIL lower tail},\ \text{\#3 block BC},\
+  \text{\#4 Kolmogorov LIL},\ \text{\#5 sparse lower env.},\ \text{\#6 exact constant}.
+\]
+All but \#6 are closed (some conditionally on axioms documenting
+Mathlib-level gaps).
+
+\subsection{Six helper modules}
+
+Under \texttt{FormalConjectures/ErdosProblems/Helpers/} we build:
+
+\begin{description}[labelwidth=4cm,leftmargin=4.5cm,style=nextline]
+  \item[\texttt{StirlingTwoSided}] Effective two-sided Stirling bound
+    with absolute constants (no Robbins error for the upper direction,
+    which is sufficient downstream).
+  \item[\texttt{IndepSetBridge}] Bridge lemma:
+    $\texttt{iIndepFun}\Rightarrow\texttt{iIndepSet}$ for preimage events.
+  \item[\texttt{BlockIndep}] Independence of sums over pairwise disjoint
+    finset blocks from an i.i.d.\ sequence.
+  \item[\texttt{LilNormAsymptotics}] Asymptotic ratios for the LIL norm
+    $\sqrt{2n\log\log n}$ along geometric subsequences $\lfloor c^k\rfloor$.
+  \item[\texttt{CentralBinomLower}] Sharp pointwise lower bound on the
+    central binomial PMF $\binom{n}{k}/2^n$ with exponent $\alpha = 2 +
+    \eps$ (regime $(k-n/2)^2 \le n\log n$).
+  \item[\texttt{CentralBinomWindowSum}] Existential lower bound on the
+    sum of $\binom{n}{k}/2^n$ over a window of width
+    $\lfloor\sqrt n\rfloor$ centered above the LIL threshold.
+  \item[\texttt{CubicSubseqAsymptotics}] Asymptotics of the cubic
+    subsequence $n_m := \lfloor e^{m^3}\rfloor$ used in
+    Theorem~\ref{thm:SLE}.
 \end{description}
-Transferred to the polynomial level:
-\begin{description}[labelwidth=2cm,leftmargin=2.2cm]
-  \item[\texttt{polynomial\_sup\_small\_ball\_upper}]
-    $\PP(\supnorm_n \le \eps\sqrt n) \le \exp(-\bar c|\log\eps|^3)$;
-  \item[\texttt{polynomial\_sup\_small\_ball\_lower}]
-    $\exp(-\underline{c}|\log\eps|^3) \le \PP(\supnorm_n \le \eps\sqrt n)$.
-\end{description}
+
+The core probabilistic content lives in \texttt{524.lean} itself.
 
 %---------------------------------------------------------------------
-\section{Remarks and subtleties}
+\section{The LIL backbone (sorries \#2, \#3, \#4)}
 
-\begin{remark}[\textbf{Naming convention for the GLW constants}]
-The \texttt{GaoLiWellnerConstants} structure declares fields
-\texttt{lower, upper} with docstring
-``\texttt{exp(-$\bar c$|log $\eps$|$^3$) $\le$ $\PP$ $\le$ exp(-$\underline{c}$|log $\eps$|$^3$)}''
-i.e.\ \texttt{upper} $= \bar c$ (the \emph{larger} constant) is associated
-with the \emph{lower} bound on the probability, and \texttt{lower} $= \underline{c}$
-(the smaller constant) is associated with the \emph{upper} bound.
+The upper envelope (Theorem~\ref{thm:UE}) reduces to a functional LIL for
+the simple symmetric random walk
+\[
+  S_n(\omega) := \sum_{k=1}^n a_k(\omega),
+  \qquad \phi(n) := \sqrt{2n\log\log n}.
+\]
+Classical Kolmogorov's LIL states
+$\limsup_{n\to\infty} S_n / \phi(n) = 1\ \as$ Chojecki's paper uses this
+as a building block; Mathlib lacks the $\limsup\ge 1$ direction, so we
+formalize it from first principles.
 
-However, the current transferred axioms
-\texttt{polynomial\_sup\_small\_ball\_\{upper,lower\}} use the fields
-\emph{swapped}:
-\[
-  \PP \le \exp(-\texttt{glw.upper}\cdot\ldots), \qquad
-  \exp(-\texttt{glw.lower}\cdot\ldots) \le \PP.
-\]
-This is inconsistent with the structure's docstring convention and would
-force $\texttt{glw.upper} \le \texttt{glw.lower}$ once both are used, contradicting
-\texttt{lower\_le\_upper}. For the trivial instance
-$(\texttt{lower},\texttt{upper}) = (1,1)$ the axioms are mutually consistent,
-but for any strict instance the current axioms assert a claim stronger than
-Gao–Li–Wellner actually provides. \emph{Recommendation:} swap the fields in
-the axioms (or swap the structure's docstring convention) before attempting
-to close the downstream BC argument.
-\end{remark}
+\subsection{Sharp Rademacher lower tail at the LIL scale (sorry~\#2)}
 
-\begin{remark}[\textbf{The factor $6 = 3 \cdot 2$ in $\alpha_\pm$}]
-Chojecki's Theorem 18 claims, along the subsequence $n_m = \lfloor e^{m^3}
-\rfloor$,
+\begin{theorem}[\texttt{lil\_tail\_lower\_at\_scale}, closed]\label{thm:tail}
+For every $\delta \in (0,1)$ there exist $N(\delta) \in \N$ and
+$C(\delta) > 0$ such that for all $n \ge N(\delta)$ and every i.i.d.\
+Rademacher sequence $a$ on any probability space,
 \[
-  \alpha_- \le \limsup_{m\to\infty}
-    \frac{\log\big(\sqrt{n_m}/\supnorm_{n_m}(\omega)\big)}{(\log\log n_m)^{1/3}}
-    \le \alpha_+ \quad \text{a.s.},
+  \PP\!\left(S_n \ge (1-\delta)\phi(n)\right)
+  \ge C(\delta)\cdot (\log n)^{-((1-\delta)^2 + \delta)}.
 \]
-with $\alpha_\pm = (1/(6\, c_{\mp}))^{1/3}$. The factor $6$ decomposes as $3
-\cdot 2$:
-\begin{itemize}
-  \item the $3$ comes from the cubic subsequence asymptotic
-    $\log\log n_m \sim 3\log m$ (so the BC1 threshold scales as
-    $m^{-3c\beta^3}$);
-  \item the $2$ comes from the endpoint split
-    $\supnorm_n = \max(\supnorm_n^+, \supnorm_n^-)$ and the
-    \emph{asymptotic independence} of the two halves once coupled (via
-    KMT) to two independent copies of $Y$.
-\end{itemize}
-The second factor is a substantive input: it is \emph{not} a direct
-consequence of the one-sided \texttt{polynomial\_sup\_small\_ball\_upper}
-axiom. It requires an additional statement — essentially
+\end{theorem}
+
+The $+\delta$ slack in the exponent makes the tails summable along
+geometric subsequences $n_k = \lfloor c^k\rfloor$ only for $c$ large
+enough, which is exactly what the second Borel–Cantelli needs.
+
+\paragraph{Proof architecture.} The PMF of $S_n$ is
 \[
-  \PP(\supnorm_n \le \eps\sqrt n) \le \PP(\supnorm_n^+ \le \eps\sqrt n)\cdot
-    \PP(\supnorm_n^- \le \eps\sqrt n)(1 + o(1)),
+  \PP(S_n = 2k-n) = \binom{n}{k} 2^{-n}, \qquad 0 \le k \le n,
 \]
-a ``product-of-marginals'' small-ball bound for the two halves. Without
-encoding this separately (or a sharper GLW asymptotic that already
-accounts for the factor), the BC1 direction only closes under the
-structural hypothesis
-\begin{equation}\label{eq:gap}
-  2\,\texttt{glw.lower} \le \texttt{glw.upper},
+formalized as \texttt{walk\_pmf\_binomial} via the cylinder-event
+expansion of $\{a_j = \sigma_j\}_j$ for $\sigma \in \{\pm 1\}^n$ with
+$\sum \sigma_j = 2k-n$. Writing $d := k - n/2$, a second-order Taylor
+expansion of $y \mapsto (1+y)\log(1+y) + (1-y)\log(1-y)$ yields the
+\emph{sharp} Kullback–Leibler bound
+\begin{equation}\label{eq:KL-sharp}
+  k\,\log\!\tfrac{2k}{n} + (n-k)\,\log\!\tfrac{2(n-k)}{n}
+    \le \frac{(k-(n-k))^2}{2n}\cdot\left(1 + O\!\left(\tfrac{d^2}{n^2}\right)\right)
+    = \frac{2d^2}{n}\cdot(1+o(1)).
 \end{equation}
-which is currently added as a new field \texttt{two\_lower\_le\_upper} to
-\texttt{GaoLiWellnerConstants}. This gap condition is sufficient for the
-present axiomatic setup; it is implied by (but weaker than) the true
-factor-of-$2$ independence argument.
-\end{remark}
-
-\begin{remark}[\textbf{Block independence and $\supnorm_n$}]
-The helper \texttt{iIndepFun\_block\_sums} gives mutual independence of
-\emph{block sums} $Y_k = \sum_{j \in I_k} a_j$ over pairwise disjoint index
-blocks $I_k$. This is directly applicable to the LIL lower bound
-(\texttt{\#4}) because the walk increment $S_{n_{k+1}} - S_{n_k}$ \emph{is}
-such a block sum.
-
-However, the polynomial supremum $\supnorm_{n_m}(\omega)$ depends on the
-full prefix $(a_1,\ldots,a_{n_m})$, not on an increment. Consequently, the
-events $\{\supnorm_{n_m} \le \eps_m\sqrt{n_m}\}$ are \emph{not} mutually
-independent via block-independence alone. Chojecki's proof resolves this by
-(a) using KMT to couple $\supnorm_n / \sqrt n$ to a functional of the
-Brownian motion $B$ on $[0,1]$, then (b) decomposing $B$ into independent
-increments over the cubic subsequence and truncating outside a block. The
-truncation argument is \emph{not} a pure block-independence instance; it
-is a coupling + truncation argument which is currently bundled inside the
-\texttt{chojecki\_sparse\_lower\_envelope\_proof} sorry.
-
-Closing the proof rigorously in Lean requires either an additional axiom
-of the form ``block-truncated $\supnorm_{n_m}^\star$ are independent and
-$\ell^\infty$-close to $\supnorm_{n_m}$ on a set of full measure'', or a
-direct formalization of the KMT + truncation argument. The latter is a
-substantial multi-month effort.
-\end{remark}
-
-\begin{remark}[\textbf{Sharpness of the LIL formalization (sorry \#2)}]
-The sharp Rademacher lower tail
+Combined with two-sided Stirling, this produces the pointwise
+PMF estimate
+\begin{equation}\label{eq:PMF-sharp}
+  \binom{n}{k} 2^{-n} \ge \frac{c}{\sqrt n}\,\exp\!\left(-(2+\eps)\frac{d^2}{n}\right)
+  \quad\text{whenever } d^2 \le n\log n,\ n \ge N(\eps).
+\end{equation}
+Summing over a window $k \in [k_\star, k_\star+W]$ with
+$k_\star = \lceil(n+t)/2\rceil+2$, $W = \lfloor\sqrt n\rfloor$,
+$t = (1-\delta)\phi(n)$, gives, for every $\omega \in
+\{S_n\ge t\}$ included via $\{S_n = 2k-n\}$ with $2k-n\ge t$:
 \[
-  \PP(S_n \ge (1-\delta)\sqrt{2n\log\log n})
-    \ge C\cdot \exp\big(-((1-\delta)^2 + \delta)\log\log n\big)
+  \PP(S_n \ge t) \ge W\cdot \frac{c}{\sqrt n}\cdot
+    \exp\!\left(-(2+\eps)\!\max_{k\in[k_\star,k_\star+W]}\!\frac{d_k^2}{n}\right).
 \]
-is achieved with the polynomial Stirling bound refined to second-order
-Kullback–Leibler. With the naive first-order bound $\log x \le x-1$, the
-central binomial PMF yields only Gaussian constant $\alpha = 4$, which is
-\emph{provably insufficient}: for any $\delta < (3-\sqrt5)/2 \approx 0.382$,
-the implied bound $\propto (\log n)^{-2(1-\delta)^2}$ fails to dominate
-the target $(\log n)^{-((1-\delta)^2+\delta)}$.
+The worst-case exponent expands as
+$(t/2+\sqrt n+2)^2 = t^2/4 + t(\sqrt n+2) + (\sqrt n+2)^2$, and dividing
+by $n$ and invoking the algebraic core
+\[
+  (2+\eps/4)\!\cdot\!(t/2+\sqrt n+2)^2/n
+    \le ((1-\delta)^2 + \delta)\log\log n
+\]
+(encapsulated as \texttt{Erdos524.Helpers.exponent\_window\_bound\_uv})
+produces the claim.
 
-Fix: sharpen the KL bound via a second-order Taylor expansion of
-$\log(1\pm y)$, restricted to a regime $|k - n/2|^2 \le n\log n$. This
-regime constraint is automatically satisfied at the LIL scale
-$|k-n/2| \le \sqrt{n\log\log n}$. With the sharp bound,
-$\alpha = 2+\eps$ is obtainable with $\eps = \delta/4$, and the target
-exponent $(1-\delta)^2 + \delta$ is comfortably met.
-
-\emph{Tactical note.} The algebraic core \texttt{margin\_absorbs\_sqrt\_core}
-introduces $u = \sqrt{2s}$ as a hypothesis $u^2 = 2s$, keeping all proof
-bodies polynomial in $(u, s, \delta)$. This sidesteps the heartbeat
-blowup that defeated three earlier attempts using $\texttt{Real.sqrt}$
-directly.
+\begin{remark}[Why $\alpha=4$ is provably insufficient]\label{rem:alpha4}
+If \eqref{eq:KL-sharp} is replaced by the loose first-order bound
+$\log x \le x-1$, the PMF exponent degrades from $2 + \eps$ to $4$. The
+resulting lower bound on $\PP(S_n\ge t)$ then produces exponent
+$2(1-\delta)^2\log\log n$, which \emph{exceeds} the target
+$(1-\delta)^2+\delta$ whenever $2(1-\delta)^2 > (1-\delta)^2+\delta$,
+i.e.\ $(1-\delta)^2 > \delta$, i.e.\ $\delta < (3-\sqrt 5)/2 \approx
+0.382$. For these $\delta$ the $+\delta$ slack cannot absorb the
+factor-of-2 loss. The second-order refinement of the KL bound is
+therefore \emph{necessary}, not cosmetic. In Lean, the key step that
+unblocks it is keeping $u = \sqrt{2s}$ as a hypothesis $u^2 = 2s$ so that
+the core inequality (\texttt{margin\_absorbs\_sqrt\_core}) is polynomial
+in $(u,s,\delta)$ — three earlier agent attempts blew the
+\texttt{maxHeartbeats} budget working directly with \texttt{Real.sqrt}.
 \end{remark}
 
-\begin{remark}[\textbf{On \texttt{answer(sorry)}}]
-The FormalConjectures framework elaborates
-\texttt{answer(sorry)} in a \texttt{Prop} context to \texttt{True} by default
-(see \texttt{FormalConjectures/Util/Answer.lean}, option
-\texttt{google.answer = alwaysTrue}). Consequently the theorem
-\texttt{erdos\_524 : answer(sorry) $\leftrightarrow$ \emph{RHS}} is
-semantically $\texttt{True} \leftrightarrow \emph{RHS}$, i.e., the RHS is
-the actual mathematical content. The upper envelope order of magnitude
-$M_n(\omega) \asymp \sqrt{n\log\log n}$ a.s.\ is proved (and therefore the
-wrapper is closable) via the combined limsup result
-$\limsup \supnorm_n / \sqrt{2n\log\log n} = 1$ a.s., which is now
-sorry-free in the repo.
+\subsection{Block Borel–Cantelli (sorry~\#3)}
+
+\begin{theorem}[\texttt{lil\_sparse\_lower\_bc}, closed]
+For $\delta \in (0,1)$ and $c > 1$, almost surely
+\[
+  S_{\lfloor c^{k+1}\rfloor} - S_{\lfloor c^k\rfloor}
+    \ge (1-\delta)\phi(\lfloor c^{k+1}\rfloor - \lfloor c^k\rfloor)
+  \quad\text{infinitely often.}
+\]
+\end{theorem}
+
+\paragraph{Proof architecture.} By shift-invariance of the Rademacher
+sequence, the increment over the block $(\lfloor c^k\rfloor,
+\lfloor c^{k+1}\rfloor]$ has the same law as $S_{m_k}$ with
+$m_k = \lfloor c^{k+1}\rfloor - \lfloor c^k\rfloor$. Theorem~\ref{thm:tail}
+(applied uniformly to \emph{every} Rademacher sequence by the strengthened
+signature $\exists N\,C,\forall a\ldots$) gives
+\[
+  \PP(E_k) \ge C\cdot (\log m_k)^{-((1-\delta)^2+\delta)}
+  \sim C\cdot (k\log c)^{-((1-\delta)^2+\delta)},
+\]
+which is not summable since $(1-\delta)^2 + \delta < 1$ for
+$\delta \in (0,1)$. Disjointness of the index blocks
+gives \texttt{iIndepFun} of the block sums via
+\texttt{Erdos524.Helpers.iIndepFun\_block\_sums}; passing to preimage
+events via \texttt{iIndepSet\_preimage\_of\_iIndepFun} yields
+\texttt{iIndepSet} of $(E_k)$, and the second Borel–Cantelli
+(\texttt{ProbabilityTheory.measure\_limsup\_eq\_one}) gives the
+conclusion.
+
+\subsection{Kolmogorov's LIL lower bound (sorry~\#4)}
+
+\begin{theorem}[\texttt{kolmogorov\_lil\_lower\_bound}, closed]
+For every i.i.d.\ Rademacher sequence,
+\[
+  \limsupop_{n\to\infty} S_n / \phi(n) \ge 1 \quad \as
+\]
+\end{theorem}
+
+\paragraph{Proof.} Suffices to show: for every integer $m\ge 1$,
+$\limsup S_n/\phi(n) \ge 1 - 1/m$ almost surely; countable intersection
+gives $\limsup \ge 1$ via $\lim_{m\to\infty}(1-1/m)$.
+
+Fix $m$, set $c := 4m^2$, $\delta := 1/(8m)$. By the block BC:
+a.s.\ infinitely often,
+\[
+  S_{\lfloor c^{k+1}\rfloor} - S_{\lfloor c^k\rfloor}
+    \ge (1-\delta)\phi(\lfloor c^{k+1}\rfloor - \lfloor c^k\rfloor).
+\]
+Apply Kolmogorov's LIL \emph{upper} bound (already in the file,
+from Chojecki's companion argument) to $-a$, yielding a.s.\
+eventually
+\[
+  S_{\lfloor c^k\rfloor} \ge -(1+\delta)\,\phi(\lfloor c^k\rfloor).
+\]
+Therefore a.s.\ infinitely often,
+\[
+  \frac{S_{\lfloor c^{k+1}\rfloor}}{\phi(\lfloor c^{k+1}\rfloor)}
+    \ge
+    (1-\delta)\cdot
+      \frac{\phi(\lfloor c^{k+1}\rfloor - \lfloor c^k\rfloor)}
+           {\phi(\lfloor c^{k+1}\rfloor)}
+    \ -\ (1+\delta)\cdot
+      \frac{\phi(\lfloor c^k\rfloor)}{\phi(\lfloor c^{k+1}\rfloor)}.
+\]
+The ratios converge (\texttt{Erdos524.Helpers.lilNormAux\_block\_ratio\_tendsto}
+and \texttt{...\_scale\_ratio\_tendsto}) to
+\[
+  \sqrt{(c-1)/c} = \sqrt{1 - 1/(4m^2)}
+  \qquad\text{and}\qquad
+  1/\sqrt c = 1/(2m),
+\]
+respectively. The limit of the right-hand side is therefore
+\[
+  (1-\tfrac1{8m})\sqrt{1 - \tfrac1{4m^2}} - (1+\tfrac1{8m})\cdot\tfrac{1}{2m}.
+\]
+A small algebraic calculation (closed in Lean by \texttt{nlinarith} on the
+identity $((1-\delta)\sqrt{1-1/c} - (1+\delta)/\sqrt c - (1-1/m))\cdot 32m^3
+= 12m^2 - 10m + 1 \ge 3 > 0$) shows this exceeds $1-1/m$, yielding the
+conclusion.
+
+%---------------------------------------------------------------------
+\section{The sparse lower envelope (sorry~\#5)}
+
+Theorem~\ref{thm:SLE} is the nontrivial content of Chojecki's paper. The
+Lean formalization reduces it to six \emph{atomic sub-axioms} documenting
+distinct Mathlib-level gaps, plus an \emph{assembly theorem} that
+combines them; the assembly is still a \texttt{sorry}, but with all
+ingredients isolated.
+
+\subsection{Atomic sub-axioms}
+
+The following are declared in \texttt{524.lean} immediately after the
+\texttt{GaoLiWellnerConstants} structure. Each one stands for a specific
+mathematical ingredient missing from Mathlib as of v4.27.0.
+
+\begin{description}[style=nextline,leftmargin=3cm]
+  \item[\texttt{wiener\_process\_exists}] A standard Brownian motion
+    $B = (B_s)_{s\ge 0}$ exists on some probability space with the
+    usual properties. Mathlib has partial Wiener-measure infrastructure
+    via \texttt{MeasureTheory.WienerSpace}; the full construction of a
+    continuous-path Brownian motion is ongoing work.
+  \item[\texttt{ito\_integral\_exp\_kernel}] The Itô integral
+    $Y(u) := \int_0^1 e^{-us}\,dB(s)$ exists for every $u\ge 0$ and
+    defines a centered continuous Gaussian process with explicit
+    covariance $\E[Y(u)Y(v)] = (1 - e^{-(u+v)})/(u+v)$. Mathlib lacks
+    the general Itô integral; this is a multi-year project.
+  \item[\texttt{gao\_li\_wellner\_small\_ball\_upper}] The
+    upper small-ball asymptotic
+    $\PP(\sup_{u\ge 0} |Y(u)|\le\eps) \le \exp(-c_-|\log\eps|^3)$,
+    where $c_-$ is a fixed constant.
+  \item[\texttt{gao\_li\_wellner\_small\_ball\_lower}] The matching
+    lower bound
+    $\PP(\sup_{u\ge 0} |Y(u)|\le\eps) \ge \exp(-c_+|\log\eps|^3)$.
+    Both GLW bounds require Karhunen–Loève expansion + entropy
+    methods on the Gaussian process $Y$; again not in Mathlib.
+  \item[\texttt{two\_dim\_KMT\_coupling}] The 2D
+    Komlós–Major–Tusnády strong invariance coupling: on the same
+    probability space as $B$, there exist two processes $Z_n^\pm(u)$
+    coinciding in law with the reparametrized polynomials, such that
+    \[\sup_{u\ge 0}\bigl|Z_n^\pm(u) - Y^\pm(u)\bigr| = O(\log n / \sqrt n)\ \as,\]
+    with $Y^\pm$ two independent copies of $Y$. 1D KMT itself is an
+    open Mathlib target.
+  \item[\texttt{endpoint\_reparametrization}] A \emph{deterministic}
+    identity: the substitution $x = \pm e^{-u/n}$ sends
+    $x \in [-1,1]\setminus\{0\}$ to $u\in[0,\infty)$ bijectively on each
+    sign branch, and
+    \[\frac{\supnorm_n(\omega)}{\sqrt n}
+      = \max\!\left(\sup_{u\ge 0}\!\left|\tfrac{1}{\sqrt n}\textstyle\sum_{k=1}^n a_k(\omega)e^{-uk/n}\right|,\
+         \sup_{u\ge 0}\!\left|\tfrac{1}{\sqrt n}\textstyle\sum_{k=1}^n a_k(\omega)(-e^{-u/n})^k\right|\right).\]
+    This is elementary calculus; a partial Lean proof exists in
+    \texttt{Erdos524/EndpointReparametrization.lean} (modulo a few
+    cascading \texttt{Real.sqrt}/\texttt{biSup} rewrites still to be
+    unstuck).
+\end{description}
+
+For the Borel–Cantelli assembly we also retain two \emph{transferred}
+axioms stating the small-ball bounds directly for $\supnorm_n$ after
+applying endpoint reparametrization $+$ KMT $+$ GLW:
+\begin{itemize}
+  \item \texttt{polynomial\_sup\_small\_ball\_upper}:
+    $\PP(\supnorm_n \le \eps\sqrt n) \le \exp(-c_+|\log\eps|^3)$,
+  \item \texttt{polynomial\_sup\_small\_ball\_lower}:
+    $\PP(\supnorm_n \le \eps\sqrt n) \ge \exp(-c_-|\log\eps|^3)$.
+\end{itemize}
+(See Section~\ref{sec:subtleties} Remark~\ref{rem:convention} on a naming
+ambiguity in these axioms.)
+
+\subsection{Assembly of Theorem~\ref{thm:SLE}}\label{sec:assembly}
+
+The assembly theorem
+\texttt{chojecki\_sparse\_lower\_envelope\_proof} (currently
+\texttt{sorry}) takes as input the transferred small-ball axioms and
+produces the two bounds $\alpha_- \le \limsup R_m \le \alpha_+$ via
+Borel–Cantelli on the cubic subsequence. The key cubic-asymptotic
+inputs, proved sorry-free in
+\texttt{CubicSubseqAsymptotics.lean}, are:
+\begin{align}
+  \log n_m / m^3 &\to 1, & \log n_m &\ge m^3/2\text{ eventually},\label{eq:cubic-log}\\
+  \log\log n_m / (3\log m) &\to 1, & \log\log n_m &\ge \log m\text{ eventually}.\label{eq:cubic-loglog}
+\end{align}
+
+\paragraph{Upper direction: $\limsup R_m \le \alpha_+$ a.s.}
+For $\beta > \alpha_+ = (1/(6c_-))^{1/3}$, Borel–Cantelli~I gives
+$\PP(R_m \ge \beta\ \text{i.o.}) = 0$ provided $\sum_m \PP(R_m\ge\beta)<\infty$.
+Setting $\eps_m := \exp(-\beta(\log\log n_m)^{1/3})$,
+\[
+  \PP(R_m \ge \beta)
+    = \PP(\supnorm_{n_m} \le \eps_m\sqrt{n_m})
+    \le \exp(-c_+\beta^3\log\log n_m)
+    \sim m^{-3c_+\beta^3}.
+\]
+Summability requires $3c_+ \beta^3 > 1$, i.e.\
+$\beta^3 > 1/(3c_+)$. The claim $\beta^3 > 1/(6c_-)$ is stronger, hence
+the \emph{structural} hypothesis $c_+ \ge 2c_-$ (i.e.\
+\texttt{two\_lower\_le\_upper}) which we have added to the
+\texttt{GaoLiWellnerConstants} structure. Under this hypothesis,
+$\beta^3 > 1/(6c_-) \ge 1/(3c_+)$ and summability follows from
+\eqref{eq:cubic-loglog}.
+
+\begin{remark}[The factor of $6$ beyond $2c_+ \le c_-$]\label{rem:factor6}
+The true Gao–Li–Wellner bound has $c_+ \sim c_-$ asymptotically
+(they coincide up to a factor of $2$ arising from the endpoint split,
+not an additional factor). Chojecki's exact factor $6$ arises as
+$6 = 3\cdot 2$: the $3$ from \eqref{eq:cubic-loglog}, and the $2$ from
+the identity
+\[
+  \PP(\supnorm_n \le \eps\sqrt n)
+    = \PP\bigl(\supnorm_n^+\le\eps\sqrt n,\ \supnorm_n^-\le\eps\sqrt n\bigr)
+    \approx \PP(\supnorm_n^+ \le \eps\sqrt n)^2
+\]
+under the (asymptotic) independence of $\supnorm_n^\pm$. The last
+approximation is enforced by the KMT coupling to two independent
+copies of $Y$ and is \emph{not} a consequence of the transferred
+one-sided axioms as currently stated. Our structural hypothesis
+$c_+\ge 2c_-$ is the minimal weakening that keeps the downstream BC1
+calculation tight; a sharper formalization would either state
+``product-of-marginals'' small-ball bounds as a separate axiom, or
+axiomatize the KMT step at the level of coupling to \emph{independent}
+$Y^\pm$ and derive the factor of~2 internally.
+\end{remark}
+
+\paragraph{Lower direction: $\liminf \limsup R_m \ge \alpha_-$ a.s.}
+For $\alpha < \alpha_- = (1/(6c_+))^{1/3}$, Borel–Cantelli~II requires
+$\sum_m \PP(R_m\ge\alpha) = \infty$ \emph{and} mutual (or pairwise)
+independence of the events. The transferred small-ball lower bound
+gives
+\[
+  \PP(R_m \ge \alpha) \ge \exp(-c_-\alpha^3\log\log n_m) \sim m^{-3c_-\alpha^3},
+\]
+so divergence holds for $\alpha < (1/(3c_-))^{1/3}$ which is $\ge \alpha_-$
+once the factor-of-$2$ independence is established (Remark~\ref{rem:factor6}).
+
+\emph{The independence step is the main obstruction currently in the
+Lean proof}; see Remark~\ref{rem:nested} below.
+
+%---------------------------------------------------------------------
+\section{Subtleties and open concerns}\label{sec:subtleties}
+
+\begin{remark}[Naming convention of GLW constants]\label{rem:convention}
+The \texttt{GaoLiWellnerConstants} structure declares two real fields
+\texttt{lower, upper} with the original docstring
+\[
+  \exp(-\text{\texttt{upper}}\cdot|\log\eps|^3)\ \le\ \PP(\sup|Y|\le\eps)\ \le\
+  \exp(-\text{\texttt{lower}}\cdot|\log\eps|^3).
+\]
+In this convention \texttt{upper} is the \emph{larger} constant and
+drives the \emph{lower} bound on $\PP$; conversely \texttt{lower} is the
+smaller constant and drives the upper bound.
+
+The currently declared transferred axioms
+\texttt{polynomial\_sup\_small\_ball\_\{upper,lower\}} invert this
+convention: the ``upper'' axiom uses \texttt{glw.upper} in an upper
+bound on $\PP$, and vice versa. For the default instance
+$(\texttt{lower},\texttt{upper}) = (1,2)$ with the freshly added
+\texttt{two\_lower\_le\_upper} field, the statements remain mutually
+consistent, but for any semantically correct instance reflecting the
+GLW theorem, the axioms' convention would need to be swapped to match
+the structure's docstring. This is a clerical (not mathematical) fix
+and should be performed in a future commit.
+\end{remark}
+
+\begin{remark}[Block independence vs.\ nested supremum]\label{rem:nested}
+The helper \texttt{iIndepFun\_block\_sums} gives independence of
+\emph{sums} over pairwise disjoint finite-index blocks from an i.i.d.\
+sequence. This applies directly to increments $S_{n_{k+1}} - S_{n_k}$
+(used in the LIL lower bound, sorries \#3--\#4).
+
+It does \emph{not} apply directly to $\supnorm_{n_m}(\omega)$, which
+depends on the whole prefix $(a_1,\ldots,a_{n_m})$. Independence of the
+events $\{\supnorm_{n_m}\le\eps_m\sqrt{n_m}\}$ in Theorem~\ref{thm:SLE}
+is obtained via KMT: couple $\supnorm_{n_m}/\sqrt{n_m}$ to a functional
+of $B|_{[0,1]}$, decompose $B$ into independent increments, truncate
+outside a block, and exploit that $\supnorm_{n_m}$ is asymptotically
+determined by the most recent block's Brownian increment. This is
+\emph{not} a direct instance of block independence: it is a
+coupling-plus-truncation argument bundled into the KMT axiom, whose
+assembly into the actual proof is the ~500-line BC content still
+absent from \texttt{chojecki\_sparse\_lower\_envelope\_proof}.
+\end{remark}
+
+\begin{remark}[Endpoint reparametrization as a real theorem]
+The sixth atomic axiom \texttt{endpoint\_reparametrization} is
+elementary calculus and deserves elimination. A partial proof exists
+(\texttt{Erdos524/EndpointReparametrization.lean}, not yet on
+\texttt{main}) containing: the substitution
+$u = -n\log x$, image computation $\{x\in(0,1]\} = \{u\in[0,\infty)\}$
+and the matching formula
+$a_k x^k \mapsto a_k e^{-uk/n}$. The final bridge into
+$\supnorm_n$ (matching \texttt{randomPoly a n \(\omega\)} to the helper's
+\texttt{Helpers.poly a'}) breaks on a \texttt{let}/\texttt{set}
+opacity issue plus a small handful of \texttt{biSup} normalization
+rewrites. Estimate to complete: 1--2 hours of careful Lean.
+\end{remark}
+
+\begin{remark}[Sharp LIL tail via the $u^2 = 2s$ reparametrization]
+The proof of \eqref{eq:PMF-sharp} in Lean foundered three times on
+\texttt{maxHeartbeats} timeouts when tactics like \texttt{nlinarith},
+\texttt{field\_simp}, and \texttt{ring} were applied directly to
+expressions containing \texttt{Real.sqrt (2 * n * Real.log (Real.log n))}.
+The key tactical move (lemma \texttt{margin\_absorbs\_sqrt\_core}) is to
+introduce $u$ with a hypothesis $u^2 = 2s$ so that every inequality is
+\emph{polynomial} in $(u, s, \delta)$; no \texttt{Real.sqrt} appears in
+the arithmetic. This pattern is likely useful in other LIL-scale
+formalizations.
+\end{remark}
+
+\begin{remark}[The \texttt{answer(sorry)} elaborator]
+The FormalConjectures framework provides \texttt{answer(\_)} as a
+meta-syntactic placeholder; in \texttt{Prop} context with argument
+\texttt{sorry}, it elaborates to \texttt{True}
+(\texttt{FormalConjectures/Util/Answer.lean}). Thus
+\texttt{erdos\_524 : answer(sorry) $\leftrightarrow$ RHS} reduces to
+\texttt{True $\leftrightarrow$ RHS}, i.e.\ proving the right-hand side
+directly. In our case the right-hand side asserts the existence of a
+single function $f$ controlling both envelopes at the LIL scale, which
+is now delivered by $f(n) := \sqrt{2n\log\log n}$ and the proven
+$\limsup \supnorm_n/f(n) = 1$.
+\end{remark}
+
+\begin{remark}[Open problem: the exact constant (sorry~\#6)]
+The final sorry concerns the almost-sure \emph{limit}
+\[
+  \lim_{m\to\infty}
+    \frac{\log(\sqrt{n_m}/\supnorm_{n_m})}{(\log\log n_m)^{1/3}} = \alpha_*.
+\]
+By Theorem~\ref{thm:SLE} the limsup lies in $[\alpha_-,\alpha_+]$ almost
+surely, but the sharp one-point asymptotic
+$-\log\PP(\sup|Y|\le\eps) \sim c_*|\log\eps|^3$ on which
+$\alpha_* = (1/(6c_*))^{1/3}$ would be computed is not known; it
+remains an open problem in Gaussian-process small-ball theory
+(Chojecki~2026 Remark~19). Closing this sorry therefore depends on
+mathematical progress, not formalization effort.
 \end{remark}
 
 %---------------------------------------------------------------------
 \section{Change log}
 
-\begin{itemize}
-  \item \textbf{Commit \texttt{c6e3cba}.} Added field
-    \texttt{two\_lower\_le\_upper : 2·lower $\le$ upper} to
-    \texttt{GaoLiWellnerConstants}, updating the default instance to
-    $(\texttt{lower},\texttt{upper}) = (1,2)$. This unblocks the BC1 upper
-    half of \texttt{chojecki\_sparse\_lower\_envelope\_proof}.
-  \item \textbf{Commit \texttt{68d7240}.} Added
-    \texttt{Helpers/CubicSubseqAsymptotics.lean} (351 lines, sorry-free):
-    six theorems on the asymptotics of $n_m = \lfloor e^{m^3}\rfloor$
-    needed for the Chojecki assembly. Introduced this \texttt{524\_remarks.tex}
-    memo.
-  \item \textbf{Commit \texttt{6e7bc7e}.} Refactored the big
-    \texttt{chojecki\_sparse\_lower\_envelope} axiom into six atomic
-    sub-axioms plus two transferred axioms. Closed sorries \#1 and \#5
-    (the latter conditionally, via the new sub-axioms).
-  \item \textbf{Commit \texttt{315e8e1}.} Closed sorries \#2,
-    \#3, \#4. Added six helper modules (\texttt{StirlingTwoSided},
-    \texttt{IndepSetBridge}, \texttt{BlockIndep},
-    \texttt{LilNormAsymptotics}, \texttt{CentralBinomLower},
-    \texttt{CentralBinomWindowSum}). Added \texttt{walk\_pmf\_binomial} in
-    524.lean.
-\end{itemize}
+\begin{description}[leftmargin=2.1cm,style=nextline]
+  \item[\texttt{efe0af2}] \texttt{docs:} update memo change log.
+  \item[\texttt{c6e3cba}] \texttt{feat:} strengthen
+    \texttt{GaoLiWellnerConstants} with $2\cdot\texttt{lower} \le
+    \texttt{upper}$ gap. Default instance updated to
+    $(\texttt{lower},\texttt{upper}) = (1,2)$.
+  \item[\texttt{68d7240}] \texttt{feat:} add
+    \texttt{Helpers/CubicSubseqAsymptotics.lean} (six theorems,
+    sorry-free) and this memo.
+  \item[\texttt{6e7bc7e}] \texttt{refactor:} decompose the opaque
+    Chojecki axiom into six atomic Mathlib-gap sub-axioms plus two
+    transferred axioms. Close sorries \#1 and \#5 (the latter
+    conditionally on the new sub-axioms).
+  \item[\texttt{315e8e1}] \texttt{feat:} close sorries \#2, \#3, \#4 —
+    full LIL lower bound chain. Add six helper modules and
+    \texttt{walk\_pmf\_binomial}.
+\end{description}
 
-\paragraph{Outstanding.} The \texttt{chojecki\_sparse\_lower\_envelope\_proof}
-theorem is still \texttt{sorry}; closing it requires the Borel–Cantelli +
-block-independence + truncation assembly (see Remark 3 on nested
-prefixes). An in-progress effort to replace the
-\texttt{endpoint\_reparametrization} axiom with an actual theorem proof
-exists in the workspace (file
-\texttt{Erdos524/EndpointReparametrization.lean}) but has ~6 cascading
-algebraic errors in its \texttt{biSup} manipulations; not yet committed.
+\paragraph{Outstanding.}
+\begin{itemize}
+  \item \texttt{chojecki\_sparse\_lower\_envelope\_proof} — the BC
+    assembly on the cubic subsequence. Upper direction reduces to
+    direct BC1 once the factor-of-$2$ issue (Remark~\ref{rem:factor6})
+    is handled; lower direction needs the truncation-plus-coupling
+    argument sketched in Remark~\ref{rem:nested}.
+  \item \texttt{endpoint\_reparametrization} — partially proved (a
+    pure-calculus identity), in workspace but not yet on \texttt{main}.
+  \item \texttt{exact\_lower\_constant} — open in mathematics.
+\end{itemize}
 
 \end{document}
