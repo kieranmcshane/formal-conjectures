@@ -15,6 +15,11 @@ limitations under the License.
 -/
 
 import FormalConjectures.Util.ProblemImports
+import FormalConjectures.ErdosProblems.Helpers.IndepSetBridge
+import FormalConjectures.ErdosProblems.Helpers.BlockIndep
+import FormalConjectures.ErdosProblems.Helpers.LilNormAsymptotics
+import FormalConjectures.ErdosProblems.Helpers.CentralBinomLower
+import FormalConjectures.ErdosProblems.Helpers.CentralBinomWindowSum
 
 /-!
 # Erdős Problem 524
@@ -1012,6 +1017,367 @@ private theorem lil_tail_at_scale
         field_simp
 
 /--
+**PMF identity for the simple Rademacher walk.** For a Rademacher sequence
+`(a_j)`, the walk `S_n = ∑_{j=1}^{n} a_j` satisfies
+`ℙ(S_n = 2k - n) = C(n, k) / 2^n` for `0 ≤ k ≤ n`.
+
+Proof: decompose the event `{S_n = 2k-n}` (up to a null set) as a disjoint
+union over subsets `S ⊆ Icc 1 n` of cardinality `k`: on the "cylinder"
+`{∀ i ∈ Icc 1 n, a i ω = if i ∈ S then 1 else -1}` the sum is exactly
+`|S| - (n - |S|) = 2k - n`. Each cylinder has probability `(1/2)^n` by
+independence, and there are `C(n,k)` of them.
+-/
+private lemma walk_pmf_binomial (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a)
+    (n : ℕ) (k : ℕ) (hk : k ≤ n) :
+    ℙ {ω | walk a n ω = 2 * (k : ℝ) - n} = (n.choose k : ENNReal) / (2 : ENNReal) ^ n := by
+  classical
+  -- The sign assignment associated to a subset `S ⊆ Icc 1 n`.
+  set sign : Finset ℕ → ℕ → Set ℝ := fun S i => if i ∈ S then ({1} : Set ℝ) else {-1}
+  have hsign_meas : ∀ S i, MeasurableSet (sign S i) := by
+    intro S i
+    by_cases h : i ∈ S <;> simp [sign, h, MeasurableSet.singleton]
+  -- The cylinder event for a given sign pattern.
+  set cyl : Finset ℕ → Set Ω := fun S =>
+    ⋂ i ∈ Finset.Icc 1 n, (a i) ⁻¹' sign S i
+  -- Each cylinder is measurable.
+  have hcyl_meas : ∀ S, MeasurableSet (cyl S) := by
+    intro S
+    refine MeasurableSet.biInter (Finset.Icc 1 n).countable_toSet (fun i _ => ?_)
+    exact (ha.measurable i) (hsign_meas S i)
+  -- Measure of a single cylinder: (1/2)^n.
+  have hcyl_prob : ∀ S : Finset ℕ, S ⊆ Finset.Icc 1 n →
+      ℙ (cyl S) = (1 / 2 : ENNReal) ^ n := by
+    intro S _
+    have hfactor := (iIndepFun_iff_measure_inter_preimage_eq_mul.mp ha.indep)
+      (Finset.Icc 1 n) (sets := sign S)
+      (fun i _ => hsign_meas S i)
+    simp only [cyl]
+    rw [hfactor]
+    -- Each ℙ((a i)⁻¹' (sign S i)) = 1/2.
+    have heach : ∀ i ∈ Finset.Icc 1 n, ℙ ((a i) ⁻¹' sign S i) = (1 / 2 : ENNReal) := by
+      intro i _
+      by_cases h : i ∈ S
+      · simp only [sign, h, if_true]
+        have : (a i) ⁻¹' ({1} : Set ℝ) = {ω | a i ω = 1} := by
+          ext ω; simp
+        rw [this, ha.prob_pos i]
+      · simp only [sign, h, if_false]
+        have : (a i) ⁻¹' ({-1} : Set ℝ) = {ω | a i ω = -1} := by
+          ext ω; simp
+        rw [this, ha.prob_neg i]
+    rw [Finset.prod_congr rfl heach]
+    rw [Finset.prod_const]
+    congr 1
+    simp [Nat.card_Icc]
+  -- On cylinder cyl S (for S ⊆ Icc 1 n of card k), walk a n ω = 2k - n.
+  have hcyl_walk : ∀ S : Finset ℕ, S ⊆ Finset.Icc 1 n → S.card = k →
+      ∀ ω ∈ cyl S, walk a n ω = 2 * (k : ℝ) - n := by
+    intro S hS hSk ω hω
+    simp only [cyl, Set.mem_iInter] at hω
+    -- For each i ∈ Icc 1 n, a i ω = if i ∈ S then 1 else -1.
+    have hai : ∀ i ∈ Finset.Icc 1 n, a i ω = if i ∈ S then (1 : ℝ) else -1 := by
+      intro i hi
+      have := hω i hi
+      by_cases h : i ∈ S
+      · simpa [sign, h] using this
+      · simpa [sign, h] using this
+    -- Compute the walk.
+    unfold walk
+    rw [Finset.sum_congr rfl hai]
+    -- ∑ (if i ∈ S then 1 else -1) = |S| - (n - |S|) = 2 k - n.
+    have hsplit : ∀ i ∈ Finset.Icc 1 n,
+        (if i ∈ S then (1 : ℝ) else -1) =
+        (if i ∈ S then (1 : ℝ) else 0) + (if i ∈ S then (0 : ℝ) else -1) := by
+      intro i _; by_cases h : i ∈ S <;> simp [h]
+    rw [Finset.sum_congr rfl hsplit, Finset.sum_add_distrib]
+    -- First sum = |S|, second sum = -(n - |S|).
+    have hS_card : (∑ i ∈ Finset.Icc 1 n, if i ∈ S then (1 : ℝ) else 0) = (k : ℝ) := by
+      rw [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const,
+        nsmul_eq_mul, mul_one]
+      have hfilter : (Finset.Icc 1 n).filter (· ∈ S) = S := by
+        ext i; simp only [Finset.mem_filter]
+        exact ⟨fun ⟨_, h⟩ => h, fun h => ⟨hS h, h⟩⟩
+      rw [hfilter, hSk]
+    have hnotS_card : (∑ i ∈ Finset.Icc 1 n, if i ∈ S then (0 : ℝ) else -1) =
+        -((n : ℝ) - k) := by
+      rw [Finset.sum_ite, Finset.sum_const_zero, zero_add, Finset.sum_const]
+      have hfilter : (Finset.Icc 1 n).filter (fun i => i ∉ S) =
+          (Finset.Icc 1 n) \ S := by
+        ext i; simp [Finset.mem_filter, Finset.mem_sdiff]
+      rw [hfilter]
+      have hcard : ((Finset.Icc 1 n) \ S).card = n - k := by
+        rw [Finset.card_sdiff_of_subset hS, Nat.card_Icc, hSk]; omega
+      rw [hcard, nsmul_eq_mul]
+      have hcast : ((n - k : ℕ) : ℝ) = (n : ℝ) - k := by
+        rw [Nat.cast_sub hk]
+      rw [hcast]; ring
+    rw [hS_card, hnotS_card]; ring
+  -- Pairwise disjointness of cylinders for distinct subsets.
+  have hcyl_disj : ∀ S T : Finset ℕ, S ⊆ Finset.Icc 1 n → T ⊆ Finset.Icc 1 n →
+      S ≠ T → Disjoint (cyl S) (cyl T) := by
+    intro S T hS hT hST
+    rw [Set.disjoint_iff_inter_eq_empty]
+    ext ω
+    simp only [Set.mem_inter_iff, Set.mem_empty_iff_false, iff_false, not_and]
+    intro hωS hωT
+    apply hST
+    -- If there's an i ∈ S \ T: a i ω = 1 from cyl S, a i ω = -1 from cyl T. Contradiction.
+    have hsubST : ∀ i, i ∈ S → i ∈ T := by
+      intro i hi
+      by_contra hiT
+      have hiIcc : i ∈ Finset.Icc 1 n := hS hi
+      simp only [cyl, Set.mem_iInter] at hωS hωT
+      have h1 : a i ω = 1 := by
+        have := hωS i hiIcc; simpa [sign, hi] using this
+      have h2 : a i ω = -1 := by
+        have := hωT i hiIcc; simpa [sign, hiT] using this
+      linarith
+    have hsubTS : ∀ i, i ∈ T → i ∈ S := by
+      intro i hi
+      by_contra hiS
+      have hiIcc : i ∈ Finset.Icc 1 n := hT hi
+      simp only [cyl, Set.mem_iInter] at hωS hωT
+      have h1 : a i ω = 1 := by
+        have := hωT i hiIcc; simpa [sign, hi] using this
+      have h2 : a i ω = -1 := by
+        have := hωS i hiIcc; simpa [sign, hiS] using this
+      linarith
+    exact Finset.ext (fun i => ⟨hsubST i, hsubTS i⟩)
+  -- The union of all "k-cylinders" over S ∈ powersetCard k (Icc 1 n).
+  set UK : Set Ω := ⋃ S ∈ (Finset.Icc 1 n).powersetCard k, cyl S
+  have hUK_meas : MeasurableSet UK :=
+    Finset.measurableSet_biUnion _ (fun S _ => hcyl_meas S)
+  -- Measure of UK = C(n,k) * (1/2)^n.
+  have hUK_prob : ℙ UK = (n.choose k : ENNReal) * (1 / 2 : ENNReal) ^ n := by
+    have hdisj_finset : ((Finset.Icc 1 n).powersetCard k : Set (Finset ℕ)).PairwiseDisjoint cyl := by
+      intro S hS T hT hne
+      rw [Finset.mem_coe] at hS hT
+      have hSsub : S ⊆ Finset.Icc 1 n := (Finset.mem_powersetCard.mp hS).1
+      have hTsub : T ⊆ Finset.Icc 1 n := (Finset.mem_powersetCard.mp hT).1
+      exact hcyl_disj S T hSsub hTsub hne
+    rw [measure_biUnion_finset hdisj_finset (fun S _ => hcyl_meas S)]
+    have : ∀ S ∈ (Finset.Icc 1 n).powersetCard k, ℙ (cyl S) = (1 / 2 : ENNReal) ^ n := by
+      intro S hS; exact hcyl_prob S (Finset.mem_powersetCard.mp hS).1
+    rw [Finset.sum_congr rfl this, Finset.sum_const]
+    rw [Finset.card_powersetCard, Nat.card_Icc, Nat.add_sub_cancel, nsmul_eq_mul]
+  -- Now show {walk a n = 2k - n} differs from UK by a null set, then conclude.
+  -- Strategy: UK ⊆ {walk = 2k - n}. Their difference {walk = 2k-n} \ UK is contained in
+  -- the "bad" set where some a_i ω ∉ {-1, 1}, which is null.
+  have hUK_sub : UK ⊆ {ω | walk a n ω = 2 * (k : ℝ) - n} := by
+    intro ω hω
+    simp only [UK, Set.mem_iUnion] at hω
+    obtain ⟨S, hS, hωS⟩ := hω
+    have hSmem := Finset.mem_powersetCard.mp hS
+    exact hcyl_walk S hSmem.1 hSmem.2 ω hωS
+  -- The "all +/- 1" event.
+  set good : Set Ω := ⋂ i ∈ Finset.Icc 1 n, ((a i) ⁻¹' ({1, -1} : Set ℝ))
+  have hgood_meas : MeasurableSet good := by
+    refine MeasurableSet.biInter (Finset.Icc 1 n).countable_toSet (fun i _ => ?_)
+    exact (ha.measurable i) ((MeasurableSet.singleton 1).union (MeasurableSet.singleton (-1)))
+  -- Each {a i ∈ {1, -1}} has probability 1.
+  have hgood_each : ∀ i ∈ Finset.Icc 1 n, ℙ ((a i) ⁻¹' ({1, -1} : Set ℝ)) = 1 := by
+    intro i _
+    have hset : (a i) ⁻¹' ({1, -1} : Set ℝ) = {ω | a i ω = 1} ∪ {ω | a i ω = -1} := by
+      ext ω; simp [Set.mem_preimage, Set.mem_insert_iff]
+    rw [hset]
+    have hdisj : Disjoint {ω : Ω | a i ω = 1} {ω | a i ω = -1} := by
+      rw [Set.disjoint_iff_inter_eq_empty]; ext ω
+      simp only [Set.mem_inter_iff, Set.mem_empty_iff_false, iff_false, Set.mem_setOf_eq, not_and]
+      intro h; rw [h]; norm_num
+    have hmeas2 : MeasurableSet {ω : Ω | a i ω = -1} :=
+      (ha.measurable i) (MeasurableSet.singleton (-1))
+    rw [measure_union hdisj hmeas2, ha.prob_pos i, ha.prob_neg i]
+    rw [ENNReal.div_add_div_same]
+    rw [show (1 : ENNReal) + 1 = 2 from by norm_num]
+    exact ENNReal.div_self (by norm_num) (by norm_num)
+  -- Full measure of good.
+  have hgood_full : ℙ good = 1 := by
+    have : ℙ good = ∏ i ∈ Finset.Icc 1 n, ℙ ((a i) ⁻¹' ({1, -1} : Set ℝ)) := by
+      have := (iIndepFun_iff_measure_inter_preimage_eq_mul.mp ha.indep)
+        (Finset.Icc 1 n) (sets := fun _ => ({1, -1} : Set ℝ))
+        (fun _ _ => (MeasurableSet.singleton 1).union (MeasurableSet.singleton (-1)))
+      exact this
+    rw [this]
+    rw [Finset.prod_congr rfl hgood_each, Finset.prod_const_one]
+  -- Good has full measure, so event ∩ goodᶜ has measure 0.
+  have hdiff_null : ℙ ({ω | walk a n ω = 2 * (k : ℝ) - n} \ UK) = 0 := by
+    -- If ω ∈ good ∩ {walk = 2k-n}, then ω ∈ some cylinder, so ω ∈ UK.
+    have hsub : {ω | walk a n ω = 2 * (k : ℝ) - n} \ UK ⊆ goodᶜ := by
+      intro ω hω
+      obtain ⟨hωev, hωUK⟩ := hω
+      by_contra hωg
+      rw [Set.mem_compl_iff, not_not] at hωg
+      -- ω ∈ good: each a_i ω ∈ {1, -1}. Define S = {i ∈ Icc 1 n | a_i ω = 1}.
+      simp only [good, Set.mem_iInter, Set.mem_preimage, Set.mem_insert_iff,
+        Set.mem_singleton_iff] at hωg
+      set S := (Finset.Icc 1 n).filter (fun i => a i ω = 1) with hS_def
+      have hS_sub : S ⊆ Finset.Icc 1 n := Finset.filter_subset _ _
+      -- ∀ i ∈ Icc 1 n, a i ω = if i ∈ S then 1 else -1.
+      have hai : ∀ i ∈ Finset.Icc 1 n, a i ω = if i ∈ S then (1 : ℝ) else -1 := by
+        intro i hi
+        by_cases h : a i ω = 1
+        · have : i ∈ S := Finset.mem_filter.mpr ⟨hi, h⟩
+          simp [this, h]
+        · have hneg : a i ω = -1 := (hωg i hi).resolve_left h
+          have : i ∉ S := fun hmem => h (Finset.mem_filter.mp hmem).2
+          simp [this, hneg]
+      -- Compute walk a n ω from hai.
+      have hwalk : walk a n ω = 2 * (S.card : ℝ) - n := by
+        unfold walk
+        rw [Finset.sum_congr rfl hai]
+        have hsplit : ∀ i ∈ Finset.Icc 1 n,
+            (if i ∈ S then (1 : ℝ) else -1) =
+            (if i ∈ S then (1 : ℝ) else 0) + (if i ∈ S then (0 : ℝ) else -1) := by
+          intro i _; by_cases h : i ∈ S <;> simp [h]
+        rw [Finset.sum_congr rfl hsplit, Finset.sum_add_distrib]
+        have hpart1 : (∑ i ∈ Finset.Icc 1 n, if i ∈ S then (1 : ℝ) else 0) = (S.card : ℝ) := by
+          rw [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const,
+            nsmul_eq_mul, mul_one]
+          have hfilter : (Finset.Icc 1 n).filter (· ∈ S) = S := by
+            ext i; simp only [Finset.mem_filter]; exact ⟨fun ⟨_, h⟩ => h, fun h => ⟨hS_sub h, h⟩⟩
+          rw [hfilter]
+        have hSle_n : S.card ≤ n := by
+          have := Finset.card_le_card hS_sub; rw [Nat.card_Icc] at this; omega
+        have hpart2 : (∑ i ∈ Finset.Icc 1 n, if i ∈ S then (0 : ℝ) else -1) =
+            -((n : ℝ) - S.card) := by
+          rw [Finset.sum_ite, Finset.sum_const_zero, zero_add, Finset.sum_const]
+          have hfilter : (Finset.Icc 1 n).filter (fun i => i ∉ S) =
+              (Finset.Icc 1 n) \ S := by
+            ext i; simp [Finset.mem_filter, Finset.mem_sdiff]
+          rw [hfilter]
+          have hcard : ((Finset.Icc 1 n) \ S).card = n - S.card := by
+            rw [Finset.card_sdiff_of_subset hS_sub, Nat.card_Icc]; omega
+          rw [hcard, nsmul_eq_mul]
+          have hcast : ((n - S.card : ℕ) : ℝ) = (n : ℝ) - S.card := by
+            rw [Nat.cast_sub hSle_n]
+          rw [hcast]; ring
+        rw [hpart1, hpart2]; ring
+      -- Combining with hωev : walk = 2k - n, we get S.card = k.
+      have hScard_eq_k : S.card = k := by
+        have : 2 * (S.card : ℝ) - n = 2 * (k : ℝ) - n := by
+          rw [← hwalk]; exact hωev
+        have hS_eq_k : (S.card : ℝ) = k := by linarith
+        exact_mod_cast hS_eq_k
+      -- So S ∈ powersetCard k (Icc 1 n), and ω ∈ cyl S, so ω ∈ UK. Contradiction with hωUK.
+      apply hωUK
+      simp only [UK, Set.mem_iUnion]
+      refine ⟨S, Finset.mem_powersetCard.mpr ⟨hS_sub, hScard_eq_k⟩, ?_⟩
+      simp only [cyl, Set.mem_iInter]
+      intro i hi
+      have haieq := hai i hi
+      by_cases h : i ∈ S
+      · simp [sign, h]; rw [haieq]; simp [h]
+      · simp [sign, h]; rw [haieq]; simp [h]
+    have hcompl_null : ℙ goodᶜ = 0 := by
+      rw [prob_compl_eq_one_sub hgood_meas, hgood_full]; simp
+    exact measure_mono_null hsub hcompl_null
+  -- Combine: ℙ{walk = 2k-n} = ℙ UK + ℙ ({walk = 2k-n} \ UK) = ℙ UK.
+  have hev_meas : MeasurableSet {ω : Ω | walk a n ω = 2 * (k : ℝ) - n} := by
+    have hwalk_meas : Measurable (walk a n) := by
+      unfold walk
+      exact Finset.measurable_sum _ (fun j _ => ha.measurable j)
+    exact hwalk_meas (MeasurableSet.singleton _)
+  have hev_decomp : {ω : Ω | walk a n ω = 2 * (k : ℝ) - n} =
+      UK ∪ ({ω | walk a n ω = 2 * (k : ℝ) - n} \ UK) := by
+    ext ω
+    simp only [Set.mem_union, Set.mem_diff, Set.mem_setOf_eq]
+    constructor
+    · intro hω
+      by_cases h : ω ∈ UK
+      · left; exact h
+      · right; exact ⟨hω, h⟩
+    · rintro (h | ⟨h, _⟩)
+      · exact hUK_sub h
+      · exact h
+  calc ℙ {ω | walk a n ω = 2 * (k : ℝ) - n}
+      = ℙ (UK ∪ ({ω | walk a n ω = 2 * (k : ℝ) - n} \ UK)) := by rw [← hev_decomp]
+    _ = ℙ UK + ℙ ({ω | walk a n ω = 2 * (k : ℝ) - n} \ UK) := by
+        apply measure_union
+        · rw [Set.disjoint_iff_inter_eq_empty]; ext ω
+          simp only [Set.mem_inter_iff, Set.mem_diff, Set.mem_empty_iff_false, iff_false]
+          rintro ⟨h1, _, h2⟩; exact h2 h1
+        · exact hev_meas.diff hUK_meas
+    _ = ℙ UK + 0 := by rw [hdiff_null]
+    _ = ℙ UK := add_zero _
+    _ = (n.choose k : ENNReal) * (1 / 2 : ENNReal) ^ n := hUK_prob
+    _ = (n.choose k : ENNReal) / (2 : ENNReal) ^ n := by
+        have : (1 / 2 : ENNReal) ^ n = ((2 : ENNReal) ^ n)⁻¹ := by
+          rw [one_div, ENNReal.inv_pow]
+        rw [this, ← div_eq_mul_inv]
+
+/-- Helper: union bound via disjoint PMF decomposition. If `S : Finset ℕ` is a
+window of values of `k` (each `≤ n`) such that every `k ∈ S` satisfies
+`2k - n ≥ t`, then `ℙ{walk ≥ t} ≥ ∑ k ∈ S, C(n,k)/2^n`. -/
+private lemma lil_tail_lower_window_sum
+    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) (n : ℕ)
+    (t : ℝ) (S : Finset ℕ)
+    (hSle : ∀ k ∈ S, k ≤ n)
+    (hSge : ∀ k ∈ S, (t : ℝ) ≤ 2 * (k : ℝ) - n) :
+    (∑ k ∈ S, (n.choose k : ℝ) / (2 : ℝ) ^ n) ≤
+      (ℙ {ω | walk a n ω ≥ t}).toReal := by
+  classical
+  -- Measurability of walk.
+  have hwalk_meas : Measurable (walk a n) := by
+    unfold walk
+    exact Finset.measurable_sum _ (fun j _ => ha.measurable j)
+  -- Each level-set is measurable.
+  have hev_meas : ∀ k, MeasurableSet {ω : Ω | walk a n ω = 2 * (k : ℝ) - n} :=
+    fun k => hwalk_meas (MeasurableSet.singleton _)
+  -- Pairwise disjointness: different k values yield different walk values.
+  have hdisj : (S : Set ℕ).PairwiseDisjoint
+      (fun k => {ω : Ω | walk a n ω = 2 * (k : ℝ) - n}) := by
+    intro k _ k' _ hkk'
+    rw [Function.onFun, Set.disjoint_iff_inter_eq_empty]
+    ext ω
+    simp only [Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_empty_iff_false, iff_false,
+      not_and]
+    intro h1 h2
+    have : 2 * (k : ℝ) - n = 2 * (k' : ℝ) - n := h1.symm.trans h2
+    have : (k : ℝ) = (k' : ℝ) := by linarith
+    exact hkk' (Nat.cast_injective this)
+  -- Measure of the disjoint union equals the sum of C(n,k)/2^n.
+  set U : Set Ω := ⋃ k ∈ S, {ω : Ω | walk a n ω = 2 * (k : ℝ) - n} with U_def
+  have hU_meas : MeasurableSet U := by
+    exact Finset.measurableSet_biUnion _ (fun k _ => hev_meas k)
+  have hU_eq : ℙ U = ∑ k ∈ S, (n.choose k : ENNReal) / (2 : ENNReal) ^ n := by
+    rw [U_def, measure_biUnion_finset hdisj (fun k _ => hev_meas k)]
+    refine Finset.sum_congr rfl (fun k hk => ?_)
+    exact walk_pmf_binomial a ha n k (hSle k hk)
+  -- U ⊆ {walk ≥ t} since every k ∈ S has 2k - n ≥ t.
+  have hU_sub : U ⊆ {ω | walk a n ω ≥ t} := by
+    intro ω hω
+    simp only [U_def, Set.mem_iUnion] at hω
+    obtain ⟨k, hkS, hk⟩ := hω
+    simp only [Set.mem_setOf_eq] at hk
+    have : t ≤ 2 * (k : ℝ) - n := hSge k hkS
+    rw [Set.mem_setOf_eq, hk]; exact this
+  -- Finiteness of each term (needed to convert between ENNReal and Real).
+  have hterm_ne_top : ∀ k ∈ S,
+      ((n.choose k : ENNReal) / (2 : ENNReal) ^ n) ≠ ⊤ := by
+    intro k _
+    apply ENNReal.div_ne_top (ENNReal.natCast_ne_top _)
+    exact pow_ne_zero _ (by norm_num)
+  have hU_ne_top : ℙ U ≠ ⊤ := measure_ne_top _ _
+  -- Conclude via measure monotonicity.
+  have hmono : ℙ U ≤ ℙ {ω | walk a n ω ≥ t} := measure_mono hU_sub
+  have hmono_toReal : (ℙ U).toReal ≤ (ℙ {ω | walk a n ω ≥ t}).toReal :=
+    ENNReal.toReal_mono (measure_ne_top _ _) hmono
+  -- Convert ℙ U to a real sum.
+  have hU_toReal : (ℙ U).toReal =
+      ∑ k ∈ S, ((n.choose k : ENNReal) / (2 : ENNReal) ^ n).toReal := by
+    rw [hU_eq, ENNReal.toReal_sum hterm_ne_top]
+  have hterm_toReal : ∀ k : ℕ,
+      ((n.choose k : ENNReal) / (2 : ENNReal) ^ n).toReal =
+        (n.choose k : ℝ) / (2 : ℝ) ^ n := by
+    intro k
+    rw [ENNReal.toReal_div, ENNReal.toReal_pow, ENNReal.toReal_ofNat]
+    simp
+  have hU_toReal' : (ℙ U).toReal = ∑ k ∈ S, (n.choose k : ℝ) / (2 : ℝ) ^ n := by
+    rw [hU_toReal]
+    exact Finset.sum_congr rfl (fun k _ => hterm_toReal k)
+  linarith [hmono_toReal, hU_toReal']
+
+/--
 **Rademacher walk lower tail at the LIL scale.** Complements `lil_tail_at_scale`.
 For any `δ ∈ (0, 1)`, there exist constants `N(δ)` and `C(δ) > 0` such that
 for all `n ≥ N(δ)`:
@@ -1023,31 +1389,33 @@ The extra `+δ` slack in the exponent ensures the Borel–Cantelli sum
 `∑_k C · (log n_k)^{-((1-δ)² + δ)}` diverges when summed over the
 exponentially spaced subsequence `n_k = ⌊c^k⌋`, because
 `(1-δ)² + δ = 1 - δ + δ² < 1` for `δ ∈ (0, 1)`.
-
-**Proof strategy (not yet formalized).** Central binomial coefficient via
-Stirling's formula (`Mathlib.Analysis.SpecialFunctions.Stirling`):
-1. `ℙ(S_n = 2k - n) = Nat.choose n k / 2^n` (for `k ∈ [0, n]`).
-2. For `k = ⌈(n + t)/2⌉` with `t = (1-δ)·√(2n log log n)`, the Stirling
-   bound `√(2πn) · (n/e)^n ≤ n!` and its matching upper estimate give
-   `Nat.choose n k / 2^n ≥ Θ(1/√n) · exp(-t²/(2n) - O(t⁴/n³))`.
-3. Summing over `k` in `[⌈(n+t)/2⌉, n]` contributes a further factor
-   `Θ(√n / t)`, since the summand decays geometrically in `k` away from
-   the mode.
-4. Combining: `ℙ(S_n ≥ t) ≥ K · exp(-t²/(2n)) / (t/√n)` for some absolute
-   `K > 0` and `t ≤ √n · √(log n)` (the Gaussian regime).
-5. At the LIL scale: `t²/(2n) = (1-δ)² · log log n`, so
-   `exp(-t²/(2n)) = (log n)^{-(1-δ)²}`. The `/(t/√n) = 1/((1-δ)·√(2 log log n))`
-   factor is absorbed by the `+δ` slack.
-
-The transfer step 4 → LIL-scale bound is classical (cf. Durrett, "Probability:
-Theory and Examples", Thm 2.4.9 and the LIL proof in §4.4).
 -/
 private theorem lil_tail_lower_at_scale
-    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) (δ : ℝ) (hδ : 0 < δ) (hδ1 : δ < 1) :
-    ∃ (N : ℕ) (C : ℝ), 0 < C ∧ ∀ n, N ≤ n →
-      C * Real.exp (-((1 - δ) ^ 2 + δ) * Real.log (Real.log n)) ≤
+    (δ : ℝ) (hδ : 0 < δ) (hδ1 : δ < 1) :
+    ∃ (N : ℕ) (C : ℝ), 0 < C ∧
+      ∀ (a : ℕ → Ω → ℝ), IsRademacherSequence a → ∀ n, N ≤ n →
+        C * Real.exp (-((1 - δ) ^ 2 + δ) * Real.log (Real.log n)) ≤
+          (ℙ {ω | walk a n ω ≥ (1 - δ) * lilNorm n}).toReal := by
+  obtain ⟨c, N, hc_pos, _hN_pos, hwin⟩ :=
+    Erdos524.Helpers.window_sum_at_LIL_scale δ hδ hδ1
+  refine ⟨N, c, hc_pos, ?_⟩
+  intros a ha n hn_ge
+  obtain ⟨k_star, W, _hk_ge_1, _hW_ge_1, hsum_le_n, hk_above_t, hcsum⟩ :=
+    hwin n hn_ge
+  have h_S_valid : ∀ k ∈ Finset.Ico k_star (k_star + W), k ≤ n := by
+    intro k hk
+    rw [Finset.mem_Ico] at hk
+    omega
+  have h_prob :
+      (∑ k ∈ Finset.Ico k_star (k_star + W), (n.choose k : ℝ) / (2 : ℝ) ^ n) ≤
         (ℙ {ω | walk a n ω ≥ (1 - δ) * lilNorm n}).toReal := by
-  sorry
+    apply lil_tail_lower_window_sum a ha n ((1 - δ) * lilNorm n)
+      (Finset.Ico k_star (k_star + W)) h_S_valid
+    intro k hk
+    have := hk_above_t k hk
+    unfold lilNorm
+    exact this
+  linarith [hcsum, h_prob]
 
 -- A.s. eventually S_{n_k} < (1+ε)·φ(n_k) on the sparse subsequence n_k = ⌊c^k⌋.
 -- Proof: lil_tail_at_scale gives ℙ(S_{n_k} ≥ (1+ε)·φ(n_k)) ≤ (log n_k)^{-(1+ε)²},
@@ -1225,7 +1593,310 @@ private theorem lil_sparse_lower_bc
     ∀ᵐ ω, ∃ᶠ k in atTop,
       walk a ⌊c ^ (k + 1)⌋₊ ω - walk a ⌊c ^ k⌋₊ ω ≥
         (1 - δ) * lilNorm (⌊c ^ (k + 1)⌋₊ - ⌊c ^ k⌋₊) := by
-  sorry
+  -- Abbreviations
+  set nn : ℕ → ℕ := fun k => ⌊c ^ k⌋₊ with nn_def
+  set mm : ℕ → ℕ := fun k => nn (k + 1) - nn k with mm_def
+  -- n_k is monotone (since c ≥ 1 and floor is monotone)
+  have hn_mono : Monotone nn := fun i j hij =>
+    Nat.floor_mono (pow_le_pow_right₀ hc.le hij)
+  -- Inline: the shifted sequence is Rademacher
+  have hshift_rad : ∀ M : ℕ, IsRademacherSequence (fun j ω => a (M + j) ω) := fun M =>
+    { indep := ha.indep.precomp (fun _ _ h => Nat.add_left_cancel h :
+        Function.Injective ((· + ·) M))
+      measurable := fun j => ha.measurable (M + j)
+      prob_pos := fun j => ha.prob_pos (M + j)
+      prob_neg := fun j => ha.prob_neg (M + j) }
+  -- Inline walk-difference identity (avoid forward reference).
+  have hwalk_diff : ∀ (M N : ℕ) (ω : Ω), M ≤ N →
+      walk a N ω - walk a M ω = walk (fun j ω' => a (M + j) ω') (N - M) ω := by
+    intro M N ω hMN
+    simp only [walk]
+    have hsplit : Finset.Icc 1 N = Finset.Icc 1 M ∪ Finset.Icc (M + 1) N := by
+      ext j; simp only [Finset.mem_union, Finset.mem_Icc]; omega
+    have hdisj : Disjoint (Finset.Icc 1 M) (Finset.Icc (M + 1) N) := by
+      simp only [Finset.disjoint_left, Finset.mem_Icc]; omega
+    rw [hsplit, Finset.sum_union hdisj, add_sub_cancel_left]
+    symm
+    apply Finset.sum_nbij' (fun j => M + j) (fun j => j - M)
+    · intro j hj; simp only [Finset.mem_Icc] at hj ⊢; omega
+    · intro j hj; simp only [Finset.mem_Icc] at hj ⊢; omega
+    · intro j hj; omega
+    · intro j hj; simp only [Finset.mem_Icc] at hj; omega
+    · intro j _; rfl
+  -- Block index sets
+  set I : ℕ → Finset ℕ := fun k => Finset.Ioc (nn k) (nn (k + 1)) with I_def
+  -- Pairwise disjoint blocks
+  have hI_disj : Pairwise (fun i j => Disjoint (I i) (I j)) := by
+    intro i j hij
+    rcases lt_or_gt_of_ne hij with hlt | hlt
+    · have hle : nn (i + 1) ≤ nn j := hn_mono hlt
+      simp only [I_def, Finset.disjoint_left, Finset.mem_Ioc]
+      intro x hx1 hx2; omega
+    · have hle : nn (j + 1) ≤ nn i := hn_mono hlt
+      simp only [I_def, Finset.disjoint_left, Finset.mem_Ioc]
+      intro x hx1 hx2; omega
+  -- Block sums and their measurability
+  set bSum : ℕ → Ω → ℝ := fun k ω => ∑ j ∈ I k, a j ω with bSum_def
+  have hbSum_meas : ∀ k, Measurable (bSum k) := fun k =>
+    Finset.measurable_sum (I k) (fun j _ => ha.measurable j)
+  -- Independence of block sums
+  have hbSum_indep : iIndepFun bSum ℙ :=
+    Erdos524.Helpers.iIndepFun_block_sums a ha.indep ha.measurable I hI_disj
+  -- Block sum equals walk difference
+  have hbSum_eq : ∀ k ω, bSum k ω = walk a (nn (k+1)) ω - walk a (nn k) ω := by
+    intro k ω
+    have hmono := hn_mono (Nat.le_succ k)
+    simp only [bSum_def, walk, I_def]
+    -- Use a local abbreviation so omega sees concrete ℕ values.
+    set M := nn k with hM_def
+    set N := nn (k+1) with hN_def
+    have hMN : M ≤ N := hmono
+    have hsplit : Finset.Icc 1 N =
+        Finset.Icc 1 M ∪ Finset.Ioc M N := by
+      ext j
+      simp only [Finset.mem_union, Finset.mem_Icc, Finset.mem_Ioc]
+      omega
+    have hdisj : Disjoint (Finset.Icc 1 M) (Finset.Ioc M N) := by
+      simp only [Finset.disjoint_left, Finset.mem_Icc, Finset.mem_Ioc]; omega
+    rw [hsplit, Finset.sum_union hdisj]; ring
+  -- Define the events E k = {ω | b k ω ≥ (1-δ) · lilNorm m_k}
+  set E : ℕ → Set Ω := fun k => {ω | bSum k ω ≥ (1 - δ) * lilNorm (mm k)} with E_def
+  -- E_k is measurable
+  have hE_meas : ∀ k, MeasurableSet (E k) := by
+    intro k
+    have : E k = bSum k ⁻¹' Set.Ici ((1 - δ) * lilNorm (mm k)) := rfl
+    rw [this]
+    exact (hbSum_meas k) measurableSet_Ici
+  -- Events are independent
+  have hE_indep : iIndepSet E ℙ := by
+    have : E = fun k => bSum k ⁻¹' Set.Ici ((1 - δ) * lilNorm (mm k)) := rfl
+    rw [this]
+    exact Erdos524.Helpers.iIndepSet_preimage_of_iIndepFun hbSum_indep hbSum_meas
+      (fun _ => measurableSet_Ici)
+  -- Extract uniform (N, C) from lil_tail_lower_at_scale
+  obtain ⟨N₀, C, hC_pos, hbound⟩ := lil_tail_lower_at_scale (Ω := Ω) δ hδ hδ1
+  -- Set the exponent α = (1-δ)² + δ
+  set α := (1 - δ) ^ 2 + δ with hα_def
+  have hα_lt_one : α < 1 := by simp only [hα_def]; nlinarith
+  have hα_pos : 0 < α := by
+    simp only [hα_def]; positivity
+  -- Key lower bound on ℙ(E k) via lil_tail_lower_at_scale applied to shift
+  have hPEk_lb : ∀ k, N₀ ≤ mm k →
+      C * Real.exp (-α * Real.log (Real.log (mm k))) ≤ (ℙ (E k)).toReal := by
+    intro k hNmk
+    -- E k is the set of ω where the shifted walk ≥ threshold
+    have hmono := hn_mono (Nat.le_succ k)
+    have hE_eq : E k = {ω | walk (fun j ω' => a (nn k + j) ω') (mm k) ω
+        ≥ (1 - δ) * lilNorm (mm k)} := by
+      ext ω
+      have heq : bSum k ω = walk (fun j ω' => a (nn k + j) ω') (mm k) ω := by
+        rw [hbSum_eq k ω, hwalk_diff (nn k) (nn (k+1)) ω hmono]
+      simp only [E_def, Set.mem_setOf_eq, heq]
+    rw [hE_eq]
+    exact hbound (fun j ω => a (nn k + j) ω) (hshift_rad (nn k)) (mm k) hNmk
+  -- Now show ∑' k, ℙ(E k) = ∞.
+  -- Strategy: ∑' k ℙ(E k) ≥ ∑' k, ENNReal.ofReal (C · (k+1+N')^{-α} · c') = ∞.
+  -- The core is that m_k ≤ c^(k+1), so log m_k ≤ (k+1) log c, so
+  -- exp(-α log log m_k) ≥ (log((k+1) log c))^{-α} ≥ const · (k+1)^{-α}
+  -- But we only need eventually m_k ≥ N₀, so m_k → ∞ eventually.
+  -- Upper bound on m_k: m_k = ⌊c^(k+1)⌋₊ - ⌊c^k⌋₊ ≤ ⌊c^(k+1)⌋₊ ≤ c^(k+1).
+  have hmm_ub : ∀ k, (mm k : ℝ) ≤ c ^ (k + 1) := fun k => by
+    simp only [mm_def]
+    have hsub : (nn (k+1) - nn k : ℕ) ≤ nn (k+1) := Nat.sub_le _ _
+    calc ((nn (k+1) - nn k : ℕ) : ℝ) ≤ (nn (k+1) : ℝ) := by exact_mod_cast hsub
+      _ ≤ c ^ (k+1) := Nat.floor_le (by positivity)
+  -- Lower bound: eventually m_k → ∞ (so m_k ≥ N₀ eventually and m_k ≥ 3 eventually).
+  have hmm_tendsto : Filter.Tendsto (fun k => (mm k : ℝ)) atTop atTop := by
+    -- m_k = ⌊c^(k+1)⌋₊ - ⌊c^k⌋₊ ≥ c^(k+1) - 1 - c^k = c^k(c-1) - 1 → ∞
+    have hlb : ∀ k, (c ^ k * (c - 1) - 1 : ℝ) ≤ mm k := by
+      intro k
+      simp only [mm_def]
+      have hcast : ((nn (k+1) - nn k : ℕ) : ℝ) = (nn (k+1) : ℝ) - (nn k : ℝ) := by
+        have hle : nn k ≤ nn (k+1) := hn_mono (Nat.le_succ k)
+        exact_mod_cast Nat.cast_sub (R := ℝ) hle
+      rw [hcast]
+      have h1 : (c ^ (k+1) : ℝ) - 1 ≤ (nn (k+1) : ℝ) := by
+        have := Nat.sub_one_lt_floor (c ^ (k+1))
+        push_cast at this; linarith
+      have h2 : (nn k : ℝ) ≤ c ^ k := Nat.floor_le (by positivity)
+      have : c ^ (k+1) - 1 - c ^ k ≤ (nn (k+1) : ℝ) - nn k := by linarith
+      calc (c ^ k * (c - 1) - 1 : ℝ) = c ^ (k+1) - 1 - c ^ k := by ring
+        _ ≤ (nn (k+1) : ℝ) - nn k := this
+    have hcm1 : 0 < c - 1 := by linarith
+    have htendsto_rhs : Filter.Tendsto (fun k : ℕ => (c ^ k * (c - 1) - 1 : ℝ)) atTop atTop := by
+      have h_pow : Filter.Tendsto (fun n : ℕ => (c : ℝ) ^ n) atTop atTop :=
+        tendsto_pow_atTop_atTop_of_one_lt hc
+      have h_mul : Filter.Tendsto (fun k : ℕ => (c : ℝ) ^ k * (c - 1)) atTop atTop :=
+        Filter.Tendsto.atTop_mul_const hcm1 h_pow
+      have h_sub : Filter.Tendsto (fun k : ℕ => ((c : ℝ) ^ k * (c - 1)) + (-1)) atTop atTop :=
+        tendsto_atTop_add_const_right atTop (-1 : ℝ) h_mul
+      exact h_sub.congr (fun k => by ring)
+    exact tendsto_atTop_mono hlb htendsto_rhs
+  -- Now show ∑' k, ℙ(E k) = ∞.
+  have hsum_top : (∑' k, ℙ (E k)) = ⊤ := by
+    -- Construct a lower-bound series that diverges.
+    -- Comparison: for k large, ℙ(E k) ≥ ENNReal.ofReal (C · exp(-α log log m_k))
+    --   ≥ ENNReal.ofReal (C · (log m_k)^{-α})
+    -- And log m_k ≤ (k+1) log c, so (log m_k)^{-α} ≥ ((k+1) log c)^{-α}
+    --   = (log c)^{-α} · (k+1)^{-α}, which is not summable since α < 1.
+    by_contra hne
+    -- hne: ∑' k, ℙ(E k) ≠ ∞
+    -- Get summability of toReal values from finiteness of tsum.
+    have hsum_ne : (∑' k, ℙ (E k)) ≠ ⊤ := hne
+    have hsum_real : Summable (fun k => (ℙ (E k)).toReal) :=
+      ENNReal.summable_toReal hsum_ne
+    -- Now derive a lower bound series that is not summable.
+    -- f k := C * exp(-α * log(log m_k)) is eventually ≤ (ℙ (E k)).toReal
+    -- and f k ≥ some_const * (k+1)^{-α} eventually, which is not summable.
+    set f : ℕ → ℝ := fun k => C * Real.exp (-α * Real.log (Real.log (mm k)))
+    -- f is summable from hsum_real via comparison (eventually 0 ≤ f k ≤ (ℙ(E k)).toReal).
+    have hf_nn : ∀ k, 0 ≤ f k := fun k => by
+      simp only [f]; positivity
+    -- Eventually m_k ≥ N₀
+    have hmm_ge_N0 : ∀ᶠ k in atTop, N₀ ≤ mm k := by
+      have := hmm_tendsto.eventually_ge_atTop (N₀ : ℝ)
+      filter_upwards [this] with k hk
+      exact_mod_cast hk
+    -- Eventually: f k ≤ (ℙ(E k)).toReal
+    have hf_le : ∀ᶠ k in atTop, f k ≤ (ℙ (E k)).toReal := by
+      filter_upwards [hmm_ge_N0] with k hk
+      exact hPEk_lb k hk
+    have hf_summable : Summable f := by
+      apply Summable.of_norm_bounded_eventually_nat hsum_real
+      filter_upwards [hf_le] with k hk
+      simp only [Real.norm_eq_abs, abs_of_nonneg (hf_nn k)]
+      exact hk
+    -- Now show f is not summable.
+    -- f k ≥ const · (k+1)^{-α} eventually (where const = C · (log c)^{-α} · ...).
+    -- Equivalently, f is bounded below by a non-summable series.
+    -- g k := D * (k + 1)^{-α} with appropriate D > 0
+    -- Need: log m_k ≤ log (c^(k+1)) = (k+1) log c eventually (requires m_k ≥ 1)
+    -- and log m_k ≥ ε (bounded away from 0 for large k, since m_k → ∞)
+    -- so log log m_k is defined and eventually ≤ log((k+1) log c).
+    have hlogc_pos : 0 < Real.log c := Real.log_pos hc
+    have hmm_ge_3 : ∀ᶠ k in atTop, (3 : ℝ) ≤ mm k :=
+      hmm_tendsto.eventually_ge_atTop 3
+    have hmm_ge_e : ∀ᶠ k in atTop, Real.exp 1 ≤ mm k :=
+      hmm_tendsto.eventually_ge_atTop (Real.exp 1)
+    -- For m_k ≥ e, we have log m_k ≥ 1 > 0
+    have hlogmk_ge_one : ∀ᶠ k in atTop, 1 ≤ Real.log (mm k) := by
+      filter_upwards [hmm_ge_e] with k hk
+      have hmk_pos : 0 < (mm k : ℝ) := lt_of_lt_of_le (Real.exp_pos 1) hk
+      rw [← Real.log_exp 1]
+      exact Real.log_le_log (Real.exp_pos 1) hk
+    have hlogmk_pos : ∀ᶠ k in atTop, 0 < Real.log (mm k) := by
+      filter_upwards [hlogmk_ge_one] with k hk; linarith
+    -- Define the competitor g k = C · (log c)^{-α} · (k+1)^{-α}.
+    -- By comparison: g k ≤ f k eventually.
+    -- log m_k ≤ (k+1) log c since m_k ≤ c^(k+1) (when m_k ≥ 1 so log is monotone).
+    -- log(log m_k) ≤ log((k+1) log c) = log(k+1) + log(log c).
+    -- exp(-α · log log m_k) ≥ exp(-α · log((k+1) log c)) = ((k+1) log c)^{-α}
+    --   = (log c)^{-α} · (k+1)^{-α}.
+    -- So f k = C · exp(-α log log m_k) ≥ C · (log c)^{-α} · (k+1)^{-α}.
+    set D := C * (Real.log c) ^ (-α) with hD_def
+    have hD_pos : 0 < D := mul_pos hC_pos (Real.rpow_pos_of_pos hlogc_pos _)
+    -- Eventually: D * (k+1)^{-α} ≤ f k
+    have hg_le_f : ∀ᶠ k : ℕ in atTop, D * ((k : ℝ) + 1) ^ (-α) ≤ f k := by
+      filter_upwards [hlogmk_pos, hlogmk_ge_one] with k hlog_pos hlog_ge_one
+      -- log m_k ≤ (k+1) * log c
+      have hmk_pos : 0 < (mm k : ℝ) := by
+        by_contra hneg; push_neg at hneg
+        -- mm k ≤ 0 in ℝ, and mm k is a nat cast so mm k = 0 and log 0 = 0.
+        have hle1 : (mm k : ℝ) ≤ 1 := by linarith [Nat.cast_nonneg (α := ℝ) (mm k)]
+        have hlogle : Real.log (mm k) ≤ 0 :=
+          Real.log_nonpos (Nat.cast_nonneg _) hle1
+        linarith
+      have hlogub : Real.log (mm k) ≤ ((k : ℝ) + 1) * Real.log c := by
+        have hub : (mm k : ℝ) ≤ c ^ (k + 1) := hmm_ub k
+        have h1 : Real.log (mm k) ≤ Real.log (c ^ (k + 1)) :=
+          Real.log_le_log hmk_pos hub
+        rw [Real.log_pow] at h1
+        push_cast at h1
+        linarith
+      -- log(log m_k) ≤ log((k+1) log c)
+      have hk1_pos : 0 < (k : ℝ) + 1 := by positivity
+      have hk1lc_pos : 0 < ((k : ℝ) + 1) * Real.log c := mul_pos hk1_pos hlogc_pos
+      have hlog2_le : Real.log (Real.log (mm k)) ≤ Real.log (((k : ℝ) + 1) * Real.log c) :=
+        Real.log_le_log hlog_pos hlogub
+      -- multiply by -α (flip inequality)
+      have hαneg : -α ≤ 0 := by linarith
+      have hmul : -α * Real.log (((k : ℝ) + 1) * Real.log c) ≤
+          -α * Real.log (Real.log (mm k)) := by
+        exact mul_le_mul_of_nonpos_left hlog2_le hαneg
+      -- exp(·) is monotone
+      have hexp_mono : Real.exp (-α * Real.log (((k : ℝ) + 1) * Real.log c)) ≤
+          Real.exp (-α * Real.log (Real.log (mm k))) :=
+        Real.exp_le_exp.mpr hmul
+      -- Compute exp(-α · log ((k+1) log c)) = ((k+1) log c)^{-α}
+      have hrpow_eq : Real.exp (-α * Real.log (((k : ℝ) + 1) * Real.log c))
+          = (((k : ℝ) + 1) * Real.log c) ^ (-α) := by
+        rw [show -α * Real.log (((k : ℝ) + 1) * Real.log c)
+              = Real.log (((k : ℝ) + 1) * Real.log c) * (-α) from by ring]
+        exact (Real.rpow_def_of_pos hk1lc_pos _).symm
+      -- ((k+1) log c)^{-α} = (log c)^{-α} · (k+1)^{-α}
+      have hrpow_split : (((k : ℝ) + 1) * Real.log c) ^ (-α) =
+          ((k : ℝ) + 1) ^ (-α) * (Real.log c) ^ (-α) :=
+        Real.mul_rpow hk1_pos.le hlogc_pos.le
+      -- Assemble
+      have : D * ((k : ℝ) + 1) ^ (-α) =
+          C * (((k : ℝ) + 1) * Real.log c) ^ (-α) := by
+        simp only [hD_def, hrpow_split]; ring
+      rw [this]
+      calc C * (((k : ℝ) + 1) * Real.log c) ^ (-α)
+          = C * Real.exp (-α * Real.log (((k : ℝ) + 1) * Real.log c)) := by
+            rw [hrpow_eq]
+        _ ≤ C * Real.exp (-α * Real.log (Real.log (mm k))) := by
+            exact mul_le_mul_of_nonneg_left hexp_mono hC_pos.le
+        _ = f k := rfl
+    -- Now f is summable but (D * (k+1)^{-α}) is not, contradiction.
+    have hg_summable : Summable (fun k : ℕ => D * ((k : ℝ) + 1) ^ (-α)) := by
+      apply Summable.of_norm_bounded_eventually_nat hf_summable
+      filter_upwards [hg_le_f] with k hk
+      have h_nn : (0 : ℝ) ≤ D * ((k : ℝ) + 1) ^ (-α) := by positivity
+      simp only [Real.norm_eq_abs, abs_of_nonneg h_nn]
+      exact hk
+    -- But ∑ (k+1)^{-α} diverges since α ≤ 1.
+    have hnot_sum : ¬ Summable (fun k : ℕ => D * ((k : ℝ) + 1) ^ (-α)) := by
+      intro h
+      have hD_ne : D ≠ 0 := ne_of_gt hD_pos
+      have h2 : Summable (fun k : ℕ => ((k : ℝ) + 1) ^ (-α)) := by
+        have := h.div_const D
+        convert this using 1; funext k; field_simp
+      -- ∑ (k+1)^{-α} = ∑ from n=1 of n^{-α}, which converges iff -α < -1 iff α > 1.
+      -- Use summable_nat_rpow: Summable (fun n => n^p) ↔ p < -1.
+      -- Reindex: (k+1)^{-α} corresponds to Summable on n ≥ 1, add n=0.
+      -- Reindex: ((k : ℝ) + 1)^{-α} = (shift by 1 of n^{-α}), summable iff original summable.
+      have h3 : Summable (fun n : ℕ => (n : ℝ) ^ (-α)) := by
+        rw [← summable_nat_add_iff 1]
+        have : (fun n : ℕ => ((n + 1 : ℕ) : ℝ) ^ (-α)) =
+            (fun n : ℕ => ((n : ℝ) + 1) ^ (-α)) := by
+          funext k; push_cast; ring
+        rw [this]; exact h2
+      rw [Real.summable_nat_rpow] at h3
+      linarith
+    exact hnot_sum hg_summable
+  -- Apply 2nd Borel–Cantelli: ℙ(limsup E) = 1
+  have hlimsup := measure_limsup_eq_one hE_meas hE_indep hsum_top
+  -- `limsup E atTop` is measurable (as a countable iInf of countable iSup of measurable sets)
+  have hLim_meas : MeasurableSet (limsup E atTop) := by
+    rw [Filter.limsup_eq_iInf_iSup_of_nat']
+    exact MeasurableSet.iInter (fun _ => MeasurableSet.iUnion (fun _ => hE_meas _))
+  -- Convert ℙ(S) = 1 to ∀ᵐ ω, ω ∈ S via compl_eq_zero
+  have hae_limsup : ∀ᵐ ω, ω ∈ limsup E atTop := by
+    rw [ae_iff]
+    have : {ω | ¬ ω ∈ limsup E atTop} = (limsup E atTop)ᶜ := rfl
+    rw [this, prob_compl_eq_zero_iff hLim_meas]
+    exact hlimsup
+  -- Now extract: ω ∈ limsup E ↔ ∃ᶠ k, ω ∈ E k ↔ ∃ᶠ k, predicate.
+  filter_upwards [hae_limsup] with ω hω
+  have hfreq : ∃ᶠ k in atTop, ω ∈ E k := mem_limsup_iff_frequently_mem.mp hω
+  -- hfreq : ∃ᶠ k in atTop, ω ∈ E k
+  -- E k = {ω | bSum k ω ≥ _}, and bSum k ω = walk a (nn (k+1)) ω - walk a (nn k) ω.
+  -- Since nn is defined via ⌊c^·⌋₊, this matches the goal after unfolding.
+  refine hfreq.mono (fun k hk => ?_)
+  have hmem : bSum k ω ≥ (1 - δ) * lilNorm (mm k) := hk
+  rw [hbSum_eq k ω] at hmem
+  exact hmem
 
 -- Shifted Rademacher: (a (m+j))_{j≥0} is still i.i.d. Rademacher for any fixed m.
 private theorem isRademacherSequence_shift
@@ -1737,6 +2408,7 @@ private theorem running_max_lil_upper_for_eps
           have hn_pos : (0 : ℝ) < n := by exact_mod_cast show 0 < n by omega
           nlinarith
 
+set_option maxHeartbeats 1200000 in
 /--
 **Kolmogorov's LIL lower bound for Rademacher walks.**
 Almost surely,
@@ -1799,7 +2471,274 @@ private theorem kolmogorov_lil_lower_bound
   -- summability via `lil_tail_lower_at_scale`, `measure_limsup_eq_one` for 2nd BC,
   -- and asymptotic arithmetic `m_k/n_{k+1} → (c-1)/c` etc. Deferred.
   intro m hm
-  sorry
+  -- Constants: c = 4m², δ = 1/(8m). With these:
+  --   lilNormAux((⌊c^{k+1}⌋-⌊c^k⌋)/lilNormAux(⌊c^{k+1}⌋)) → √((c-1)/c) = √(1 - 1/(4m²)),
+  --   lilNormAux(⌊c^k⌋)/lilNormAux(⌊c^{k+1}⌋) → 1/√c = 1/(2m).
+  -- Using √(1-x) ≥ 1-x for x ∈ [0,1] and the identity
+  --   (1-δ)(1 - 1/(4m²)) - (1+δ)/(2m) - (1 - 1/m) = (12m² - 10m + 1)/(32m³) > 0.
+  have hm_pos_nat : 0 < m := hm
+  have hm_pos : (0 : ℝ) < (m : ℝ) := Nat.cast_pos.mpr hm
+  have hm_ge1 : (1 : ℝ) ≤ (m : ℝ) := Nat.one_le_cast.mpr hm
+  set c : ℝ := 4 * (m : ℝ)^2 with hc_def
+  have hc_pos : (0 : ℝ) < c := by rw [hc_def]; positivity
+  have hc_ge4 : (4 : ℝ) ≤ c := by rw [hc_def]; nlinarith
+  have hc : (1 : ℝ) < c := by linarith
+  set δ : ℝ := 1 / (8 * (m : ℝ)) with hδ_def
+  have h8m_pos : (0 : ℝ) < 8 * (m : ℝ) := by linarith
+  have hδ_pos : 0 < δ := by rw [hδ_def]; positivity
+  have hδ_lt1 : δ < 1 := by
+    rw [hδ_def, div_lt_one h8m_pos]; linarith
+  have h1mδ_pos : (0 : ℝ) < 1 - δ := by linarith
+  have h1mδ_nn : (0 : ℝ) ≤ 1 - δ := le_of_lt h1mδ_pos
+  have h1pδ_pos : (0 : ℝ) < 1 + δ := by linarith
+  -- Block Borel-Cantelli: ∀ᵐ ω, ∃ᶠ k, S_{n_{k+1}} - S_{n_k} ≥ (1-δ)·lilNorm(m_k)
+  have h_block := lil_sparse_lower_bc a ha δ hδ_pos hδ_lt1 c hc
+  -- Upper bound on (-a) gives walk a n ω ≥ -(1+δ)·lilNorm n eventually
+  have ha_neg : IsRademacherSequence (fun j ω => -a j ω) := isRademacherSequence_neg a ha
+  have h_neg := lil_upper_for_eps (fun j ω => -a j ω) ha_neg δ hδ_pos
+  -- Upper bound on a for boundedness (walk/φ ≤ 2 eventually)
+  have h_up := lil_upper_for_eps a ha 1 one_pos
+  -- Asymptotic ratios via Helper E
+  have h_ratio_block := Erdos524.Helpers.lilNormAux_block_ratio_tendsto c hc
+  have h_ratio_scale := Erdos524.Helpers.lilNormAux_scale_ratio_tendsto c hc
+  -- Numerical setup: A = √((c-1)/c), B = 1/√c
+  -- Since c = 4m², √c = 2m, so B = 1/(2m).
+  have h_sqrt_c : Real.sqrt c = 2 * (m : ℝ) := by
+    rw [hc_def, show 4 * (m:ℝ)^2 = (2 * m)^2 from by ring]
+    exact Real.sqrt_sq (by linarith : (0:ℝ) ≤ 2*m)
+  have h_B_eq : (1 : ℝ) / Real.sqrt c = 1 / (2 * (m : ℝ)) := by rw [h_sqrt_c]
+  -- (c-1)/c = 1 - 1/(4m²)
+  have h_cm1_c : (c - 1) / c = 1 - 1 / (4 * (m:ℝ)^2) := by
+    rw [hc_def]; field_simp
+  -- √((c-1)/c) ≥ 1 - 1/(4m²), since √y ≥ y for y ∈ [0,1].
+  have h_A_ge : 1 - 1 / (4 * (m:ℝ)^2) ≤ Real.sqrt ((c-1)/c) := by
+    rw [h_cm1_c]
+    set y : ℝ := 1 - 1 / (4 * (m:ℝ)^2) with hy_def
+    have hy_nn : 0 ≤ y := by
+      rw [hy_def, sub_nonneg, div_le_one (by positivity : (0:ℝ) < 4*(m:ℝ)^2)]
+      nlinarith
+    have hy_le : y ≤ 1 := by
+      rw [hy_def]
+      have : (0:ℝ) ≤ 1/(4*(m:ℝ)^2) := by positivity
+      linarith
+    -- y ≤ √y because y*y ≤ y (as y ≤ 1) and √y*√y = y.
+    have : y * y ≤ y := by nlinarith
+    have hsqrt_nn : (0:ℝ) ≤ Real.sqrt y := Real.sqrt_nonneg _
+    nlinarith [Real.sq_sqrt hy_nn, Real.sqrt_nonneg y, this]
+  -- Key numerical inequality:
+  -- (1-δ)·(1 - 1/(4m²)) - (1+δ)·(1/(2m)) - (1 - 1/m) = (12m² - 10m + 1)/(32 m³) > 0.
+  have h_gap_pos : (0 : ℝ) <
+      (1 - δ) * (1 - 1/(4*(m:ℝ)^2)) - (1 + δ) * (1/(2*(m:ℝ))) - (1 - 1/(m:ℝ)) := by
+    rw [hδ_def]
+    have h1 : (0 : ℝ) < (m : ℝ) := hm_pos
+    have h2 : (1 : ℝ) ≤ (m : ℝ) := hm_ge1
+    have hm2 : (1 : ℝ) ≤ (m : ℝ)^2 := by nlinarith
+    have hm3 : (0 : ℝ) < (m : ℝ)^3 := by positivity
+    have hmne : (m : ℝ) ≠ 0 := ne_of_gt h1
+    -- Scale the inequality: 32 m³ · LHS = 12 m² - 10 m + 1 (after expansion).
+    -- Reduce to polynomial: show equality 32·m³·LHS = 12m² - 10m + 1 and 12m² - 10m + 1 > 0.
+    have h_poly : (0 : ℝ) < 12 * (m:ℝ)^2 - 10 * (m:ℝ) + 1 := by nlinarith
+    -- rewrite 1/(8m), 1/(4m²), 1/(2m), 1/m using explicit simplification
+    have key :
+      ((1 - 1/(8*(m:ℝ))) * (1 - 1/(4*(m:ℝ)^2)) - (1 + 1/(8*(m:ℝ))) * (1/(2*(m:ℝ)))
+          - (1 - 1/(m:ℝ))) * (32 * (m:ℝ)^3) = 12 * (m:ℝ)^2 - 10 * (m:ℝ) + 1 := by
+      field_simp
+      ring
+    have h32 : (0 : ℝ) < 32 * (m:ℝ)^3 := by positivity
+    nlinarith [key, h32, h_poly]
+  -- Set L = (1-δ)·A - (1+δ)·B; then L > 1 - 1/m.
+  set A : ℝ := Real.sqrt ((c - 1) / c) with hA_def
+  have hA_pos : (0 : ℝ) < A := by
+    rw [hA_def]; apply Real.sqrt_pos.mpr
+    rw [h_cm1_c]
+    rw [sub_pos, div_lt_one (by positivity : (0:ℝ) < 4*(m:ℝ)^2)]
+    nlinarith
+  set B : ℝ := 1 / Real.sqrt c with hB_def
+  have hL_gt : (1 : ℝ) - 1 / (m : ℝ) < (1 - δ) * A - (1 + δ) * B := by
+    have hB_eq' : B = 1 / (2 * (m : ℝ)) := by rw [hB_def, h_sqrt_c]
+    have hAlow : (1 - δ) * (1 - 1/(4*(m:ℝ)^2)) ≤ (1 - δ) * A :=
+      mul_le_mul_of_nonneg_left h_A_ge h1mδ_nn
+    -- gap: (1-δ)·A - (1+δ)·B ≥ (1-δ)·(1-1/(4m²)) - (1+δ)·(1/(2m)) > 1 - 1/m.
+    rw [hB_eq']; linarith
+  -- Almost sure combining: filter_upwards over the events we need.
+  filter_upwards [h_block, h_neg, h_up] with ω h_block_ω h_neg_ω h_up_ω
+  -- Unfold kolmogorov target function notation: f n := walk a n ω / √(2·n·log log n).
+  set f : ℕ → ℝ := fun n => walk a n ω / Real.sqrt (2 * (n:ℝ) * Real.log (Real.log n))
+  -- Translate h_up_ω: eventually f n ≤ 2, giving IsBoundedUnder (· ≤ ·).
+  have h_bdd : IsBoundedUnder (· ≤ ·) atTop f := by
+    refine ⟨2, ?_⟩
+    simp only [eventually_map]
+    filter_upwards [h_up_ω] with n hn
+    have : f n ≤ 1 + 1 := hn
+    linarith
+  -- Translate h_neg_ω: eventually walk a n ω ≥ -(1+δ)·lilNorm n.
+  -- h_neg_ω: ∀ᶠ n, walk (fun j ω' => -a j ω') n ω / √(2 n log log n) ≤ 1 + δ.
+  -- walk(-a, n, ω) = - walk(a, n, ω), so -walk(a, n, ω)/√ ≤ 1 + δ, i.e. walk ≥ -(1+δ)·√.
+  -- Eventually n ≥ 3, so lilNorm n > 0.
+  have h_lilNorm_pos : ∀ᶠ n in atTop, (0 : ℝ) < lilNorm n := by
+    filter_upwards [Filter.eventually_ge_atTop (3 : ℕ)] with n hn
+    unfold lilNorm
+    apply Real.sqrt_pos.mpr
+    have hn_cast : (3 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn
+    have hn_pos : (0 : ℝ) < (n : ℝ) := by linarith
+    have hlogn : 1 < Real.log (n : ℝ) := by
+      rw [← Real.log_exp 1]
+      exact Real.log_lt_log (Real.exp_pos 1)
+        (lt_of_lt_of_le (Real.exp_one_lt_d9.trans (by norm_num : (2.7182818286:ℝ) < 3)) hn_cast)
+    have hll_pos : 0 < Real.log (Real.log (n : ℝ)) := Real.log_pos hlogn
+    positivity
+  -- Translate h_neg_ω: eventually walk a n ω ≥ -(1+δ)·lilNorm n (for n ≥ 3).
+  have h_neg_ω' : ∀ᶠ n in atTop, walk a n ω ≥ -(1 + δ) * lilNorm n := by
+    filter_upwards [h_neg_ω, h_lilNorm_pos] with n hn hφ_pos
+    have hwn : walk (fun j ω' => -a j ω') n ω = -walk a n ω := walk_neg a n ω
+    rw [hwn] at hn
+    change -walk a n ω / Real.sqrt (2 * (n:ℝ) * Real.log (Real.log n)) ≤ 1 + δ at hn
+    change (0 : ℝ) < lilNorm n at hφ_pos
+    have hlil_eq : lilNorm n = Real.sqrt (2 * (n:ℝ) * Real.log (Real.log n)) := rfl
+    rw [hlil_eq] at hφ_pos
+    have : -walk a n ω ≤ (1 + δ) * Real.sqrt (2 * (n:ℝ) * Real.log (Real.log n)) := by
+      rw [← div_le_iff₀ hφ_pos]; exact hn
+    show walk a n ω ≥ -(1 + δ) * lilNorm n
+    rw [hlil_eq]; linarith
+  -- Apply le_limsup_of_frequently_le: need ∃ᶠ n, 1 - 1/m ≤ f n, and bdd.
+  show 1 - 1 / (m : ℝ) ≤ limsup f atTop
+  refine le_limsup_of_frequently_le (u := f) (f := atTop) ?_ h_bdd
+  -- Set up thresholds
+  set θ : ℝ := 1 - 1 / (m : ℝ) with hθ_def
+  set L : ℝ := (1 - δ) * A - (1 + δ) * B with hL_def
+  have hgap : 0 < L - θ := by
+    change 0 < ((1 - δ) * A - (1 + δ) * B) - (1 - 1 / (m : ℝ)); linarith
+  -- Pick ε' s.t. (1-δ)·ε' + (1+δ)·ε' = 2·ε' < L - θ; e.g. ε' = (L - θ)/4.
+  set ε' : ℝ := (L - θ) / 4 with hε'_def
+  have hε'_pos : 0 < ε' := by rw [hε'_def]; positivity
+  have hε'_bound : (1 - δ) * ε' + (1 + δ) * ε' ≤ L - θ := by
+    rw [hε'_def]; have : (1 - δ) * ((L - θ) / 4) + (1 + δ) * ((L - θ) / 4) =
+        (L - θ) / 2 := by ring
+    rw [this]; linarith
+  -- Tendsto-subsequence: ⌊c^k⌋₊ → ∞, ⌊c^(k+1)⌋₊ → ∞.
+  have hpow_sub : Tendsto (fun k : ℕ => ⌊c ^ k⌋₊) atTop atTop := by
+    refine tendsto_atTop.mpr fun b => ?_
+    have h := (tendsto_pow_atTop_atTop_of_one_lt hc).eventually_ge_atTop ((b : ℝ) + 1)
+    filter_upwards [h] with k hk
+    exact Nat.le_floor (by linarith [hk])
+  have hpow_sub1 : Tendsto (fun k : ℕ => ⌊c ^ (k+1)⌋₊) atTop atTop :=
+    hpow_sub.comp (tendsto_add_atTop_nat 1)
+  -- Eventually good ingredients, suitable for combination with h_block_ω.
+  have h_eventually_good : ∀ᶠ k : ℕ in atTop,
+      -- block ratio ≥ A - ε'
+      A - ε' ≤ Erdos524.Helpers.lilNormAux ((⌊c ^ (k + 1)⌋₊ : ℝ) - (⌊c ^ k⌋₊ : ℝ)) /
+        Erdos524.Helpers.lilNormAux ((⌊c ^ (k + 1)⌋₊ : ℝ))
+      ∧ -- scale ratio ≤ B + ε'
+      Erdos524.Helpers.lilNormAux ((⌊c ^ k⌋₊ : ℝ)) /
+        Erdos524.Helpers.lilNormAux ((⌊c ^ (k + 1)⌋₊ : ℝ)) ≤ B + ε'
+      ∧ -- ⌊c^(k+1)⌋₊ ≥ 3 and ⌊c^k⌋₊ ≥ 3
+      3 ≤ ⌊c ^ (k+1)⌋₊ ∧ 3 ≤ ⌊c ^ k⌋₊
+      ∧ -- walk a ⌊c^k⌋₊ ω ≥ -(1 + δ) * lilNorm ⌊c^k⌋₊
+      walk a (⌊c^k⌋₊) ω ≥ -(1 + δ) * lilNorm (⌊c^k⌋₊) := by
+    have h_br : ∀ᶠ k : ℕ in atTop,
+        A - ε' ≤ Erdos524.Helpers.lilNormAux ((⌊c ^ (k + 1)⌋₊ : ℝ) - (⌊c ^ k⌋₊ : ℝ)) /
+          Erdos524.Helpers.lilNormAux ((⌊c ^ (k + 1)⌋₊ : ℝ)) :=
+      ((tendsto_order.mp h_ratio_block).1 (A - ε')
+        (by linarith)).mono (fun k hk => le_of_lt hk)
+    have h_sr : ∀ᶠ k : ℕ in atTop,
+        Erdos524.Helpers.lilNormAux ((⌊c ^ k⌋₊ : ℝ)) /
+          Erdos524.Helpers.lilNormAux ((⌊c ^ (k + 1)⌋₊ : ℝ)) ≤ B + ε' :=
+      ((tendsto_order.mp h_ratio_scale).2 (B + ε')
+        (by rw [hB_def]; linarith)).mono (fun k hk => le_of_lt hk)
+    have h_nk1 : ∀ᶠ k : ℕ in atTop, 3 ≤ ⌊c ^ (k+1)⌋₊ :=
+      hpow_sub1.eventually_ge_atTop 3
+    have h_nk : ∀ᶠ k : ℕ in atTop, 3 ≤ ⌊c ^ k⌋₊ :=
+      hpow_sub.eventually_ge_atTop 3
+    have h_negk : ∀ᶠ k : ℕ in atTop,
+        walk a (⌊c^k⌋₊) ω ≥ -(1 + δ) * lilNorm (⌊c^k⌋₊) :=
+      hpow_sub.eventually h_neg_ω'
+    filter_upwards [h_br, h_sr, h_nk1, h_nk, h_negk] with k h1 h2 h3 h4 h5
+    exact ⟨h1, h2, h3, h4, h5⟩
+  -- Combine ∃ᶠ of block with ∀ᶠ of good ingredients:
+  have h_freq_combined := h_block_ω.and_eventually h_eventually_good
+  -- Each satisfying k gives walk a ⌊c^(k+1)⌋ ω / lilNorm ⌊c^(k+1)⌋ ≥ θ.
+  -- Use subsequence via hpow_sub1.
+  have h_freq_nk : ∃ᶠ k : ℕ in atTop,
+      θ ≤ walk a (⌊c^(k+1)⌋₊) ω / lilNorm (⌊c^(k+1)⌋₊) := by
+    apply h_freq_combined.mono
+    rintro k ⟨hblock_k, hbr, hsr, hnk1_ge3, hnk_ge3, hneg_k⟩
+    -- lilNorm (⌊c^(k+1)⌋) > 0
+    have hlil1_pos : (0 : ℝ) < lilNorm (⌊c^(k+1)⌋₊) := by
+      unfold lilNorm
+      apply Real.sqrt_pos.mpr
+      have hn_cast : (3 : ℝ) ≤ ((⌊c^(k+1)⌋₊ : ℕ) : ℝ) := by exact_mod_cast hnk1_ge3
+      have hlogn : 1 < Real.log ((⌊c^(k+1)⌋₊ : ℕ) : ℝ) := by
+        rw [← Real.log_exp 1]
+        exact Real.log_lt_log (Real.exp_pos 1)
+          (lt_of_lt_of_le (Real.exp_one_lt_d9.trans (by norm_num : (2.7182818286:ℝ) < 3))
+          hn_cast)
+      have hll_pos : 0 < Real.log (Real.log ((⌊c^(k+1)⌋₊ : ℕ) : ℝ)) := Real.log_pos hlogn
+      have hn_pos : (0:ℝ) < ((⌊c^(k+1)⌋₊ : ℕ) : ℝ) := by linarith
+      positivity
+    -- lilNormAux((n : ℝ)) = lilNorm n: definitional in values.
+    have h_aux_eq_lil : ∀ n : ℕ,
+        Erdos524.Helpers.lilNormAux ((n : ℝ)) = lilNorm n := by
+      intro n; unfold Erdos524.Helpers.lilNormAux lilNorm; rfl
+    -- lilNormAux((⌊c^(k+1)⌋:ℝ) - (⌊c^k⌋:ℝ)) = lilNorm (⌊c^(k+1)⌋ - ⌊c^k⌋) (nat subtr)
+    have h_le_nk : (⌊c^k⌋₊ : ℕ) ≤ (⌊c^(k+1)⌋₊ : ℕ) :=
+      Nat.floor_mono (pow_le_pow_right₀ hc.le (Nat.le_succ k))
+    have h_cast_sub : ((⌊c^(k+1)⌋₊ : ℕ) : ℝ) - ((⌊c^k⌋₊ : ℕ) : ℝ) =
+        (((⌊c^(k+1)⌋₊ : ℕ) - (⌊c^k⌋₊ : ℕ) : ℕ) : ℝ) := by
+      rw [Nat.cast_sub h_le_nk]
+    have h_aux_block : Erdos524.Helpers.lilNormAux
+          ((⌊c ^ (k + 1)⌋₊ : ℝ) - (⌊c ^ k⌋₊ : ℝ)) =
+        lilNorm ((⌊c^(k+1)⌋₊ : ℕ) - (⌊c^k⌋₊ : ℕ)) := by
+      rw [h_cast_sub, h_aux_eq_lil]
+    -- Rewrite block ratio bound in terms of lilNorm
+    have hbr' : A - ε' ≤ lilNorm ((⌊c^(k+1)⌋₊ : ℕ) - (⌊c^k⌋₊ : ℕ)) / lilNorm (⌊c^(k+1)⌋₊) := by
+      rw [← h_aux_block, ← h_aux_eq_lil (⌊c^(k+1)⌋₊)]; exact hbr
+    have hsr' : lilNorm (⌊c^k⌋₊) / lilNorm (⌊c^(k+1)⌋₊) ≤ B + ε' := by
+      rw [← h_aux_eq_lil, ← h_aux_eq_lil (⌊c^(k+1)⌋₊)]; exact hsr
+    -- Denote φ₁ = lilNorm (⌊c^(k+1)⌋₊), φ₀ = lilNorm (⌊c^k⌋₊), φ_m = lilNorm (block).
+    set φ₁ := lilNorm (⌊c^(k+1)⌋₊) with hφ₁_def
+    set φ₀ := lilNorm (⌊c^k⌋₊) with hφ₀_def
+    set φ_m := lilNorm ((⌊c^(k+1)⌋₊ : ℕ) - (⌊c^k⌋₊ : ℕ)) with hφm_def
+    -- walk relation: walk a ⌊c^(k+1)⌋₊ ω ≥ (1-δ)·φ_m - (1+δ)·φ₀
+    have h_walk_ge : walk a (⌊c^(k+1)⌋₊) ω ≥ (1 - δ) * φ_m - (1 + δ) * φ₀ := by
+      have hblock : walk a (⌊c^(k+1)⌋₊) ω - walk a (⌊c^k⌋₊) ω ≥ (1 - δ) * φ_m := hblock_k
+      have : walk a (⌊c^(k+1)⌋₊) ω ≥ (1 - δ) * φ_m + walk a (⌊c^k⌋₊) ω := by linarith
+      have hneg : walk a (⌊c^k⌋₊) ω ≥ -(1 + δ) * φ₀ := hneg_k
+      linarith
+    -- Divide by φ₁ > 0:
+    have hφ_m_nn : 0 ≤ φ_m := lilNorm_nonneg _
+    have hφ₀_nn : 0 ≤ φ₀ := lilNorm_nonneg _
+    have hφ₁_nn : 0 ≤ φ₁ := lilNorm_nonneg _
+    -- (1-δ)·φ_m/φ₁ ≥ (1-δ)·(A - ε'); (1+δ)·φ₀/φ₁ ≤ (1+δ)·(B + ε').
+    have h1 : (1 - δ) * (A - ε') ≤ (1 - δ) * (φ_m / φ₁) :=
+      mul_le_mul_of_nonneg_left hbr' h1mδ_nn
+    have h2 : (1 + δ) * (φ₀ / φ₁) ≤ (1 + δ) * (B + ε') :=
+      mul_le_mul_of_nonneg_left hsr' (by linarith)
+    -- Key inequality: walk/φ₁ ≥ ((1-δ)φ_m - (1+δ)φ₀)/φ₁
+    have h_div : ((1 - δ) * φ_m - (1 + δ) * φ₀) / φ₁ ≤ walk a (⌊c^(k+1)⌋₊) ω / φ₁ := by
+      exact div_le_div_of_nonneg_right h_walk_ge (le_of_lt hlil1_pos)
+    -- Simplify LHS: ((1-δ)φ_m - (1+δ)φ₀)/φ₁ = (1-δ)(φ_m/φ₁) - (1+δ)(φ₀/φ₁)
+    have h_split : ((1 - δ) * φ_m - (1 + δ) * φ₀) / φ₁ =
+        (1 - δ) * (φ_m / φ₁) - (1 + δ) * (φ₀ / φ₁) := by
+      rw [sub_div, mul_div_assoc, mul_div_assoc]
+    rw [h_split] at h_div
+    -- θ ≤ (1-δ)(A-ε') - (1+δ)(B+ε')
+    have h_theta_lb : θ ≤ (1 - δ) * (A - ε') - (1 + δ) * (B + ε') := by
+      have : (1 - δ) * (A - ε') - (1 + δ) * (B + ε') =
+          ((1 - δ) * A - (1 + δ) * B) - ((1 - δ) * ε' + (1 + δ) * ε') := by ring
+      rw [this, ← hL_def]
+      linarith [hε'_bound]
+    linarith
+  -- Lift to ∃ᶠ n in atTop: use hpow_sub1.frequently.
+  -- Rewrite h_freq_nk in the form using f.
+  have h_freq_nk' : ∃ᶠ k : ℕ in atTop, θ ≤ f (⌊c^(k+1)⌋₊) := by
+    apply h_freq_nk.mono
+    intro k hk
+    change θ ≤ walk a (⌊c^(k+1)⌋₊) ω / Real.sqrt (2 * ((⌊c^(k+1)⌋₊ : ℕ) : ℝ)
+      * Real.log (Real.log ((⌊c^(k+1)⌋₊ : ℕ) : ℝ)))
+    have : lilNorm (⌊c^(k+1)⌋₊) = Real.sqrt (2 * ((⌊c^(k+1)⌋₊ : ℕ) : ℝ) *
+        Real.log (Real.log ((⌊c^(k+1)⌋₊ : ℕ) : ℝ))) := rfl
+    rw [← this]; exact hk
+  exact hpow_sub1.frequently h_freq_nk'
 
 end LIL
 
