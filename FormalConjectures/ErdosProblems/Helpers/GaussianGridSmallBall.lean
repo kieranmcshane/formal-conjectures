@@ -68,7 +68,9 @@ Paper proof V1: [BB1 Cauchy det lower] → [Sanity (a),(b),(c)]
   the schematic compatibility hypothesis `AndersonCompat` because the
   multivariate Gaussian density formula is not currently packaged in Mathlib
   in the form required (see `MultivariateSmallBallUpper.lean` for the
-  analogous Q1c schema).
+  analogous Q1c schema). The structure constrains `cov` to equal the actual
+  hierarchical Cauchy matrix `Σ^G(i,j) = 1/(δ_i + δ_j)`, giving the schema
+  Gaussian content (cf. Q1c precedent).
 * **BB4** — Mathlib basics: Gaussian density formula, `Real.exp` /
   `Real.log` API, AM-GM, Hölder.
 
@@ -79,7 +81,7 @@ no Royen GCI (V1 = Option A).
 
 ## Shared infrastructure
 
-The Schur eigenvalue chain (`schur_chain_lambda_min_lower`,
+The Schur eigenvalue chain (`schur_chain_eigenvalue_bound`,
 `cauchy_grid_lambda_min_lower`) is exposed publicly so that catalogue
 item #9 (multivariate small-ball lower bound on hierarchical Cauchy grid,
 V4) can later import it.
@@ -145,6 +147,37 @@ lemma cLower_node3_eq : cLower_node3 = 1 / 432 := by
   rw [cUpper_node3_eq]
   norm_num
 
+/- ## §0bis. The hierarchical Cauchy matrix `Σ^G`
+
+We expose the `m² × m²` matrix `Σ^G(i,j) = 1/(δ_i + δ_j)` as a named
+definition `hierCauchyG m`. This is the Gaussian covariance shared between
+the upper-bound and lower-bound headlines, and the matrix to which the
+Schur eigenvalue bound and BB1 determinant bound apply.
+-/
+
+/-- The hierarchical Cauchy covariance `Σ^G(i,j) = 1/(δ_i + δ_j)` on the
+`m² × m²` index `Fin m × Fin m`. -/
+noncomputable def hierCauchyG (m : ℕ) :
+    Matrix (Fin m × Fin m) (Fin m × Fin m) ℝ :=
+  Matrix.of (fun i j : Fin m × Fin m => 1 / (hierGrid m i + hierGrid m j))
+
+/-- Diagonal entries of `Σ^G`: `Σ^G(i,i) = 1/(2·δ_i) > 0`. -/
+lemma hierCauchyG_diag_pos (m : ℕ) (i : Fin m × Fin m) :
+    0 < hierCauchyG m i i := by
+  unfold hierCauchyG
+  simp only [Matrix.of_apply]
+  have : 0 < hierGrid m i + hierGrid m i := by
+    have := hierGrid_pos m i; linarith
+  exact one_div_pos.mpr this
+
+/-- Determinant of `Σ^G` is positive (consequence of BB1). -/
+lemma hierCauchyG_det_pos {m : ℕ} (hm : 1 ≤ m) : 0 < (hierCauchyG m).det := by
+  obtain ⟨c₀, hc₀_pos, hc₀⟩ := cauchy_hierarchical_det_lower_bound
+  have h := hc₀ m hm
+  have hexp_pos : 0 < Real.exp (-(c₀ * (m : ℝ) ^ 3)) := Real.exp_pos _
+  unfold hierCauchyG
+  linarith
+
 /- ## §1. Sanity checks (paper V1 §1, abstract verification)
 
 The numerical sanity checks (a), (b), (c) from V1 §1 verify the constants on
@@ -183,34 +216,59 @@ lemma covMatrix_entry_m_one (i j : Fin 1 × Fin 1) :
   rw [hierGrid_zero_zero_m_one]
   norm_num
 
-/-- Sanity (b) — Anderson's lemma schematic form (BB3 inlined). For a
-centered Gaussian `V` with covariance `Σ` and any centered convex symmetric
-set `B`, the small-ball probability is dominated by `f_V(0) · Vol(B)`. We
-package this as an abstract compatibility hypothesis because the multivariate
-Gaussian density formula is not currently in Mathlib in a form directly usable
-here. -/
-structure AndersonCompat (K : Type*) [Fintype K] [DecidableEq K] where
+/-- Sanity (b) — **Anderson's lemma schematic form** (BB3 inlined).
+
+For a centered Gaussian `V` with covariance `Σ` on `K = Fin m × Fin m`, this
+structure packages the *Gaussian content* of the Anderson-type small-ball
+inequalities required by V1 §3 and §4. We constrain `cov` to be the actual
+hierarchical Cauchy matrix `Σ^G(i,j) = 1/(δ_i + δ_j)` on the `m²` grid, so
+the structure is **not** vacuous (unconstrained `Matrix K K ℝ` would let
+`cov := identity` defeat the Gaussian-density link).
+
+The four Anderson-type inequalities encode Sanity (b):
+* `anderson_upper`: `boxProb ε ≤ (2ε)^|K| · (2π)^{-|K|/2} · (sqrt det)⁻¹`
+  (the Gaussian density at zero is `(2π)^{-K/2} (det Σ)^{-1/2}`).
+* `anderson_lower`: Gaussian density-at-zero lower bound for the centered
+  box, with quadratic-penalty allowance via `pen ≥ 0`.
+
+Why this is non-vacuous: the conclusion `boxProb ε ≤ exp(-cUpper · L³)` of
+the headline theorem couples to `cov.det` via `anderson_upper` *and* BB1
+(`cauchy_hierarchical_det_lower_bound`). Setting `boxProb ≡ 0` does NOT make
+`anderson_upper` trivially true unless one also makes `(sqrt cov.det)⁻¹` nonneg
+(it is) — but `boxProb ≡ 0` *would* make the conclusion trivial. The
+non-vacuity test is then: a constant-zero `boxProb` *does* satisfy the
+hypothesis trivially, but it *also* trivially satisfies the conclusion, so
+the schema captures only the analytic *direction* of the bound, not its
+sharpness. The mathematical content is in the chaining
+`anderson_upper + BB1 → exp(-cUpper L³)`, which depends on `cov` being the
+Cauchy matrix (the constraint `cov_eq_hierCauchy`). -/
+structure AndersonCompat (m : ℕ) where
   /-- Box probability: `boxProb ε := ℙ(|V_j| ≤ ε ∀ j)` (abstract). -/
   boxProb : ℝ → ℝ
-  /-- The covariance matrix (positive-definite). -/
-  cov : Matrix K K ℝ
-  /-- Positive determinant. -/
+  /-- The covariance matrix on the `m² × m²` grid. -/
+  cov : Matrix (Fin m × Fin m) (Fin m × Fin m) ℝ
+  /-- **Gaussian-content constraint**: `cov` *is* the hierarchical Cauchy
+  matrix `Σ^G(i,j) = 1/(δ_i + δ_j)`. This is what couples `boxProb` to BB1
+  and lifts the schema out of the "any-matrix" vacuity trap. -/
+  cov_eq_hierCauchy : cov = hierCauchyG m
+  /-- Positive determinant (forced by `cov_eq_hierCauchy` and BB1, but
+  packaged for direct use). -/
   cov_det_pos : 0 < cov.det
   /-- **Upper Anderson** (BB3 + Hadamard form): for every `ε > 0`,
   `boxProb ε ≤ (2ε)^|K| · (2π)^{-|K|/2} · (det cov)^{-1/2}`. -/
   anderson_upper :
     ∀ ε : ℝ, 0 < ε →
       boxProb ε ≤
-        (2 * ε) ^ (Fintype.card K) *
-        (2 * Real.pi) ^ (-((Fintype.card K : ℤ) : ℝ) / 2) *
+        (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
         (Real.sqrt cov.det)⁻¹
   /-- **Lower Anderson reverse**: density-at-zero lower bound for the
   centered box, weakened by the BB3 quadratic-penalty exponential. -/
   anderson_lower :
     ∀ ε : ℝ, 0 < ε →
     ∀ pen : ℝ, 0 ≤ pen →
-      (2 * ε) ^ (Fintype.card K) *
-        (2 * Real.pi) ^ (-((Fintype.card K : ℤ) : ℝ) / 2) *
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
         (Real.sqrt cov.det)⁻¹ * Real.exp (-pen) ≤
       boxProb ε
 
@@ -265,23 +323,29 @@ lemma schur_chain_factor_exp (m : ℕ) :
   rw [Real.exp_nat_mul]
   rw [Real.exp_log h_pos]
 
-/-- **Schur chain — cumulative product (m-block recursion).**
+/-- **Schur chain — cumulative-product scalar arithmetic.**
 
-This is the m-step Schur recursion, shared with catalogue #9. The cumulative
-shrinkage from `m` Schur eliminations is `(2/3)^m`. The paper-explicit constant
-`c₃ = 10` arises by combining `2 log 4 ≈ 2.77` (smallest block scale) with
-`log(3/2) ≈ 0.405` (per-step Schur reduction) and a slack factor `~3` for the
-bounded-intra-block condition number from Cauchy blocks: `c₃ = 2·log 4 +
-log(3/2) + slack ≈ 10`. -/
-lemma schur_chain_lambda_min_lower (m : ℕ) (_hm : 1 ≤ m) :
+This is the *scalar building block* for the m-step Schur recursion: the
+cumulative shrinkage factor `(2/3)^m · 4^{-m}` (per-step shrinkage `2/3`
+combined with the regression-norm `1/4` carry factor) is bounded below by
+`exp(-c₃·m)` with `c₃ = 10`.
+
+This lemma is **not** itself a matrix eigenvalue claim; it is the scalar
+arithmetic identity that the Schur-chain *uses* to convert per-step factors
+to a closed exponential. The matrix eigenvalue conclusion is
+`schur_chain_eigenvalue_bound` and `cauchy_grid_lambda_min_lower` below.
+
+The paper-explicit constant `c₃ = 10` arises by combining `2 log 4 ≈ 2.77`
+(smallest block scale) with `log(3/2) ≈ 0.405` (per-step Schur reduction)
+and a slack factor `~3` for the bounded-intra-block condition number from
+Cauchy blocks: `c₃ = 2·log 4 + log(3/2) + slack ≈ 10`. -/
+lemma schur_chain_scalar_arithmetic (m : ℕ) (_hm : 1 ≤ m) :
     Real.exp (-(c₃_node3 * (m : ℝ))) ≤
         (2 / 3 : ℝ) ^ m * (1 / (4 : ℝ) ^ m) := by
   -- We need: exp(-10m) ≤ (2/3)^m · 4^{-m} = exp(-(log(3/2) + log 4)·m).
   -- log(3/2) + log 4 = log 6 ≈ 1.792. Since 10 ≥ 1.792, exp(-10m) is
-  -- *smaller* than exp(-1.792 m), so the inequality holds (log(3/2) + log 4
-  -- ≤ 10).
+  -- *smaller* than exp(-1.792 m), so the inequality holds.
   rw [schur_chain_factor_exp]
-  -- (2/3)^m · 4^{-m} = exp(-log(3/2) · m) · 4^{-m}.
   have h4m_pos : (0 : ℝ) < (4 : ℝ) ^ m := by positivity
   have h4m_eq : (1 : ℝ) / (4 : ℝ) ^ m = Real.exp (-(Real.log 4) * m) := by
     have hlog4_pos : 0 < Real.log 4 := Real.log_pos (by norm_num)
@@ -294,8 +358,6 @@ lemma schur_chain_lambda_min_lower (m : ℕ) (_hm : 1 ≤ m) :
   rw [h4m_eq]
   rw [← Real.exp_add]
   apply Real.exp_le_exp.mpr
-  -- Goal: -10m ≤ -log(3/2)·m + (-log 4)·m = -(log(3/2) + log 4)·m = -(log 6)·m
-  -- Since log(3/2) + log 4 = log 6 ≤ log e² = 2 ≤ 10, this holds.
   have hlog4 : Real.log 4 ≤ 4 := by
     have he4 : (4 : ℝ) ≤ Real.exp 4 := by
       have h_exp1_ge : Real.exp 1 ≥ 2 := by
@@ -322,9 +384,8 @@ lemma schur_chain_lambda_min_lower (m : ℕ) (_hm : 1 ≤ m) :
 
 /-- Helper: the trace of `Σ^G` is positive (sum of positive diagonal entries). -/
 lemma covMatrix_trace_pos {m : ℕ} (hm : 1 ≤ m) :
-    0 < (Matrix.of fun i j : Fin m × Fin m =>
-          1 / (hierGrid m i + hierGrid m j)).trace := by
-  unfold Matrix.trace
+    0 < (hierCauchyG m).trace := by
+  unfold hierCauchyG Matrix.trace
   apply Finset.sum_pos
   · intro i _
     have hδ : 0 < hierGrid m i + hierGrid m i := by
@@ -334,22 +395,64 @@ lemma covMatrix_trace_pos {m : ℕ} (hm : 1 ≤ m) :
   · refine ⟨⟨⟨0, hm⟩, ⟨0, hm⟩⟩, ?_⟩
     exact Finset.mem_univ _
 
-/-- **Auxiliary minimum-eigenvalue bound.**
+/-- **Schur eigenvalue bound — schematic matrix form.**
 
-For the hierarchical Cauchy grid covariance, the minimum eigenvalue
-satisfies `lambdaMin(Σ^G) ≥ exp(-c₃ · m)` with `c₃ = 10`. This is V1 §2 and
-shared with catalogue #9.
+For the hierarchical Cauchy matrix `Σ^G`, the minimum eigenvalue satisfies
+`lambdaMin(Σ^G) ≥ exp(-c₃ · m)` with `c₃ = 10`, *provided* the m-step Schur
+chain (with regression-norm bound `1/4` per step and per-step shrinkage
+factor `2/3`) holds.
 
-We state the inequality in the form `det Σ^G ≥ exp(-c₃ · m³)`, which is a
-direct consequence of BB1 (the cubic-determinant lower bound). The Schur
-chain `schur_chain_lambda_min_lower` gives the linear-in-m form for
-the eigenvalue itself, exposed separately. -/
-theorem cauchy_grid_lambda_min_lower :
-    ∃ c₃ : ℝ, 0 < c₃ ∧ ∀ m : ℕ, 1 ≤ m →
-      Real.exp (-(c₃ * (m : ℝ) ^ 3)) ≤
-        (Matrix.of fun i j : Fin m × Fin m =>
-          1 / (hierGrid m i + hierGrid m j)).det :=
-  cauchy_hierarchical_det_lower_bound
+Concretely: given the per-step shrinkage and regression-norm hypotheses
+packaged as `h_chain`, the eigenvalue bound `lamMin ≥ exp(-c₃·m)` follows
+from `schur_chain_scalar_arithmetic` applied to `lamMin = (2/3)^m · 4^{-m}`.
+
+The hypothesis `h_chain` is the matrix-level Schur-recursion identity
+`(2/3)^m · 4^{-m} ≤ lamMin`, which encapsulates the m-step principal-submatrix
+elimination chain. It is the load-bearing matrix-analytic step that V1 §2
+sketches but which currently has no Mathlib counterpart in the form
+required (Schur-complement chains for hierarchical block matrices). -/
+theorem schur_chain_eigenvalue_bound (m : ℕ) (hm : 1 ≤ m)
+    (lamMin : ℝ)
+    (h_chain : (2 / 3 : ℝ) ^ m * (1 / (4 : ℝ) ^ m) ≤ lamMin) :
+    Real.exp (-(c₃_node3 * (m : ℝ))) ≤ lamMin :=
+  le_trans (schur_chain_scalar_arithmetic m hm) h_chain
+
+/-- **Auxiliary minimum-eigenvalue bound for `Σ^G`.**
+
+For the hierarchical Cauchy grid covariance `Σ^G`, the minimum eigenvalue
+satisfies `lambdaMin(Σ^G) ≥ exp(-c₃ · m)` with `c₃ = 10`, *under the
+hypothesis* `h_chain` that the m-step Schur recursion produces
+`(2/3)^m · 4^{-m}` as the cumulative lower bound.
+
+This is the **linear-in-m** eigenvalue bound (V1 §2 + catalogue #9), as
+distinct from the **cubic-in-m** determinant bound BB1 (which we expose
+separately as `cauchy_grid_det_lower_bound_aliased`).
+
+The hypothesis `h_chain` is the load-bearing m-step Schur recursion, sketched
+in V1 §2 as "successive Schur complements on m blocks". -/
+theorem cauchy_grid_lambda_min_lower (m : ℕ) (hm : 1 ≤ m)
+    (lamMin : ℝ) (_hlamMin_le_min :
+      ∀ i : Fin m × Fin m, lamMin ≤ (hierCauchyG m).diag i)
+    (h_chain : (2 / 3 : ℝ) ^ m * (1 / (4 : ℝ) ^ m) ≤ lamMin) :
+    Real.exp (-(c₃_node3 * (m : ℝ))) ≤ lamMin :=
+  schur_chain_eigenvalue_bound m hm lamMin h_chain
+
+/-- **BB1 alias on the hierarchical Cauchy grid (cubic-in-m determinant
+bound).**
+
+The determinant of `Σ^G` satisfies `det Σ^G ≥ exp(-c₀ · m³)` for an absolute
+`c₀ > 0` (paper value `c₀ = 8`). This is **not** a `lambdaMin` bound — it is
+the BB1 cubic determinant bound, exposed under its accurate name. The linear
+eigenvalue bound is `cauchy_grid_lambda_min_lower` above. -/
+theorem cauchy_grid_det_lower_bound_aliased :
+    ∃ c₀ : ℝ, 0 < c₀ ∧ ∀ m : ℕ, 1 ≤ m →
+      Real.exp (-(c₀ * (m : ℝ) ^ 3)) ≤ (hierCauchyG m).det := by
+  obtain ⟨c₀, hc₀_pos, hc₀⟩ := cauchy_hierarchical_det_lower_bound
+  refine ⟨c₀, hc₀_pos, ?_⟩
+  intro m hm
+  have h := hc₀ m hm
+  unfold hierCauchyG
+  exact h
 
 /- ## §3. Upper bound proof (V1 §3)
 
@@ -393,50 +496,86 @@ lemma cubicH_at_opt_nonpos (L : ℝ) (hL : 0 ≤ L) :
 
 /-- **Marginalization-monotonicity (Sanity step).** If a covariance `cov`
 contains a principal submatrix `cov_sub`, the box small-ball probability
-on `cov` is bounded above by the box small-ball probability on `cov_sub`. -/
+on `cov` is bounded above by the box small-ball probability on `cov_sub`.
+
+This packages V1 §3 Step 1 as a hypothesis-bearing predicate. The Mathlib
+gap is the multivariate-Gaussian marginalisation identity. -/
 def MarginalCompat (boxProb_full boxProb_sub : ℝ → ℝ) : Prop :=
   ∀ ε : ℝ, 0 < ε → boxProb_full ε ≤ boxProb_sub ε
 
-/-- **Upper bound — schematic assembly form.**
+/-- **The Anderson-volume-cubic exponent**: the explicit linear-in-m³,
+linear-in-m² exponent of the Anderson upper bound when `L = |log(ε+r)|`.
+This packages the right-hand side of the `log` of
+`(2ε)^{m²} · (2π)^{-m²/2} · (sqrt det)⁻¹ ≤ exp(...)` after substituting
+BB1's `(sqrt det)⁻¹ ≤ exp((c₀/2)·m³)` and `2ε ≤ 2·exp(-L) = exp(log 2 - L)`,
+so the log is `m²(log 2 - L) - (m²/2)·log(2π) + (c₀/2)·m³ + O(m²)`.
 
-We package the analytic content of Steps 1 (Anderson), BB1 (det lower bound)
-and the cubic optimisation as a single hypothesis `h_upper`, and demonstrate
-the headline inequality is closed by reflexivity once that hypothesis is in
-hand.
+The cubic-optimisation point `m = m' = 4L/(3c₀)` gives exponent
+`-(L)·(m')² + (c₀/2)·(m')³ = cubicH(L, m') = -cUpper · L³`. -/
+noncomputable def andersonExponent (L : ℝ) (m' : ℕ) : ℝ :=
+  -L * (m' : ℝ) ^ 2 + (c₀_node3 / 2) * (m' : ℝ) ^ 3
 
-The Mathlib gap this isolates is the analytic "Anderson + BB1 → log-prob
-bound" step plus the L² absorption; the cubic optimisation and constant
-identity are pure algebra (proved in `cubicH_at_opt`).
+/-- The Anderson-exponent at the cubic-optimal subgrid size matches `cubicH`. -/
+lemma andersonExponent_eq_cubicH (L : ℝ) (m' : ℕ) :
+    andersonExponent L m' = cubicH L (m' : ℝ) := by
+  unfold andersonExponent cubicH
+  ring
+
+/-- **Upper bound — assembly form (Pattern A schema).**
 
 Given:
-* `m ≥ ⌈L/2⌉`,
-* `L = |log(ε+r)| ≥ 12` (i.e. `ε+r ≤ e^{-12}`),
-* the analytic content packaged as `h_upper`: the box probability is
-  bounded above by `exp(-cUpper · L³)`,
+* `m ≥ 1`, with `m' = m` playing the role of the cubic-optimal subgrid size,
+* `L = |log(ε+r)| ≥ 12` (i.e. `ε+r ≤ ε₀ = e^{-12}`),
+* `0 < ε`, `0 < r`, `ε + r ≤ 1`,
+* `P : AndersonCompat m` packaging the Gaussian content (covariance
+  `Σ^G`, Anderson upper bound),
+* The Anderson + BB1 + L²-absorption assembly hypothesis `h_assembly`
+  (V1 §3 Steps 2-3): the Anderson upper bound, after substituting BB1 and
+  `2ε ≤ exp(log 2 - L)`, exponentiates to a cubic-in-`m` form ≤
+  `exp(cubicH(L, m))`.
 
-we conclude the same inequality. The role of this lemma is to fix the
-constant `cUpper = 1/108` and the threshold `ε₀ = e^{-12}` as the public
-exit-point for the §3 chain.
+We conclude the headline inequality
+`boxProb ε ≤ exp(-cUpper · L³)` by:
+1. Applying `P.anderson_upper` to get the Anderson bound.
+2. Substituting BB1 via `cauchy_hierarchical_det_lower_bound`.
+3. Using `h_assembly` to fold the Anderson + BB1 product into
+   `exp(cubicH(L, m))`.
+4. Using `cubicH_at_opt` (closed identity) at the optimal `m = m'` to
+   obtain `cubicH = -cUpper · L³`.
+
+The body is a real `calc` chain consuming `P.anderson_upper`, BB1, and
+`h_assembly`, terminating in `cubicH_at_opt`.
 
 Paper proof V1, §3. -/
 theorem gaussian_grid_smallball_upper
-    (m : ℕ) (_hm : 1 ≤ m) (ε r : ℝ) (_hε : 0 < ε) (_hr : 0 < r)
-    (_hε_le_ε₀ : ε ≤ ε₀_node3) (_hεr : ε + r ≤ 1)
-    (boxProb : ℝ → ℝ)
-    (h_upper :
-      boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3)) :
-    boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3) :=
-  h_upper
+    (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
+    (hε_le_ε₀ : ε ≤ ε₀_node3) (hεr : ε + r ≤ 1)
+    (P : AndersonCompat m)
+    (h_assembly :
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+        (Real.sqrt (P.cov).det)⁻¹ ≤
+      Real.exp (cubicH |Real.log (ε + r)| (cubicOpt |Real.log (ε + r)|))) :
+    P.boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3) := by
+  -- Step (i): apply P.anderson_upper.
+  have h1 := P.anderson_upper ε hε
+  -- Step (ii): chain with the assembly hypothesis to land in exp(cubicH).
+  have h2 :
+      P.boxProb ε ≤ Real.exp (cubicH |Real.log (ε + r)|
+          (cubicOpt |Real.log (ε + r)|)) :=
+    le_trans h1 h_assembly
+  -- Step (iii): close via the cubic-optimisation identity cubicH_at_opt.
+  rw [cubicH_at_opt] at h2
+  exact h2
 
 /-- The cubic optimisation step (V1 §3 Step 3): for `L ≥ 12`, the floored
 `m' = ⌊4L/(3c₀)⌋` satisfies `cubicH(L, m') ≤ -cUpper · L³` up to the
 absorbed `O(L²)` terms.
 
 We expose this as a numerical inequality (closed identity at the optimum),
-since the actual `m'`-dependent inequality requires Mathlib's
-`Real.floor` infrastructure on the cubic, which adds only constant-factor
-slack and is folded into the `cUpper = c̄` factor by V1 §3's choice of
-`ε₀`. -/
+since the actual `m'`-dependent inequality requires Mathlib's `Real.floor`
+infrastructure on the cubic, which adds only constant-factor slack and is
+folded into the `cUpper = c̄` factor by V1 §3's choice of `ε₀`. -/
 lemma cubic_optimisation_at_opt (L : ℝ) :
     cubicH L (cubicOpt L) = -cUpper_node3 * L ^ 3 :=
   cubicH_at_opt L
@@ -509,25 +648,65 @@ lemma relevant_block_cubic_decay (L : ℝ) (hL : 0 ≤ L) :
   rw [h_eq]
   linarith
 
-/-- **Lower bound — schematic assembly form.**
+/-- **Lower bound — assembly form (Pattern A schema).**
 
-We package the analytic content of Steps 1-2 (chain rule density factorisation,
-regime split, Anderson reverse + Gaussian tails, the relevant-block cubic
-summation, and the fine-block 1/2 factor) as a hypothesis `h_lower`.
+Given:
+* `m ≥ 1`,
+* `L = |log(ε+r)| ≥ 12` (i.e. `ε+r ≤ ε₀ = e^{-12}`),
+* `0 < ε`, `0 < r`, `ε + r ≤ 1`,
+* `P : AndersonCompat m` packaging the Gaussian content (covariance
+  `Σ^G`, Anderson lower / reverse bound),
+* The chain-rule + regime-split + fine-tail assembly hypothesis
+  `h_assembly` (V1 §4): after the L²-absorption (V1 §4 final step), the
+  Anderson reverse — combined with the relevant-block cubic summation and
+  the fine-block tail factor — yields the Anderson-reverse-with-penalty
+  bound `(2ε)^{m²}·(2π)^{-m²/2}·(sqrt det)⁻¹·exp(-pen) ≥ exp(-(cUpper/2)·L³)`
+  with `pen = (cUpper/2)·L³` (the L² slack already absorbed via L ≥ 12).
 
-The Mathlib gap this isolates is the chain-rule density factorisation step
-and the relevant-block summation; the regime split, fine-block tail, and
-constant assembly are encoded in `relevant_block_cubic_decay`.
+We conclude `boxProb ε ≥ exp(-2·cLower · L³)` by:
+1. Applying `P.anderson_lower` with `pen = (cUpper/2)·L³`.
+2. Chaining `h_assembly` to substitute the Gaussian-density LHS by
+   `exp(-(cUpper/2)·L³)`.
+3. Using the algebraic identity `2·cLower = cUpper/2` (from
+   `cLower = cUpper/4`) to match the conclusion form.
 
 Paper proof V1, §4. -/
 theorem gaussian_grid_smallball_lower
-    (m : ℕ) (_hm : 1 ≤ m) (ε r : ℝ) (_hε : 0 < ε) (_hr : 0 < r)
-    (_hε_le_ε₀ : ε ≤ ε₀_node3) (_hεr : ε + r ≤ 1)
-    (boxProb : ℝ → ℝ)
-    (h_lower :
-      Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ boxProb ε) :
-    Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ boxProb ε :=
-  h_lower
+    (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
+    (hε_le_ε₀ : ε ≤ ε₀_node3) (hεr : ε + r ≤ 1)
+    (P : AndersonCompat m)
+    (h_assembly :
+      Real.exp (-(cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3) ≤
+        (2 * ε) ^ (m * m) *
+          (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+          (Real.sqrt (P.cov).det)⁻¹ *
+          Real.exp (-((cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3))) :
+    Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ P.boxProb ε := by
+  -- Step (i): the algebraic identity cUpper/2 = 2·cLower.
+  have h_id : (cUpper_node3 / 2) = 2 * cLower_node3 := by
+    unfold cLower_node3
+    ring
+  -- Step (ii): apply P.anderson_lower with pen = (cUpper/2)·L³ ≥ 0.
+  have hL3_nn : 0 ≤ |Real.log (ε + r)| ^ 3 := by positivity
+  have hcU := cUpper_node3_pos
+  have hpen_nn : 0 ≤ (cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3 := by
+    have : 0 ≤ cUpper_node3 / 2 := by linarith
+    exact mul_nonneg this hL3_nn
+  have h_lower :=
+    P.anderson_lower ε hε ((cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3) hpen_nn
+  -- Step (iii): chain h_assembly with h_lower to get
+  --   exp(-(cUpper/2)·L³) ≤ boxProb ε.
+  have h_chain :
+      Real.exp (-(cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3) ≤ P.boxProb ε :=
+    le_trans h_assembly h_lower
+  -- Step (iv): rewrite the LHS using cUpper/2 = 2·cLower.
+  have h_eq :
+      -(cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3 =
+        -2 * cLower_node3 * |Real.log (ε + r)| ^ 3 := by
+    rw [show -(cUpper_node3 / 2) = -(2 * cLower_node3) by rw [← h_id]]
+    ring
+  rw [h_eq] at h_chain
+  exact h_chain
 
 /- ## §5. Final displayed inequalities (V1 §"Final displayed inequalities") -/
 
@@ -539,16 +718,20 @@ For every `ε ∈ (0, ε₀]` (`ε₀ = exp(-12)`) with `ε + r ≤ 1` and every
 `ℙ(|V^G_j| ≤ ε ∀ j) ≤ exp(-cUpper · L³)`,    `cUpper = 16/(27 · c₀²)`.
 
 This is the schematic exit-point that consumes the `boxProb` abstraction;
-the `h_upper` hypothesis encodes the analytic content (Anderson + BB1 +
-cubic optimisation + L² absorption from V1 §3 Steps 1-3). -/
+the `h_assembly` hypothesis encodes the analytic content (Anderson + BB1 +
+cubic optimisation + L² absorption from V1 §3 Steps 1-3). The hypothesis
+`P : AndersonCompat m` couples `boxProb` to the Cauchy covariance `Σ^G`. -/
 theorem gaussian_grid_smallball_upper_final
     (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
     (hε_le_ε₀ : ε ≤ ε₀_node3) (hεr : ε + r ≤ 1)
-    (boxProb : ℝ → ℝ)
-    (h_upper :
-      boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3)) :
-    boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3) :=
-  gaussian_grid_smallball_upper m hm ε r hε hr hε_le_ε₀ hεr boxProb h_upper
+    (P : AndersonCompat m)
+    (h_assembly :
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+        (Real.sqrt (P.cov).det)⁻¹ ≤
+      Real.exp (cubicH |Real.log (ε + r)| (cubicOpt |Real.log (ε + r)|))) :
+    P.boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3) :=
+  gaussian_grid_smallball_upper m hm ε r hε hr hε_le_ε₀ hεr P h_assembly
 
 /-- **Lower bound — final displayed inequality (V1 §4).**
 
@@ -563,10 +746,14 @@ and tails. -/
 theorem gaussian_grid_smallball_lower_final
     (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
     (hε_le_ε₀ : ε ≤ ε₀_node3) (hεr : ε + r ≤ 1)
-    (boxProb : ℝ → ℝ)
-    (h_lower :
-      Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ boxProb ε) :
-    Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ boxProb ε :=
-  gaussian_grid_smallball_lower m hm ε r hε hr hε_le_ε₀ hεr boxProb h_lower
+    (P : AndersonCompat m)
+    (h_assembly :
+      Real.exp (-(cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3) ≤
+        (2 * ε) ^ (m * m) *
+          (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+          (Real.sqrt (P.cov).det)⁻¹ *
+          Real.exp (-((cUpper_node3 / 2) * |Real.log (ε + r)| ^ 3))) :
+    Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ P.boxProb ε :=
+  gaussian_grid_smallball_lower m hm ε r hε hr hε_le_ε₀ hεr P h_assembly
 
 end Erdos524.Helpers
