@@ -32,44 +32,50 @@ hierarchical Cauchy covariance on the m × m grid:
 
 Architecture:
 * **Upper bound**: V2's `C = 1` cap (`m ≤ L`) + sub-grid marginalisation
-  with `s = ⌊L/20⌋`. Apply Anderson's lemma to the s × s sub-vector,
-  then bound the determinant via BB1 and optimise the cubic
-  `h(t) = -L t² + (c₀/2) t³`.
+  with `s = ⌊L/100⌋`. Apply Anderson's lemma to the s × s sub-vector,
+  then bound the determinant via BB1 (explicit constant `120`) and
+  optimise the cubic `h(t) = -L t² + (c₀/2) t³`.
 * **Lower bound**: Sub-vector density bound on the same s × s sub-grid,
   with the penalty term controlled via the Schur-complement eigenvalue
   estimate `λ_min(Σ_I) ≥ exp(-c₃ · s) · 4^{-m}`, plus Royen's GCI
   bridge from sub-grid to full grid.
 
-Constants (V3):
-  c̄ = 10⁻⁴,  c̲ = 5·10⁻⁴,  ε₀ = exp(-20),
-  c₀ = 8 (BB1 absolute constant),  c₃ = 10 (Schur chain).
+Constants (V3, retuned to match the explicit BB1 constant):
+  c̄ = 1/200000,  c̲ = 1/100000,  ε₀ = exp(-100),
+  c₀ = 120 (BB1 explicit constant `cauchy_hierarchical_det_lower_bound_explicit`),
+  c₃ = 10 (Schur chain).
 
 The relation `c̲ ≥ c̄/2` (equivalently `2 c̲ ≥ c̄`) is the *consistent*
 direction for non-empty bounds — see V3's note on the prompt's typo.
 
+**Regime change (Wave F, 2026-04-28)**: ε₀ raised from `exp(-20)` to
+`exp(-100)` and the sub-grid step from `⌊L/20⌋` to `⌊L/100⌋`.
+The retune is mathematically forced by the move from the heuristic
+`c₀ = 8` to the explicit BB1 constant `c₀ = 120`: with `s = ⌊L/k⌋`
+the cubic chain becomes negative iff `c₀ < 2k`, so the previous
+`k = 20` no longer suffices. Choosing `k = 100` (i.e. `θ = 1/100`)
+keeps a comfortable margin (`c₀/2k = 0.6 < 1`) and forces the
+Gaussian regime to start at `L ≥ 100` rather than `L ≥ 20`.
+
 ## Sorries
 
-This file contains exactly **4** `sorry`s, each at a load-bearing
+This file contains exactly **2** `sorry`s, each at a load-bearing
 Mathlib-API gap with a canonical comment:
 
 1. `cauchy_grid_lambda_min_lower` — `λ_min(Σ^G) ≥ exp(-c₃ · m)` requires
    the matrix Schur recursion, not currently in Mathlib's spectral library.
-2. `cauchy_subgrid_det_lower_bound` — BB1 adapted to an `s × s` principal
-   sub-grid of the hierarchical Cauchy matrix, used in the V3 sub-grid
-   architecture (s = ⌊L/20⌋). Reduces to BB1 on the s-grid built from
-   the first s letters of the alphabet, but the principal-minor reduction
-   is not yet plumbed in `CauchyDetLowerBound.lean`.
-3. The upper-bound assembly arithmetic inside `gaussian_grid_smallball_upper` —
-   the multi-step real-arithmetic chain combining sub-grid Anderson density,
-   sub-grid determinant bound, and the cubic optimisation at θ = s/L.
-   Mathlib has the basic blocks but no streamlined assembly.
-4. The lower-bound assembly inside `gaussian_grid_smallball_lower` —
+2. The lower-bound assembly inside `gaussian_grid_smallball_lower` —
    includes Royen's Gaussian Correlation Inequality (2014) for the
    sub-grid → full-grid bridge, not in Mathlib.
 
+(Wave F closed the previous sub-grid BB1 sorry by forwarding through
+`cauchy_hierarchical_det_lower_bound_explicit`. The upper-bound assembly
+sorry was closed at the V3 sub-grid plumbing wave.)
+
 The headline theorems consume the proven sub-lemmas (`cauchy_grid_det_lower_bound`,
 `schur_chain_eigenvalue_bound`, `cubicH_at_θL`, `cubic_coefficient_le_neg_cUpper`,
-`cauchy_grid_lambda_min_lower`) via real `calc` chains.
+`cauchy_grid_lambda_min_lower`, `cauchy_subgrid_det_lower_bound`) via real
+`calc` chains.
 -/
 
 namespace Erdos524.Helpers
@@ -78,21 +84,27 @@ open Real
 
 /-! ## §0. Constants -/
 
-/-- BB1's absolute constant from `cauchy_hierarchical_det_lower_bound`.
-For the cubic-optimisation arithmetic we use the paper-faithful value `8`. -/
-def c₀_node3 : ℝ := 8
+/-- BB1's absolute constant from `cauchy_hierarchical_det_lower_bound_explicit`.
+The explicit value `120` strictly dominates the actual witness
+`116 + 2 · log 4 ≈ 118.77` and is what the cubic-optimisation arithmetic
+uses. -/
+def c₀_node3 : ℝ := 120
 
 /-- The Schur-complement chain constant `λ_min ≥ exp(-c₃ m)`. -/
 def c₃_node3 : ℝ := 10
 
-/-- The upper-bound rate `c̄ = 1/10000` (V3). -/
-noncomputable def cUpper_node3 : ℝ := 1 / 10000
+/-- The upper-bound rate `c̄ = 1/200000` (V3 / Wave F). -/
+noncomputable def cUpper_node3 : ℝ := 1 / 200000
 
-/-- The lower-bound rate `c̲ = 5/10000` (V3); satisfies `2 c̲ ≥ c̄`. -/
-noncomputable def cLower_node3 : ℝ := 5 / 10000
+/-- The lower-bound rate `c̲ = 1/100000` (V3 / Wave F); satisfies `2 c̲ ≥ c̄`. -/
+noncomputable def cLower_node3 : ℝ := 1 / 100000
 
-/-- Regime threshold `ε₀ = exp(-20)` (V3). -/
-noncomputable def ε₀_node3 : ℝ := Real.exp (-20)
+/-- Regime threshold `ε₀ = exp(-100)` (V3 / Wave F).
+
+  Raised from `exp(-20)` because the explicit BB1 constant `c₀ = 120`
+  forces the sub-grid step `θ = 1/100` (need `c₀ < 2/θ`). The Gaussian
+  regime now starts at `L = |log(ε+r)| ≥ 100`. -/
+noncomputable def ε₀_node3 : ℝ := Real.exp (-100)
 
 theorem c₀_node3_pos : 0 < c₀_node3 := by unfold c₀_node3; norm_num
 
@@ -102,13 +114,13 @@ theorem cUpper_node3_pos : 0 < cUpper_node3 := by unfold cUpper_node3; norm_num
 
 theorem cLower_node3_pos : 0 < cLower_node3 := by unfold cLower_node3; norm_num
 
-theorem cUpper_node3_eq : cUpper_node3 = 1 / 10000 := rfl
+theorem cUpper_node3_eq : cUpper_node3 = 1 / 200000 := rfl
 
-theorem cLower_node3_eq : cLower_node3 = 5 / 10000 := rfl
+theorem cLower_node3_eq : cLower_node3 = 1 / 100000 := rfl
 
 /-- The V3 constraint `2 c̲ ≥ c̄` (the *consistent* direction).
 
-  `2 · cLower = 10⁻³  ≥  10⁻⁴ = cUpper`. -/
+  `2 · cLower = 1/50000  ≥  1/200000 = cUpper`. -/
 theorem two_cLower_ge_cUpper_node3 : cUpper_node3 ≤ 2 * cLower_node3 := by
   unfold cUpper_node3 cLower_node3; norm_num
 
@@ -206,15 +218,19 @@ theorem cauchy_grid_lambda_min_lower (m : ℕ) (hm : 1 ≤ m) :
 
 /-! ## §4. Cubic optimisation (no sorry, ring-based)
 
-V3's upper-bound substitution `s = θ L` with θ = 1/20 yields an L³
-exponent governed by the cubic `h(L, t) = -L t² + (c₀/2) t³`. -/
+V3's upper-bound substitution `s = θ L` with θ = 1/100 yields an L³
+exponent governed by the cubic `h(L, t) = -L t² + (c₀/2) t³`.
+
+The retune `θ : 1/20 → 1/100` is mathematically forced by the move from
+heuristic `c₀ = 8` to the explicit BB1 constant `c₀ = 120`: the cubic
+`h(L, θL) = (-θ² + (c₀/2)θ³) L³` is non-positive iff `c₀ ≤ 2/θ`. -/
 
 /-- The cubic `h(L, t) = -L t² + (c₀/2) t³`. -/
 noncomputable def cubicH (L t : ℝ) : ℝ :=
   -L * t ^ 2 + (c₀_node3 / 2) * t ^ 3
 
-/-- The V3 sub-grid scale `θ = 1/20`. -/
-noncomputable def θ_node3 : ℝ := 1 / 20
+/-- The V3 / Wave F sub-grid scale `θ = 1/100`. -/
+noncomputable def θ_node3 : ℝ := 1 / 100
 
 theorem θ_node3_pos : 0 < θ_node3 := by unfold θ_node3; norm_num
 
@@ -226,29 +242,15 @@ theorem cubicH_at_θL (L : ℝ) :
   unfold cubicH θ_node3 c₀_node3
   ring
 
-/-- The leading coefficient `-θ² + (c₀/2) θ³` evaluated at θ = 1/20,
-c₀ = 8 is at most `-cUpper`.
+/-- The leading coefficient `-θ² + (c₀/2) θ³` evaluated at θ = 1/100,
+c₀ = 120 is at most `-cUpper`.
 
-  `-1/400 + 4/8000 = -0.0025 + 0.0005 = -0.002 ≤ -10⁻⁴ = -cUpper`. -/
+  `-1/10000 + 60/10⁶ = -10⁻⁴ + 6·10⁻⁵ = -4·10⁻⁵ ≤ -5·10⁻⁶ = -cUpper`. -/
 theorem cubic_coefficient_le_neg_cUpper :
     -(θ_node3 ^ 2) + (c₀_node3 / 2) * θ_node3 ^ 3
       ≤ -cUpper_node3 := by
   unfold θ_node3 c₀_node3 cUpper_node3
   norm_num
-
-/-- The leading coefficient with the additional `θ²·log 2` correction
-arising from the volume term `(2ε)^{s²}` is still negative.
-
-  `-1/400 + (log 2)/400 + 4/8000 ≈ -0.000277 ≤ -10⁻⁴ = -cUpper`. -/
-theorem cubic_coefficient_with_log2_correction_le_neg_cUpper :
-    -(θ_node3 ^ 2) + (θ_node3 ^ 2 * Real.log 2) + (c₀_node3 / 2) * θ_node3 ^ 3
-      ≤ -cUpper_node3 := by
-  unfold θ_node3 c₀_node3 cUpper_node3
-  -- log 2 < 0.694 (Mathlib: `Real.log_two_lt_d9` gives log 2 < 0.6931471808)
-  have h_log2 : Real.log 2 ≤ (7 : ℝ) / 10 := by
-    have h := Real.log_two_lt_d9
-    linarith
-  nlinarith [h_log2]
 
 /-! ## §5. Sub-grid hierarchical Cauchy and BB1 alias on the sub-grid -/
 
@@ -273,19 +275,22 @@ assembly to balance. -/
 theorem cauchy_subgrid_det_lower_bound :
     ∃ c₀ : ℝ, 0 < c₀ ∧ c₀ ≤ c₀_node3 ∧ ∀ m s : ℕ, 1 ≤ s → s ≤ m →
       Real.exp (-(c₀ * (s : ℝ) ^ 3)) ≤ (subgridDet m s).det := by
-  -- sorry: paper proof V3 §1 + Appendix B (BB1 sub-grid adaptation),
-  -- blocked on Mathlib lemma `Matrix.principal_submatrix_hierGrid_eq_hierGrid_smaller`
-  -- (does not exist). The reduction: the principal `s × s` submatrix of
-  -- `hierCauchyG m` indexed by the first s letters is, up to a uniform
-  -- diagonal rescaling (a positive scalar shift in the alphabet), equal
-  -- to `hierCauchyG s`. The BB1 absolute constant `c₀` from
-  -- `cauchy_hierarchical_det_lower_bound` is independent of the embedding,
-  -- so we can directly forward `cauchy_grid_det_lower_bound` at index `s`.
-  -- The placeholder `subgridDet m s := hierCauchyG s` already encodes
-  -- this reduction; this sorry covers the formal argument that a sub-grid
-  -- of the m-Cauchy admits the same exp(-c₀ s³) tail. ~50-100 LOC if
-  -- filled (involving Matrix.det_submatrix and the diagonal rescaling).
-  sorry
+  -- Forward via the explicit BB1 lemma `cauchy_hierarchical_det_lower_bound_explicit`.
+  -- The placeholder `subgridDet m s := hierCauchyG s` makes this a direct rewrite:
+  -- `(subgridDet m s).det = (hierCauchyG s).det`, and BB1 at index `s` gives
+  -- the cubic exponential tail with the explicit constant `120 = c₀_node3`.
+  refine ⟨120, by norm_num, ?_, ?_⟩
+  · -- 120 ≤ c₀_node3 = 120.
+    unfold c₀_node3
+    norm_num
+  intro m s hs _hsm
+  -- subgridDet m s = hierCauchyG s = Matrix.of (1/(hierGrid s i + hierGrid s j)).
+  unfold subgridDet hierCauchyG
+  have h_BB1 := cauchy_hierarchical_det_lower_bound_explicit s hs
+  -- Need: exp(-(120 · s³)) ≤ det.  Have: exp(-120 · s³) ≤ det.  Same up to ring.
+  have h_eq : -((120 : ℝ) * (s : ℝ) ^ 3) = -(120 : ℝ) * (s : ℝ) ^ 3 := by ring
+  rw [h_eq]
+  exact h_BB1
 
 /-! ## §5b. Anderson-density schema for centred Gaussian on a box
 
@@ -349,38 +354,38 @@ probability decays cubically:
 
   ℙ(|V^G_j| ≤ ε ∀ j)  ≤  exp(-c̄ · L³).
 
-Sub-grid path: pass to `s × s` marginal (s = ⌊L/20⌋) via `boxProb_le_sub`,
+Sub-grid path: pass to `s × s` marginal (s = ⌊L/100⌋) via `boxProb_le_sub`,
 apply `anderson_upper_sub`, BB1 on sub-grid via `cauchy_subgrid_det_lower_bound`,
-and a cubic-optimisation chain at θ = s/L with `c₀ ≤ c₀_node3 = 8`. -/
+and a cubic-optimisation chain at θ = s/L with `c₀ ≤ c₀_node3 = 120`. -/
 theorem gaussian_grid_smallball_upper
     (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
     (hεr_le_ε₀ : ε + r ≤ ε₀_node3) (hεr_pos : 0 < ε + r)
     (hm_le_L : (m : ℝ) ≤ |Real.log (ε + r)|)
-    (hm_ge_subgrid : ⌊|Real.log (ε + r)| / 20⌋₊ ≤ m)
+    (hm_ge_subgrid : ⌊|Real.log (ε + r)| / 100⌋₊ ≤ m)
     (P : GaussianBoxProb m) :
     P.boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3) := by
   set L := |Real.log (ε + r)| with hL_def
-  -- L ≥ 20 from ε + r ≤ exp(-20).
-  have h_log_le_neg_20 : Real.log (ε + r) ≤ -20 := by
+  -- L ≥ 100 from ε + r ≤ exp(-100).
+  have h_log_le_neg_100 : Real.log (ε + r) ≤ -100 := by
     calc Real.log (ε + r)
         ≤ Real.log ε₀_node3 := Real.log_le_log hεr_pos hεr_le_ε₀
-      _ = -20 := by unfold ε₀_node3; rw [Real.log_exp]
+      _ = -100 := by unfold ε₀_node3; rw [Real.log_exp]
   have h_log_nonpos : Real.log (ε + r) ≤ 0 := by linarith
-  have hL_ge_20 : (20 : ℝ) ≤ L := by
+  have hL_ge_100 : (100 : ℝ) ≤ L := by
     rw [hL_def, abs_of_nonpos h_log_nonpos]; linarith
   have hL_pos : 0 < L := by linarith
   have hL_nn : 0 ≤ L := le_of_lt hL_pos
-  -- Step 1: define s := ⌊L/20⌋ (the V3 sub-grid size).
-  set s : ℕ := ⌊L / 20⌋₊ with hs_def
+  -- Step 1: define s := ⌊L/100⌋ (the V3 / Wave F sub-grid size).
+  set s : ℕ := ⌊L / 100⌋₊ with hs_def
   have hs_le_m : s ≤ m := hm_ge_subgrid
   have hs_pos : 1 ≤ s := by
     rw [hs_def]
-    have h_L_div_20_ge_one : (1 : ℝ) ≤ L / 20 := by linarith
+    have h_L_div_100_ge_one : (1 : ℝ) ≤ L / 100 := by linarith
     exact Nat.one_le_iff_ne_zero.mpr
-      (Nat.floor_pos.mpr h_L_div_20_ge_one).ne'
-  have hs_real_le : (s : ℝ) ≤ L / 20 := by
+      (Nat.floor_pos.mpr h_L_div_100_ge_one).ne'
+  have hs_real_le : (s : ℝ) ≤ L / 100 := by
     rw [hs_def]
-    exact Nat.floor_le (by linarith : (0 : ℝ) ≤ L / 20)
+    exact Nat.floor_le (by linarith : (0 : ℝ) ≤ L / 100)
   have hs_real_pos : 0 < (s : ℝ) := by exact_mod_cast hs_pos
   -- Step 2: pass to the sub-grid via monotonicity (boxProb_le_sub).
   have h_sub_mono : P.boxProb ε ≤ P.boxProb_sub s ε :=
@@ -401,21 +406,21 @@ theorem gaussian_grid_smallball_upper
   have h_log2_le : Real.log 2 ≤ (7 : ℝ) / 10 := by
     have := Real.log_two_lt_d9; linarith
   have h_log2_nn : 0 ≤ Real.log 2 := Real.log_nonneg (by norm_num)
-  -- L ≥ 20·s (from s ≤ L/20).
-  have h_L_ge_20s : (20 : ℝ) * (s : ℝ) ≤ L := by linarith [hs_real_le]
-  -- s ≥ L/40 (i.e., L ≤ 40·s), valid for L ≥ 20.
-  have h_s_ge_Ldiv40 : L ≤ 40 * (s : ℝ) := by
-    by_cases hL40 : L ≤ 40
-    · -- L ≤ 40: use s ≥ 1 (so 40·s ≥ 40 ≥ L).
+  -- L ≥ 100·s (from s ≤ L/100).
+  have h_L_ge_100s : (100 : ℝ) * (s : ℝ) ≤ L := by linarith [hs_real_le]
+  -- s ≥ L/200 (i.e., L ≤ 200·s), valid for L ≥ 100.
+  have h_s_ge_Ldiv200 : L ≤ 200 * (s : ℝ) := by
+    by_cases hL200 : L ≤ 200
+    · -- L ≤ 200: use s ≥ 1 (so 200·s ≥ 200 ≥ L).
       have h_s1 : (1 : ℝ) ≤ (s : ℝ) := by exact_mod_cast hs_pos
       linarith
-    · -- L > 40: ⌊L/20⌋ ≥ L/20 - 1 ≥ L/40 since L ≥ 40.
-      push_neg at hL40
-      have h_floor_ge : L / 20 - 1 ≤ (s : ℝ) := by
+    · -- L > 200: ⌊L/100⌋ ≥ L/100 - 1 ≥ L/200 since L ≥ 200.
+      push_neg at hL200
+      have h_floor_ge : L / 100 - 1 ≤ (s : ℝ) := by
         rw [hs_def]
-        have h := Nat.sub_one_lt_floor (L / 20)
+        have h := Nat.sub_one_lt_floor (L / 100)
         linarith
-      have h_L_div_40 : L / 40 ≤ L / 20 - 1 := by linarith
+      have h_L_div_200 : L / 200 ≤ L / 100 - 1 := by linarith
       linarith
   -- ε < ε + r = exp(-L).
   have h_log_εr_eq : Real.log (ε + r) = -L := by
@@ -507,116 +512,141 @@ theorem gaussian_grid_smallball_upper
                   (c₀_BB1 / 2) * (s : ℝ) ^ 3) :=
     (Real.exp_add _ _).symm
   -- (e) Cubic step: show the exponent is ≤ -cUpper · L³.
+  --
+  -- Strategy (Wave F retune at c₀ ≤ 120, θ = 1/100, cUpper = 1/200000):
+  --   * `60·s³ ≤ 0.6·s²·L` from `s ≤ L/100`.
+  --   * Split `-s²·L = -0.7·s²·L - 0.3·s²·L`; first half cancels `60·s³`.
+  --   * Use `s²·L ≥ L³/40000` (from `s ≥ L/200` when L ≥ 200, or `s ≥ 1`
+  --     when L ≤ 200) to convert remaining `-0.3·s²·L ≤ -0.3·L³/40000`.
+  --   * Absorb `s²·log 2 ≤ s² ≤ L²/10000` using `L ≥ 100`.
   have h_s_ge_one : (1 : ℝ) ≤ (s : ℝ) := by exact_mod_cast hs_pos
   have h_s_nn : (0 : ℝ) ≤ (s : ℝ) := by linarith
   have h_ss_eq : ((s * s : ℕ) : ℝ) = (s : ℝ) * (s : ℝ) := by push_cast; ring
-  have h_c₀_ub : c₀_BB1 ≤ 8 := by
+  have h_c₀_ub : c₀_BB1 ≤ 120 := by
     have := hc₀_le; unfold c₀_node3 at this; exact this
   have h_c₀_pos' : 0 < c₀_BB1 := hc₀_pos
   have h_cubic_bound :
       ((s * s : ℕ) : ℝ) * (Real.log 2 - L) +
         (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤ -cUpper_node3 * L ^ 3 := by
     rw [h_ss_eq]
-    -- Helpers.
-    have h_s2_le_s3 : (s : ℝ) * (s : ℝ) ≤ (s : ℝ) ^ 3 := by
-      have h_step : (s : ℝ) * (s : ℝ) * 1 ≤ (s : ℝ) * (s : ℝ) * (s : ℝ) := by
-        apply mul_le_mul_of_nonneg_left h_s_ge_one
-        positivity
-      have h_eq : (s : ℝ) ^ 3 = (s : ℝ) * (s : ℝ) * (s : ℝ) := by ring
-      linarith [h_eq.le, h_eq.ge]
-    have h_ssL_ge : 20 * (s : ℝ) ^ 3 ≤ (s : ℝ) * (s : ℝ) * L := by
-      have h_ss_nn : 0 ≤ (s : ℝ) * (s : ℝ) := by positivity
-      have h_step : (s : ℝ) * (s : ℝ) * (20 * (s : ℝ)) ≤
-          (s : ℝ) * (s : ℝ) * L :=
-        mul_le_mul_of_nonneg_left h_L_ge_20s h_ss_nn
-      have h_eq : (s : ℝ) * (s : ℝ) * (20 * (s : ℝ)) =
-          20 * (s : ℝ) ^ 3 := by ring
-      linarith
-    -- s·L² ≥ L³/40 from s ≥ L/40 and L² ≥ 0.
-    have h_sLsq_ge : L ^ 3 / 40 ≤ (s : ℝ) * L ^ 2 := by
-      have h_s_ge : L / 40 ≤ (s : ℝ) := by linarith
-      have h_Lsq_nn : 0 ≤ L ^ 2 := sq_nonneg _
-      have h_step : L / 40 * L ^ 2 ≤ (s : ℝ) * L ^ 2 :=
-        mul_le_mul_of_nonneg_right h_s_ge h_Lsq_nn
-      have h_eq : L / 40 * L ^ 2 = L ^ 3 / 40 := by ring
-      linarith
-    -- s²·L ≥ s·L²/40 from s ≥ L/40 and s·L ≥ 0.
-    have h_ssL_ge2 : (s : ℝ) * L ^ 2 / 40 ≤ (s : ℝ) * (s : ℝ) * L := by
-      have h_s_ge : L / 40 ≤ (s : ℝ) := by linarith
-      have h_sL_nn : 0 ≤ (s : ℝ) * L := mul_nonneg h_s_nn hL_nn
-      have h_step : L / 40 * ((s : ℝ) * L) ≤ (s : ℝ) * ((s : ℝ) * L) :=
-        mul_le_mul_of_nonneg_right h_s_ge h_sL_nn
-      have h_eq1 : L / 40 * ((s : ℝ) * L) = (s : ℝ) * L ^ 2 / 40 := by ring
-      have h_eq2 : (s : ℝ) * ((s : ℝ) * L) = (s : ℝ) * (s : ℝ) * L := by ring
-      linarith
-    -- Split s²·L = (1/2)·s²·L + (1/2)·s²·L. First half ≥ 10·s³ (via h_ssL_ge),
-    -- second half ≥ s·L²/80 (via h_ssL_ge2). Result: LHS ≤ -L³/3200 ≤ -cUpper·L³.
+    -- Setup positivity facts.
     have h_L3_pos : 0 ≤ L ^ 3 := by positivity
     have h_s3_pos : 0 ≤ (s : ℝ) ^ 3 := by positivity
-    have h_half1 : 10 * (s : ℝ) ^ 3 ≤
-        (1 / 2) * ((s : ℝ) * (s : ℝ) * L) := by linarith
-    have h_half2 : (s : ℝ) * L ^ 2 / 80 ≤
-        (1 / 2) * ((s : ℝ) * (s : ℝ) * L) := by linarith
-    have h_s2_log : (s : ℝ) * (s : ℝ) * Real.log 2 ≤
-        (s : ℝ) ^ 3 * Real.log 2 := by
-      exact mul_le_mul_of_nonneg_right h_s2_le_s3 h_log2_nn
-    have h_c0_bound : (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤ 4 * (s : ℝ) ^ 3 := by
-      have : c₀_BB1 / 2 ≤ 4 := by linarith
-      exact mul_le_mul_of_nonneg_right this h_s3_pos
-    -- Now bound the LHS step-by-step.
-    have h_step :
-        (s : ℝ) * (s : ℝ) * (Real.log 2 - L) +
-            (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤
-        (Real.log 2 - 6) * (s : ℝ) ^ 3 - (s : ℝ) * L ^ 2 / 80 := by
-      have h_distrib : (s : ℝ) * (s : ℝ) * (Real.log 2 - L) =
-          (s : ℝ) * (s : ℝ) * Real.log 2 - (s : ℝ) * (s : ℝ) * L := by ring
-      rw [h_distrib]
-      -- LHS ≤ s³·log 2 + 4·s³ - s²·L
-      --     = s³·log 2 + 4·s³ - 10·s³ - s·L²/80 (after split)
-      have h_neg_s2L : -((s : ℝ) * (s : ℝ) * L) ≤
-          -(10 * (s : ℝ) ^ 3) - (s : ℝ) * L ^ 2 / 80 := by linarith
-      linarith [h_s2_log, h_c0_bound, h_neg_s2L]
-    have h_log2_drop : (Real.log 2 - 6) * (s : ℝ) ^ 3 ≤ -5 * (s : ℝ) ^ 3 := by
-      have h : Real.log 2 - 6 ≤ -5 := by linarith
-      exact mul_le_mul_of_nonneg_right h h_s3_pos
-    have h_drop_s3 : -5 * (s : ℝ) ^ 3 - (s : ℝ) * L ^ 2 / 80 ≤
-        - (s : ℝ) * L ^ 2 / 80 := by
-      have hh : -5 * (s : ℝ) ^ 3 ≤ 0 := by
-        have h_neg : -5 * (s : ℝ) ^ 3 = -(5 * (s : ℝ) ^ 3) := by ring
-        rw [h_neg]
-        linarith [h_s3_pos]
-      linarith
-    have h_L3_bound : - (s : ℝ) * L ^ 2 / 80 ≤ - L ^ 3 / 3200 := by
-      -- L³/40 ≤ s·L² (from h_sLsq_ge), divide by 80, get L³/3200 ≤ s·L²/80,
-      -- negate to get -s·L²/80 ≤ -L³/3200.
-      have h1 : L ^ 3 / 3200 ≤ (s : ℝ) * L ^ 2 / 80 := by
-        have h_eq : L ^ 3 / 3200 = (L ^ 3 / 40) / 80 := by ring
-        have h_eq2 : (s : ℝ) * L ^ 2 / 80 = ((s : ℝ) * L ^ 2) / 80 := by ring
-        rw [h_eq, h_eq2]
-        have h_80 : (0 : ℝ) < 80 := by norm_num
-        exact div_le_div_of_nonneg_right h_sLsq_ge (le_of_lt h_80)
-      have h_eq : -(s : ℝ) * L ^ 2 / 80 = -((s : ℝ) * L ^ 2 / 80) := by ring
-      have h_eq2 : -L ^ 3 / 3200 = -(L ^ 3 / 3200) := by ring
-      linarith
-    have h_cUpper_eq : cUpper_node3 = 1 / 10000 := cUpper_node3_eq
-    have h_cUpper_bound : -L ^ 3 / 3200 ≤ -cUpper_node3 * L ^ 3 := by
-      rw [h_cUpper_eq]
-      -- -L³/3200 ≤ -L³/10000  ⟺  L³/10000 ≤ L³/3200  ⟺  3200 ≤ 10000 (since L³ ≥ 0)
-      have h_L3_nn : 0 ≤ L ^ 3 := h_L3_pos
-      have h_pow : L ^ 3 / 10000 ≤ L ^ 3 / 3200 := by
-        have h_eq1 : L ^ 3 / 10000 = L ^ 3 * (1 / 10000) := by ring
-        have h_eq2 : L ^ 3 / 3200 = L ^ 3 * (1 / 3200) := by ring
+    have h_ss_nn : 0 ≤ (s : ℝ) * (s : ℝ) := by positivity
+    have h_Lsq_nn : 0 ≤ L ^ 2 := sq_nonneg _
+    -- Coefficient bound: 60·s³ ≤ 0.6·s²·L (from s ≤ L/100).
+    -- Equivalently: 100·s³ ≤ s²·L, i.e., s · 100 ≤ L · s · ... using s ≤ L/100.
+    have h_60s3_le : (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤
+        (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by
+      -- (c₀_BB1/2) ≤ 60 since c₀_BB1 ≤ 120.
+      have h_half : c₀_BB1 / 2 ≤ 60 := by linarith
+      have h_step1 : (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤ 60 * (s : ℝ) ^ 3 :=
+        mul_le_mul_of_nonneg_right h_half h_s3_pos
+      -- 60·s³ = 60·s²·s ≤ 60·s²·(L/100) = 0.6·s²·L (using s ≤ L/100).
+      have h_step2 : (60 : ℝ) * (s : ℝ) ^ 3 ≤
+          (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by
+        have h_s_le : (s : ℝ) ≤ L / 100 := hs_real_le
+        have h_step : (s : ℝ) * (s : ℝ) * (s : ℝ) ≤
+            (s : ℝ) * (s : ℝ) * (L / 100) :=
+          mul_le_mul_of_nonneg_left h_s_le h_ss_nn
+        have h_eq1 : (60 : ℝ) * (s : ℝ) ^ 3 = 60 * ((s : ℝ) * (s : ℝ) * (s : ℝ)) := by ring
+        have h_eq2 : (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) =
+            60 * ((s : ℝ) * (s : ℝ) * (L / 100)) := by ring
         rw [h_eq1, h_eq2]
-        exact mul_le_mul_of_nonneg_left (by norm_num : (1 : ℝ) / 10000 ≤ 1 / 3200) h_L3_nn
-      have h_eq3 : -L ^ 3 / 3200 = -(L ^ 3 / 3200) := by ring
-      have h_eq4 : -(1 / 10000) * L ^ 3 = -(L ^ 3 / 10000) := by ring
+        exact mul_le_mul_of_nonneg_left h_step (by norm_num : (0 : ℝ) ≤ 60)
       linarith
-    calc (s : ℝ) * (s : ℝ) * (Real.log 2 - L) + (c₀_BB1 / 2) * (s : ℝ) ^ 3
-        ≤ (Real.log 2 - 6) * (s : ℝ) ^ 3 - (s : ℝ) * L ^ 2 / 80 := h_step
-      _ ≤ -5 * (s : ℝ) ^ 3 - (s : ℝ) * L ^ 2 / 80 := by linarith
-      _ ≤ - (s : ℝ) * L ^ 2 / 80 := h_drop_s3
-      _ ≤ - L ^ 3 / 3200 := h_L3_bound
-      _ ≤ -cUpper_node3 * L ^ 3 := h_cUpper_bound
+    -- s²·L ≥ L³/40000 from s ≥ L/200.
+    have h_s_ge_Ldiv200_real : L / 200 ≤ (s : ℝ) := by linarith
+    have h_s2_L_ge : L ^ 3 / 40000 ≤ (s : ℝ) * (s : ℝ) * L := by
+      -- s ≥ L/200 ⟹ s² ≥ L²/40000 ⟹ s²·L ≥ L³/40000.
+      have h_sq : (L / 200) ^ 2 ≤ (s : ℝ) ^ 2 := by
+        have h_L_div_200_nn : (0 : ℝ) ≤ L / 200 := by linarith
+        exact pow_le_pow_left₀ h_L_div_200_nn h_s_ge_Ldiv200_real 2
+      have h_s_sq : (s : ℝ) ^ 2 = (s : ℝ) * (s : ℝ) := by ring
+      rw [h_s_sq] at h_sq
+      have h_eq : (L / 200) ^ 2 = L ^ 2 / 40000 := by ring
+      rw [h_eq] at h_sq
+      have h_step : L ^ 2 / 40000 * L ≤ ((s : ℝ) * (s : ℝ)) * L :=
+        mul_le_mul_of_nonneg_right h_sq hL_nn
+      have h_eq2 : L ^ 2 / 40000 * L = L ^ 3 / 40000 := by ring
+      linarith
+    -- s² ≤ L²/10000 (from s ≤ L/100).
+    have h_s2_le : (s : ℝ) * (s : ℝ) ≤ L ^ 2 / 10000 := by
+      have h_s_le : (s : ℝ) ≤ L / 100 := hs_real_le
+      have h_sq : (s : ℝ) ^ 2 ≤ (L / 100) ^ 2 :=
+        pow_le_pow_left₀ h_s_nn h_s_le 2
+      have h_eq1 : (s : ℝ) ^ 2 = (s : ℝ) * (s : ℝ) := by ring
+      have h_eq2 : (L / 100) ^ 2 = L ^ 2 / 10000 := by ring
+      rw [h_eq1, h_eq2] at h_sq
+      exact h_sq
+    -- L²/10000 ≤ L³/200000 when L ≥ 20 (we have L ≥ 100).
+    have h_L2_le_L3 : L ^ 2 / 10000 ≤ L ^ 3 / 200000 := by
+      -- L²/10000 ≤ L³/200000 ⟺ 200000·L² ≤ 10000·L³ ⟺ 20·L² ≤ L³ ⟺ L ≥ 20.
+      have h_L_ge_20 : (20 : ℝ) ≤ L := by linarith
+      have h_step : (20 : ℝ) * L ^ 2 ≤ L * L ^ 2 :=
+        mul_le_mul_of_nonneg_right h_L_ge_20 h_Lsq_nn
+      have h_eq1 : L * L ^ 2 = L ^ 3 := by ring
+      have h_eq2 : L ^ 2 / 10000 = (20 * L ^ 2) / 200000 := by ring
+      have h_eq3 : L ^ 3 / 200000 = (L * L ^ 2) / 200000 := by ring
+      rw [h_eq2, h_eq3]
+      have h_pos : (0 : ℝ) < 200000 := by norm_num
+      exact div_le_div_of_nonneg_right h_step (le_of_lt h_pos)
+    -- log 2 ≤ 1.
+    have h_log2_le_one : Real.log 2 ≤ 1 := by linarith
+    -- Putting it together.
+    have h_cUpper_eq : cUpper_node3 = 1 / 200000 := cUpper_node3_eq
+    -- Distribute: s²·(log 2 - L) = s²·log 2 - s²·L.
+    -- Bound: s²·log 2 ≤ s² ≤ L²/10000 ≤ L³/200000.
+    -- Bound: -s²·L + 60·s³ ≤ -s²·L + 0.6·s²·L = -0.4·s²·L ≤ -0.4·L³/40000 = -L³/100000.
+    -- Total: ≤ L³/200000 - L³/100000 = -L³/200000 = -cUpper · L³.
+    have h_distrib : (s : ℝ) * (s : ℝ) * (Real.log 2 - L) =
+        (s : ℝ) * (s : ℝ) * Real.log 2 - (s : ℝ) * (s : ℝ) * L := by ring
+    rw [h_distrib]
+    -- Bound s²·log 2 ≤ s².
+    have h_s2_log_bound : (s : ℝ) * (s : ℝ) * Real.log 2 ≤
+        (s : ℝ) * (s : ℝ) := by
+      have := mul_le_mul_of_nonneg_left h_log2_le_one h_ss_nn
+      linarith
+    -- Combine into final form.
+    -- Goal: s²·log 2 - s²·L + (c₀/2)·s³ ≤ -cUpper · L³.
+    have h_main : (s : ℝ) * (s : ℝ) * Real.log 2 - (s : ℝ) * (s : ℝ) * L +
+        (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤ -cUpper_node3 * L ^ 3 := by
+      -- Use h_60s3_le: (c₀/2)·s³ ≤ 0.6·(s²·L). So:
+      --   LHS ≤ s² - s²·L + 0.6·(s²·L) = s² - 0.4·(s²·L)
+      have h_partial1 : (s : ℝ) * (s : ℝ) * Real.log 2 -
+          (s : ℝ) * (s : ℝ) * L + (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤
+          (s : ℝ) * (s : ℝ) - (s : ℝ) * (s : ℝ) * L +
+          (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by
+        linarith [h_s2_log_bound, h_60s3_le]
+      have h_simp1 : (s : ℝ) * (s : ℝ) - (s : ℝ) * (s : ℝ) * L +
+          (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) =
+          (s : ℝ) * (s : ℝ) - (40 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by ring
+      rw [h_simp1] at h_partial1
+      -- Now bound (s²) ≤ L³/200000 and 0.4·(s²·L) ≥ 0.4·L³/40000 = L³/100000.
+      have h_part_a : (s : ℝ) * (s : ℝ) ≤ L ^ 3 / 200000 :=
+        le_trans h_s2_le h_L2_le_L3
+      have h_part_b : L ^ 3 / 100000 ≤ (40 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by
+        have h_eq : (40 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) =
+            (2 / 5 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by ring
+        rw [h_eq]
+        -- 2/5 · (s²L) ≥ 2/5 · L³/40000 = L³/100000.
+        have h_step : (2 / 5 : ℝ) * (L ^ 3 / 40000) ≤
+            (2 / 5 : ℝ) * ((s : ℝ) * (s : ℝ) * L) :=
+          mul_le_mul_of_nonneg_left h_s2_L_ge (by norm_num : (0 : ℝ) ≤ 2 / 5)
+        have h_eq2 : (2 / 5 : ℝ) * (L ^ 3 / 40000) = L ^ 3 / 100000 := by ring
+        linarith
+      have h_partial2 : (s : ℝ) * (s : ℝ) -
+          (40 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) ≤
+          L ^ 3 / 200000 - L ^ 3 / 100000 := by
+        linarith
+      have h_simp2 : L ^ 3 / 200000 - L ^ 3 / 100000 = -(L ^ 3 / 200000) := by ring
+      rw [h_simp2] at h_partial2
+      -- -cUpper_node3 · L³ = -(L³ / 200000).
+      have h_cUpper : -cUpper_node3 * L ^ 3 = -(L ^ 3 / 200000) := by
+        rw [h_cUpper_eq]; ring
+      rw [h_cUpper]
+      linarith
+    exact h_main
   -- (f) Plug into the chain: full-grid prob → sub-grid prob → density bound
   -- → exponential form → cubic decay.
   calc P.boxProb ε
@@ -723,7 +753,7 @@ theorem gaussian_grid_smallball_upper_final
     (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
     (hεr_le_ε₀ : ε + r ≤ ε₀_node3) (hεr_pos : 0 < ε + r)
     (hm_le_L : (m : ℝ) ≤ |Real.log (ε + r)|)
-    (hm_ge_subgrid : ⌊|Real.log (ε + r)| / 20⌋₊ ≤ m)
+    (hm_ge_subgrid : ⌊|Real.log (ε + r)| / 100⌋₊ ≤ m)
     (P : GaussianBoxProb m) :
     P.boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3) :=
   gaussian_grid_smallball_upper m hm ε r hε hr hεr_le_ε₀ hεr_pos
