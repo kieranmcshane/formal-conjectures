@@ -124,6 +124,47 @@ theorem glwLowerCubicFactor_at_exp_neg_hundred (c : ℝ) :
   congr 1
   rw [show |(-(100 : ℝ))| = 100 from by rw [abs_neg]; exact abs_of_nonneg (by norm_num)]
 
+/-- Monotonicity in `ε` (for `0 < ε ≤ 1` and `c ≥ 0`): closer-to-1 `ε`
+gives a LARGER factor (less decay). Formally: if `0 < ε₁ ≤ ε₂ ≤ 1`,
+then `glwLowerCubicFactor c ε₁ ≤ glwLowerCubicFactor c ε₂`.
+
+Reason: for `ε ∈ (0, 1]`, `log ε ≤ 0` so `|log ε| = -log ε`, and
+`ε₁ ≤ ε₂` makes `|log ε₁| ≥ |log ε₂|`, so `-c · |log ε₁|³ ≤
+-c · |log ε₂|³` (since `c ≥ 0`), and `exp` is monotone. -/
+theorem glwLowerCubicFactor_mono_eps_at_le_one
+    (c : ℝ) (hc : 0 ≤ c) {ε₁ ε₂ : ℝ}
+    (hε₁_pos : 0 < ε₁) (h_le : ε₁ ≤ ε₂) (hε₂_le_one : ε₂ ≤ 1) :
+    glwLowerCubicFactor c ε₁ ≤ glwLowerCubicFactor c ε₂ := by
+  unfold glwLowerCubicFactor
+  rw [Real.exp_le_exp]
+  have hlog_ε₁_nonpos : Real.log ε₁ ≤ 0 := by
+    apply Real.log_nonpos (le_of_lt hε₁_pos)
+    exact h_le.trans hε₂_le_one
+  have hε₂_pos : 0 < ε₂ := lt_of_lt_of_le hε₁_pos h_le
+  have hlog_ε₂_nonpos : Real.log ε₂ ≤ 0 := Real.log_nonpos (le_of_lt hε₂_pos) hε₂_le_one
+  have h_log_le : Real.log ε₁ ≤ Real.log ε₂ :=
+    Real.log_le_log hε₁_pos h_le
+  have h_abs_le : |Real.log ε₂| ≤ |Real.log ε₁| := by
+    rw [abs_of_nonpos hlog_ε₁_nonpos, abs_of_nonpos hlog_ε₂_nonpos]
+    linarith
+  have h_pow_le : |Real.log ε₂| ^ 3 ≤ |Real.log ε₁| ^ 3 := by
+    have h_nn : 0 ≤ |Real.log ε₂| := abs_nonneg _
+    exact pow_le_pow_left₀ h_nn h_abs_le 3
+  nlinarith [mul_nonneg hc (abs_nonneg (Real.log ε₁) : (0 : ℝ) ≤ |Real.log ε₁|)]
+
+/-- Strict version: for `c > 0` and `0 < ε < 1`, the cubic factor is
+strictly less than `1` (the value at `ε = 1`). Used when one needs to
+exclude the boundary case in inequalities. -/
+theorem glwLowerCubicFactor_lt_one_of_pos
+    {c ε : ℝ} (hc : 0 < c) (hε_pos : 0 < ε) (hε_lt_one : ε < 1) :
+    glwLowerCubicFactor c ε < 1 := by
+  unfold glwLowerCubicFactor
+  rw [show (1 : ℝ) = Real.exp 0 from (Real.exp_zero).symm, Real.exp_lt_exp]
+  have hlog_neg : Real.log ε < 0 := Real.log_neg hε_pos hε_lt_one
+  have habs_pos : 0 < |Real.log ε| := abs_pos.mpr (ne_of_lt hlog_neg)
+  have hpow_pos : 0 < |Real.log ε| ^ 3 := pow_pos habs_pos 3
+  nlinarith
+
 
 /-! ## Choice of `ε₀` for the lower bound
 
@@ -157,11 +198,13 @@ unlike the upper-bound truncated `[0, T(ε)]`). -/
 def glwLowerSupBoxEvent (Y : ℝ → Ω → ℝ) (ε : ℝ) : Set Ω :=
   {ω | ∀ u ≥ (0 : ℝ), |Y u ω| ≤ ε}
 
+omit [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)] in
 /-- The sup-box event is a subset of the universe. -/
 theorem glwLowerSupBoxEvent_subset_univ (Y : ℝ → Ω → ℝ) (ε : ℝ) :
     glwLowerSupBoxEvent Y ε ⊆ Set.univ :=
   fun _ _ => Set.mem_univ _
 
+omit [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)] in
 /-- Sup-box event monotone in `ε`: larger tolerance gives a larger
 event (more `ω` satisfy the bound). -/
 theorem glwLowerSupBoxEvent_mono_eps (Y : ℝ → Ω → ℝ) {ε₁ ε₂ : ℝ}
@@ -179,6 +222,45 @@ theorem glwLowerSupBoxEvent_measure_le_one (Y : ℝ → Ω → ℝ) (ε : ℝ) :
 /-- The RHS of the lower-bound theorem matches the cubic-factor form. -/
 theorem glwLowerBound_eq_cubicFactor (c ε : ℝ) :
     Real.exp (-c * |Real.log ε| ^ 3) = glwLowerCubicFactor c ε := rfl
+
+omit [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)] in
+/-- Bridge to the truncated event: the full-window sup-box event is a
+SUBSET of any truncated `Icc 0 T` event (smaller window means fewer
+constraints to satisfy, hence a LARGER event). Useful when lifting a
+bound from the truncated event to the full-window one. -/
+theorem glwLowerSupBoxEvent_subset_truncated (Y : ℝ → Ω → ℝ) (T ε : ℝ) :
+    glwLowerSupBoxEvent Y ε ⊆ {ω | ∀ u ∈ Set.Icc (0 : ℝ) T, |Y u ω| ≤ ε} := by
+  intro ω hω u hu
+  exact hω u hu.1
+
+omit [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)] in
+/-- The full-window event equals the intersection of all positive-T
+truncated events. The `⊆` direction follows from
+`glwLowerSupBoxEvent_subset_truncated`; the reverse direction holds
+because every `u ≥ 0` is in `[0, u]`, and `u ∈ [0, ∞)` is dense in
+itself. -/
+theorem glwLowerSupBoxEvent_eq_iInter_truncated (Y : ℝ → Ω → ℝ) (ε : ℝ) :
+    glwLowerSupBoxEvent Y ε =
+      ⋂ T : ℝ, {ω | ∀ u ∈ Set.Icc (0 : ℝ) T, |Y u ω| ≤ ε} := by
+  ext ω
+  refine ⟨fun hω => Set.mem_iInter.mpr (fun T u hu => hω u hu.1), ?_⟩
+  intro hω u hu
+  exact (Set.mem_iInter.mp hω u) u ⟨hu, le_refl _⟩
+
+omit [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)] in
+/-- Anti-monotonicity in the `Y`-process for the truncated form: if
+`|Y u ω| ≤ |Y' u ω|` pointwise on `[0, T]`, then any `ω` in the
+truncated box-event for `Y'` also lies in the one for `Y` (LARGER `Y`
+gives a SMALLER event). The full-window analogue would chain over all
+`T`, but the truncated form is what bridge lemmas in `polynomial_sup_*`
+typically need. -/
+theorem truncatedBoxEvent_anti_mono_proc
+    {Y Y' : ℝ → Ω → ℝ} {T ε : ℝ}
+    (h_dom : ∀ u ∈ Set.Icc (0 : ℝ) T, ∀ ω, |Y u ω| ≤ |Y' u ω|) :
+    {ω | ∀ u ∈ Set.Icc (0 : ℝ) T, |Y' u ω| ≤ ε} ⊆
+      {ω | ∀ u ∈ Set.Icc (0 : ℝ) T, |Y u ω| ≤ ε} := by
+  intro ω hω u hu
+  exact (h_dom u hu ω).trans (hω u hu)
 
 
 /-! ## IsGLWProcess discharge helper for KMT-coupling consumers
