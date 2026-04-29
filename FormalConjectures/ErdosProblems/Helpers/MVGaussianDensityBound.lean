@@ -177,6 +177,35 @@ theorem realMatrixSqrt_isUnit [DecidableEq n]
     IsUnit (realMatrixSqrt M) :=
   Matrix.isUnit_iff_isUnit_det _ |>.mpr (isUnit_iff_ne_zero.mpr (realMatrixSqrt_det_ne_zero hM))
 
+/-! ## Round 9 — Change-of-variables identity for `mvGaussianFromPosDef`
+
+For any measurable set `S`, the box probability under `mvGaussianFromPosDef M`
+is the standard MV measure of the preimage parallelepiped under
+`(realMatrixSqrt M).mulVec`. This is the pushforward identity in operational
+form. -/
+
+theorem mvGaussianFromPosDef_apply_eq [DecidableEq n]
+    (M : Matrix n n ℝ) {S : Set (n → ℝ)} (hS : MeasurableSet S) :
+    mvGaussianFromPosDef M S =
+      standardMVGaussian n ((realMatrixSqrt M).mulVec ⁻¹' S) := by
+  unfold mvGaussianFromPosDef mvGaussianFromMatrix
+  rw [Measure.map_apply (mulVec_measurable _) hS]
+
+/-- The anisotropic symmetric box `{x | ∀ i, |x i| ≤ ε i}` is measurable
+(it equals a product of closed intervals). -/
+theorem anisotropic_box_measurable (ε : n → ℝ) :
+    MeasurableSet {x : n → ℝ | ∀ i, |x i| ≤ ε i} := by
+  rw [anisotropic_box_event_eq_pi]
+  exact MeasurableSet.univ_pi (fun _ => measurableSet_Icc)
+
+/-- Specialised change-of-variables for the anisotropic box. -/
+theorem mvGaussianFromPosDef_box_apply_eq [DecidableEq n]
+    (M : Matrix n n ℝ) (ε : n → ℝ) :
+    mvGaussianFromPosDef M {x : n → ℝ | ∀ i, |x i| ≤ ε i} =
+      standardMVGaussian n
+        ((realMatrixSqrt M).mulVec ⁻¹' {x : n → ℝ | ∀ i, |x i| ≤ ε i}) :=
+  mvGaussianFromPosDef_apply_eq M (anisotropic_box_measurable ε)
+
 /-! ## General PosDef case: documented `sorry` on the Anderson bound
 
 The PosDef Anderson bound is the multivariate density-at-mode small-ball
