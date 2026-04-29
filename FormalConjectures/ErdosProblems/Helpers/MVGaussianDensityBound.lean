@@ -13,6 +13,7 @@ limitations under the License.
 
 import FormalConjectures.ErdosProblems.Helpers.GaussianBoxBounds
 import FormalConjectures.ErdosProblems.Helpers.MVGaussianRotation
+import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 
 /-!
 # Phase 2 Round 6 — Multivariate Gaussian density-at-mode small-ball bound
@@ -176,6 +177,39 @@ theorem realMatrixSqrt_isUnit [DecidableEq n]
     {M : Matrix n n ℝ} (hM : M.PosDef) :
     IsUnit (realMatrixSqrt M) :=
   Matrix.isUnit_iff_isUnit_det _ |>.mpr (isUnit_iff_ne_zero.mpr (realMatrixSqrt_det_ne_zero hM))
+
+/-! ## Round 9 — Volume of the linear preimage under `mulVec L`
+
+For an invertible matrix `L : Matrix n n ℝ`, the Lebesgue volume of the
+linear preimage `L.mulVec ⁻¹' S` equals `|det L|⁻¹ * volume S`. This is the
+Jacobian formula for the change-of-variables `y = L⁻¹ x`, packaged from
+Mathlib's `Real.map_matrix_volume_pi_eq_smul_volume_pi`.
+-/
+
+theorem volume_mulVec_preimage [DecidableEq n]
+    {L : Matrix n n ℝ} (hL : L.det ≠ 0) {S : Set (n → ℝ)} (hS : MeasurableSet S) :
+    volume (L.mulVec ⁻¹' S) = ENNReal.ofReal (|L.det|⁻¹) * volume S := by
+  have h_meas : Measurable L.mulVec := mulVec_measurable L
+  have h_map : Measure.map L.mulVec (volume : Measure (n → ℝ)) =
+      ENNReal.ofReal (|L.det|⁻¹) • volume := by
+    have := Real.map_matrix_volume_pi_eq_smul_volume_pi hL
+    simpa [Matrix.toLin'_apply'] using this
+  calc volume (L.mulVec ⁻¹' S)
+      = (Measure.map L.mulVec volume) S := (Measure.map_apply h_meas hS).symm
+    _ = (ENNReal.ofReal (|L.det|⁻¹) • volume) S := by rw [h_map]
+    _ = ENNReal.ofReal (|L.det|⁻¹) * volume S := by
+        rw [Measure.smul_apply, smul_eq_mul]
+
+/-- Specialised to `realMatrixSqrt M` for PosDef `M`: the preimage volume is
+`(√det M)⁻¹` times the original volume (using `det L > 0` to drop the
+absolute value). -/
+theorem volume_realMatrixSqrt_mulVec_preimage [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) {S : Set (n → ℝ)} (hS : MeasurableSet S) :
+    volume ((realMatrixSqrt M).mulVec ⁻¹' S) =
+      ENNReal.ofReal ((Real.sqrt M.det)⁻¹) * volume S := by
+  rw [volume_mulVec_preimage (realMatrixSqrt_det_ne_zero hM) hS]
+  congr 2
+  rw [realMatrixSqrt_det hM.posSemidef, abs_of_pos (Real.sqrt_pos.mpr hM.det_pos)]
 
 /-! ## Round 9 — Change-of-variables identity for `mvGaussianFromPosDef`
 
