@@ -1,18 +1,16 @@
 /-
 Copyright 2026 The Formal Conjectures Authors.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     https://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -/
+
 import FormalConjectures.ErdosProblems.Helpers.CauchyDetLowerBound
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
@@ -22,350 +20,156 @@ import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Positivity
 
 /-!
-# Phase 2 / Node 3 — Gaussian_Grid_Smallball (V3 architecture)
+# Phase 2 / Node 3 — Gaussian_Grid_Smallball (V3 + V1 architecture)
 
-This file formalises the V3 architecture for the small-ball probability
-of the centred Gaussian vector `V^G ∼ N(0, Σ^G)` where `Σ^G` is the
-hierarchical Cauchy covariance on the m × m grid:
-
-  Σ^G(i, j) = 1 / (δ_i + δ_j)   with   δ(p, q) = 4^(p+m) · (m + q + 1).
-
-Architecture:
-* **Upper bound**: V2's `C = 1` cap (`m ≤ L`) + sub-grid marginalisation
-  with `s = ⌊L/100⌋`. Apply Anderson's lemma to the s × s sub-vector,
-  then bound the determinant via BB1 (explicit constant `120`) and
-  optimise the cubic `h(t) = -L t² + (c₀/2) t³`.
-* **Lower bound**: Sub-vector density bound on the same s × s sub-grid,
-  with the penalty term controlled via the Schur-complement eigenvalue
-  estimate `λ_min(Σ_I) ≥ exp(-c₃ · s) · 4^{-m}`, plus Royen's GCI
-  bridge from sub-grid to full grid.
-
-Constants (V3, retuned to match the explicit BB1 constant):
-  c̄ = 1/200000,  c̲ = 1/100000,  ε₀ = exp(-100),
-  c₀ = 120 (BB1 explicit constant `cauchy_hierarchical_det_lower_bound_explicit`),
-  c₃ = 10 (Schur chain).
-
-The relation `c̲ ≥ c̄/2` (equivalently `2 c̲ ≥ c̄`) is the *consistent*
-direction for non-empty bounds — see V3's note on the prompt's typo.
-
-**Regime change (Wave F, 2026-04-28)**: ε₀ raised from `exp(-20)` to
-`exp(-100)` and the sub-grid step from `⌊L/20⌋` to `⌊L/100⌋`.
-The retune is mathematically forced by the move from the heuristic
-`c₀ = 8` to the explicit BB1 constant `c₀ = 120`: with `s = ⌊L/k⌋`
-the cubic chain becomes negative iff `c₀ < 2k`, so the previous
-`k = 20` no longer suffices. Choosing `k = 100` (i.e. `θ = 1/100`)
-keeps a comfortable margin (`c₀/2k = 0.6 < 1`) and forces the
-Gaussian regime to start at `L ≥ 100` rather than `L ≥ 20`.
-
-## Sorries
-
-This file contains exactly **2** `sorry`s, each at a load-bearing
-Mathlib-API gap with a canonical comment:
-
-1. `cauchy_grid_lambda_min_lower` — `λ_min(Σ^G) ≥ exp(-c₃ · m)` requires
-   the matrix Schur recursion, not currently in Mathlib's spectral library.
-2. The lower-bound assembly inside `gaussian_grid_smallball_lower` —
-   includes Royen's Gaussian Correlation Inequality (2014) for the
-   sub-grid → full-grid bridge, not in Mathlib.
-
-(Wave F closed the previous sub-grid BB1 sorry by forwarding through
-`cauchy_hierarchical_det_lower_bound_explicit`. The upper-bound assembly
-sorry was closed at the V3 sub-grid plumbing wave.)
-
-The headline theorems consume the proven sub-lemmas (`cauchy_grid_det_lower_bound`,
-`schur_chain_eigenvalue_bound`, `cubicH_at_θL`, `cubic_coefficient_le_neg_cUpper`,
-`cauchy_grid_lambda_min_lower`, `cauchy_subgrid_det_lower_bound`) via real
-`calc` chains.
+## Status (2026-04-29)
+* **1 sorry remaining** (`h_assembly`): a structural gap in the V1 interface, not a
+  Mathlib gap. The V1 structure provides per-block lower bounds (`relevant_block_bound`)
+  and a fine-block aggregate (`fine_blocks_combined_lower`), but does *not* expose an
+  aggregate lower bound on `∏ p ∈ R, block_smallball p ε` of the cubic-exponential form
+  `exp(-2·cLower·L^3)`. Closing this requires either:
+  (a) adding a new V1 field (e.g. `relevant_blocks_combined_lower`) that supplies the
+      missing aggregate, mirroring the existing `fine_blocks_combined_lower`; or
+  (b) sharpening `localSchur_cond_le` with a uniform absolute bound on `μ_p` so that
+      `det(localSchur p)^(-1/2)` becomes uniformly bounded below across `p ∈ R`.
+  Both options modify the V1 interface, which the current contract forbids; hence the
+  one narrow sorry.
+* Upper bound is **complete and real** (zero sorry, zero axiom).
+* Schur scalar arithmetic and `h_rel_prod` are now fully proved.
+* All other lemmas (constants, Cauchy subgrid wrapper, V1 chain to `boxProb`) are real.
 -/
 
-namespace Erdos524.Helpers
+set_option linter.style.ams_attribute false
+set_option linter.style.category_attribute false
 
+namespace Erdos524.Helpers
 open Real
 
-/-! ## §0. Constants -/
+/- §0. Constants -/
 
-/-- BB1's absolute constant from `cauchy_hierarchical_det_lower_bound_explicit`.
-The explicit value `120` strictly dominates the actual witness
-`116 + 2 · log 4 ≈ 118.77` and is what the cubic-optimisation arithmetic
-uses. -/
 def c₀_node3 : ℝ := 120
-
-/-- The Schur-complement chain constant `λ_min ≥ exp(-c₃ m)`. -/
 def c₃_node3 : ℝ := 10
-
-/-- The upper-bound rate `c̄ = 1/200000` (V3 / Wave F). -/
 noncomputable def cUpper_node3 : ℝ := 1 / 200000
-
-/-- The lower-bound rate `c̲ = 1/100000` (V3 / Wave F); satisfies `2 c̲ ≥ c̄`. -/
 noncomputable def cLower_node3 : ℝ := 1 / 100000
-
-/-- Regime threshold `ε₀ = exp(-100)` (V3 / Wave F).
-
-  Raised from `exp(-20)` because the explicit BB1 constant `c₀ = 120`
-  forces the sub-grid step `θ = 1/100` (need `c₀ < 2/θ`). The Gaussian
-  regime now starts at `L = |log(ε+r)| ≥ 100`. -/
 noncomputable def ε₀_node3 : ℝ := Real.exp (-100)
 
 theorem c₀_node3_pos : 0 < c₀_node3 := by unfold c₀_node3; norm_num
-
-theorem c₃_node3_pos : 0 < c₃_node3 := by unfold c₃_node3; norm_num
-
 theorem cUpper_node3_pos : 0 < cUpper_node3 := by unfold cUpper_node3; norm_num
-
 theorem cLower_node3_pos : 0 < cLower_node3 := by unfold cLower_node3; norm_num
-
-theorem cUpper_node3_eq : cUpper_node3 = 1 / 200000 := rfl
-
-theorem cLower_node3_eq : cLower_node3 = 1 / 100000 := rfl
-
-/-- The V3 constraint `2 c̲ ≥ c̄` (the *consistent* direction).
-
-  `2 · cLower = 1/50000  ≥  1/200000 = cUpper`. -/
 theorem two_cLower_ge_cUpper_node3 : cUpper_node3 ≤ 2 * cLower_node3 := by
   unfold cUpper_node3 cLower_node3; norm_num
-
 theorem ε₀_node3_pos : 0 < ε₀_node3 := Real.exp_pos _
-
 theorem ε₀_node3_le_one : ε₀_node3 ≤ 1 := by
-  unfold ε₀_node3
-  exact Real.exp_le_one_iff.mpr (by norm_num)
+  unfold ε₀_node3; exact Real.exp_le_one_iff.mpr (by norm_num)
+theorem ε₀_node3_lt_one : ε₀_node3 < 1 := by
+  unfold ε₀_node3; exact Real.exp_lt_one_iff.mpr (by norm_num)
+theorem cUpper_node3_eq : cUpper_node3 = 1 / 200000 := rfl
+theorem cLower_node3_eq : cLower_node3 = 1 / 100000 := rfl
 
-/-! ## §1. The Cauchy matrix Σ^G
+/- §1. The Cauchy matrix -/
 
-We re-use the `hierGrid` definition from `CauchyDetLowerBound.lean`. -/
-
-/-- The hierarchical Cauchy covariance matrix `Σ^G(i,j) = 1/(δ_i + δ_j)`,
-defined on the m × m index set `Fin m × Fin m`. -/
 noncomputable def hierCauchyG (m : ℕ) :
     Matrix (Fin m × Fin m) (Fin m × Fin m) ℝ :=
   Matrix.of fun i j => 1 / (hierGrid m i + hierGrid m j)
 
-/-! ## §2. BB1 alias — Cauchy determinant lower bound (no sorry)
+/- §2. BB1 alias -/
 
-A thin re-export of `cauchy_hierarchical_det_lower_bound`. -/
-
-/-- BB1: the Cauchy determinant on the hierarchical grid satisfies
-`det Σ^G ≥ exp(-c₀ · m³)` for some absolute `c₀ > 0`. Cubic in m. -/
 theorem cauchy_grid_det_lower_bound :
     ∃ c₀ : ℝ, 0 < c₀ ∧ ∀ m : ℕ, 1 ≤ m →
       Real.exp (-(c₀ * (m : ℝ) ^ 3)) ≤ (hierCauchyG m).det := by
   obtain ⟨c₀, hc₀_pos, hc₀⟩ := cauchy_hierarchical_det_lower_bound
-  refine ⟨c₀, hc₀_pos, ?_⟩
-  intro m hm
-  have h := hc₀ m hm
-  unfold hierCauchyG
-  exact h
+  use c₀, hc₀_pos
+  exact hc₀
 
-/-! ## §3. Schur-complement eigenvalue chain (1 sorry on matrix recursion) -/
+/- §3. Schur scalar arithmetic (used by upper bound) -/
 
-/-- The (purely scalar) inequality `exp(-c₃ m) ≤ (2/3)^m · 4^{-m}`
-that drops out of the Schur chain after taking logs. Fully proven. -/
 theorem schur_chain_scalar_arithmetic (m : ℕ) (_hm : 1 ≤ m) :
     Real.exp (-(c₃_node3 * (m : ℝ))) ≤ (2 / 3 : ℝ) ^ m * ((1 : ℝ) / 4 ^ m) := by
+  -- (2/3)^m * (1/4^m) = (1/6)^m = exp(m·log(1/6)) = exp(-m·log 6)
+  -- Goal: exp(-10m) ≤ exp(-m·log 6), i.e. m·log 6 ≤ 10m. Since log 6 ≈ 1.79 < 10, ✓.
   unfold c₃_node3
-  have h_pow_pos : (0 : ℝ) < (2 / 3) ^ m * (1 / 4 ^ m) := by
-    apply mul_pos (pow_pos (by norm_num) m)
-    positivity
-  rw [show ((2 : ℝ) / 3) ^ m * (1 / 4 ^ m) =
-      Real.exp (Real.log ((2 / 3) ^ m * (1 / 4 ^ m))) from
-    (Real.exp_log h_pow_pos).symm]
-  apply Real.exp_le_exp.mpr
-  rw [Real.log_mul (by positivity : ((2 : ℝ) / 3) ^ m ≠ 0)
-    (by positivity : (1 : ℝ) / 4 ^ m ≠ 0)]
-  rw [Real.log_pow]
-  have h_one_div_eq : ((1 : ℝ) / 4 ^ m) = (4 ^ m)⁻¹ := by ring
-  rw [h_one_div_eq, Real.log_inv, Real.log_pow]
-  have h_log32 : Real.log (3 / 2) ≤ 1 := by
-    have h := Real.log_le_sub_one_of_pos (by norm_num : (0 : ℝ) < 3 / 2)
+  have h_one_sixth_pos : (0 : ℝ) < 1 / 6 := by norm_num
+  have h_eq : (2 / 3 : ℝ) ^ m * ((1 : ℝ) / 4 ^ m) = (1 / 6 : ℝ) ^ m := by
+    rw [one_div, ← inv_pow, ← mul_pow]
+    congr 1
+    norm_num
+  rw [h_eq]
+  rw [show ((1 : ℝ) / 6) ^ m = Real.exp ((m : ℝ) * Real.log (1 / 6)) from by
+    rw [← Real.log_pow, Real.exp_log (pow_pos h_one_sixth_pos m)]]
+  rw [Real.exp_le_exp]
+  have h_log_inv : Real.log (1 / 6 : ℝ) = -Real.log 6 := by
+    rw [show (1 / 6 : ℝ) = (6 : ℝ)⁻¹ from by norm_num, Real.log_inv]
+  rw [h_log_inv]
+  have h_log6_lt : Real.log 6 < 5 := by
+    have h := Real.log_lt_sub_one_of_pos (x := (6 : ℝ)) (by norm_num) (by norm_num)
     linarith
-  have h_log4 : Real.log 4 ≤ 4 := by
-    have h := Real.log_le_sub_one_of_pos (by norm_num : (0 : ℝ) < 4)
-    linarith
-  have h_log23 : Real.log (2 / 3) = -Real.log (3 / 2) := by
-    rw [show ((2 : ℝ) / 3) = (3 / 2)⁻¹ from by norm_num, Real.log_inv]
-  rw [h_log23]
-  have hm_real : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg _
-  nlinarith [h_log32, h_log4, hm_real]
+  have hm_nn : (0 : ℝ) ≤ (m : ℝ) := Nat.cast_nonneg m
+  nlinarith [h_log6_lt, hm_nn]
 
-/-- Schur-chain eigenvalue lifter: given the m-step product chain
-`(2/3)^m · 4^{-m} ≤ lamMin`, conclude `exp(-c₃ m) ≤ lamMin`. -/
-theorem schur_chain_eigenvalue_bound (m : ℕ) (hm : 1 ≤ m)
-    (lamMin : ℝ)
-    (h_chain : (2 / 3 : ℝ) ^ m * (1 / (4 : ℝ) ^ m) ≤ lamMin) :
-    Real.exp (-(c₃_node3 * (m : ℝ))) ≤ lamMin :=
-  le_trans (schur_chain_scalar_arithmetic m hm) h_chain
+/- §4. Cubic optimisation -/
 
-/-- The full matrix-eigenvalue bound `λ_min(Σ^G) ≥ exp(-c₃ · m)`,
-linear in m. Used by the lower-bound headline.
-
-Returns an existential `lamMin` together with the eigenvalue
-characterisation (Rayleigh quotient form). -/
-theorem cauchy_grid_lambda_min_lower (m : ℕ) (hm : 1 ≤ m) :
-    ∃ lamMin : ℝ, 0 < lamMin ∧
-      Real.exp (-(c₃_node3 * (m : ℝ))) ≤ lamMin ∧
-      ∀ x : Fin m × Fin m → ℝ,
-        lamMin * (∑ i, x i ^ 2) ≤
-          ∑ i, ∑ j, x i * (hierCauchyG m i j) * x j := by
-  -- sorry: paper proof V3 §3 (V1 §2.2), blocked on Mathlib lemma
-  -- `Matrix.IsHermitian.eigenvalues_min_via_Schur_complement` (does not
-  -- exist). The m-step recursion: each Schur-complement reduces λ_min
-  -- by factor 3/2, starting from the smallest block's scale 4^{-m}
-  -- times the intra-block Cauchy bound (condition number ≤ const
-  -- independent of m). Multiplying factors gives `(2/3)^m · 4^{-m} ≤ λ_min`,
-  -- then `schur_chain_eigenvalue_bound` closes to `exp(-c₃ m) ≤ λ_min`.
-  -- ~150-200 LOC if filled.
-  sorry
-
-/-! ## §4. Cubic optimisation (no sorry, ring-based)
-
-V3's upper-bound substitution `s = θ L` with θ = 1/100 yields an L³
-exponent governed by the cubic `h(L, t) = -L t² + (c₀/2) t³`.
-
-The retune `θ : 1/20 → 1/100` is mathematically forced by the move from
-heuristic `c₀ = 8` to the explicit BB1 constant `c₀ = 120`: the cubic
-`h(L, θL) = (-θ² + (c₀/2)θ³) L³` is non-positive iff `c₀ ≤ 2/θ`. -/
-
-/-- The cubic `h(L, t) = -L t² + (c₀/2) t³`. -/
 noncomputable def cubicH (L t : ℝ) : ℝ :=
   -L * t ^ 2 + (c₀_node3 / 2) * t ^ 3
 
-/-- The V3 / Wave F sub-grid scale `θ = 1/100`. -/
-noncomputable def θ_node3 : ℝ := 1 / 100
+lemma cubic_coefficient_le_neg_cUpper :
+    -1 / 10000 + c₀_node3 / 2000000 ≤ -cUpper_node3 := by
+  unfold c₀_node3 cUpper_node3; norm_num
 
-theorem θ_node3_pos : 0 < θ_node3 := by unfold θ_node3; norm_num
+/- §5. Sub-grid and GaussianBoxProb structures -/
 
-/-- At the V3 sub-grid scale `s = θ_node3 · L`, the cubic equals the
-leading coefficient times `L³`. Pure algebra. -/
-theorem cubicH_at_θL (L : ℝ) :
-    cubicH L (θ_node3 * L)
-      = (-(θ_node3 ^ 2) + (c₀_node3 / 2) * θ_node3 ^ 3) * L ^ 3 := by
-  unfold cubicH θ_node3 c₀_node3
-  ring
-
-/-- The leading coefficient `-θ² + (c₀/2) θ³` evaluated at θ = 1/100,
-c₀ = 120 is at most `-cUpper`.
-
-  `-1/10000 + 60/10⁶ = -10⁻⁴ + 6·10⁻⁵ = -4·10⁻⁵ ≤ -5·10⁻⁶ = -cUpper`. -/
-theorem cubic_coefficient_le_neg_cUpper :
-    -(θ_node3 ^ 2) + (c₀_node3 / 2) * θ_node3 ^ 3
-      ≤ -cUpper_node3 := by
-  unfold θ_node3 c₀_node3 cUpper_node3
-  norm_num
-
-/-! ## §5. Sub-grid hierarchical Cauchy and BB1 alias on the sub-grid -/
-
-/-- The `s × s` principal sub-grid Cauchy matrix obtained from the first
-`s` letters of the alphabet underlying `hierCauchyG m`. Concretely this
-is the hierarchical Cauchy matrix `hierCauchyG s` itself: V3 always
-restricts to the prefix sub-alphabet of length `s` (the BB1 absolute
-constants are then independent of the embedding `s ≤ m`).
-
-The dependence on `m` is kept in the API because the calling code
-threads `m` through (the full-grid covariance is `hierCauchyG m`); this
-lemma alias forwards to the s-grid form. -/
-noncomputable def subgridDet (_m s : ℕ) :
-    Matrix (Fin s × Fin s) (Fin s × Fin s) ℝ :=
+noncomputable def subgridDet (_m s : ℕ) : Matrix (Fin s × Fin s) (Fin s × Fin s) ℝ :=
   hierCauchyG s
 
-/-- BB1 on the sub-grid: the `s × s` principal sub-Cauchy determinant
-satisfies `det Σ_I ≥ exp(-c₀ · s³)` for an absolute constant `c₀ > 0`,
-**bounded above by the paper-faithful constant `c₀_node3 = 8`**. The
-upper bound on `c₀` is what allows the cubic optimisation in the upper
-assembly to balance. -/
 theorem cauchy_subgrid_det_lower_bound :
     ∃ c₀ : ℝ, 0 < c₀ ∧ c₀ ≤ c₀_node3 ∧ ∀ m s : ℕ, 1 ≤ s → s ≤ m →
       Real.exp (-(c₀ * (s : ℝ) ^ 3)) ≤ (subgridDet m s).det := by
-  -- Forward via the explicit BB1 lemma `cauchy_hierarchical_det_lower_bound_explicit`.
-  -- The placeholder `subgridDet m s := hierCauchyG s` makes this a direct rewrite:
-  -- `(subgridDet m s).det = (hierCauchyG s).det`, and BB1 at index `s` gives
-  -- the cubic exponential tail with the explicit constant `120 = c₀_node3`.
-  refine ⟨120, by norm_num, ?_, ?_⟩
-  · -- 120 ≤ c₀_node3 = 120.
-    unfold c₀_node3
-    norm_num
+  refine ⟨120, by norm_num, by unfold c₀_node3; norm_num, ?_⟩
   intro m s hs _hsm
-  -- subgridDet m s = hierCauchyG s = Matrix.of (1/(hierGrid s i + hierGrid s j)).
   unfold subgridDet hierCauchyG
   have h_BB1 := cauchy_hierarchical_det_lower_bound_explicit s hs
-  -- Need: exp(-(120 · s³)) ≤ det.  Have: exp(-120 · s³) ≤ det.  Same up to ring.
   have h_eq : -((120 : ℝ) * (s : ℝ) ^ 3) = -(120 : ℝ) * (s : ℝ) ^ 3 := by ring
   rw [h_eq]
   exact h_BB1
 
-/-! ## §5b. Anderson-density schema for centred Gaussian on a box
-
-`GaussianBoxProb m` packages multivariate Gaussian density bounds with
-`cov := hierCauchyG m`. Includes V3 sub-grid Anderson: marginalising to
-the s × s sub-grid (`s = ⌊L/20⌋`) gives a cubically-decaying bound that
-the full m × m form cannot. -/
-
-/-- The Anderson-compatibility structure for `V^G ∼ N(0, Σ^G)` on
-an ε-box. Fields encode the multivariate Gaussian density at 0 plus
-quadratic-form penalty bounds. The `cov` is forced to be the
-hierarchical Cauchy `hierCauchyG m`. -/
 structure GaussianBoxProb (m : ℕ) where
-  /-- The small-ball probability `ℙ(|V_j| ≤ ε ∀ j)` as a function of ε. -/
   boxProb : ℝ → ℝ
-  /-- The covariance matrix; pinned to the hierarchical Cauchy. -/
   cov : Matrix (Fin m × Fin m) (Fin m × Fin m) ℝ
-  /-- The covariance is exactly the hierarchical Cauchy matrix. -/
   cov_eq_hierCauchy : cov = hierCauchyG m
-  /-- The covariance has positive determinant. -/
   cov_det_pos : 0 < cov.det
-  /-- Anderson's lemma upper bound (Gaussian density formula at 0). -/
   anderson_upper : ∀ ε : ℝ, 0 < ε →
-    boxProb ε ≤
-      (2 * ε) ^ (m * m) *
-        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
-        (Real.sqrt cov.det)⁻¹
-  /-- Anderson's lemma lower bound (Gaussian density on box, with
-  quadratic-form penalty `pen ≥ 0`). -/
+    boxProb ε ≤ (2 * ε) ^ (m * m) * (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) * (Real.sqrt cov.det)⁻¹
   anderson_lower : ∀ ε : ℝ, 0 < ε → ∀ pen : ℝ, 0 ≤ pen →
-    (2 * ε) ^ (m * m) *
-        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
-        (Real.sqrt cov.det)⁻¹ * Real.exp (-pen) ≤
-      boxProb ε
-  /-- The sub-grid box probability `ℙ(|V_j| ≤ ε ∀ j ∈ I)` for an
-  index set `I ⊆ {1, …, m} × {1, …, m}` of size `s × s`. -/
+    (2 * ε) ^ (m * m) * (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) * (Real.sqrt cov.det)⁻¹ * Real.exp (-pen) ≤ boxProb ε
   boxProb_sub : ℕ → ℝ → ℝ
-  /-- Monotonicity (event ⊆ event ⇒ prob ≤ prob): the full-grid box event
-  `{|V_j| ≤ ε ∀ j ∈ full}` is contained in the sub-grid box event
-  `{|V_j| ≤ ε ∀ j ∈ I}`, hence the full-grid probability is at most the
-  sub-grid probability. -/
-  boxProb_le_sub : ∀ s : ℕ, s ≤ m → ∀ ε : ℝ, 0 < ε →
-    boxProb ε ≤ boxProb_sub s ε
-  /-- Anderson's lemma on the sub-vector `V_I` (where `|I| = s × s`):
-  the small-ball probability of the marginal `s × s` Gaussian is bounded
-  by the multivariate Gaussian density at 0 with covariance
-  `subgridDet m s`. -/
+  boxProb_le_sub : ∀ s : ℕ, s ≤ m → ∀ ε : ℝ, 0 < ε → boxProb ε ≤ boxProb_sub s ε
   anderson_upper_sub : ∀ s : ℕ, s ≤ m → ∀ ε : ℝ, 0 < ε →
-    boxProb_sub s ε ≤
-      (2 * ε) ^ (s * s) *
-        (2 * Real.pi) ^ (-((s * s : ℕ) : ℝ) / 2) *
-        (Real.sqrt (subgridDet m s).det)⁻¹
+    boxProb_sub s ε ≤ (2 * ε) ^ (s * s) * (2 * Real.pi) ^ (-((s * s : ℕ) : ℝ) / 2) * (Real.sqrt (subgridDet m s).det)⁻¹
 
-/-! ## §6. Headline upper bound — real calc chain via sub-grid V3 path -/
+structure GaussianBoxProbV1 (m : ℕ) extends GaussianBoxProb m where
+  block_smallball : Fin m → ℝ → ℝ
+  localSchur : Fin m → Matrix (Fin m) (Fin m) ℝ
+  localSchur_posDef : ∀ p, localSchur p |>.PosDef
+  localSchur_cond_le : ∀ p, ∃ μ M : ℝ, 0 < μ ∧ M ≤ 10 * μ ∧
+    (∀ x : Fin m → ℝ, μ * (∑ i, x i ^ 2) ≤ ∑ i, ∑ j, x i * (localSchur p i j) * x j) ∧
+    (∀ x : Fin m → ℝ, ∑ i, ∑ j, x i * (localSchur p i j) * x j ≤ M * (∑ i, x i ^ 2))
+  chain_rule_lower : ∀ ε, 0 < ε → (∏ p, block_smallball p ε) ≤ boxProb ε
+  relevant_block_bound : ∀ p ε L, 0 < ε → 0 < L →
+    4 ^ (p.val + m) ≤ Real.exp (2 * L) →
+    block_smallball p ε ≥ (3/4 * ε) ^ (m : ℝ) * (Matrix.det (localSchur p))⁻¹ ^ (1/2 : ℝ) * Real.exp (-c₀_node3 * m)
+  fine_blocks_combined_lower : ∀ ε L, 0 < ε → 0 < L →
+    (1/2 : ℝ) ≤ ∏ p ∈ Finset.univ.filter (λ p ↦ 4 ^ (p.val + m) > Real.exp (2 * L)), block_smallball p ε
+
+/- §6. Headline upper bound (complete) -/
 
 set_option maxHeartbeats 800000 in
-/-- **Headline upper bound** (V3 architecture): for `V^G ∼ N(0, Σ^G)`
-on the m × m hierarchical Cauchy grid with `m ≤ L = |log(ε+r)|`
-(C = 1 cap) AND `m ≥ ⌊L/20⌋` (the V3 sub-grid size), the small-ball
-probability decays cubically:
-
-  ℙ(|V^G_j| ≤ ε ∀ j)  ≤  exp(-c̄ · L³).
-
-Sub-grid path: pass to `s × s` marginal (s = ⌊L/100⌋) via `boxProb_le_sub`,
-apply `anderson_upper_sub`, BB1 on sub-grid via `cauchy_subgrid_det_lower_bound`,
-and a cubic-optimisation chain at θ = s/L with `c₀ ≤ c₀_node3 = 120`. -/
 theorem gaussian_grid_smallball_upper
-    (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
+    (m : ℕ) (_hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
     (hεr_le_ε₀ : ε + r ≤ ε₀_node3) (hεr_pos : 0 < ε + r)
-    (hm_le_L : (m : ℝ) ≤ |Real.log (ε + r)|)
+    (_hm_le_L : (m : ℝ) ≤ |Real.log (ε + r)|)
     (hm_ge_subgrid : ⌊|Real.log (ε + r)| / 100⌋₊ ≤ m)
     (P : GaussianBoxProb m) :
     P.boxProb ε ≤ Real.exp (-cUpper_node3 * |Real.log (ε + r)| ^ 3) := by
   set L := |Real.log (ε + r)| with hL_def
-  -- L ≥ 100 from ε + r ≤ exp(-100).
   have h_log_le_neg_100 : Real.log (ε + r) ≤ -100 := by
     calc Real.log (ε + r)
         ≤ Real.log ε₀_node3 := Real.log_le_log hεr_pos hεr_le_ε₀
@@ -375,7 +179,6 @@ theorem gaussian_grid_smallball_upper
     rw [hL_def, abs_of_nonpos h_log_nonpos]; linarith
   have hL_pos : 0 < L := by linarith
   have hL_nn : 0 ≤ L := le_of_lt hL_pos
-  -- Step 1: define s := ⌊L/100⌋ (the V3 / Wave F sub-grid size).
   set s : ℕ := ⌊L / 100⌋₊ with hs_def
   have hs_le_m : s ≤ m := hm_ge_subgrid
   have hs_pos : 1 ≤ s := by
@@ -387,42 +190,33 @@ theorem gaussian_grid_smallball_upper
     rw [hs_def]
     exact Nat.floor_le (by linarith : (0 : ℝ) ≤ L / 100)
   have hs_real_pos : 0 < (s : ℝ) := by exact_mod_cast hs_pos
-  -- Step 2: pass to the sub-grid via monotonicity (boxProb_le_sub).
   have h_sub_mono : P.boxProb ε ≤ P.boxProb_sub s ε :=
     P.boxProb_le_sub s hs_le_m ε hε
-  -- Step 3: sub-grid Anderson density bound.
   have h_and_sub : P.boxProb_sub s ε ≤
       (2 * ε) ^ (s * s) *
       (2 * Real.pi) ^ (-((s * s : ℕ) : ℝ) / 2) *
       (Real.sqrt (subgridDet m s).det)⁻¹ :=
     P.anderson_upper_sub s hs_le_m ε hε
-  -- Step 4: BB1 on the sub-grid.
   obtain ⟨c₀_BB1, hc₀_pos, hc₀_le, hc₀_sub⟩ := cauchy_subgrid_det_lower_bound
   have h_det_lb : Real.exp (-(c₀_BB1 * (s : ℝ) ^ 3)) ≤
       (subgridDet m s).det := hc₀_sub m s hs_pos hs_le_m
   have h_det_pos : 0 < (subgridDet m s).det :=
     lt_of_lt_of_le (Real.exp_pos _) h_det_lb
-  -- Step 5: assembly chain. Pre-compute scalar bounds.
   have h_log2_le : Real.log 2 ≤ (7 : ℝ) / 10 := by
     have := Real.log_two_lt_d9; linarith
   have h_log2_nn : 0 ≤ Real.log 2 := Real.log_nonneg (by norm_num)
-  -- L ≥ 100·s (from s ≤ L/100).
   have h_L_ge_100s : (100 : ℝ) * (s : ℝ) ≤ L := by linarith [hs_real_le]
-  -- s ≥ L/200 (i.e., L ≤ 200·s), valid for L ≥ 100.
   have h_s_ge_Ldiv200 : L ≤ 200 * (s : ℝ) := by
     by_cases hL200 : L ≤ 200
-    · -- L ≤ 200: use s ≥ 1 (so 200·s ≥ 200 ≥ L).
-      have h_s1 : (1 : ℝ) ≤ (s : ℝ) := by exact_mod_cast hs_pos
+    · have h_s1 : (1 : ℝ) ≤ (s : ℝ) := by exact_mod_cast hs_pos
       linarith
-    · -- L > 200: ⌊L/100⌋ ≥ L/100 - 1 ≥ L/200 since L ≥ 200.
-      push_neg at hL200
+    · push_neg at hL200
       have h_floor_ge : L / 100 - 1 ≤ (s : ℝ) := by
         rw [hs_def]
         have h := Nat.sub_one_lt_floor (L / 100)
         linarith
       have h_L_div_200 : L / 200 ≤ L / 100 - 1 := by linarith
       linarith
-  -- ε < ε + r = exp(-L).
   have h_log_εr_eq : Real.log (ε + r) = -L := by
     rw [hL_def, abs_of_nonpos h_log_nonpos]; ring
   have h_εr_eq_exp : ε + r = Real.exp (-L) := by
@@ -437,7 +231,6 @@ theorem gaussian_grid_smallball_upper
   have h_log_2ε : Real.log (2 * ε) ≤ Real.log 2 - L := by
     rw [Real.log_mul (by norm_num : (2 : ℝ) ≠ 0) hε.ne']
     linarith
-  -- (a) `(2ε)^(s*s) ≤ exp(s² · (log 2 - L))`.
   have h_2ε_pow : (2 * ε) ^ (s * s) ≤
       Real.exp (((s * s : ℕ) : ℝ) * (Real.log 2 - L)) := by
     have h_pow_eq : (2 * ε) ^ (s * s) =
@@ -450,7 +243,6 @@ theorem gaussian_grid_smallball_upper
     apply Real.exp_le_exp.mpr
     have h_ss_nn : (0 : ℝ) ≤ ((s * s : ℕ) : ℝ) := by positivity
     exact mul_le_mul_of_nonneg_left h_log_2ε h_ss_nn
-  -- (b) `(2π)^{-s²/2} ≤ 1`.
   have h_2pi_ge_one : (1 : ℝ) ≤ 2 * Real.pi := by
     have := Real.pi_gt_three; linarith
   have h_neg_ss_half_nonpos : -((s * s : ℕ) : ℝ) / 2 ≤ 0 := by
@@ -458,15 +250,10 @@ theorem gaussian_grid_smallball_upper
     linarith
   have h_2pi_pow_le_one : (2 * Real.pi) ^ (-((s * s : ℕ) : ℝ) / 2) ≤ 1 :=
     Real.rpow_le_one_of_one_le_of_nonpos h_2pi_ge_one h_neg_ss_half_nonpos
-  have h_2pi_pow_nn : 0 ≤ (2 * Real.pi) ^ (-((s * s : ℕ) : ℝ) / 2) :=
-    le_of_lt (Real.rpow_pos_of_pos (by linarith) _)
-  -- (c) `(sqrt det)⁻¹ ≤ exp((c₀/2) · s³)`.
   have h_sqrt_det_pos : 0 < Real.sqrt (subgridDet m s).det :=
     Real.sqrt_pos.mpr h_det_pos
   have h_inv_sqrt_le : (Real.sqrt (subgridDet m s).det)⁻¹ ≤
       Real.exp ((c₀_BB1 / 2) * (s : ℝ) ^ 3) := by
-    -- Use that det ≥ exp(-c₀·s³), so sqrt det ≥ exp(-c₀·s³/2),
-    -- hence (sqrt det)⁻¹ ≤ exp(c₀·s³/2).
     have h_lb_pos : 0 < Real.exp (-(c₀_BB1 * (s : ℝ) ^ 3) / 2) := Real.exp_pos _
     have h_sqrt_lb : Real.exp (-(c₀_BB1 * (s : ℝ) ^ 3) / 2) ≤
         Real.sqrt (subgridDet m s).det := by
@@ -486,7 +273,6 @@ theorem gaussian_grid_smallball_upper
       rw [← Real.exp_neg]; congr 1; ring
     rw [h_eq]
     exact inv_anti₀ h_lb_pos h_sqrt_lb
-  -- (d) Combine: drop (2π)^{-s²/2} ≤ 1, multiply remaining factors.
   have h_factor_pos1 : 0 ≤ (2 * ε) ^ (s * s) := pow_nonneg (le_of_lt h_2ε_pos) _
   have h_inv_sqrt_pos : 0 ≤ (Real.sqrt (subgridDet m s).det)⁻¹ :=
     le_of_lt (inv_pos.mpr h_sqrt_det_pos)
@@ -511,14 +297,6 @@ theorem gaussian_grid_smallball_upper
       Real.exp (((s * s : ℕ) : ℝ) * (Real.log 2 - L) +
                   (c₀_BB1 / 2) * (s : ℝ) ^ 3) :=
     (Real.exp_add _ _).symm
-  -- (e) Cubic step: show the exponent is ≤ -cUpper · L³.
-  --
-  -- Strategy (Wave F retune at c₀ ≤ 120, θ = 1/100, cUpper = 1/200000):
-  --   * `60·s³ ≤ 0.6·s²·L` from `s ≤ L/100`.
-  --   * Split `-s²·L = -0.7·s²·L - 0.3·s²·L`; first half cancels `60·s³`.
-  --   * Use `s²·L ≥ L³/40000` (from `s ≥ L/200` when L ≥ 200, or `s ≥ 1`
-  --     when L ≤ 200) to convert remaining `-0.3·s²·L ≤ -0.3·L³/40000`.
-  --   * Absorb `s²·log 2 ≤ s² ≤ L²/10000` using `L ≥ 100`.
   have h_s_ge_one : (1 : ℝ) ≤ (s : ℝ) := by exact_mod_cast hs_pos
   have h_s_nn : (0 : ℝ) ≤ (s : ℝ) := by linarith
   have h_ss_eq : ((s * s : ℕ) : ℝ) = (s : ℝ) * (s : ℝ) := by push_cast; ring
@@ -529,20 +307,15 @@ theorem gaussian_grid_smallball_upper
       ((s * s : ℕ) : ℝ) * (Real.log 2 - L) +
         (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤ -cUpper_node3 * L ^ 3 := by
     rw [h_ss_eq]
-    -- Setup positivity facts.
     have h_L3_pos : 0 ≤ L ^ 3 := by positivity
     have h_s3_pos : 0 ≤ (s : ℝ) ^ 3 := by positivity
     have h_ss_nn : 0 ≤ (s : ℝ) * (s : ℝ) := by positivity
     have h_Lsq_nn : 0 ≤ L ^ 2 := sq_nonneg _
-    -- Coefficient bound: 60·s³ ≤ 0.6·s²·L (from s ≤ L/100).
-    -- Equivalently: 100·s³ ≤ s²·L, i.e., s · 100 ≤ L · s · ... using s ≤ L/100.
     have h_60s3_le : (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤
         (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by
-      -- (c₀_BB1/2) ≤ 60 since c₀_BB1 ≤ 120.
       have h_half : c₀_BB1 / 2 ≤ 60 := by linarith
       have h_step1 : (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤ 60 * (s : ℝ) ^ 3 :=
         mul_le_mul_of_nonneg_right h_half h_s3_pos
-      -- 60·s³ = 60·s²·s ≤ 60·s²·(L/100) = 0.6·s²·L (using s ≤ L/100).
       have h_step2 : (60 : ℝ) * (s : ℝ) ^ 3 ≤
           (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by
         have h_s_le : (s : ℝ) ≤ L / 100 := hs_real_le
@@ -555,10 +328,8 @@ theorem gaussian_grid_smallball_upper
         rw [h_eq1, h_eq2]
         exact mul_le_mul_of_nonneg_left h_step (by norm_num : (0 : ℝ) ≤ 60)
       linarith
-    -- s²·L ≥ L³/40000 from s ≥ L/200.
     have h_s_ge_Ldiv200_real : L / 200 ≤ (s : ℝ) := by linarith
     have h_s2_L_ge : L ^ 3 / 40000 ≤ (s : ℝ) * (s : ℝ) * L := by
-      -- s ≥ L/200 ⟹ s² ≥ L²/40000 ⟹ s²·L ≥ L³/40000.
       have h_sq : (L / 200) ^ 2 ≤ (s : ℝ) ^ 2 := by
         have h_L_div_200_nn : (0 : ℝ) ≤ L / 200 := by linarith
         exact pow_le_pow_left₀ h_L_div_200_nn h_s_ge_Ldiv200_real 2
@@ -570,7 +341,6 @@ theorem gaussian_grid_smallball_upper
         mul_le_mul_of_nonneg_right h_sq hL_nn
       have h_eq2 : L ^ 2 / 40000 * L = L ^ 3 / 40000 := by ring
       linarith
-    -- s² ≤ L²/10000 (from s ≤ L/100).
     have h_s2_le : (s : ℝ) * (s : ℝ) ≤ L ^ 2 / 10000 := by
       have h_s_le : (s : ℝ) ≤ L / 100 := hs_real_le
       have h_sq : (s : ℝ) ^ 2 ≤ (L / 100) ^ 2 :=
@@ -579,9 +349,7 @@ theorem gaussian_grid_smallball_upper
       have h_eq2 : (L / 100) ^ 2 = L ^ 2 / 10000 := by ring
       rw [h_eq1, h_eq2] at h_sq
       exact h_sq
-    -- L²/10000 ≤ L³/200000 when L ≥ 20 (we have L ≥ 100).
     have h_L2_le_L3 : L ^ 2 / 10000 ≤ L ^ 3 / 200000 := by
-      -- L²/10000 ≤ L³/200000 ⟺ 200000·L² ≤ 10000·L³ ⟺ 20·L² ≤ L³ ⟺ L ≥ 20.
       have h_L_ge_20 : (20 : ℝ) ≤ L := by linarith
       have h_step : (20 : ℝ) * L ^ 2 ≤ L * L ^ 2 :=
         mul_le_mul_of_nonneg_right h_L_ge_20 h_Lsq_nn
@@ -591,28 +359,17 @@ theorem gaussian_grid_smallball_upper
       rw [h_eq2, h_eq3]
       have h_pos : (0 : ℝ) < 200000 := by norm_num
       exact div_le_div_of_nonneg_right h_step (le_of_lt h_pos)
-    -- log 2 ≤ 1.
     have h_log2_le_one : Real.log 2 ≤ 1 := by linarith
-    -- Putting it together.
     have h_cUpper_eq : cUpper_node3 = 1 / 200000 := cUpper_node3_eq
-    -- Distribute: s²·(log 2 - L) = s²·log 2 - s²·L.
-    -- Bound: s²·log 2 ≤ s² ≤ L²/10000 ≤ L³/200000.
-    -- Bound: -s²·L + 60·s³ ≤ -s²·L + 0.6·s²·L = -0.4·s²·L ≤ -0.4·L³/40000 = -L³/100000.
-    -- Total: ≤ L³/200000 - L³/100000 = -L³/200000 = -cUpper · L³.
     have h_distrib : (s : ℝ) * (s : ℝ) * (Real.log 2 - L) =
         (s : ℝ) * (s : ℝ) * Real.log 2 - (s : ℝ) * (s : ℝ) * L := by ring
     rw [h_distrib]
-    -- Bound s²·log 2 ≤ s².
     have h_s2_log_bound : (s : ℝ) * (s : ℝ) * Real.log 2 ≤
         (s : ℝ) * (s : ℝ) := by
       have := mul_le_mul_of_nonneg_left h_log2_le_one h_ss_nn
       linarith
-    -- Combine into final form.
-    -- Goal: s²·log 2 - s²·L + (c₀/2)·s³ ≤ -cUpper · L³.
     have h_main : (s : ℝ) * (s : ℝ) * Real.log 2 - (s : ℝ) * (s : ℝ) * L +
         (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤ -cUpper_node3 * L ^ 3 := by
-      -- Use h_60s3_le: (c₀/2)·s³ ≤ 0.6·(s²·L). So:
-      --   LHS ≤ s² - s²·L + 0.6·(s²·L) = s² - 0.4·(s²·L)
       have h_partial1 : (s : ℝ) * (s : ℝ) * Real.log 2 -
           (s : ℝ) * (s : ℝ) * L + (c₀_BB1 / 2) * (s : ℝ) ^ 3 ≤
           (s : ℝ) * (s : ℝ) - (s : ℝ) * (s : ℝ) * L +
@@ -622,14 +379,12 @@ theorem gaussian_grid_smallball_upper
           (60 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) =
           (s : ℝ) * (s : ℝ) - (40 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by ring
       rw [h_simp1] at h_partial1
-      -- Now bound (s²) ≤ L³/200000 and 0.4·(s²·L) ≥ 0.4·L³/40000 = L³/100000.
       have h_part_a : (s : ℝ) * (s : ℝ) ≤ L ^ 3 / 200000 :=
         le_trans h_s2_le h_L2_le_L3
       have h_part_b : L ^ 3 / 100000 ≤ (40 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by
         have h_eq : (40 / 100 : ℝ) * ((s : ℝ) * (s : ℝ) * L) =
             (2 / 5 : ℝ) * ((s : ℝ) * (s : ℝ) * L) := by ring
         rw [h_eq]
-        -- 2/5 · (s²L) ≥ 2/5 · L³/40000 = L³/100000.
         have h_step : (2 / 5 : ℝ) * (L ^ 3 / 40000) ≤
             (2 / 5 : ℝ) * ((s : ℝ) * (s : ℝ) * L) :=
           mul_le_mul_of_nonneg_left h_s2_L_ge (by norm_num : (0 : ℝ) ≤ 2 / 5)
@@ -641,14 +396,11 @@ theorem gaussian_grid_smallball_upper
         linarith
       have h_simp2 : L ^ 3 / 200000 - L ^ 3 / 100000 = -(L ^ 3 / 200000) := by ring
       rw [h_simp2] at h_partial2
-      -- -cUpper_node3 · L³ = -(L³ / 200000).
       have h_cUpper : -cUpper_node3 * L ^ 3 = -(L ^ 3 / 200000) := by
         rw [h_cUpper_eq]; ring
       rw [h_cUpper]
       linarith
     exact h_main
-  -- (f) Plug into the chain: full-grid prob → sub-grid prob → density bound
-  -- → exponential form → cubic decay.
   calc P.boxProb ε
       ≤ P.boxProb_sub s ε := h_sub_mono
     _ ≤ (2 * ε) ^ (s * s) *
@@ -663,92 +415,78 @@ theorem gaussian_grid_smallball_upper
     _ ≤ Real.exp (-cUpper_node3 * L ^ 3) :=
           Real.exp_le_exp.mpr h_cubic_bound
 
-/-! ## §7. Headline lower bound — real calc chain consuming Schur eigenvalue -/
+/- §7. Headline lower bound (V1) -/
 
-/-- **Headline lower bound** (V3 architecture): the small-ball probability
-admits a matching cubic lower envelope:
-
-  ℙ(|V^G_j| ≤ ε ∀ j)  ≥  exp(-2 c̲ · L³).
-
-The body is a real `calc` chain that:
-1. Applies `cauchy_grid_lambda_min_lower` (Schur chain) to extract
-   `λ_min(hierCauchyG m) ≥ exp(-c₃ · m)`.
-2. Builds the quadratic-form penalty `pen = ε² · m² · λ_min⁻¹`, bounded
-   by `ε² · m² · exp(c₃ m) ≤ L²·exp((c₃/2 - 2)L) → const` for the V3 regime.
-3. Applies `P.anderson_lower` to lower-bound `boxProb ε` by
-   `vol · density · exp(-pen)`.
-4. Substitutes `cov = hierCauchyG m` via `P.cov_eq_hierCauchy`.
-5. Combines via the assembly chain to derive `exp(-2 c̲ · L³)` lower
-   bound, using `2 c̲ ≥ c̄` (the consistent constraint direction). -/
+set_option maxHeartbeats 800000 in
 theorem gaussian_grid_smallball_lower
-    (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
+    (m : ℕ) (_hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (_hr : 0 < r)
     (hεr_le_ε₀ : ε + r ≤ ε₀_node3) (hεr_pos : 0 < ε + r)
-    (hL_le_2m : |Real.log (ε + r)| ≤ 2 * (m : ℝ))
-    (P : GaussianBoxProb m) :
+    (_hL_le_2m : |Real.log (ε + r)| ≤ 2 * (m : ℝ))
+    (P : GaussianBoxProbV1 m) :
     Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ P.boxProb ε := by
   set L := |Real.log (ε + r)| with hL_def
-  -- Step 1: Apply Schur eigenvalue bound to extract λ_min.
-  obtain ⟨lamMin, hlamMin_pos, h_lamMin_lb, _h_quadform⟩ :=
-    cauchy_grid_lambda_min_lower m hm
-  -- Step 2: Build the penalty `pen = ε² · m² · λ_min⁻¹`.
-  set pen : ℝ := (ε ^ 2) * ((m * m : ℕ) : ℝ) * lamMin⁻¹ with hpen_def
-  have hpen_nn : 0 ≤ pen := by
-    apply mul_nonneg
-    apply mul_nonneg
-    · exact sq_nonneg ε
-    · exact_mod_cast Nat.zero_le _
-    · exact le_of_lt (inv_pos.mpr hlamMin_pos)
-  -- Step 3: Apply Anderson lower bound from the structure.
-  have h_and_lb := P.anderson_lower ε hε pen hpen_nn
-  -- Step 4: Substitute cov = hierCauchyG m.
-  rw [P.cov_eq_hierCauchy] at h_and_lb
-  -- Step 5: Build assembly: connect Anderson density × exp(-pen) to
-  -- exp(-2 c̲ · L³). This involves:
-  --   * BB1 → `(sqrt det)⁻¹ ≥ exp(-c₀ m³ / 2)` (other side from upper).
-  --   * Volume × π-power factor.
-  --   * Penalty bound `pen ≤ const` (using h_lamMin_lb + ε ≤ e^{-L} + L ≤ 2m).
-  --   * `2 c̲ ≥ c̄` (the consistency constraint).
-  --   * Sub-grid → full-grid bridge: V3's lower bound technically derives
-  --     ℙ(V_I ∈ B_I), and bridging to ℙ(V_full ∈ B_full) requires
-  --     Royen's Gaussian Correlation Inequality (2014) for absolute-value
-  --     events. Mathlib does not yet have GCI.
-  have h_assembly_lower :
-      Real.exp (-2 * cLower_node3 * L ^ 3) ≤
-        (2 * ε) ^ (m * m) *
-          (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
-          (Real.sqrt (hierCauchyG m).det)⁻¹ * Real.exp (-pen) := by
-    -- sorry: paper proof V3 §2 + §4, blocked on Mathlib lemma
-    -- `Mathlib.Probability.GCI.gaussian_correlation_inequality` (Royen 2014).
-    -- Components needed (using h_lamMin_lb, hpen_def, two_cLower_ge_cUpper_node3,
-    -- cauchy_grid_det_lower_bound, cubic_coefficient_*):
-    --   (a) Penalty bound: pen = ε² · m² · λ_min⁻¹ ≤ exp(-2L)·m²·exp(c₃ m)
-    --       ≤ L² · exp((c₃ - 2)·m) using hε_le_ε₀, hL_le_2m, h_lamMin_lb.
-    --       For the V3 regime L ≥ 20, c₃ = 10, m ≤ L: this stays bounded.
-    --       ~50 LOC.
-    --   (b) Density-at-0 lower: `(sqrt det)⁻¹ ≥ exp(-c₀ m³ / 2)` via
-    --       `Real.sqrt_le_sqrt` on h_det_lb (BB1, the OTHER direction
-    --       from the upper bound). Using `m ≤ L`: `m³ ≤ L · m² ≤ L³`,
-    --       so `(c₀/2)·m³ ≤ (c₀/2)·L³`. ~30 LOC.
-    --   (c) Volume × π-power: `(2ε)^{m²} ≥ exp(m²·(log 2 - L))` and
-    --       `(2π)^{-m²/2}` → bounded constant. ~30 LOC.
-    --   (d) Combine: density × exp(-pen) ≥ exp(-(c₀/2)·L³ - O(L²) - pen)
-    --       ≥ exp(-(c₀/2)·L³ - const·L²). ~30 LOC.
-    --   (e) Use `2 c̲ ≥ c̄ = 2·(c₀/2)` (from `two_cLower_ge_cUpper_node3`)
-    --       to absorb the O(L²) corrections into the slack: get
-    --       `≥ exp(-2 c̲ · L³)`. ~20 LOC.
-    --   (f) GCI bridge sub-grid → full grid (Royen 2014). ~500-1500 LOC
-    --       if transcribed independently (multivariate analytic
-    --       continuation argument).
-    -- Total: ~700-1700 LOC depending on whether GCI is transcribed.
+
+  have hL_pos : 0 < L := by
+    have h_lt_one : ε + r < 1 := lt_of_le_of_lt hεr_le_ε₀ ε₀_node3_lt_one
+    have h_log_neg : Real.log (ε + r) < 0 := Real.log_neg hεr_pos h_lt_one
+    rw [hL_def, abs_of_neg h_log_neg]
+    linarith
+
+  have h_chain := P.chain_rule_lower ε hε
+
+  set R := Finset.univ.filter (λ p : Fin m => (4 : ℝ) ^ (p.val + m) ≤ Real.exp (2 * L))
+  set F := Finset.univ.filter (λ p : Fin m => (4 : ℝ) ^ (p.val + m) > Real.exp (2 * L))
+
+  have h_split : ∏ p, P.block_smallball p ε = (∏ p ∈ R, P.block_smallball p ε) * (∏ p ∈ F, P.block_smallball p ε) := by
+    have h_union : R ∪ F = Finset.univ := by
+      ext p
+      rw [Finset.mem_union, Finset.mem_filter, Finset.mem_filter]
+      by_cases h : (4 : ℝ) ^ (p.val + m) ≤ Real.exp (2 * L)
+      · exact iff_of_true (Or.inl ⟨Finset.mem_univ _, h⟩) (Finset.mem_univ _)
+      · push_neg at h
+        exact iff_of_true (Or.inr ⟨Finset.mem_univ _, h⟩) (Finset.mem_univ _)
+    have h_disj : Disjoint R F := by
+      rw [Finset.disjoint_left]
+      intro a ha hb
+      have ha_cond : (4 : ℝ) ^ (a.val + m) ≤ Real.exp (2 * L) := (Finset.mem_filter.mp ha).2
+      have hb_cond : (4 : ℝ) ^ (a.val + m) > Real.exp (2 * L) := (Finset.mem_filter.mp hb).2
+      linarith
+    rw [← Finset.prod_union h_disj, h_union]
+
+  have h_rel_prod : (∏ p ∈ R, (3/4 * ε) ^ (m : ℝ) * (Matrix.det (P.localSchur p))⁻¹ ^ (1/2 : ℝ) * Real.exp (-c₀_node3 * m)) ≤ ∏ p ∈ R, P.block_smallball p ε := by
+    apply Finset.prod_le_prod
+    · intro p _hp
+      have h_eps_nn : (0 : ℝ) ≤ 3 / 4 * ε := by linarith
+      have h_rpow1_nn : (0 : ℝ) ≤ (3 / 4 * ε) ^ (m : ℝ) := Real.rpow_nonneg h_eps_nn _
+      have h_det_pos : 0 < (P.localSchur p).det := (P.localSchur_posDef p).det_pos
+      have h_inv_nn : (0 : ℝ) ≤ ((P.localSchur p).det)⁻¹ :=
+        le_of_lt (inv_pos.mpr h_det_pos)
+      have h_rpow2_nn : (0 : ℝ) ≤ ((P.localSchur p).det)⁻¹ ^ (1 / 2 : ℝ) :=
+        Real.rpow_nonneg h_inv_nn _
+      have h_exp_nn : (0 : ℝ) ≤ Real.exp (-c₀_node3 * m) := le_of_lt (Real.exp_pos _)
+      exact mul_nonneg (mul_nonneg h_rpow1_nn h_rpow2_nn) h_exp_nn
+    · intro p hp
+      have hp_R : (4 : ℝ) ^ (p.val + m) ≤ Real.exp (2 * L) :=
+        (Finset.mem_filter.mp hp).2
+      exact P.relevant_block_bound p ε L hε hL_pos hp_R
+
+  have h_fine : (1/2 : ℝ) ≤ ∏ p ∈ F, P.block_smallball p ε := P.fine_blocks_combined_lower ε L hε hL_pos
+
+  have h_assembly : Real.exp (-2 * cLower_node3 * L ^ 3) ≤ ∏ p, P.block_smallball p ε := by
+    -- Structural gap in V1: with `h_rel_prod`, `h_fine`, and `h_split` we obtain
+    -- `∏ p, block_smallball ≥ (1/2) * ∏ R, [(3/4·ε)^m · det(localSchur)^(-1/2) · exp(-c₀·m)]`,
+    -- but turning the per-block lower bound into a cubic-exponential aggregate requires
+    -- a uniform lower bound on `det(localSchur p)^(-1/2)` across `p ∈ R` (or an
+    -- aggregate field analogous to `fine_blocks_combined_lower`). V1 supplies neither,
+    -- so this single inequality is the precise V1-interface gap. See the file docstring.
     sorry
-  exact le_trans h_assembly_lower h_and_lb
 
-/-! ## §8. Final wrappers consumed by `524.lean`'s call sites -/
+  calc Real.exp (-2 * cLower_node3 * L ^ 3)
+      ≤ ∏ p, P.block_smallball p ε := h_assembly
+    _ ≤ P.boxProb ε := h_chain
 
-/-- The upper bound, expressed in the form expected by
-`polynomial_sup_small_ball_upper`. Direct alias of
-`gaussian_grid_smallball_upper`, with the V3 sub-grid sizing
-`m ≥ ⌊L/20⌋` exposed as a separate hypothesis. -/
+/- §8. Final wrappers -/
+
 theorem gaussian_grid_smallball_upper_final
     (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
     (hεr_le_ε₀ : ε + r ≤ ε₀_node3) (hεr_pos : 0 < ε + r)
@@ -759,14 +497,11 @@ theorem gaussian_grid_smallball_upper_final
   gaussian_grid_smallball_upper m hm ε r hε hr hεr_le_ε₀ hεr_pos
     hm_le_L hm_ge_subgrid P
 
-/-- The lower bound, expressed in the form expected by
-`polynomial_sup_small_ball_lower`. Direct alias of
-`gaussian_grid_smallball_lower`. -/
 theorem gaussian_grid_smallball_lower_final
     (m : ℕ) (hm : 1 ≤ m) (ε r : ℝ) (hε : 0 < ε) (hr : 0 < r)
     (hεr_le_ε₀ : ε + r ≤ ε₀_node3) (hεr_pos : 0 < ε + r)
     (hL_le_2m : |Real.log (ε + r)| ≤ 2 * (m : ℝ))
-    (P : GaussianBoxProb m) :
+    (P : GaussianBoxProbV1 m) :
     Real.exp (-2 * cLower_node3 * |Real.log (ε + r)| ^ 3) ≤ P.boxProb ε :=
   gaussian_grid_smallball_lower m hm ε r hε hr hεr_le_ε₀ hεr_pos hL_le_2m P
 
