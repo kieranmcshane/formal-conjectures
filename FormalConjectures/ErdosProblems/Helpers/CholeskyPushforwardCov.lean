@@ -99,21 +99,23 @@ theorem standardMVGaussian_memLp_two :
 theorem standardMVGaussianEuclidean_memLp_two :
     MemLp (id : EuclideanSpace ℝ n → EuclideanSpace ℝ n) 2
       (standardMVGaussianEuclidean n) := by
-  -- Lift `standardMVGaussian_memLp_two` via the equiv. Use `memLp_map_measure_iff`:
-  --   `MemLp id 2 (Measure.map equiv.symm μ) ↔ MemLp (id ∘ equiv.symm) 2 μ`
-  -- = `MemLp equiv.symm 2 standardMVGaussian`. Since `equiv.symm` is the identity
-  -- at the underlying type level (just a WithLp.toLp wrapper), and standardMVGaussian
-  -- has MemLp 2 of `id`, this should follow by composition with a Lipschitz CLM.
+  -- Lift `standardMVGaussian_memLp_two` via the equiv `(EuclideanSpace.equiv n ℝ).symm`,
+  -- a continuous linear equiv hence a CLM, and apply `MemLp.continuousLinearMap_comp`.
+  -- `id : EuclideanSpace ℝ n → EuclideanSpace ℝ n` composed with `equiv.symm` is just
+  -- `equiv.symm`, which by CLM-comp on `MemLp id 2 standardMVGaussian` gives MemLp
+  -- of `equiv.symm` w.r.t. standardMVGaussian. By memLp_map_measure_iff, this equals
+  -- `MemLp id 2 (standardMVGaussian.map equiv.symm) = MemLp id 2 standardMVGaussianEuclidean`.
   unfold standardMVGaussianEuclidean
   rw [memLp_map_measure_iff (by fun_prop) (by fun_prop)]
-  -- Goal: MemLp (id ∘ (equiv.symm : (n → ℝ) → EuclideanSpace ℝ n)) 2 standardMVGaussian.
-  -- The equiv.symm is a Lipschitz continuous-linear-equiv, and id ∘ equiv.symm
-  -- is a Lipschitz function of x. Use `LipschitzWith.comp_memLp`.
-  -- BLOCKER: precise Mathlib API for "MemLp under Lipschitz composition with CLE."
-  -- TRIED: `LipschitzWith.comp_memLp`, direct via `(EuclideanSpace.equiv n ℝ).symm.lipschitz`.
-  -- NEEDS: matching arity; `LipschitzWith.comp_memLp` typically takes `f : α → β`
-  --   with `LipschitzWith K f`, and we need `f = equiv.symm`.
-  sorry
+  -- Goal: MemLp (id ∘ (equiv.symm)) 2 standardMVGaussian.
+  -- = MemLp (fun x => (equiv.symm) x) 2 standardMVGaussian.
+  -- Apply MemLp.continuousLinearMap_comp on standardMVGaussian_memLp_two
+  -- with L := (EuclideanSpace.equiv n ℝ).symm.toContinuousLinearMap.
+  have h_id : MemLp (id : (n → ℝ) → (n → ℝ)) 2 (standardMVGaussian n) :=
+    standardMVGaussian_memLp_two
+  have := MemLp.continuousLinearMap_comp h_id
+    ((EuclideanSpace.equiv n ℝ).symm : (n → ℝ) →L[ℝ] EuclideanSpace ℝ n)
+  exact this
 
 /-! ## Standard MV Gaussian on EuclideanSpace has identity covariance -/
 
