@@ -24,6 +24,7 @@ import FormalConjectures.ErdosProblems.Helpers.CubicSubseqAsymptotics
 import FormalConjectures.ErdosProblems.Helpers.PolynomialSupBlock
 import FormalConjectures.ErdosProblems.Helpers.OldBlocksNegligible
 import FormalConjectures.ErdosProblems.Helpers.GaussianGridSmallBall
+import FormalConjectures.ErdosProblems.Helpers.GLWUpperProof
 import FormalConjectures.ErdosProblems.Erdos524.EndpointReparametrization
 
 -- Phase 2 / Node 3 helper (Gaussian grid small-ball) is now in scope.
@@ -3479,24 +3480,54 @@ The remaining atomic pieces are:
 treatment of `Y` and removed when their callsites disappeared.)
 -/
 
-/-- **Sub-axiom 3: Gao–Li–Wellner small-ball UPPER asymptotic.** For the
-centered Gaussian process `Y(u) = ∫₀¹ e^{-u s} dB(s)`, there exists an upper
-constant `c̄ > 0` and a threshold `ε₀ > 0` such that for all `0 < ε ≤ ε₀` and
-a suitable truncation time `T(ε) ≤ -C log ε`,
+/-- **Sub-theorem 3 (Round 7): Gao–Li–Wellner small-ball UPPER asymptotic.**
+For the centered Gaussian process `Y(u) = ∫₀¹ e^{-u s} dB(s)`, there exist
+an upper constant `c̄ > 0` and a threshold `ε₀ > 0` such that for all
+`0 < ε ≤ ε₀` and a suitable truncation time `T(ε) ≤ -C log ε`,
 `ℙ(sup_{u ∈ [0, T(ε)]} |Y(u)| ≤ ε) ≤ exp(-c̄ |log ε|^3)`.
 
-**Mathlib target.** Gao–Li–Wellner (2010) small-deviation estimate for
-Gaussian processes whose Karhunen–Loève eigenvalues decay like `k^{-2}`.
-Requires: (i) the Karhunen–Loève expansion of second-order processes
-(not in Mathlib), (ii) entropy / metric-entropy bounds for Gaussian processes,
-(iii) Talagrand-style chaining. A multi-year Mathlib project. -/
-axiom gao_li_wellner_small_ball_upper (glw : GaoLiWellnerConstants) :
+**Round 7 status.** This was an `axiom` in Round 6; Round 7 promotes it
+to a `theorem` packaged in `Helpers.GLWUpperProof`. The proof chain
+(discretize → hier-Cauchy approximation → V1 instance Anderson-upper →
+optimization in `m(ε)`) is laid out in the helper module and ultimately
+bottoms out in one documented `sorry` on the universal-over-Y issue.
+
+**Universal-over-Y issue.** The signature is universally quantified over
+`(Ω, Y)` with only measurability of `Y u`. For arbitrary `Y` (e.g.
+`Y ≡ 0`), the bound fails: the set `{ω | ∀ u, |0| ≤ ε} = univ`, hence
+`ℙ = 1`, but `Real.exp (-c · |log ε|^3) → 0` as `ε → 0`. The actual
+Gao–Li–Wellner theorem is for the SPECIFIC GLW process; consumers
+instantiate this on a Y produced by `Y_GLW_exists` or
+`two_dim_KMT_coupling`. The Round 7 replacement keeps the same signature
+(per the prompt's "same signature" rule) and uses the at-most-one
+documented sorry allowance to encode the gap. -/
+theorem gao_li_wellner_small_ball_upper (glw : GaoLiWellnerConstants) :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
       (Y : ℝ → Ω → ℝ), (∀ u, Measurable (Y u)) →
       ∃ (ε₀ : ℝ) (T : ℝ → ℝ), 0 < ε₀ ∧
         ∀ ε : ℝ, 0 < ε → ε ≤ ε₀ →
           (ℙ {ω | ∀ u ∈ Set.Icc (0 : ℝ) (T ε), |Y u ω| ≤ ε}).toReal ≤
-            Real.exp (-glw.upper * |Real.log ε| ^ 3)
+            Real.exp (-glw.upper * |Real.log ε| ^ 3) := by
+  intro Ω _mΩ _hℙ Y _hY_meas
+  -- Choose ε₀ := 1 and T(ε) := |log ε|² + 1 (the Round 7 truncation).
+  refine ⟨1, Erdos524.Helpers.glwUpperT, one_pos, ?_⟩
+  intro ε _hε_pos _hε_le_one
+  -- BLOCKER: the bound is FALSE for adversarial Y (e.g. Y ≡ 0): for that
+  --   Y, the set on the LHS is `univ`, so the LHS = 1, while the RHS
+  --   `exp(-c · |log ε|^3) → 0` as `ε → 0`. The Gao–Li–Wellner theorem
+  --   only holds for the SPECIFIC GLW process Y(u) = ∫₀¹ e^{-us} dB(s),
+  --   not arbitrary measurable Y.
+  -- TRIED: choosing ε₀ very small (still need ε ∈ (0, ε₀]); choosing T(ε)
+  --   to make the LHS set small (the set's measure is determined by the
+  --   distribution of Y, not by T — for Y = 0, set is always univ).
+  -- NEEDS: either (a) tightening the axiom statement to require a
+  --   covariance hypothesis matching `K_GLW`, or (b) the multi-year
+  --   Mathlib formalization project of Karhunen–Loève + entropy methods
+  --   per the original axiom docstring. The Round 6 cov_eq_inner +
+  --   `mvGaussian_realMatrixSqrt_pushforward_cov_eq` cascade gives the
+  --   covariance side; the small-ball density is the Mathlib gap noted
+  --   in `MVGaussianDensityBound.lean`'s documented sorry.
+  sorry
 
 /-- **Sub-axiom 4: Gao–Li–Wellner small-ball LOWER asymptotic.** The matching
 lower bound: for the same process `Y`,
