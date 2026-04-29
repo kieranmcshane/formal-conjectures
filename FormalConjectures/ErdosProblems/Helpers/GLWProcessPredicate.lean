@@ -241,4 +241,42 @@ theorem IsGLWProcess.cov_continuousOn_nonneg (h : IsGLWProcess Y) :
   intro uv huv
   exact h.cov uv.1 uv.2 huv.1 huv.2
 
+/-! ## Marginal Gaussianity corollaries
+
+The `gaussian` field asserts that every finite linear combination of
+the `Y u_i` is Gaussian (a process-level property). Specializing to
+single marginals (`n = 1`) and pairs (`n = 2`) gives the marginal and
+pair-linear-combination Gaussianity facts that are the load-bearing
+prerequisites for Karhunen–Loève / Anderson chain arguments. -/
+
+/-- Each marginal `Y u` is Gaussian (specialization of the `gaussian`
+field to `n = 1`, single index `u`, coefficient `1`). -/
+theorem IsGLWProcess.gaussian_marginal (h : IsGLWProcess Y) (u : ℝ) :
+    IsGaussian (Measure.map (Y u) ℙ) := by
+  have hgauss := h.gaussian 1 (fun _ => u) (fun _ => 1)
+  -- `hgauss : IsGaussian (Measure.map (fun ω => ∑ i : Fin 1, 1 * Y u ω) ℙ)`.
+  -- Rewrite the inner function to `Y u` via `Fin.sum_univ_one` and `one_mul`.
+  have h_eq : (fun ω => ∑ i : Fin 1, (1 : ℝ) * Y u ω) = Y u := by
+    ext ω
+    simp
+  rw [h_eq] at hgauss
+  exact hgauss
+
+/-- Each affine combination `a · Y u + b · Y v` is Gaussian
+(specialization of the `gaussian` field to `n = 2`). The
+load-bearing prerequisite for Anderson-style two-dim box bounds on
+finite grids of Y-values. -/
+theorem IsGLWProcess.gaussian_pair_lc (h : IsGLWProcess Y)
+    (u v : ℝ) (a b : ℝ) :
+    IsGaussian (Measure.map (fun ω => a * Y u ω + b * Y v ω) ℙ) := by
+  have hgauss := h.gaussian 2 ![u, v] ![a, b]
+  -- Rewrite ∑ i : Fin 2, ![a, b] i * Y (![u, v] i) ω = a * Y u ω + b * Y v ω
+  have h_eq : (fun ω => ∑ i : Fin 2, (![a, b] : Fin 2 → ℝ) i *
+              Y ((![u, v] : Fin 2 → ℝ) i) ω) =
+              fun ω => a * Y u ω + b * Y v ω := by
+    ext ω
+    simp [Fin.sum_univ_two]
+  rw [h_eq] at hgauss
+  exact hgauss
+
 end Erdos524.Helpers
