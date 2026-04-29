@@ -1,0 +1,20 @@
+\contentsline {section}{\numberline {1}The problem and its resolution}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Erdős's original question and the Salem–Zygmund clarification}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Chojecki's theorem (January 2026)}{2}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Formalization architecture}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Six helper modules}{3}{subsection.2.1}%
+\contentsline {section}{\numberline {3}The LIL backbone (sorries \#2, \#3, \#4)}{3}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Sharp Rademacher lower tail at the LIL scale (sorry~\#2)}{3}{subsection.3.1}%
+\contentsline {paragraph}{Proof architecture.}{3}{section*.2}%
+\contentsline {subsection}{\numberline {3.2}Block Borel–Cantelli (sorry~\#3)}{4}{subsection.3.2}%
+\contentsline {paragraph}{Proof architecture.}{4}{section*.3}%
+\contentsline {subsection}{\numberline {3.3}Kolmogorov's LIL lower bound (sorry~\#4)}{4}{subsection.3.3}%
+\contentsline {paragraph}{Proof.}{5}{section*.4}%
+\contentsline {section}{\numberline {4}The sparse lower envelope (sorry~\#5)}{5}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Atomic sub-axioms}{5}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Assembly of Theorem~\ref {thm:SLE}}{6}{subsection.4.2}%
+\contentsline {paragraph}{Upper direction: $\limsup R_m \le \alpha _+$ a.s.}{6}{section*.5}%
+\contentsline {paragraph}{Lower direction: $\liminf \limsup R_m \ge \alpha _-$ a.s.}{7}{section*.6}%
+\contentsline {section}{\numberline {5}Subtleties and open concerns}{7}{section.5}%
+\contentsline {section}{\numberline {6}Change log}{8}{section.6}%
+\contentsline {paragraph}{Outstanding.}{8}{section*.7}%
