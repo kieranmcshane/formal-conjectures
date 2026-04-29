@@ -1,6 +1,25 @@
-# Phase 2 Node 1B — stepping-stone axiom proposal
+# Phase 2 Node 1B — stepping-stone axiom proposal (v3)
 
-**Status:** PROPOSAL — awaiting user greenlight before any axiom is shipped.
+**Status:** PROPOSAL v3 — awaiting user greenlight before any axiom is shipped.
+
+**v3 changelog:**
+* **Existential `Ω`.** v2 universally quantified over `(Ω, ℙ)`, which is mathematically
+  inconsistent on the trivial 1-point space (no non-trivial Gaussian process can
+  live there) — the same false-for-trivial-Ω flaw as
+  `gao_li_wellner_small_ball_upper`. v3 produces `Ω` from the construction, which
+  is consistent (Daniell–Kolmogorov on `ℝ^[0,∞)`). This pre-resolves the
+  universal-Ω prong of the Node 6 universal-Y/Ω decision.
+* **Explicit `Integrable` conjuncts.** Mathlib's `∫ ω, f ω ∂ℙ` returns `0` for
+  non-integrable `f`, so v2's centeredness and covariance conjuncts were
+  vacuously true for non-integrable `Y`. The `IsGaussian` conjunct on pushforward
+  measures does **not** imply integrability of `Y u` itself (different measure).
+  v3 adds `Integrable (Y u) ℙ` and `Integrable (Y u · Y v) ℙ` explicitly.
+* **Tail-decay rationale corrected.** The conjunct `∀ ε > 0, ∀ᵐ ω, ∃ T₀, ...`
+  asserts pointwise a.s. eventual smallness — `σ²(T) → 0` alone gives only
+  `L²`-convergence, not pointwise a.s. The actual justification is Borell on
+  `sup_{u ∈ [T, T+1]} |Y u|` (using continuous-paths + σ²-decay) followed by
+  Borel–Cantelli over `T = 1, 2, 3, ...`. The conjunct stays; only the
+  docstring rationale changes.
 
 ## Survey of this Mathlib snapshot
 
@@ -41,35 +60,57 @@ This is strictly weaker than `gao_li_wellner_small_ball_upper`/`_lower`, which
 both assert a cubic-exponential small-ball estimate on top of the existence.
 
 ```lean
-/-- **Stepping-stone axiom (Phase 2 Node 1B).** Existence of a centered Gaussian
-process `Y_GLW : ℝ → Ω → ℝ` with covariance `K_GLW(u, v) = (1 - exp(-(u+v)))/(u+v)`
+/-- **Stepping-stone axiom (Phase 2 Node 1B, v3).** Existence of a probability
+space `(Ω, ℙ)` carrying a centered Gaussian process
+`Y_GLW : ℝ → Ω → ℝ` with covariance `K_GLW(u, v) = (1 - exp(-(u+v)))/(u+v)`
 (the kernel of `∫₀¹ e^{-us} dB(s)`), continuous sample paths, and the
-`Var(Y_GLW u) → 0 as u → ∞` tail decay used in Ledoux §1.3.
+sample-path tail decay `sup_{u ≥ T} |Y u| → 0` a.s. as `T → ∞`.
 
-Materially smaller than the GLW axioms it stages toward — asserts only the
-**existence** of such a process, not any small-ball bound. Once Mathlib gains
-Brownian motion + Itô calculus this axiom is dischargeable from
+**Materially smaller than the GLW axioms it stages toward** — asserts only
+the **existence** of such a probability space + process, not any small-ball
+bound. Once Mathlib gains Brownian motion + Itô calculus this axiom is
+dischargeable from
 `Mathlib.Probability.Process.Kolmogorov` (Daniell–Kolmogorov on the
 finite-dimensional Gaussians with covariance `K_GLW`) +
 `Mathlib.Probability.Distributions.Gaussian.Fernique` (continuous sample
-paths via Kolmogorov–Chentsov + Fernique-style modulus). -/
+paths via Kolmogorov–Chentsov + Fernique-style modulus).
+
+**Existential over `Ω`.** Quantifying universally over `(Ω, ℙ)` would be
+inconsistent on a trivial space (the same false-for-trivial-Ω flaw as
+`gao_li_wellner_small_ball_upper`). Producing `Ω` from the construction
+matches Daniell–Kolmogorov, which builds `Ω = ℝ^[0,∞)` with the cylinder
+measure. Node 6 consumers will `obtain ⟨Ω, _, _, Y, hY⟩` to extract.
+
+**Tail-decay rationale.** `σ²(T) → 0` alone gives `L²`-convergence, not
+pointwise a.s. eventual smallness. The actual justification of the
+conjunct: Borell on `sup_{u ∈ [T, T+1]} |Y u|` (Ledoux §1.3 eq. (1.7)),
+using continuous-paths separability + σ²-decay; then Borel–Cantelli
+over the integer-indexed sequence `T = 1, 2, 3, ...`. -/
 axiom Y_GLW_exists :
-    ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)],
-    ∃ Y : ℝ → Ω → ℝ,
-      -- measurability + centeredness + covariance kernel
+    ∃ (Ω : Type) (_ : MeasureSpace Ω) (_ : IsProbabilityMeasure (ℙ : Measure Ω))
+      (Y : ℝ → Ω → ℝ),
+      -- measurability
       (∀ u, Measurable (Y u)) ∧
+      -- integrability of marginals and pairwise products (load-bearing
+      -- because `∫` returns `0` for non-integrable functions, so
+      -- centeredness and covariance conjuncts below would otherwise be
+      -- vacuous for non-integrable `Y`)
+      (∀ u, Integrable (Y u) ℙ) ∧
+      (∀ u v : ℝ, Integrable (fun ω => Y u ω * Y v ω) ℙ) ∧
+      -- centeredness
       (∀ u, ∫ ω, Y u ω ∂ℙ = 0) ∧
+      -- covariance kernel
       (∀ u v : ℝ, 0 ≤ u → 0 ≤ v →
         ∫ ω, Y u ω * Y v ω ∂ℙ = K_GLW u v) ∧
-      -- joint Gaussianity: every finite linear combination of `Y u_i` is
-      -- Gaussian on ℝ. This is the load-bearing conjunct for downstream
-      -- Anderson-inequality use inside Node 6.
+      -- joint Gaussianity: every finite linear combination of `Y u_i`
+      -- is Gaussian on ℝ. Load-bearing for Node 6's Anderson-inequality
+      -- invocation through `GaussianBoxProb.anderson_lower`.
       (∀ (n : ℕ) (us : Fin n → ℝ) (cs : Fin n → ℝ),
         ProbabilityTheory.IsGaussian
-          ((Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) ℙ))) ∧
+          (Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) ℙ)) ∧
       -- continuous sample paths (Kolmogorov–Chentsov)
       (∀ᵐ ω ∂ℙ, Continuous (fun u => Y u ω)) ∧
-      -- tail decay (Borell + σ²(T) → 0; Ledoux §1.3)
+      -- sample-path tail decay (Borell on `sup_{[T,T+1]}` + Borel–Cantelli)
       (∀ ε > 0, ∀ᵐ ω ∂ℙ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε)
 ```
 
@@ -78,6 +119,8 @@ axiom Y_GLW_exists :
 | Claim | GLW axiom | This axiom |
 |---|---|---|
 | Existence of `Y` | implicit | **explicit** |
+| Existential over `Ω` | universal (false on trivial `Ω`) | **existential (consistent)** |
+| Integrability of `Y u`, `Y u · Y v` | unstated | **conjuncted** |
 | Covariance specification | unconstrained | **`K_GLW`** |
 | Joint Gaussianity | unstated | **conjuncted** |
 | Continuous paths | unstated | **conjuncted** |
