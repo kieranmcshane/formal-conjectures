@@ -14,11 +14,12 @@ limitations under the License.
 import FormalConjectures.ErdosProblems.Helpers.StandardMVGaussian
 import FormalConjectures.ErdosProblems.Helpers.CholeskyExistence
 import Mathlib.Probability.Moments.CovarianceBilin
+import Mathlib.Probability.Independence.Basic
 import Mathlib.Analysis.CStarAlgebra.Matrix
 import Mathlib.Analysis.InnerProductSpace.Adjoint
 
 /-!
-# Phase 2 Round 5 — Pushforward covariance for Cholesky
+# Phase 2 Round 5/6 — Pushforward covariance for Cholesky
 
 Headline target: for an `n × n` symmetric positive-(semi)definite real
 matrix `M` with symmetric square root `L = realMatrixSqrt M`, the pushforward
@@ -31,12 +32,14 @@ This file:
   `EuclideanSpace ↔ Pi` continuous-linear-equiv. **PROVED.**
 * Provides the `IsProbabilityMeasure` instance. **PROVED.**
 * Defines the Cholesky pushforward `mvGaussianEuclideanFromMatrix`. **PROVED.**
-* States the headline `mvGaussian_pushforward_cov_eq` covariance theorem
-  + its `realMatrixSqrt` specialisation. **TWO DOCUMENTED `sorry`s.**
+* Proves the headline `mvGaussian_pushforward_cov_eq` covariance theorem
+  + its `realMatrixSqrt` specialisation. **PROVED (Round 6).**
 
-The two `sorry`s are at the precise points where the chain bottoms out
-into Mathlib API gaps, with explicit `BLOCKER / TRIED / NEEDS` comments
-(per the Round 5 protocol).
+Round 6 closed the Round 5 documented `sorry` on
+`standardMVGaussianEuclidean_cov_eq_inner` using the Mathlib lemmas
+`covarianceBilin_apply_pi`, `iIndepFun_pi`, and
+`MeasurePreserving.variance_fun_comp`, decomposed into seven named
+sub-lemmas (each ≤ 15 lines per the Round 6 hard rule).
 -/
 
 set_option maxHeartbeats 800000
@@ -117,17 +120,117 @@ theorem standardMVGaussianEuclidean_memLp_two :
     ((EuclideanSpace.equiv n ℝ).symm : (n → ℝ) →L[ℝ] EuclideanSpace ℝ n)
   exact this
 
-/-! ## Standard MV Gaussian on EuclideanSpace has identity covariance -/
+/-! ## Standard MV Gaussian on EuclideanSpace has identity covariance
 
+Round 6: this section closes the Round 5 documented `sorry`. The chain:
+
+* `standardMVGaussianEuclidean n = (Measure.pi (fun _ => gaussianReal 0 1)).map (toLp 2)`
+  by definitional unfolding (the canonical `EuclideanSpace.equiv` symm equals `toLp 2`).
+* The Mathlib lemma `covarianceBilin_apply_pi` then expresses the covariance
+  bilinear form as `∑ i, ∑ j, x i * y j * cov[ω ↦ ω i, ω ↦ ω j; Measure.pi]`.
+* For `i = j`: `cov[X i, X i; μ] = Var[X i; μ] = Var[id; gaussianReal 0 1] = 1`,
+  using `MeasurePreserving.variance_fun_comp` on `Function.eval i`.
+* For `i ≠ j`: `cov[X i, X j; μ] = 0` by `IndepFun.covariance_eq_zero` and
+  `iIndepFun_pi` (Mathlib): coordinates of a Pi-measure are independent.
+
+The four supporting facts are split into named sub-lemmas to keep each
+proof block ≤ 15 lines (Round 6 hard rule). -/
+
+set_option linter.unusedSectionVars false in
+/-- MemLp 2 for the i-th coordinate evaluation under the standard MV
+Gaussian's product measure. Used by `covarianceBilin_apply_pi`. -/
+theorem standardMVGaussian_eval_memLp_two (i : n) :
+    MemLp (fun ω : n → ℝ => ω i) 2
+      (Measure.pi (fun _ : n => gaussianReal 0 1)) := by
+  have h_mp : MeasurePreserving (Function.eval i)
+      (Measure.pi (fun _ : n => gaussianReal 0 1)) (gaussianReal 0 1) :=
+    measurePreserving_eval _ i
+  exact (memLp_id_gaussianReal 2).comp_measurePreserving h_mp
+
+set_option linter.unusedSectionVars false in
+/-- Variance of the i-th coordinate under the standard MV Gaussian = 1.
+Reduces via `MeasurePreserving.variance_fun_comp` to `variance_id_gaussianReal`. -/
+theorem standardMVGaussian_var_eval_eq_one (i : n) :
+    Var[fun ω : n → ℝ => ω i;
+      Measure.pi (fun _ : n => gaussianReal 0 1)] = 1 := by
+  have h_mp : MeasurePreserving (Function.eval i)
+      (Measure.pi (fun _ : n => gaussianReal 0 1)) (gaussianReal 0 1) :=
+    measurePreserving_eval _ i
+  have h_var := h_mp.variance_fun_comp (μ := Measure.pi _)
+    (f := (id : ℝ → ℝ)) measurable_id.aemeasurable
+  -- LHS: Var[fun ω => id (eval i ω); μ] = Var[fun ω => ω i; μ].
+  -- RHS: Var[id; gaussianReal 0 1] = 1.
+  rw [show (fun ω : n → ℝ => ω i) = (fun ω => id (Function.eval i ω)) from rfl, h_var]
+  rw [variance_id_gaussianReal]
+  simp
+
+set_option linter.unusedSectionVars false in
+/-- Coordinate functions of a product measure are jointly independent. -/
+theorem standardMVGaussian_iIndepFun_eval :
+    iIndepFun (fun (i : n) (ω : n → ℝ) => ω i)
+      (Measure.pi (fun _ : n => gaussianReal 0 1)) := by
+  -- `iIndepFun_pi` with each `X i := id : ℝ → ℝ` gives the result.
+  exact iIndepFun_pi (μ := fun _ : n => gaussianReal 0 1)
+    (X := fun _ => (id : ℝ → ℝ)) (fun _ => measurable_id.aemeasurable)
+
+/-- For `i ≠ j`, the covariance of the i-th and j-th coordinate evaluations
+under the standard MV Gaussian's product measure is `0`. -/
+theorem standardMVGaussian_cov_eval_eq_zero_of_ne {i j : n} (hij : i ≠ j) :
+    cov[fun ω : n → ℝ => ω i, fun ω : n → ℝ => ω j;
+      Measure.pi (fun _ : n => gaussianReal 0 1)] = 0 :=
+  ((standardMVGaussian_iIndepFun_eval (n := n)).indepFun hij).covariance_eq_zero
+    (standardMVGaussian_eval_memLp_two i) (standardMVGaussian_eval_memLp_two j)
+
+/-- Diagonal: `cov[ω ↦ ω i, ω ↦ ω i; μ] = 1` (= variance under standard normal). -/
+theorem standardMVGaussian_cov_eval_self_eq_one (i : n) :
+    cov[fun ω : n → ℝ => ω i, fun ω : n → ℝ => ω i;
+      Measure.pi (fun _ : n => gaussianReal 0 1)] = 1 := by
+  rw [covariance_self (standardMVGaussian_eval_memLp_two i).aemeasurable]
+  exact standardMVGaussian_var_eval_eq_one i
+
+set_option linter.unusedSectionVars false in
+/-- Pushforward identity: `standardMVGaussianEuclidean = (Measure.pi).map toLp`. -/
+theorem standardMVGaussianEuclidean_eq_pi_map :
+    standardMVGaussianEuclidean n =
+      (Measure.pi (fun _ : n => gaussianReal 0 1)).map
+        (fun ω : n → ℝ => WithLp.toLp 2 ω) := by
+  -- `(EuclideanSpace.equiv n ℝ).symm = toLp 2` definitionally, so this is `rfl`.
+  unfold standardMVGaussianEuclidean standardMVGaussian
+  rfl
+
+/-- Collapse the cov-double-sum to its diagonal. Off-diagonal terms vanish
+by `cov_eval_eq_zero_of_ne`; diagonal terms reduce to `1` by `var_eval_eq_one`. -/
+theorem standardMVGaussian_sum_cov_eval_eq_inner_real
+    (u v : EuclideanSpace ℝ n) :
+    ∑ i, ∑ j, u i * v j *
+        cov[fun ω : n → ℝ => ω i, fun ω : n → ℝ => ω j;
+          Measure.pi (fun _ : n => gaussianReal 0 1)] =
+      ∑ i, u i * v i := by
+  refine Finset.sum_congr rfl (fun i _ => ?_)
+  rw [Finset.sum_eq_single i]
+  · rw [standardMVGaussian_cov_eval_self_eq_one, mul_one]
+  · intro j _ hji
+    rw [standardMVGaussian_cov_eval_eq_zero_of_ne hji.symm, mul_zero]
+  · intro hi; exact (hi (Finset.mem_univ i)).elim
+
+set_option linter.unusedSectionVars false in
+/-- `inner ℝ u v = ∑ i, u i * v i` for `EuclideanSpace ℝ n`. -/
+theorem euclidean_inner_eq_sum_mul (u v : EuclideanSpace ℝ n) :
+    inner ℝ u v = ∑ i, u i * v i := by
+  rw [PiLp.inner_apply]
+  refine Finset.sum_congr rfl (fun i _ => ?_)
+  -- `⟪u i, v i⟫_ℝ = v i * u i = u i * v i` via `RCLike.inner_apply` + `mul_comm`.
+  rw [RCLike.inner_apply]
+  simp [mul_comm]
+
+/-- Headline (Round 6): the standard MV Gaussian on `EuclideanSpace ℝ n`
+has identity covariance bilinear form. Closes the Round 5 documented `sorry`. -/
 theorem standardMVGaussianEuclidean_cov_eq_inner (u v : EuclideanSpace ℝ n) :
     covarianceBilin (standardMVGaussianEuclidean n) u v = inner ℝ u v := by
-  -- BLOCKER: identity covariance of the standard MV Gaussian on EuclideanSpace.
-  -- TRIED: `covarianceBilin_apply_eq_cov` + bilinearity expansion + per-coord
-  --   variance computation. Each step exists but the assembly is tedious.
-  -- NEEDS: a Pi-product covariance lemma `covarianceBilin (Measure.pi μ)
-  --   (toLp x) (toLp y) = ∑_i x_i * y_i * Var[id; μ i]`. Not in Mathlib.
-  --   For our case `μ i = gaussianReal 0 1`, `Var = 1`, so the sum is `⟪x, y⟫`.
-  sorry
+  rw [standardMVGaussianEuclidean_eq_pi_map]
+  rw [covarianceBilin_apply_pi (fun i => standardMVGaussian_eval_memLp_two i)]
+  rw [standardMVGaussian_sum_cov_eval_eq_inner_real]
+  exact (euclidean_inner_eq_sum_mul u v).symm
 
 /-! ## Adjoint of `toEuclideanCLM` is the transpose
 
@@ -151,19 +254,16 @@ Pushforward of the standard MV Gaussian on `EuclideanSpace ℝ n` by the
 matrix-as-CLM `Matrix.toEuclideanCLM L` has covariance bilinear form
 represented by the matrix `L · Lᵀ` (i.e. `(u, v) ↦ ⟪u, (L · Lᵀ) · v⟫`).
 
-Proof outline (the chain that the documented `sorry` packages up):
+Proof chain (all four steps closed by Round 6):
 1. `covarianceBilin_map` (Mathlib): pushforward by a CLM `f` transforms
    the covariance via the adjoint:
      `covarianceBilin (μ.map f) u v = covarianceBilin μ (f.adjoint u) (f.adjoint v)`.
-   (Requires `MemLp id 2 μ`.)
+   (Requires `MemLp id 2 μ`, supplied by `standardMVGaussianEuclidean_memLp_two`.)
 2. `(toEuclideanCLM L).adjoint = toEuclideanCLM Lᵀ` (real conjTranspose = transpose).
 3. The standard MV Gaussian on `EuclideanSpace ℝ n` has identity covariance:
-   `covarianceBilin standardMVGaussianEuclidean u v = ⟪u, v⟫`.
+   `covarianceBilin standardMVGaussianEuclidean u v = ⟪u, v⟫` (Round 6).
 4. Combine: `⟪Lᵀ u, Lᵀ v⟫ = ⟪u, L · Lᵀ · v⟫` via the adjoint identity again,
    using `map_mul` of `toEuclideanCLM` to write `L · Lᵀ` as CLM composition.
-
-Each of step 2, step 3, and the `MemLp` precondition for step 1 is a
-self-contained Mathlib-API-gap that Round 5 documents but does not close.
 -/
 theorem mvGaussian_pushforward_cov_eq (L : Matrix n n ℝ) (u v : EuclideanSpace ℝ n) :
     covarianceBilin (mvGaussianEuclideanFromMatrix L) u v =

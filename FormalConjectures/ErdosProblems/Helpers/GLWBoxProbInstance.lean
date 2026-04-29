@@ -264,4 +264,63 @@ theorem glwLocalSchur_cond_le (m : ℕ) (p : Fin m) :
     rw [h_eq]
     linarith
 
+/-! ## V1 field — `glwBox_full_event_measurable` (Round 6)
+
+The full box event `{x | ∀ ij, |x ij| ≤ ε}` for `glwBoxProb m` is measurable.
+This is the V1-contract measurability precondition for the full-box
+`boxProb` field, complementing `glwBlockBox_measurable` (which covers the
+per-block sub-event). -/
+
+theorem glwBox_full_event_measurable (m : ℕ) (ε : ℝ) :
+    MeasurableSet {x : Fin m × Fin m → ℝ | ∀ ij : Fin m × Fin m, |x ij| ≤ ε} := by
+  rw [show ({x : Fin m × Fin m → ℝ | ∀ ij : Fin m × Fin m, |x ij| ≤ ε}) =
+      ⋂ ij : Fin m × Fin m, {x | |x ij| ≤ ε} from by ext x; simp [Set.mem_iInter]]
+  refine MeasurableSet.iInter (fun ij => ?_)
+  exact measurableSet_le (Measurable.abs (measurable_pi_apply ij)) measurable_const
+
+/-! ## V1 field — `glwLocalSchur_det_eq_one` (Round 6)
+
+For `glwLocalSchur p` (= the identity matrix on `Fin m`), the determinant
+is `1`. This is the PosDef-determinant computation for the V1 cond_le
+bound, used downstream to discharge `cov_det_pos` for the local-Schur
+complement. -/
+
+theorem glwLocalSchur_det_eq_one (m : ℕ) (p : Fin m) :
+    (glwLocalSchur m p).det = 1 := by
+  unfold glwLocalSchur
+  exact Matrix.det_one
+
+/-! ## V1 field — `glwLocalSchur_det_pos` (Round 6)
+
+`glwLocalSchur p`'s determinant is positive (corollary of `det_eq_one`). -/
+
+theorem glwLocalSchur_det_pos (m : ℕ) (p : Fin m) :
+    0 < (glwLocalSchur m p).det := by
+  rw [glwLocalSchur_det_eq_one]
+  exact one_pos
+
+/-! ## V1 field — `glwLocalSchur_isHermitian` (Round 6)
+
+The local Schur complement (= identity matrix) is Hermitian (symmetric for
+real matrices), used by the V1 contract's symmetric-PosDef framework. -/
+
+theorem glwLocalSchur_isHermitian (m : ℕ) (p : Fin m) :
+    (glwLocalSchur m p).IsHermitian := by
+  unfold glwLocalSchur
+  exact Matrix.isHermitian_one
+
+/-! ## V1 field — `glwBlockBox_subset_full` (Round 6)
+
+The full box event is contained in every per-block restricted box. This is
+the structural reason why `glwBoxProb m ε ≤ glwBlock_smallball m p ε`
+(established in Round 5 by `glwBoxProb_le_glwBlock_smallball`); this
+isolates the set-level inclusion as its own V1 field. -/
+
+theorem glwBlockBox_full_subset (m : ℕ) (p : Fin m) (ε : ℝ) :
+    {x : Fin m × Fin m → ℝ | ∀ ij : Fin m × Fin m, |x ij| ≤ ε} ⊆
+      glwBlockBox m p ε := by
+  unfold glwBlockBox
+  intro x hx q
+  exact hx (p, q)
+
 end Erdos524.Helpers
