@@ -43,11 +43,16 @@ import FormalConjectures.ErdosProblems.Erdos524.EndpointReparametrization
 -- the `2 · exp(...) · (1/2) = exp(...)` factor. The upper bound, constants,
 -- and final wrappers are byte-identical to the prior state.
 --
--- Bridging gap to the GLW / KMT axioms below:
--- The three axioms `gao_li_wellner_small_ball_upper`,
--- `gao_li_wellner_small_ball_lower`, and `two_dim_KMT_coupling` are stated for an
--- **arbitrary** measurable `Y : ℝ → Ω → ℝ` (no Gaussianity, no Karhunen–Loève
--- kernel, no hierarchical-Cauchy covariance) and an arbitrary Rademacher coupling.
+-- Bridging gap to the GLW / KMT theorems and remaining axiom below:
+-- Post-Round-7 (upper) and post-Round-8 (lower), `gao_li_wellner_small_ball_upper`
+-- and `gao_li_wellner_small_ball_lower` are now THEOREMS with an
+-- `Erdos524.Helpers.IsGLWProcess Y` hypothesis (defined in
+-- `Helpers/GLWProcessPredicate.lean`) capturing Gaussianity, K_GLW covariance,
+-- continuous paths, and tail decay. The single remaining `axiom` in this file
+-- is `two_dim_KMT_coupling` (a Rademacher → Gaussian strong invariance principle
+-- still stated for arbitrary Rademacher inputs); the helper-side
+-- `Y_GLW_exists` axiom is a stepping-stone for the existence of a GLW process
+-- on a probability space and is unaffected by this round.
 -- The helper proves a bound on `P.boxProb ε` for `P : GaussianBoxProb m` with
 -- `P.cov = hierCauchyG m` — a **finite-dimensional** small-ball claim with a
 -- specific covariance shape. There is no direct rewriting of one as the other:
@@ -62,8 +67,10 @@ import FormalConjectures.ErdosProblems.Erdos524.EndpointReparametrization
 --   * Node 5 — KMT error → small-ball error conversion;
 --   * Node 6 — assembly of `GaussianBoxProbV1` instance from the GLW context.
 --
--- Conclusion: the 3 axioms remain in place pending Nodes 1, 2, 4, 5, 6.
--- The helper is verified ready to be consumed once a bridging
+-- Conclusion: 1 axiom (`two_dim_KMT_coupling`) remains in this file plus 1
+-- (`Y_GLW_exists`) in `Helpers/GLWProcess.lean`. The two GLW small-ball
+-- theorems each carry one documented `sorry` on the Karhunen–Loève + entropy
+-- gap. The helper is verified ready to be consumed once a bridging
 -- `GaussianBoxProbV1 m` instance is constructed from `gao_li_wellner_*` /
 -- `two_dim_KMT_coupling` outputs; no helper-side blocker remains.
 
