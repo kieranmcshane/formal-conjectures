@@ -145,6 +145,38 @@ theorem sqrt_det_nonneg_of_posDef [DecidableEq n]
     {M : Matrix n n ℝ} (hM : M.PosDef) : 0 ≤ Real.sqrt M.det :=
   le_of_lt (sqrt_det_pos_of_posDef hM)
 
+/-! ## Round 9 — Determinant of the symmetric square root
+
+For a PosDef matrix `M`, the symmetric square root `realMatrixSqrt M` (= `CFC.sqrt M`)
+has determinant `Real.sqrt (det M)`. This follows from
+`Matrix.PosSemidef.det_sqrt` (Mathlib `Analysis/Matrix/Order.lean`), specialised
+to the field `ℝ`: `RCLike.sqrt` of a real argument is `Real.sqrt`.
+-/
+
+theorem realMatrixSqrt_det [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosSemidef) :
+    (realMatrixSqrt M).det = Real.sqrt M.det := by
+  unfold realMatrixSqrt
+  rw [hM.det_sqrt]
+  exact RCLike.sqrt_real
+
+theorem realMatrixSqrt_det_pos [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) :
+    0 < (realMatrixSqrt M).det := by
+  rw [realMatrixSqrt_det hM.posSemidef]
+  exact Real.sqrt_pos.mpr hM.det_pos
+
+theorem realMatrixSqrt_det_ne_zero [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) :
+    (realMatrixSqrt M).det ≠ 0 :=
+  ne_of_gt (realMatrixSqrt_det_pos hM)
+
+/-- The symmetric square root of a PosDef matrix is invertible (over ℝ a field). -/
+theorem realMatrixSqrt_isUnit [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) :
+    IsUnit (realMatrixSqrt M) :=
+  Matrix.isUnit_iff_isUnit_det _ |>.mpr (isUnit_iff_ne_zero.mpr (realMatrixSqrt_det_ne_zero hM))
+
 /-! ## General PosDef case: documented `sorry` on the Anderson bound
 
 The PosDef Anderson bound is the multivariate density-at-mode small-ball
