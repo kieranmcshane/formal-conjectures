@@ -207,6 +207,21 @@ theorem glwBoxProb_le_glwBlock_smallball (m : ℕ) (p : Fin m) (ε : ℝ) :
     intro x hx q
     exact hx (p, q)
 
+/-! ## V1 field — `chain_rule_lower_via_block_dominance` (Round 5) -/
+
+/-- Trivial bound: per-block probability ≤ 1, hence ∏ block_smallball ≤ 1. Useful as
+a sanity bound. -/
+theorem prod_glwBlock_smallball_le_one (m : ℕ) (ε : ℝ) :
+    ∏ p : Fin m, glwBlock_smallball m p ε ≤ 1 := by
+  rw [show (1 : ℝ) = ∏ _ : Fin m, (1 : ℝ) from by simp]
+  apply Finset.prod_le_prod
+  · exact fun i _ => glwBlock_smallball_nonneg m i ε
+  · exact fun i _ => glwBlock_smallball_le_one m i ε
+
+theorem prod_glwBlock_smallball_nonneg (m : ℕ) (ε : ℝ) :
+    0 ≤ ∏ p : Fin m, glwBlock_smallball m p ε :=
+  Finset.prod_nonneg (fun i _ => glwBlock_smallball_nonneg m i ε)
+
 /-! ## V1 field — `localSchur_cond_le` (Round 5)
 
 For our identity-matrix `localSchur`, the bilinear form `xᵀ · 1 · x = ∑ xᵢ²`.
