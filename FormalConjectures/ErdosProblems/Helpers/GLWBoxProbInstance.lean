@@ -168,6 +168,25 @@ theorem glwBlockBox_measurable (m : ℕ) (p : Fin m) (ε : ℝ) :
   refine MeasurableSet.iInter (fun q => ?_)
   exact measurableSet_le (Measurable.abs (measurable_pi_apply (p, q))) measurable_const
 
+/-! ## V1 field — `glwBoxProb_le_glwBlock_smallball` (Round 5)
+
+The full box probability is bounded above by each per-block probability,
+since the full box event is contained in each per-block event. -/
+
+theorem glwBoxProb_le_glwBlock_smallball (m : ℕ) (p : Fin m) (ε : ℝ) :
+    glwBoxProb m ε ≤ glwBlock_smallball m p ε := by
+  unfold glwBoxProb glwBlock_smallball
+  apply ENNReal.toReal_mono
+  · -- finite ENNReal
+    have h_le :
+        gaussianHierCauchy m (glwBlockBox m p ε) ≤ 1 :=
+      le_trans (measure_mono (Set.subset_univ _)) (le_of_eq measure_univ)
+    exact ne_of_lt (lt_of_le_of_lt h_le ENNReal.one_lt_top)
+  · -- full box ⊆ block box (only the p-block coords are constrained in block box)
+    apply measure_mono
+    intro x hx q
+    exact hx (p, q)
+
 /-! ## V1 field — `localSchur_cond_le` (Round 5)
 
 For our identity-matrix `localSchur`, the bilinear form `xᵀ · 1 · x = ∑ xᵢ²`.
