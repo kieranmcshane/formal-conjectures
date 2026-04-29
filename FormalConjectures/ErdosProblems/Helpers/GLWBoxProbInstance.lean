@@ -168,6 +168,26 @@ theorem glwBlockBox_measurable (m : ℕ) (p : Fin m) (ε : ℝ) :
   refine MeasurableSet.iInter (fun q => ?_)
   exact measurableSet_le (Measurable.abs (measurable_pi_apply (p, q))) measurable_const
 
+/-! ## V1 field — `glwBoxProb_sub_eq_boxProb` (Round 5)
+
+The sub-grid box probability candidate equals the full one (constant in s). -/
+
+theorem glwBoxProb_sub_eq_boxProb (m s : ℕ) (ε : ℝ) :
+    glwBoxProb_sub m s ε = glwBoxProb m ε := by
+  unfold glwBoxProb_sub
+  -- Constant in s by definition.
+  rfl
+
+theorem glwBoxProb_sub_nonneg (m s : ℕ) (ε : ℝ) :
+    0 ≤ glwBoxProb_sub m s ε := by
+  unfold glwBoxProb_sub
+  exact glwBoxProb_nonneg m ε
+
+theorem glwBoxProb_sub_le_one (m s : ℕ) (ε : ℝ) :
+    glwBoxProb_sub m s ε ≤ 1 := by
+  unfold glwBoxProb_sub
+  exact glwBoxProb_le_one m ε
+
 /-! ## V1 field — `glwBoxProb_le_glwBlock_smallball` (Round 5)
 
 The full box probability is bounded above by each per-block probability,
