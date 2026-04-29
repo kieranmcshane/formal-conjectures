@@ -15,6 +15,7 @@ import FormalConjectures.ErdosProblems.Helpers.GLWBoxProbInstance
 import FormalConjectures.ErdosProblems.Helpers.GLWHierApprox
 import FormalConjectures.ErdosProblems.Helpers.GLWDiscretization
 import FormalConjectures.ErdosProblems.Helpers.GLWProcess
+import FormalConjectures.ErdosProblems.Helpers.GLWProcessPredicate
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
@@ -68,135 +69,16 @@ the documented sorry.
 namespace Erdos524.Helpers
 open MeasureTheory ProbabilityTheory
 
-/-! ## `IsGLWProcess` predicate (Round 7 honesty fix)
+/-! ## `IsGLWProcess` predicate (Round 7 honesty fix, Round 8 shared)
 
-The original axiom `gao_li_wellner_small_ball_upper` was stated
-universally over `Y : ℝ → Ω → ℝ`, which is FALSE for `Y ≡ 0` (the box
-event has probability `1`, but the cubic-exponent RHS tends to `0` as
-`ε → 0`).
-
-Round 7 honesty fix: introduce a predicate `IsGLWProcess` capturing the
-process structure that makes the bound mathematically valid: gaussianity
-(joint), covariance kernel `K_GLW`, mean zero, integrability, continuous
-sample paths, sample-path tail decay. This matches exactly the structure
-produced by `Y_GLW_exists` in `GLWProcess.lean`.
-
-Adding `IsGLWProcess Y` to the theorem hypothesis transforms the
-statement from "false in general" into "true for the GLW process". The
-proof of the (now mathematically true) statement is then bottomed out
-in a precise Mathlib gap (Karhunen–Loève + entropy methods, per the
-original axiom docstring). -/
-
-/-- A measurable process `Y : ℝ → Ω → ℝ` on a probability space `(Ω, ℙ)`
-is the GLW process if it has the structure produced by `Y_GLW_exists`:
-gaussianity, K_GLW covariance, mean zero, continuous sample paths, and
-sample-path tail decay. -/
-structure IsGLWProcess {Ω : Type*} [MeasureSpace Ω]
-    [IsProbabilityMeasure (ℙ : Measure Ω)] (Y : ℝ → Ω → ℝ) : Prop where
-  /-- Each marginal `Y u` is measurable. -/
-  measurable : ∀ u, Measurable (Y u)
-  /-- Each marginal `Y u` is integrable (load-bearing for centeredness). -/
-  integrable : ∀ u, Integrable (Y u) ℙ
-  /-- Each pairwise product is integrable (load-bearing for covariance). -/
-  integrable_prod : ∀ u v : ℝ, Integrable (fun ω => Y u ω * Y v ω) ℙ
-  /-- Each marginal is centered at zero. -/
-  centered : ∀ u, ∫ ω, Y u ω ∂ℙ = 0
-  /-- Covariance equals the GLW kernel `K_GLW`. -/
-  cov : ∀ u v : ℝ, 0 ≤ u → 0 ≤ v → ∫ ω, Y u ω * Y v ω ∂ℙ = K_GLW u v
-  /-- Joint Gaussianity: every finite linear combination is Gaussian. -/
-  gaussian : ∀ (n : ℕ) (us : Fin n → ℝ) (cs : Fin n → ℝ),
-    IsGaussian (Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) ℙ)
-  /-- Sample paths are a.s. continuous. -/
-  continuous_paths : ∀ᵐ ω ∂(ℙ : Measure Ω), Continuous (fun u => Y u ω)
-  /-- Sample paths a.s. tend to 0 at infinity. -/
-  tail_decay : ∀ ε > 0, ∀ᵐ ω ∂(ℙ : Measure Ω),
-    ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε
-
-/-! ## `IsGLWProcess` bridge to `Y_GLW_exists`
-
-The `Y_GLW_exists` axiom in `Helpers/GLWProcess.lean` produces a Y
-satisfying exactly the structure captured by `IsGLWProcess`. The
-following corollary makes the connection explicit: there exists a
-probability space on which `IsGLWProcess` is realized. -/
-
-/-- Existence of a process satisfying `IsGLWProcess`. Direct corollary
-of the `Y_GLW_exists` stepping-stone axiom. -/
-theorem isGLWProcess_exists :
-    ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (Y : ℝ → Ω → ℝ),
-      IsProbabilityMeasure μ ∧
-      (∀ u, Measurable (Y u)) ∧
-      (∀ u, Integrable (Y u) μ) ∧
-      (∀ u v : ℝ, Integrable (fun ω => Y u ω * Y v ω) μ) ∧
-      (∀ u, ∫ ω, Y u ω ∂μ = 0) ∧
-      (∀ u v : ℝ, 0 ≤ u → 0 ≤ v →
-        ∫ ω, Y u ω * Y v ω ∂μ = K_GLW u v) := by
-  obtain ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov,
-          _hY_gauss, _hY_paths, _hY_tail⟩ := Y_GLW_exists
-  exact ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov⟩
-
-/-! ## `IsGLWProcess` projections and basic facts -/
+The `IsGLWProcess` predicate, its `Y_GLW_exists` bridge, and its basic
+projections (variance, covariance, centeredness facts) live in the
+sibling file `Helpers/GLWProcessPredicate.lean` so they can be reused
+by `GLWLowerProof.lean` without circular imports. See the docstring at
+the top of that file for the stress-test motivation. -/
 
 variable {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
   {Y : ℝ → Ω → ℝ}
-
-/-- A `IsGLWProcess` is centered at every nonneg `u` (variance equals
-the kernel value). -/
-theorem IsGLWProcess.var_eq_kernel_at (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
-    ∫ ω, Y u ω * Y u ω ∂ℙ = K_GLW u u :=
-  h.cov u u hu hu
-
-/-- Variance of any marginal `Y u` for `u ≥ 0` is `K_GLW(u, u)`, which is
-nonnegative (and bounded by 1) by the kernel's basic properties. -/
-theorem IsGLWProcess.var_le_one (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
-    ∫ ω, Y u ω * Y u ω ∂ℙ ≤ 1 := by
-  rw [h.var_eq_kernel_at hu]
-  exact K_GLW_le_one u u hu hu
-
-/-- Variance is nonneg (consequence of `K_GLW_pos`). -/
-theorem IsGLWProcess.var_nonneg (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
-    0 ≤ ∫ ω, Y u ω * Y u ω ∂ℙ := by
-  rw [h.var_eq_kernel_at hu]
-  exact le_of_lt (K_GLW_pos u u hu hu)
-
-/-- Variance at the origin `u = 0` equals exactly `1` (the kernel's
-boundary value). -/
-theorem IsGLWProcess.var_at_zero_eq_one (h : IsGLWProcess Y) :
-    ∫ ω, Y 0 ω * Y 0 ω ∂ℙ = 1 := by
-  rw [h.var_eq_kernel_at (le_refl _)]
-  exact K_GLW_zero
-
-/-- Cross-covariance at the origin `(u, 0)` equals `K_GLW(u, 0) =
-(1 - exp(-u)) / u` for `u > 0`, which is `≤ 1`. -/
-theorem IsGLWProcess.cov_with_zero (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
-    ∫ ω, Y u ω * Y 0 ω ∂ℙ = K_GLW u 0 :=
-  h.cov u 0 hu (le_refl _)
-
-/-- Any `cov[Y u, Y v]` for `u, v ≥ 0` is bounded above by `1` (via
-`K_GLW_le_one`). -/
-theorem IsGLWProcess.cov_le_one (h : IsGLWProcess Y) {u v : ℝ}
-    (hu : 0 ≤ u) (hv : 0 ≤ v) :
-    ∫ ω, Y u ω * Y v ω ∂ℙ ≤ 1 := by
-  rw [h.cov u v hu hv]
-  exact K_GLW_le_one u v hu hv
-
-/-- Any `cov[Y u, Y v]` for `u, v ≥ 0` is positive (via `K_GLW_pos`). -/
-theorem IsGLWProcess.cov_pos (h : IsGLWProcess Y) {u v : ℝ}
-    (hu : 0 ≤ u) (hv : 0 ≤ v) :
-    0 < ∫ ω, Y u ω * Y v ω ∂ℙ := by
-  rw [h.cov u v hu hv]
-  exact K_GLW_pos u v hu hv
-
-/-- Covariance is symmetric: `cov[Y u, Y v] = cov[Y v, Y u]` (via
-`K_GLW_symm`). -/
-theorem IsGLWProcess.cov_symm (h : IsGLWProcess Y) {u v : ℝ}
-    (hu : 0 ≤ u) (hv : 0 ≤ v) :
-    ∫ ω, Y u ω * Y v ω ∂ℙ = ∫ ω, Y v ω * Y u ω ∂ℙ := by
-  rw [h.cov u v hu hv, h.cov v u hv hu, K_GLW_symm]
-
-/-- Centeredness of any nonnegative-argument marginal. -/
-theorem IsGLWProcess.centered_at (h : IsGLWProcess Y) (u : ℝ) :
-    ∫ ω, Y u ω ∂ℙ = 0 :=
-  h.centered u
 
 /-! ## Trivial probability bounds at the boundary `ε = 1` -/
 
