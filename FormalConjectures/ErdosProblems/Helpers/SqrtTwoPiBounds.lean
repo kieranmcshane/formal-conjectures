@@ -63,6 +63,13 @@ theorem inv_sqrt_two_pi_eq_rpow_neg_half :
   rw [Real.rpow_neg (le_of_lt two_pi_pos)]
   rw [Real.sqrt_eq_rpow]
 
+theorem inv_sqrt_two_pi_pow_eq_rpow_neg_half (n : ℕ) :
+    (Real.sqrt (2 * Real.pi))⁻¹ ^ n = (2 * Real.pi) ^ (-(n : ℝ) / 2) := by
+  rw [inv_sqrt_two_pi_eq_rpow_neg_half]
+  rw [← Real.rpow_natCast ((2 * Real.pi) ^ (-(1 : ℝ) / 2)) n]
+  rw [← Real.rpow_mul (le_of_lt two_pi_pos)]
+  congr 1; ring
+
 /-! ## `(2 * ε)^n` positivity -/
 
 theorem two_eps_pow_nonneg (ε : ℝ) (hε : 0 ≤ ε) (n : ℕ) : (0 : ℝ) ≤ (2 * ε) ^ n :=
