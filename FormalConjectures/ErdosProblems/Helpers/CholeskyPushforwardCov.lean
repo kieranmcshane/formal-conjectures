@@ -195,6 +195,21 @@ theorem mvGaussian_pushforward_cov_eq (L : Matrix n n ℝ) (u v : EuclideanSpace
   rw [h_map_mul]
   rfl
 
+/-! ## Symmetric square root of identity is identity -/
+
+theorem realMatrixSqrt_one : realMatrixSqrt (1 : Matrix n n ℝ) = 1 := by
+  -- CFC.sqrt 1 = 1 because 1² = 1 and CFC.sqrt is the unique PosSemidef sqrt.
+  unfold realMatrixSqrt
+  exact CFC.sqrt_one
+
+/-! ## Identity covariance: pushforward by `realMatrixSqrt 1` -/
+
+theorem mvGaussian_realMatrixSqrt_one_pushforward_cov (u v : EuclideanSpace ℝ n) :
+    covarianceBilin (mvGaussianEuclideanFromMatrix (realMatrixSqrt (1 : Matrix n n ℝ))) u v =
+      inner ℝ u v := by
+  rw [realMatrixSqrt_one]
+  exact mvGaussian_pushforward_cov_one u v
+
 /-! ## Identity-matrix specialisation -/
 
 theorem mvGaussian_pushforward_cov_one (u v : EuclideanSpace ℝ n) :
