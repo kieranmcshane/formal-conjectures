@@ -31,9 +31,39 @@ import FormalConjectures.ErdosProblems.Erdos524.EndpointReparametrization
 -- as cubic-decay bounds on the hierarchical Cauchy box probability.
 -- Current regime (Wave F, 2026-04-28): `ε₀_node3 = exp(-100)`, `θ_node3 = 1/100`,
 -- upper-bound sub-grid is `s = ⌊L/100⌋` where `L = |log(ε+r)|`.
--- This patch is import-only: no call site changes. The helper will be wired
--- into the `gao_li_wellner_*` / `polynomial_sup_small_ball_*` paths once
--- Nodes 1, 2, 4, 5, 6 of the bespoke Phase 2 plan land.
+--
+-- Helper status (2026-04-29, post-Round-2):
+-- `GaussianGridSmallBall.lean` is now **zero-sorry, zero-axiom**.
+-- `GaussianBoxProbV1` was extended with one additive field
+-- `relevant_blocks_combined_lower` (the dual of `fine_blocks_combined_lower`),
+-- and `h_assembly` in `gaussian_grid_smallball_lower` closes via `mul_le_mul`
+-- combining the new field with the fine-block aggregate, then `ring` to absorb
+-- the `2 · exp(...) · (1/2) = exp(...)` factor. The upper bound, constants,
+-- and final wrappers are byte-identical to the prior state.
+--
+-- Bridging gap to the GLW / KMT axioms below:
+-- The three axioms `gao_li_wellner_small_ball_upper`,
+-- `gao_li_wellner_small_ball_lower`, and `two_dim_KMT_coupling` are stated for an
+-- **arbitrary** measurable `Y : ℝ → Ω → ℝ` (no Gaussianity, no Karhunen–Loève
+-- kernel, no hierarchical-Cauchy covariance) and an arbitrary Rademacher coupling.
+-- The helper proves a bound on `P.boxProb ε` for `P : GaussianBoxProb m` with
+-- `P.cov = hierCauchyG m` — a **finite-dimensional** small-ball claim with a
+-- specific covariance shape. There is no direct rewriting of one as the other:
+-- closing the gap requires constructing a `GaussianBoxProb m` instance whose
+-- `boxProb` matches `(ℙ {ω | ∀ u ∈ [0, T(ε)], |Y u ω| ≤ ε}).toReal` for the
+-- specific `Y(u) = ∫₀¹ e^{-us} dB(s)` produced by the KMT coupling. That bridge
+-- is the Phase 2 work load:
+--   * Node 1 — KL expansion of the Itô integral with hierarchical scales;
+--   * Node 2 — hierarchical-Cauchy approximation of the KL covariance and
+--     marginal-entropy bounds;
+--   * Node 4 — discrete-vs-continuous box-probability comparison;
+--   * Node 5 — KMT error → small-ball error conversion;
+--   * Node 6 — assembly of `GaussianBoxProbV1` instance from the GLW context.
+--
+-- Conclusion: the 3 axioms remain in place pending Nodes 1, 2, 4, 5, 6.
+-- The helper is verified ready to be consumed once a bridging
+-- `GaussianBoxProbV1 m` instance is constructed from `gao_li_wellner_*` /
+-- `two_dim_KMT_coupling` outputs; no helper-side blocker remains.
 
 /-!
 # Erdős Problem 524
