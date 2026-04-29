@@ -3607,6 +3607,38 @@ theorem gao_li_wellner_small_ball_lower (glw : GaoLiWellnerConstants) :
   --   itself open).
   sorry
 
+/-- **Truncated corollary of `gao_li_wellner_small_ball_lower`.** Composes
+the full-window lower bound with `glwLowerSupBoxEvent_subset_truncated`
+to yield the truncated form: for any `T : ℝ`, the truncated box-event
+probability is also lower-bounded by `exp(-c̲ |log ε|^3)`. This
+follows directly from the inclusion `glwLowerSupBoxEvent ⊆ truncated
+event` (smaller window means fewer constraints and hence a LARGER
+event), so `ℙ(full-window) ≤ ℙ(truncated)`, and the cubic factor that
+lower-bounds `ℙ(full-window)` therefore lower-bounds `ℙ(truncated)` as
+well. Useful for consumers that only need the truncated form
+(matching the upper-bound `Icc 0 (T ε)` shape). -/
+theorem gao_li_wellner_small_ball_lower_truncated (glw : GaoLiWellnerConstants) :
+    ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+      (Y : ℝ → Ω → ℝ), Erdos524.Helpers.IsGLWProcess Y →
+      ∀ T : ℝ, ∃ ε₀ : ℝ, 0 < ε₀ ∧
+        ∀ ε : ℝ, 0 < ε → ε ≤ ε₀ →
+          Real.exp (-glw.lower * |Real.log ε| ^ 3) ≤
+            (ℙ {ω | ∀ u ∈ Set.Icc (0 : ℝ) T, |Y u ω| ≤ ε}).toReal := by
+  intro Ω _mΩ _hℙ Y h_glw T
+  obtain ⟨ε₀, hε₀_pos, h_bound⟩ := gao_li_wellner_small_ball_lower glw Y h_glw
+  refine ⟨ε₀, hε₀_pos, ?_⟩
+  intro ε hε_pos hε_le
+  refine le_trans (h_bound ε hε_pos hε_le) ?_
+  -- Convert measure inequality on the inclusion `full-window ⊆ truncated`
+  -- to a `toReal` inequality.
+  apply ENNReal.toReal_mono
+  · -- truncated event has measure ≤ 1 ≠ ⊤.
+    have h_le : (ℙ : Measure Ω) {ω | ∀ u ∈ Set.Icc (0 : ℝ) T, |Y u ω| ≤ ε} ≤ 1 :=
+      le_trans (measure_mono (Set.subset_univ _)) (le_of_eq measure_univ)
+    exact ne_of_lt (lt_of_le_of_lt h_le ENNReal.one_lt_top)
+  · exact measure_mono
+      (Erdos524.Helpers.glwLowerSupBoxEvent_subset_truncated Y T ε)
+
 /-- **Sub-axiom 5: 2D Komlós–Major–Tusnády strong invariance principle.**
 Chojecki (2026, Lemma 13): on an enriched probability space carrying both a
 Rademacher sequence `a` and two **independent** Brownian motions `B₊, B₋`,
