@@ -186,6 +186,7 @@ theorem glwUpperBound_at_eps_one (c : ℝ) (S : Set Ω) :
   rw [show (1 : ℝ) = ENNReal.toReal 1 from rfl]
   exact ENNReal.toReal_mono ENNReal.one_ne_top h_le
 
+
 /-! ## Choice of `T(ε)` for the truncation -/
 
 /-- The truncation `T(ε) := |log ε|² + 1`, positive for all positive `ε`. -/
@@ -200,6 +201,26 @@ theorem glwUpperT_ge_one (ε : ℝ) : 1 ≤ glwUpperT ε := by
   unfold glwUpperT
   have h₁ : 0 ≤ |Real.log ε| ^ 2 := sq_nonneg _
   linarith
+
+/-- At `ε = 1`, the truncation `T(1) = |log 1|² + 1 = 1`. -/
+theorem glwUpperT_at_one : glwUpperT 1 = 1 := by
+  unfold glwUpperT
+  rw [Real.log_one, abs_zero]
+  norm_num
+
+/-- `glwUpperT ε = 1` exactly when `log ε = 0`. -/
+theorem glwUpperT_eq_one_iff_log_eq_zero {ε : ℝ} :
+    glwUpperT ε = 1 ↔ Real.log ε = 0 := by
+  unfold glwUpperT
+  constructor
+  · intro h
+    have h_zero : |Real.log ε| ^ 2 = 0 := by linarith
+    have h_abs_zero : |Real.log ε| = 0 :=
+      (pow_eq_zero_iff (n := 2) (by norm_num : (2 : ℕ) ≠ 0)).mp h_zero
+    exact abs_eq_zero.mp h_abs_zero
+  · intro h
+    rw [h, abs_zero]
+    norm_num
 
 /-! ## Anderson sub-Gaussian factor: `exp(-c · m · ε²)` (placeholder) -/
 
