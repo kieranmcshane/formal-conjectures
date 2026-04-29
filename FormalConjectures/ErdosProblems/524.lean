@@ -25,6 +25,7 @@ import FormalConjectures.ErdosProblems.Helpers.PolynomialSupBlock
 import FormalConjectures.ErdosProblems.Helpers.OldBlocksNegligible
 import FormalConjectures.ErdosProblems.Helpers.GaussianGridSmallBall
 import FormalConjectures.ErdosProblems.Helpers.GLWUpperProof
+import FormalConjectures.ErdosProblems.Helpers.GLWLowerProof
 import FormalConjectures.ErdosProblems.Erdos524.EndpointReparametrization
 
 -- Phase 2 / Node 3 helper (Gaussian grid small-ball) is now in scope.
@@ -3533,13 +3534,28 @@ theorem gao_li_wellner_small_ball_upper (glw : GaoLiWellnerConstants) :
   --   (whose own documented sorry remains).
   sorry
 
-/-- **Sub-axiom 4: Gao–Li–Wellner small-ball LOWER asymptotic.** The matching
-lower bound: for the same process `Y`,
-`exp(-c̲ |log ε|^3) ≤ ℙ(sup_{u ≥ 0} |Y(u)| ≤ ε)`.
+/-- **Sub-theorem 4 (Round 8): Gao–Li–Wellner small-ball LOWER asymptotic.**
+The matching lower bound for the centered Gaussian process
+`Y(u) = ∫₀¹ e^{-u s} dB(s)` (or any process satisfying `IsGLWProcess`):
+`exp(-c̲ |log ε|^3) ≤ ℙ(sup_{u ≥ 0} |Y(u)| ≤ ε).toReal` for small `ε`.
 
-**Mathlib target.** Same upstream dependencies as
-`gao_li_wellner_small_ball_upper`. Lower bounds are typically harder than
-upper bounds, using Anderson's inequality plus explicit spectral estimates.
+**Round 8 status.** This was an `axiom` in Rounds 6-7; Round 8 promotes
+it to a `theorem` packaged in `Helpers.GLWLowerProof`. The proof chain
+is the dual of the upper bound (Karhunen–Loève + Talagrand
+generic-chaining lower-tail entropy methods), bottomed out at a single
+documented `sorry` on the actual Mathlib gap.
+
+**Honesty fix from the Round 8 stress test.** The pre-Round-8 axiom
+signature was universal over `(Ω, Y)`, with only measurability of `Y u`.
+For `Y ≡ 1` (or any constant `c > 0`) and `ε < c`, the box event has
+probability `0` while the LHS `exp(-c · |log ε|^3) > 0`, so the bound
+`exp(...) ≤ 0` is FALSE. Round 8 replaces the measurability hypothesis
+with the stronger `IsGLWProcess Y` (defined in
+`Helpers/GLWProcessPredicate.lean`) which captures Gaussianity + K_GLW
+covariance + mean zero + continuity + tail decay — exactly the
+structure produced by `Y_GLW_exists`. With this hypothesis, the bound
+is mathematically true; the documented `sorry` sits on the actual
+Mathlib gap, not on a falsity issue.
 
 **Full-window form.** Unlike the upper companion, which we state with a
 truncation `T(ε)` that consumers can lift externally, the lower direction
@@ -3548,18 +3564,48 @@ Gao–Li–Wellner (2010) theorem, which lower-bounds the small-ball
 probability of `sup_{u ≥ 0} |Y(u)|`. Stating the truncated form would
 require an additional Ledoux §1.3 "Borell + σ²(T) → 0" bridge to absorb
 the tail region `(T(ε), ∞)` back into the bound; we bake that bridge
-directly into the axiom statement so that `polynomial_sup_small_ball_lower`
+directly into the theorem statement so that `polynomial_sup_small_ball_lower`
 can perform the KMT reverse-triangle unconditionally via the endpoint
 reparametrization. Mathematically this is no stronger than the truncated
 version plus Ledoux §1.3 (which is itself a consequence of the kernel's
 variance decay). -/
-axiom gao_li_wellner_small_ball_lower (glw : GaoLiWellnerConstants) :
+theorem gao_li_wellner_small_ball_lower (glw : GaoLiWellnerConstants) :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-      (Y : ℝ → Ω → ℝ), (∀ u, Measurable (Y u)) →
+      (Y : ℝ → Ω → ℝ), Erdos524.Helpers.IsGLWProcess Y →
       ∃ ε₀ : ℝ, 0 < ε₀ ∧
         ∀ ε : ℝ, 0 < ε → ε ≤ ε₀ →
           Real.exp (-glw.lower * |Real.log ε| ^ 3) ≤
-            (ℙ {ω | ∀ u ≥ (0 : ℝ), |Y u ω| ≤ ε}).toReal
+            (ℙ {ω | ∀ u ≥ (0 : ℝ), |Y u ω| ≤ ε}).toReal := by
+  intro Ω _mΩ _hℙ Y _h_glw
+  -- Choose `ε₀ := exp(-100)` per `Erdos524.Helpers.glwLowerEpsZero`. The
+  -- specific constant is a free parameter; any positive value would do
+  -- for the existential, but `exp(-100)` keeps us firmly in the GLW
+  -- asymptotic regime where the cubic-exponent estimate is sharp.
+  refine ⟨Erdos524.Helpers.glwLowerEpsZero,
+          Erdos524.Helpers.glwLowerEpsZero_pos, ?_⟩
+  intro ε _hε_pos _hε_le_ε₀
+  -- BLOCKER: the cubic small-ball LOWER estimate `exp(-c̲ · |log ε|^3) ≤ …`
+  --   for the GLW process Y(u) = ∫₀¹ e^{-us} dB(s) is the dual of the
+  --   upper Karhunen–Loève + chaining argument. It uses Anderson's
+  --   multivariate inequality (the PosDef-covariance case) plus the
+  --   K_GLW eigenvalue decay `λ_k ~ k^{-2}` to extract a Talagrand-style
+  --   lower-tail entropy bound.
+  -- TRIED: combining the Round 6 cov_eq_inner cascade with the
+  --   `mvGaussian_box_density_at_mode_bound` finite-grid LOWER bound
+  --   (the Round 6 PosDef Anderson sorry, retiring which would close
+  --   90% of the lower-bound difficulty); the optimization
+  --   `m(ε) ~ |log ε|` then yields the cubic exponent. The Round 6
+  --   sorry is itself open and the full Karhunen–Loève + Talagrand
+  --   machinery for K_GLW is a Mathlib gap.
+  -- NEEDS: (a) Karhunen–Loève expansion of `K_GLW` as a Mercer-style
+  --   eigenfunction series with explicit eigenvalue decay — not in
+  --   Mathlib (multi-year project); OR (b) Talagrand's generic-chaining
+  --   LOWER bound for Gaussian processes — also a Mathlib gap; OR
+  --   (c) a direct PDE / ODE argument exploiting `K_GLW(u, v) =
+  --   (1 - exp(-(u+v)))/(u+v)` to reduce to the Round 6 multivariate
+  --   Gaussian density LOWER bound (the dual of the Round 6 upper sorry,
+  --   itself open).
+  sorry
 
 /-- **Sub-axiom 5: 2D Komlós–Major–Tusnády strong invariance principle.**
 Chojecki (2026, Lemma 13): on an enriched probability space carrying both a
@@ -4095,9 +4141,11 @@ theorem polynomial_sup_small_ball_lower (glw : GaoLiWellnerConstants)
       hYp_cont, hYm_cont, _hYp_tail, _hYm_tail⟩ :=
     two_dim_KMT_coupling a ha
   obtain ⟨εGLW_p, hεGLW_p_pos, hGLW_lower_p⟩ :=
-    gao_li_wellner_small_ball_lower glw Yplus hYp_meas
+    gao_li_wellner_small_ball_lower glw Yplus
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus hYp_meas)
   obtain ⟨εGLW_m, hεGLW_m_pos, hGLW_lower_m⟩ :=
-    gao_li_wellner_small_ball_lower glw Yminus hYm_meas
+    gao_li_wellner_small_ball_lower glw Yminus
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yminus hYm_meas)
   -- The effective threshold is the smaller of the two GLW thresholds (and
   -- we halve it so there is room for the KMT error `Δ n ≤ log(n+1)/√n`).
   set εGLW : ℝ := min εGLW_p εGLW_m with hεGLW_def
@@ -4469,9 +4517,11 @@ theorem polynomial_sup_small_ball_lower_uniform (glw : GaoLiWellnerConstants)
       hYp_cont, hYm_cont, _hYp_tail, _hYm_tail⟩ :=
     two_dim_KMT_coupling a ha
   obtain ⟨εGLW_p, hεGLW_p_pos, hGLW_lower_p⟩ :=
-    gao_li_wellner_small_ball_lower glw Yplus hYp_meas
+    gao_li_wellner_small_ball_lower glw Yplus
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus hYp_meas)
   obtain ⟨εGLW_m, hεGLW_m_pos, hGLW_lower_m⟩ :=
-    gao_li_wellner_small_ball_lower glw Yminus hYm_meas
+    gao_li_wellner_small_ball_lower glw Yminus
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yminus hYm_meas)
   set εGLW : ℝ := min εGLW_p εGLW_m with hεGLW_def
   have hεGLW_pos : 0 < εGLW := lt_min hεGLW_p_pos hεGLW_m_pos
   -- Uniform `N₀`: `log(n+1)/√n ≤ εGLW/2` for all `n ≥ N₀`.
