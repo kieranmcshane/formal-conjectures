@@ -158,6 +158,19 @@ theorem IsGLWProcess.var_nonneg (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
   rw [h.var_eq_kernel_at hu]
   exact le_of_lt (K_GLW_pos u u hu hu)
 
+/-- Variance at the origin `u = 0` equals exactly `1` (the kernel's
+boundary value). -/
+theorem IsGLWProcess.var_at_zero_eq_one (h : IsGLWProcess Y) :
+    ∫ ω, Y 0 ω * Y 0 ω ∂ℙ = 1 := by
+  rw [h.var_eq_kernel_at (le_refl _)]
+  exact K_GLW_zero
+
+/-- Cross-covariance at the origin `(u, 0)` equals `K_GLW(u, 0) =
+(1 - exp(-u)) / u` for `u > 0`, which is `≤ 1`. -/
+theorem IsGLWProcess.cov_with_zero (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
+    ∫ ω, Y u ω * Y 0 ω ∂ℙ = K_GLW u 0 :=
+  h.cov u 0 hu (le_refl _)
+
 /-! ## Choice of `T(ε)` for the truncation -/
 
 /-- The truncation `T(ε) := |log ε|² + 1`, positive for all positive `ε`. -/
