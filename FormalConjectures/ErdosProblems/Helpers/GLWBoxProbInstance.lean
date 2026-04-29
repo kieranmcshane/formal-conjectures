@@ -151,4 +151,32 @@ theorem glwLocalSchur_posDef (m : ℕ) (hm : 1 ≤ m) (p : Fin m) :
   haveI : NeZero m := ⟨by omega⟩
   exact Matrix.PosDef.one
 
+/-! ## V1 field — `localSchur_cond_le` (Round 5)
+
+For our identity-matrix `localSchur`, the bilinear form `xᵀ · 1 · x = ∑ xᵢ²`.
+Setting `μ = M = 1` satisfies the V1 cond-le bounds with the constant-10
+slack trivially. -/
+
+theorem glwLocalSchur_cond_le (m : ℕ) (p : Fin m) :
+    ∃ μ M : ℝ, 0 < μ ∧ M ≤ 10 * μ ∧
+      (∀ x : Fin m → ℝ, μ * (∑ i, x i ^ 2) ≤
+        ∑ i, ∑ j, x i * (glwLocalSchur m p i j) * x j) ∧
+      (∀ x : Fin m → ℝ, ∑ i, ∑ j, x i * (glwLocalSchur m p i j) * x j ≤
+        M * (∑ i, x i ^ 2)) := by
+  refine ⟨1, 1, one_pos, by norm_num, ?_, ?_⟩
+  all_goals
+    intro x
+    have h_eq :
+        ∑ i, ∑ j, x i * (glwLocalSchur m p i j) * x j = ∑ i, x i ^ 2 := by
+      unfold glwLocalSchur
+      simp only [Matrix.one_apply]
+      rw [Finset.sum_congr rfl (fun i _ => ?_)]
+      · -- ∑ j, x i * (if i = j then 1 else 0) * x j = x i * x i = x i ^ 2 (by Finset.sum_ite_eq)
+        rw [Finset.sum_eq_single i]
+        · simp; ring
+        · intro j _ hji; simp [Ne.symm hji]
+        · intro hi; exact (hi (Finset.mem_univ i)).elim
+    rw [h_eq]
+    linarith
+
 end Erdos524.Helpers
