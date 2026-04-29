@@ -104,4 +104,52 @@ theorem glwUpperAndersonFactor_le_one (c : ℝ) (m : ℕ) (ε : ℝ) (hc : 0 ≤
     linarith
   exact h_neg
 
+/-- Anderson factor is monotone decreasing in `m`: more grid points
+gives a stronger bound. -/
+theorem glwUpperAndersonFactor_anti_mono_m (c : ℝ) (m₁ m₂ : ℕ) (ε : ℝ)
+    (hc : 0 ≤ c) (h_le : m₁ ≤ m₂) :
+    glwUpperAndersonFactor c m₂ ε ≤ glwUpperAndersonFactor c m₁ ε := by
+  unfold glwUpperAndersonFactor
+  rw [Real.exp_le_exp]
+  have h_eps_nn : 0 ≤ ε ^ 2 := sq_nonneg _
+  have h_cm₁_le_cm₂ : c * (m₁ : ℝ) * ε ^ 2 ≤ c * (m₂ : ℝ) * ε ^ 2 := by
+    apply mul_le_mul_of_nonneg_right _ h_eps_nn
+    apply mul_le_mul_of_nonneg_left _ hc
+    exact_mod_cast h_le
+  linarith
+
+/-! ## Cubic-exponent factor: `exp(-c · |log ε|³)` -/
+
+/-- The headline cubic-exponent factor for the upper bound. -/
+noncomputable def glwUpperCubicFactor (c ε : ℝ) : ℝ :=
+  Real.exp (-c * |Real.log ε| ^ 3)
+
+theorem glwUpperCubicFactor_pos (c ε : ℝ) :
+    0 < glwUpperCubicFactor c ε :=
+  Real.exp_pos _
+
+theorem glwUpperCubicFactor_le_one (c ε : ℝ) (hc : 0 ≤ c) :
+    glwUpperCubicFactor c ε ≤ 1 := by
+  unfold glwUpperCubicFactor
+  rw [Real.exp_le_one_iff]
+  have h_pow_nn : 0 ≤ |Real.log ε| ^ 3 := by positivity
+  have h_prod : 0 ≤ c * |Real.log ε| ^ 3 := mul_nonneg hc h_pow_nn
+  linarith
+
+/-- Cubic factor at `ε = 1` equals `1`. -/
+theorem glwUpperCubicFactor_at_one (c : ℝ) :
+    glwUpperCubicFactor c 1 = 1 := by
+  unfold glwUpperCubicFactor
+  rw [Real.log_one]
+  simp
+
+/-- Monotonicity in the constant `c`: larger `c` gives a tighter bound
+(smaller factor). Used to absorb constant-comparison steps. -/
+theorem glwUpperCubicFactor_anti_mono (c₁ c₂ ε : ℝ) (h_le : c₁ ≤ c₂) :
+    glwUpperCubicFactor c₂ ε ≤ glwUpperCubicFactor c₁ ε := by
+  unfold glwUpperCubicFactor
+  rw [Real.exp_le_exp]
+  have h_pow_nn : 0 ≤ |Real.log ε| ^ 3 := by positivity
+  nlinarith
+
 end Erdos524.Helpers
