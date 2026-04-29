@@ -75,22 +75,22 @@ instance instIsProbabilityMeasureMVGaussianEuclideanFromMatrix (L : Matrix n n �
 
 theorem standardMVGaussian_memLp_two :
     MemLp (id : (n → ℝ) → (n → ℝ)) 2 (standardMVGaussian n) := by
-  -- Standard MV Gaussian = Measure.pi (gaussianReal 0 1).
-  -- MemLp 2 of id reduces to MemLp 2 of each coordinate (`memLp_pi_iff`),
-  -- and each coordinate map pushes the product measure to gaussianReal 0 1
-  -- (via Measure.pi's projection law).
   rw [memLp_pi_iff]
   intro i
-  -- Goal: MemLp (id · i) 2 (standardMVGaussian n) = MemLp (fun x => x i) 2 (Measure.pi ...)
+  -- Standard MV Gaussian = Measure.pi (gaussianReal 0 1).
+  -- The i-th coordinate eval is measure-preserving, and id ∈ L²(gaussianReal 0 1).
   unfold standardMVGaussian
-  -- The pushforward of Measure.pi by the i-th projection is the i-th component
-  -- measure (here: `gaussianReal 0 1`). We use the projection-pushforward identity.
-  -- BLOCKER: Mathlib's `Measure.pi_map_eval i = μ i` is the identity needed.
-  -- TRIED: search; found `MeasureTheory.Measure.map_eval_pi` (similar) but the name
-  --   in this snapshot may differ.
-  -- NEEDS: a clean rewrite from `MemLp (eval i) 2 (Measure.pi μ)` to
-  --   `MemLp id 2 (μ i)` plus `memLp_id_gaussianReal 2`.
-  sorry
+  have h_meas_pres :
+      MeasurePreserving (Function.eval i) (Measure.pi (fun _ : n => gaussianReal 0 1))
+        (gaussianReal 0 1) :=
+    MeasureTheory.measurePreserving_eval _ _
+  have h_id : MemLp (id : ℝ → ℝ) 2 (gaussianReal 0 1) := memLp_id_gaussianReal 2
+  -- `MemLp.comp_measurePreserving`: `MemLp g p ν` + `MeasurePreserving f μ ν` ⊢ `MemLp (g ∘ f) p μ`.
+  -- Apply with g := id, f := eval i, ν := gaussianReal 0 1, μ := Measure.pi.
+  -- Result: MemLp (id ∘ eval i) 2 (Measure.pi) = MemLp (eval i) 2 (Measure.pi).
+  have := h_id.comp_measurePreserving h_meas_pres
+  -- `id ∘ eval i = eval i = (· i)`.
+  exact this
 
 /-! ## Adjoint of `toEuclideanCLM` is the transpose
 
