@@ -171,6 +171,21 @@ theorem IsGLWProcess.cov_with_zero (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u)
     ∫ ω, Y u ω * Y 0 ω ∂ℙ = K_GLW u 0 :=
   h.cov u 0 hu (le_refl _)
 
+/-- Any `cov[Y u, Y v]` for `u, v ≥ 0` is bounded above by `1` (via
+`K_GLW_le_one`). -/
+theorem IsGLWProcess.cov_le_one (h : IsGLWProcess Y) {u v : ℝ}
+    (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    ∫ ω, Y u ω * Y v ω ∂ℙ ≤ 1 := by
+  rw [h.cov u v hu hv]
+  exact K_GLW_le_one u v hu hv
+
+/-- Any `cov[Y u, Y v]` for `u, v ≥ 0` is positive (via `K_GLW_pos`). -/
+theorem IsGLWProcess.cov_pos (h : IsGLWProcess Y) {u v : ℝ}
+    (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    0 < ∫ ω, Y u ω * Y v ω ∂ℙ := by
+  rw [h.cov u v hu hv]
+  exact K_GLW_pos u v hu hv
+
 /-! ## Trivial probability bounds at the boundary `ε = 1` -/
 
 /-- At `ε = 1`, the cubic-exponent RHS equals `1` (no decay): the trivial
