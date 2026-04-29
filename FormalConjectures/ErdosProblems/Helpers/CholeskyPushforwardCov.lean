@@ -195,6 +195,26 @@ theorem mvGaussian_pushforward_cov_eq (L : Matrix n n ℝ) (u v : EuclideanSpace
   rw [h_map_mul]
   rfl
 
+/-! ## Identity-matrix specialisation -/
+
+theorem mvGaussian_pushforward_cov_one (u v : EuclideanSpace ℝ n) :
+    covarianceBilin (mvGaussianEuclideanFromMatrix (1 : Matrix n n ℝ)) u v =
+      inner ℝ u v := by
+  rw [mvGaussian_pushforward_cov_eq]
+  -- (1 : Matrix n n ℝ) * (1 : Matrix n n ℝ)ᵀ = 1.
+  have h : (1 : Matrix n n ℝ) * (1 : Matrix n n ℝ)ᵀ = 1 := by
+    rw [Matrix.transpose_one, mul_one]
+  rw [h]
+  -- toEuclideanCLM 1 = 1 (the identity CLM).
+  have h_one : (toEuclideanCLM (n := n) (𝕜 := ℝ) 1 :
+      EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n) = 1 := map_one _
+  rw [show (toEuclideanCLM (n := n) (𝕜 := ℝ) 1) v =
+        ((toEuclideanCLM (n := n) (𝕜 := ℝ) 1 :
+          EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n) : EuclideanSpace ℝ n → EuclideanSpace ℝ n) v
+        from rfl]
+  rw [h_one]
+  rfl
+
 /-! ## Specialisation to symmetric square root of PosSemidef M -/
 
 theorem mvGaussian_realMatrixSqrt_pushforward_cov_eq
