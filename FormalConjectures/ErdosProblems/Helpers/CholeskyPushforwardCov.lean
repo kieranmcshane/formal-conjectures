@@ -71,6 +71,42 @@ instance instIsProbabilityMeasureMVGaussianEuclideanFromMatrix (L : Matrix n n �
   exact Measure.isProbabilityMeasure_map
     (toEuclideanCLM (n := n) (𝕜 := ℝ) L).continuous.measurable.aemeasurable
 
+/-! ## MemLp 2 for the standard MV Gaussian on EuclideanSpace -/
+
+theorem standardMVGaussian_memLp_two :
+    MemLp (id : (n → ℝ) → (n → ℝ)) 2 (standardMVGaussian n) := by
+  -- Standard MV Gaussian = Measure.pi (gaussianReal 0 1).
+  -- MemLp 2 of id reduces to MemLp 2 of each coordinate (`memLp_pi_iff`),
+  -- and each coordinate map pushes the product measure to gaussianReal 0 1
+  -- (via Measure.pi's projection law).
+  rw [memLp_pi_iff]
+  intro i
+  -- Goal: MemLp (id · i) 2 (standardMVGaussian n) = MemLp (fun x => x i) 2 (Measure.pi ...)
+  unfold standardMVGaussian
+  -- The pushforward of Measure.pi by the i-th projection is the i-th component
+  -- measure (here: `gaussianReal 0 1`). We use the projection-pushforward identity.
+  -- BLOCKER: Mathlib's `Measure.pi_map_eval i = μ i` is the identity needed.
+  -- TRIED: search; found `MeasureTheory.Measure.map_eval_pi` (similar) but the name
+  --   in this snapshot may differ.
+  -- NEEDS: a clean rewrite from `MemLp (eval i) 2 (Measure.pi μ)` to
+  --   `MemLp id 2 (μ i)` plus `memLp_id_gaussianReal 2`.
+  sorry
+
+/-! ## Adjoint of `toEuclideanCLM` is the transpose
+
+For real matrices, `Mᴴ = Mᵀ`, so `(toEuclideanCLM A).adjoint = toEuclideanCLM Aᵀ`. -/
+
+theorem toEuclideanCLM_adjoint (A : Matrix n n ℝ) :
+    (((toEuclideanCLM (n := n) (𝕜 := ℝ) A) :
+        EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n)).adjoint =
+      ((toEuclideanCLM (n := n) (𝕜 := ℝ) Aᵀ) :
+        EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n) := by
+  -- Chain: `(f).adjoint = star f` (for CLM) ; `star (toEuclideanCLM A) = toEuclideanCLM (star A)`
+  -- (`toEuclideanCLM` is a star-algebra equiv) ; `star A = Aᴴ = Aᵀ` for real matrices.
+  rw [← ContinuousLinearMap.star_eq_adjoint]
+  rw [← map_star (toEuclideanCLM (n := n) (𝕜 := ℝ)) A]
+  rw [Matrix.star_eq_conjTranspose, Matrix.conjTranspose_eq_transpose_of_trivial]
+
 /-! ## Headline theorem (target A): pushforward covariance is `L · Lᵀ` -/
 
 /--
