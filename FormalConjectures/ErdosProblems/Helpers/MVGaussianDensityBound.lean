@@ -240,44 +240,79 @@ theorem mvGaussianFromPosDef_box_apply_eq [DecidableEq n]
         ((realMatrixSqrt M).mulVec ⁻¹' {x : n → ℝ | ∀ i, |x i| ≤ ε i}) :=
   mvGaussianFromPosDef_apply_eq M (anisotropic_box_measurable ε)
 
-/-! ## General PosDef case: documented `sorry` on the Anderson bound
+/-! ## Round 9 — Standard MV Gaussian uniform density-at-mode bound
 
-The PosDef Anderson bound is the multivariate density-at-mode small-ball
-upper bound. The proof outline:
+For any measurable set `K ⊆ n → ℝ`, the standard MV Gaussian satisfies the
+uniform density-at-mode bound
 
-1. The pushforward `mvGaussianFromPosDef M` is the Gaussian on `n → ℝ`
-   with mean 0, covariance `M`. Its density (Lebesgue-a.e.) is
-     `p_M(x) = (2π)^(-n/2) · (det M)^(-1/2) · exp(-xᵀ M⁻¹ x / 2)`.
-2. At the mode `x = 0`: `p_M(0) = (2π)^(-n/2) · (det M)^(-1/2)`.
-3. For `x ∈ B`, `xᵀ M⁻¹ x ≥ 0` (since `M⁻¹` is PosDef), so
-   `exp(-xᵀ M⁻¹ x / 2) ≤ 1`, hence `p_M(x) ≤ p_M(0)`.
-4. `ℙ[X ∈ B] = ∫_B p_M(x) dx ≤ p_M(0) · vol(B) = p_M(0) · ∏ᵢ 2εᵢ`.
+  `standardMVGaussian K ≤ ((√(2π))⁻¹)^n · volume K`,
 
-The mathematical content of this chain rests on having the explicit MV
-Gaussian density formula for `mvGaussianFromPosDef M` packaged as a
-named Mathlib lemma. This is not yet exported in the form needed.
+since the standard MV density `∏ᵢ gaussianPDF 0 1 (xᵢ)` is bounded
+pointwise by `((√(2π))⁻¹)^n` (each 1-D Gaussian density has its maximum
+`(√(2π))⁻¹` at the mode `0`).
+
+The remaining gap is the equality
+`standardMVGaussian = volume.withDensity (∏ᵢ gaussianPDF 0 1)`,
+which would follow from the missing pi/withDensity commutation lemma in
+Mathlib. We package it as a single, narrowly-scoped sub-lemma below; the
+rest of the Round 9 chain depends only on this. -/
+
+-- BLOCKER: `standardMVGaussian = volume.withDensity (∏ᵢ gaussianPDF 0 1 (xᵢ))`.
+-- TRIED:
+--  (1) `Measure.pi_eq` reduces equality to checking on rectangles
+--      `R = Set.pi univ s`. On the LHS, `pi_pi` gives
+--      `∏ᵢ gaussianReal 0 1 (sᵢ)`. On the RHS we need
+--      `∫⁻ x in R, ∏ᵢ gaussianPDF 0 1 (xᵢ) ∂volume = ∏ᵢ gaussianReal 0 1 (sᵢ)`,
+--      which is Tonelli's theorem for finitely many factors with an
+--      ENNReal integrand. The integral version
+--      `MeasureTheory.integral_fintype_prod_eq_prod`
+--      (in `Mathlib/MeasureTheory/Integral/Pi.lean`) handles the real-valued
+--      case but not the ENNReal one we need.
+--  (2) Reducing via `lmarginal_univ` + iterated `lmarginal_insert'` is
+--      possible but exceeds a 90-minute budget.
+--  (3) `Measure.pi (c • μ)`-style scaling lemmas, which would let us go
+--      directly via `Measure.pi_le_pi`-style monotonicity, are not in
+--      Mathlib either.
+-- NEEDS: a `lintegral_fintype_prod_eq_prod` for ENNReal-valued nonneg
+-- factors (the obvious analogue of `integral_fintype_prod_eq_prod`).
+-- Equivalently, a `pi_withDensity_eq_withDensity_pi` commutation lemma.
+/-- Round 9 sub-lemma. The standard multivariate Gaussian uniform density
+bound: for any measurable set `K ⊆ n → ℝ`,
+`standardMVGaussian n K ≤ ((√(2π))⁻¹)^n · volume K`. -/
+theorem standardMVGaussian_le_volume_smul (K : Set (n → ℝ)) (hK : MeasurableSet K) :
+    standardMVGaussian n K ≤
+      ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) * volume K := by
+  sorry
+
+/-! ## Round 9 — Volume of the anisotropic symmetric box
+
+The Lebesgue volume of the box `B = ∏ᵢ [-εᵢ, εᵢ]` is `∏ᵢ ENNReal.ofReal (2εᵢ)`,
+via `Real.volume_Icc` per factor and `Measure.volume_pi_pi`.
 -/
 
--- BLOCKER: explicit MV Gaussian density `(2π)^(-n/2) · (det M)^(-1/2) ·
---   exp(-xᵀ M⁻¹ x / 2)` for `mvGaussianFromPosDef M` w.r.t. Lebesgue.
--- TRIED: (1) `Mathlib.Probability.Distributions.Gaussian.Basic` has
---   `IsGaussian` and the 1-D density `gaussianPDFReal`, but no general
---   PosDef MV density lemma; (2) the Round 6 cascade
---   `mvGaussian_pushforward_cov_eq` + `covarianceBilin_apply_pi` gives the
---   covariance correctly, but the box density bound is a SEPARATE
---   property — one needs the Lebesgue density, not just the covariance;
---   (3) `Measure.pi (gaussianReal 0 1) = volume.withDensity (∏ gaussianPDFReal 0 1)`
---   would give the standard MV Gaussian density, but Mathlib does not
---   expose a `pi_withDensity` lemma; (4) for the general PosDef case the
---   pushforward `Measure.map (mulVec L) standardMVGaussian` requires the
---   Jacobian formula `|det L| = √(det M)` lifted to measure pushforward,
---   which Mathlib has only for measure-preserving maps (not for scaled
---   ones).
--- NEEDS: (a) a Mathlib lemma `mvGaussianFromPosDef M` is
---   `HaveLebesgueDensity` with density `(2π)^(-n/2) · (det M)^(-1/2) ·
---   exp(-⟪x, M⁻¹ x⟫ / 2)`, OR (b) the chain `pi_pi_withDensity` +
---   `Measure.map_linear_invertible_eq_density_smul` to compose a
---   per-coordinate density into the multivariate density.
+theorem volume_anisotropic_box (ε : n → ℝ) (hε : ∀ i, 0 ≤ ε i) :
+    volume {x : n → ℝ | ∀ i, |x i| ≤ ε i} = ∏ i, ENNReal.ofReal (2 * ε i) := by
+  rw [anisotropic_box_event_eq_pi, MeasureTheory.volume_pi_pi]
+  apply Finset.prod_congr rfl
+  intro i _
+  rw [Real.volume_Icc, show ε i - (-ε i) = 2 * ε i by ring]
+
+theorem volume_anisotropic_box_lt_top (ε : n → ℝ) :
+    volume {x : n → ℝ | ∀ i, |x i| ≤ ε i} < ⊤ := by
+  rw [anisotropic_box_event_eq_pi, MeasureTheory.volume_pi_pi]
+  exact ENNReal.prod_lt_top fun i _ => by simp [Real.volume_Icc]
+
+/-! ## Round 9 — Headline theorem (PosDef Anderson box bound)
+
+The general PosDef multivariate Gaussian Anderson-upper / density-at-mode
+small-ball bound for an anisotropic symmetric box. The proof composes:
+
+* `mvGaussianFromPosDef_box_apply_eq` (change of variables);
+* `standardMVGaussian_le_volume_smul` (uniform density bound, sub-sorry above);
+* `volume_realMatrixSqrt_mulVec_preimage` (Jacobian);
+* `volume_anisotropic_box` (box volume).
+-/
+
 /-- General PosDef multivariate Gaussian Anderson-upper / density-at-mode
 small-ball bound for an anisotropic symmetric box. -/
 theorem mvGaussian_box_density_at_mode_bound [DecidableEq n]
@@ -285,7 +320,73 @@ theorem mvGaussian_box_density_at_mode_bound [DecidableEq n]
     ((mvGaussianFromPosDef M) {x : n → ℝ | ∀ i, |x i| ≤ ε i}).toReal ≤
       (∏ i, 2 * ε i) * (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n /
         Real.sqrt M.det := by
-  sorry
+  set B : Set (n → ℝ) := {x : n → ℝ | ∀ i, |x i| ≤ ε i} with hB
+  set L : Matrix n n ℝ := realMatrixSqrt M with hL
+  have hB_meas : MeasurableSet B := anisotropic_box_measurable ε
+  have hpre_meas : MeasurableSet (L.mulVec ⁻¹' B) :=
+    (mulVec_measurable L) hB_meas
+  -- Step 1: pushforward identity: P(X ∈ B) = stdMV(L⁻¹ B).
+  have h_eq_push : (mvGaussianFromPosDef M) B = standardMVGaussian n (L.mulVec ⁻¹' B) :=
+    mvGaussianFromPosDef_apply_eq M hB_meas
+  -- Step 2: uniform density bound on stdMV applied to L⁻¹ B.
+  have h_unif :
+      standardMVGaussian n (L.mulVec ⁻¹' B) ≤
+        ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) *
+          volume (L.mulVec ⁻¹' B) :=
+    standardMVGaussian_le_volume_smul (L.mulVec ⁻¹' B) hpre_meas
+  -- Step 3: volume of L⁻¹ B = (√det M)⁻¹ · volume B.
+  have h_vol_pre : volume (L.mulVec ⁻¹' B) =
+      ENNReal.ofReal ((Real.sqrt M.det)⁻¹) * volume B :=
+    volume_realMatrixSqrt_mulVec_preimage hM hB_meas
+  -- Step 4: volume B = ∏ ENNReal.ofReal (2 ε i).
+  have h_vol_box : volume B = ∏ i, ENNReal.ofReal (2 * ε i) :=
+    volume_anisotropic_box ε hε
+  -- Step 5: assemble the ENNReal bound.
+  have h_ENNReal :
+      (mvGaussianFromPosDef M) B ≤
+        ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) *
+          (ENNReal.ofReal ((Real.sqrt M.det)⁻¹) *
+            ∏ i, ENNReal.ofReal (2 * ε i)) := by
+    calc (mvGaussianFromPosDef M) B
+        = standardMVGaussian n (L.mulVec ⁻¹' B) := h_eq_push
+      _ ≤ ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) *
+            volume (L.mulVec ⁻¹' B) := h_unif
+      _ = ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) *
+            (ENNReal.ofReal ((Real.sqrt M.det)⁻¹) * volume B) := by rw [h_vol_pre]
+      _ = ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) *
+            (ENNReal.ofReal ((Real.sqrt M.det)⁻¹) *
+              ∏ i, ENNReal.ofReal (2 * ε i)) := by rw [h_vol_box]
+  -- Step 6: convert ENNReal bound to ℝ bound via toReal monotonicity.
+  have h_finite : (mvGaussianFromPosDef M) B ≠ ⊤ := by
+    have : IsProbabilityMeasure (mvGaussianFromPosDef M) := inferInstance
+    exact (measure_lt_top (mvGaussianFromPosDef M) B).ne
+  have h_eps_nn : ∀ i, 0 ≤ 2 * ε i := fun i => mul_nonneg (by norm_num) (hε i)
+  have h_inv_pi_nn : 0 ≤ (Real.sqrt (2 * Real.pi))⁻¹ := by positivity
+  have h_pow_nn : 0 ≤ (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n := by positivity
+  have h_inv_det_nn : 0 ≤ (Real.sqrt M.det)⁻¹ := by positivity
+  have h_prod_nn : 0 ≤ ∏ i, 2 * ε i := Finset.prod_nonneg fun i _ => h_eps_nn i
+  -- The RHS ENNReal value equals ENNReal.ofReal of the real RHS.
+  have h_RHS_eq :
+      ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) *
+          (ENNReal.ofReal ((Real.sqrt M.det)⁻¹) *
+            ∏ i, ENNReal.ofReal (2 * ε i)) =
+      ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n *
+        ((Real.sqrt M.det)⁻¹ * (∏ i, 2 * ε i))) := by
+    rw [← ENNReal.ofReal_prod_of_nonneg (fun i _ => h_eps_nn i),
+        ← ENNReal.ofReal_mul h_inv_det_nn, ← ENNReal.ofReal_mul h_pow_nn]
+  rw [h_RHS_eq] at h_ENNReal
+  have h_RHS_real_nn :
+      0 ≤ (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n *
+        ((Real.sqrt M.det)⁻¹ * (∏ i, 2 * ε i)) := by
+    exact mul_nonneg h_pow_nn (mul_nonneg h_inv_det_nn h_prod_nn)
+  have h_toReal_mono :
+      ((mvGaussianFromPosDef M) B).toReal ≤
+        (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n *
+          ((Real.sqrt M.det)⁻¹ * (∏ i, 2 * ε i)) :=
+    ENNReal.toReal_le_of_le_ofReal h_RHS_real_nn h_ENNReal
+  -- Final algebra: rearrange to the headline form `* / √det M`.
+  refine h_toReal_mono.trans (le_of_eq ?_)
+  field_simp
 
 /-! ## Identity-covariance specialisation (provable from the standard MV bound) -/
 
