@@ -56,11 +56,20 @@ paths via Kolmogorov–Chentsov + Fernique-style modulus). -/
 axiom Y_GLW_exists :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)],
     ∃ Y : ℝ → Ω → ℝ,
+      -- measurability + centeredness + covariance kernel
       (∀ u, Measurable (Y u)) ∧
       (∀ u, ∫ ω, Y u ω ∂ℙ = 0) ∧
       (∀ u v : ℝ, 0 ≤ u → 0 ≤ v →
         ∫ ω, Y u ω * Y v ω ∂ℙ = K_GLW u v) ∧
+      -- joint Gaussianity: every finite linear combination of `Y u_i` is
+      -- Gaussian on ℝ. This is the load-bearing conjunct for downstream
+      -- Anderson-inequality use inside Node 6.
+      (∀ (n : ℕ) (us : Fin n → ℝ) (cs : Fin n → ℝ),
+        ProbabilityTheory.IsGaussian
+          ((Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) ℙ))) ∧
+      -- continuous sample paths (Kolmogorov–Chentsov)
       (∀ᵐ ω ∂ℙ, Continuous (fun u => Y u ω)) ∧
+      -- tail decay (Borell + σ²(T) → 0; Ledoux §1.3)
       (∀ ε > 0, ∀ᵐ ω ∂ℙ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε)
 ```
 
@@ -70,6 +79,7 @@ axiom Y_GLW_exists :
 |---|---|---|
 | Existence of `Y` | implicit | **explicit** |
 | Covariance specification | unconstrained | **`K_GLW`** |
+| Joint Gaussianity | unstated | **conjuncted** |
 | Continuous paths | unstated | **conjuncted** |
 | Tail decay | unstated | **conjuncted** |
 | Small-ball cubic bound | **claimed** | **not claimed** |
