@@ -12,6 +12,7 @@ limitations under the License.
 -/
 
 import Mathlib.Analysis.SpecialFunctions.Exp
+import Mathlib.Analysis.SpecialFunctions.ExpDeriv
 import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Calculus.Deriv.Mul
 import Mathlib.Analysis.Calculus.Deriv.Add
@@ -19,6 +20,7 @@ import Mathlib.Analysis.Calculus.Deriv.Comp
 import Mathlib.Analysis.Calculus.Deriv.Inv
 import Mathlib.Analysis.Calculus.Deriv.Slope
 import Mathlib.Topology.MetricSpace.Basic
+import Mathlib.Topology.NhdsWithin
 
 /-!
 # Phase 2 / Node 1A — Gao–Li–Wellner kernel
@@ -40,9 +42,6 @@ probability content — and exposes the four properties needed downstream:
   `u + v > 0`, capturing the "large `u+v` ⇒ Cauchy `1/(u+v)`" reduction
   that powers the hierarchical-Cauchy approximation in Node 2.
 -/
-
-set_option linter.style.ams_attribute false
-set_option linter.style.category_attribute false
 
 namespace Erdos524.Helpers
 open Real Filter Topology
@@ -100,8 +99,8 @@ theorem K_GLW_aux_le_one (x : ℝ) (hx : 0 ≤ x) : K_GLW_aux x ≤ 1 := by
   · rw [K_GLW_aux_of_ne x h]
     have hx_pos : 0 < x := lt_of_le_of_ne hx (Ne.symm h)
     rw [div_le_one hx_pos]
-    -- Goal: 1 - exp(-x) ≤ x  ↔  1 - x ≤ exp(-x)
-    have h_exp_lower : 1 + (-x) ≤ Real.exp (-x) := Real.add_one_le_exp (-x)
+    -- Goal: 1 - exp(-x) ≤ x  ↔  1 - x ≤ exp(-x).
+    have h_exp_lower : 1 - x ≤ Real.exp (-x) := Real.one_sub_le_exp_neg x
     linarith
 
 theorem K_GLW_le_one (u v : ℝ) (hu : 0 ≤ u) (hv : 0 ≤ v) : K_GLW u v ≤ 1 := by
@@ -119,20 +118,17 @@ extension `K_GLW_aux 0 = 1`, this yields `ContinuousAt K_GLW_aux 0`. -/
 
 private theorem hasDerivAt_one_sub_exp_neg :
     HasDerivAt (fun y : ℝ => 1 - Real.exp (-y)) 1 0 := by
-  -- d/dy exp(-y) at 0 = exp(-0) * (-1) = -1.
-  have h_exp : HasDerivAt Real.exp 1 0 := by
-    have := Real.hasDerivAt_exp 0
-    rwa [Real.exp_zero] at this
   have h_neg : HasDerivAt (fun y : ℝ => -y) (-1 : ℝ) 0 := by
     simpa using (hasDerivAt_id (0 : ℝ)).neg
-  have h_comp : HasDerivAt (fun y : ℝ => Real.exp (-y)) ((1 : ℝ) * (-1)) 0 :=
-    h_exp.comp 0 h_neg
-  -- d/dy (1 - exp(-y)) at 0 = 0 - (-1) = 1.
-  have h_sub : HasDerivAt (fun y : ℝ => 1 - Real.exp (-y))
-      ((0 : ℝ) - (1 : ℝ) * (-1)) 0 :=
-    (hasDerivAt_const 0 (1 : ℝ)).sub h_comp
-  convert h_sub using 1
-  norm_num
+  -- `HasDerivAt.exp` (from `Mathlib.Analysis.SpecialFunctions.ExpDeriv`) gives
+  -- `HasDerivAt (fun y => Real.exp (f y)) (Real.exp (f x) * f') x`.
+  have h_exp_neg : HasDerivAt (fun y : ℝ => Real.exp (-y)) (-1 : ℝ) 0 := by
+    have := h_neg.exp
+    simpa using this
+  have h_sub : HasDerivAt (fun y : ℝ => 1 - Real.exp (-y)) 1 0 := by
+    have := (hasDerivAt_const 0 (1 : ℝ)).sub h_exp_neg
+    simpa using this
+  exact h_sub
 
 private theorem tendsto_one_sub_exp_neg_div_self :
     Tendsto (fun y : ℝ => (1 - Real.exp (-y)) / y) (𝓝[≠] (0 : ℝ)) (𝓝 1) := by
@@ -160,14 +156,13 @@ theorem K_GLW_aux_continuous : Continuous K_GLW_aux := by
     intro ε hε
     have h_punc : ∀ᶠ y in (𝓝[≠] (0 : ℝ)), dist (K_GLW_aux y) 1 < ε := by
       have h_lim : ∀ᶠ y in (𝓝[≠] (0 : ℝ)),
-          dist ((1 - Real.exp (-y)) / y) 1 < ε := by
-        rw [Metric.tendsto_nhds] at tendsto_one_sub_exp_neg_div_self
-        exact tendsto_one_sub_exp_neg_div_self ε hε
+          dist ((1 - Real.exp (-y)) / y) 1 < ε :=
+        (Metric.tendsto_nhds.mp tendsto_one_sub_exp_neg_div_self) ε hε
       filter_upwards [h_lim, self_mem_nhdsWithin] with y hy_lim hy_ne
       have hy : y ≠ 0 := by simpa using hy_ne
       rw [K_GLW_aux_of_ne y hy]
       exact hy_lim
-    rw [Filter.eventually_nhdsWithin_iff] at h_punc
+    rw [eventually_nhdsWithin_iff] at h_punc
     filter_upwards [h_punc] with y hy
     by_cases hy0 : y = 0
     · subst hy0
