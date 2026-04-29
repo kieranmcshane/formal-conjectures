@@ -222,6 +222,20 @@ theorem prod_glwBlock_smallball_nonneg (m : ℕ) (ε : ℝ) :
     0 ≤ ∏ p : Fin m, glwBlock_smallball m p ε :=
   Finset.prod_nonneg (fun i _ => glwBlock_smallball_nonneg m i ε)
 
+/-- Block-smallball is monotone in `ε`: larger `ε` gives a larger restricted box. -/
+theorem glwBlock_smallball_mono (m : ℕ) (p : Fin m) {ε₁ ε₂ : ℝ} (h : ε₁ ≤ ε₂) :
+    glwBlock_smallball m p ε₁ ≤ glwBlock_smallball m p ε₂ := by
+  unfold glwBlock_smallball
+  apply ENNReal.toReal_mono
+  · -- finite
+    have h_le :
+        gaussianHierCauchy m (glwBlockBox m p ε₂) ≤ 1 :=
+      le_trans (measure_mono (Set.subset_univ _)) (le_of_eq measure_univ)
+    exact ne_of_lt (lt_of_le_of_lt h_le ENNReal.one_lt_top)
+  · apply measure_mono
+    intro x hx q
+    exact (hx q).trans h
+
 /-! ## V1 field — `localSchur_cond_le` (Round 5)
 
 For our identity-matrix `localSchur`, the bilinear form `xᵀ · 1 · x = ∑ xᵢ²`.
