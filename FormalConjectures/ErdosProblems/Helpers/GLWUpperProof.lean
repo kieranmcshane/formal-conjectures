@@ -186,6 +186,18 @@ theorem IsGLWProcess.cov_pos (h : IsGLWProcess Y) {u v : ℝ}
   rw [h.cov u v hu hv]
   exact K_GLW_pos u v hu hv
 
+/-- Covariance is symmetric: `cov[Y u, Y v] = cov[Y v, Y u]` (via
+`K_GLW_symm`). -/
+theorem IsGLWProcess.cov_symm (h : IsGLWProcess Y) {u v : ℝ}
+    (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    ∫ ω, Y u ω * Y v ω ∂ℙ = ∫ ω, Y v ω * Y u ω ∂ℙ := by
+  rw [h.cov u v hu hv, h.cov v u hv hu, K_GLW_symm]
+
+/-- Centeredness of any nonnegative-argument marginal. -/
+theorem IsGLWProcess.centered_at (h : IsGLWProcess Y) (u : ℝ) :
+    ∫ ω, Y u ω ∂ℙ = 0 :=
+  h.centered u
+
 /-! ## Trivial probability bounds at the boundary `ε = 1` -/
 
 /-- At `ε = 1`, the cubic-exponent RHS equals `1` (no decay): the trivial
