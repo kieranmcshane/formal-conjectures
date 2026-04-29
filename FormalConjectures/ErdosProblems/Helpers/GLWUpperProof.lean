@@ -112,6 +112,52 @@ structure IsGLWProcess {Ω : Type*} [MeasureSpace Ω]
   tail_decay : ∀ ε > 0, ∀ᵐ ω ∂(ℙ : Measure Ω),
     ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε
 
+/-! ## `IsGLWProcess` bridge to `Y_GLW_exists`
+
+The `Y_GLW_exists` axiom in `Helpers/GLWProcess.lean` produces a Y
+satisfying exactly the structure captured by `IsGLWProcess`. The
+following corollary makes the connection explicit: there exists a
+probability space on which `IsGLWProcess` is realized. -/
+
+/-- Existence of a process satisfying `IsGLWProcess`. Direct corollary
+of the `Y_GLW_exists` stepping-stone axiom. -/
+theorem isGLWProcess_exists :
+    ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (Y : ℝ → Ω → ℝ),
+      IsProbabilityMeasure μ ∧
+      (∀ u, Measurable (Y u)) ∧
+      (∀ u, Integrable (Y u) μ) ∧
+      (∀ u v : ℝ, Integrable (fun ω => Y u ω * Y v ω) μ) ∧
+      (∀ u, ∫ ω, Y u ω ∂μ = 0) ∧
+      (∀ u v : ℝ, 0 ≤ u → 0 ≤ v →
+        ∫ ω, Y u ω * Y v ω ∂μ = K_GLW u v) := by
+  obtain ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov,
+          _hY_gauss, _hY_paths, _hY_tail⟩ := Y_GLW_exists
+  exact ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov⟩
+
+/-! ## `IsGLWProcess` projections and basic facts -/
+
+variable {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+  {Y : ℝ → Ω → ℝ}
+
+/-- A `IsGLWProcess` is centered at every nonneg `u` (variance equals
+the kernel value). -/
+theorem IsGLWProcess.var_eq_kernel_at (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
+    ∫ ω, Y u ω * Y u ω ∂ℙ = K_GLW u u :=
+  h.cov u u hu hu
+
+/-- Variance of any marginal `Y u` for `u ≥ 0` is `K_GLW(u, u)`, which is
+nonnegative (and bounded by 1) by the kernel's basic properties. -/
+theorem IsGLWProcess.var_le_one (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
+    ∫ ω, Y u ω * Y u ω ∂ℙ ≤ 1 := by
+  rw [h.var_eq_kernel_at hu]
+  exact K_GLW_le_one u u hu hu
+
+/-- Variance is nonneg (consequence of `K_GLW_pos`). -/
+theorem IsGLWProcess.var_nonneg (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u) :
+    0 ≤ ∫ ω, Y u ω * Y u ω ∂ℙ := by
+  rw [h.var_eq_kernel_at hu]
+  exact le_of_lt (K_GLW_pos u u hu hu)
+
 /-! ## Choice of `T(ε)` for the truncation -/
 
 /-- The truncation `T(ε) := |log ε|² + 1`, positive for all positive `ε`. -/
