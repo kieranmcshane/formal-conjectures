@@ -154,6 +154,20 @@ theorem glwLocalSchur_posDef (m : ℕ) (hm : 1 ≤ m) (p : Fin m) :
   haveI : NeZero m := ⟨by omega⟩
   exact Matrix.PosDef.one
 
+/-! ## V1 field — `glwBlockBox_measurable` (Round 5)
+
+The block-box event is measurable, useful for the V1 instance's measurability
+preconditions. -/
+
+theorem glwBlockBox_measurable (m : ℕ) (p : Fin m) (ε : ℝ) :
+    MeasurableSet (glwBlockBox m p ε) := by
+  unfold glwBlockBox
+  -- {x | ∀ q, |x (p, q)| ≤ ε} = ⋂ q, {x | |x (p, q)| ≤ ε}.
+  rw [show ({x : Fin m × Fin m → ℝ | ∀ q : Fin m, |x (p, q)| ≤ ε}) =
+      ⋂ q : Fin m, {x | |x (p, q)| ≤ ε} from by ext x; simp [Set.mem_iInter]]
+  refine MeasurableSet.iInter (fun q => ?_)
+  exact measurableSet_le (Measurable.abs (measurable_pi_apply (p, q))) measurable_const
+
 /-! ## V1 field — `localSchur_cond_le` (Round 5)
 
 For our identity-matrix `localSchur`, the bilinear form `xᵀ · 1 · x = ∑ xᵢ²`.
