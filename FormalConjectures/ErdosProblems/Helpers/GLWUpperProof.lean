@@ -171,6 +171,21 @@ theorem IsGLWProcess.cov_with_zero (h : IsGLWProcess Y) {u : ℝ} (hu : 0 ≤ u)
     ∫ ω, Y u ω * Y 0 ω ∂ℙ = K_GLW u 0 :=
   h.cov u 0 hu (le_refl _)
 
+/-! ## Trivial probability bounds at the boundary `ε = 1` -/
+
+/-- At `ε = 1`, the cubic-exponent RHS equals `1` (no decay): the trivial
+probability bound `(ℙ S).toReal ≤ 1` is enough, used as the proof's
+boundary case. -/
+theorem glwUpperBound_at_eps_one (c : ℝ) (S : Set Ω) :
+    (ℙ S).toReal ≤ Real.exp (-c * |Real.log (1 : ℝ)| ^ 3) := by
+  have h_rhs_eq : Real.exp (-c * |Real.log (1 : ℝ)| ^ 3) = 1 := by
+    rw [Real.log_one, abs_zero]; simp
+  rw [h_rhs_eq]
+  have h_le : (ℙ : Measure Ω) S ≤ 1 :=
+    le_trans (measure_mono (Set.subset_univ S)) (le_of_eq measure_univ)
+  rw [show (1 : ℝ) = ENNReal.toReal 1 from rfl]
+  exact ENNReal.toReal_mono ENNReal.one_ne_top h_le
+
 /-! ## Choice of `T(ε)` for the truncation -/
 
 /-- The truncation `T(ε) := |log ε|² + 1`, positive for all positive `ε`. -/
