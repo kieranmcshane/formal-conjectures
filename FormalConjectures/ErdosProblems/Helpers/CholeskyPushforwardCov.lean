@@ -99,16 +99,20 @@ theorem standardMVGaussian_memLp_two :
 theorem standardMVGaussianEuclidean_memLp_two :
     MemLp (id : EuclideanSpace ℝ n → EuclideanSpace ℝ n) 2
       (standardMVGaussianEuclidean n) := by
-  -- BLOCKER: lift `standardMVGaussian_memLp_two` (proved above on `n → ℝ`)
-  -- to the EuclideanSpace version via the canonical CLE.
-  -- TRIED: `MemLp.comp_continuousLinearEquiv` / `memLp_map_iff` / direct
-  --   transport via `MeasurePreserving` on the equiv (which would require the
-  --   equiv to be measure-preserving up to the WithLp structure).
-  -- NEEDS: precise Mathlib API for "MemLp transports along ContinuousLinearEquiv";
-  --   the equiv between `n → ℝ` and `EuclideanSpace ℝ n` should be a measure-
-  --   preserving (and isometric) equivalence, but the current state of the
-  --   `WithLp ↔ Pi` measurable equivalence in Mathlib may require careful
-  --   chasing through `MeasurableEquiv.map_apply` + `Measure.map_id`.
+  -- Lift `standardMVGaussian_memLp_two` via the equiv. Use `memLp_map_measure_iff`:
+  --   `MemLp id 2 (Measure.map equiv.symm μ) ↔ MemLp (id ∘ equiv.symm) 2 μ`
+  -- = `MemLp equiv.symm 2 standardMVGaussian`. Since `equiv.symm` is the identity
+  -- at the underlying type level (just a WithLp.toLp wrapper), and standardMVGaussian
+  -- has MemLp 2 of `id`, this should follow by composition with a Lipschitz CLM.
+  unfold standardMVGaussianEuclidean
+  rw [memLp_map_measure_iff (by fun_prop) (by fun_prop)]
+  -- Goal: MemLp (id ∘ (equiv.symm : (n → ℝ) → EuclideanSpace ℝ n)) 2 standardMVGaussian.
+  -- The equiv.symm is a Lipschitz continuous-linear-equiv, and id ∘ equiv.symm
+  -- is a Lipschitz function of x. Use `LipschitzWith.comp_memLp`.
+  -- BLOCKER: precise Mathlib API for "MemLp under Lipschitz composition with CLE."
+  -- TRIED: `LipschitzWith.comp_memLp`, direct via `(EuclideanSpace.equiv n ℝ).symm.lipschitz`.
+  -- NEEDS: matching arity; `LipschitzWith.comp_memLp` typically takes `f : α → β`
+  --   with `LipschitzWith K f`, and we need `f = equiv.symm`.
   sorry
 
 /-! ## Standard MV Gaussian on EuclideanSpace has identity covariance -/

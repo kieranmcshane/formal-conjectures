@@ -99,7 +99,10 @@ noncomputable def glwBoxProb_sub (m : ℕ) (_s : ℕ) (ε : ℝ) : ℝ :=
   glwBoxProb m ε
 
 theorem glwBoxProb_le_sub (m : ℕ) (s : ℕ) (_hs : s ≤ m) (ε : ℝ) (_hε : 0 < ε) :
-    glwBoxProb m ε ≤ glwBoxProb_sub m s ε := le_refl _
+    glwBoxProb m ε ≤ glwBoxProb_sub m s ε := by
+  unfold glwBoxProb_sub
+  -- glwBoxProb_sub is constant in s, equal to glwBoxProb. Inequality is reflexive.
+  exact le_refl _
 
 /-! ## V1 field — `block_smallball` (Round 5)
 
