@@ -1,0 +1,110 @@
+/-
+Copyright 2026 The Formal Conjectures Authors.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    https://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-/
+
+import FormalConjectures.ErdosProblems.Helpers.GaussianHierCauchy
+import FormalConjectures.ErdosProblems.Helpers.MVGaussianPullback
+import FormalConjectures.ErdosProblems.Helpers.GaussianBoxBounds
+import FormalConjectures.ErdosProblems.Helpers.GLWBoxProbInstance
+
+/-!
+# Phase 2 Round 4 — Box-probability bounds for `gaussianHierCauchy`
+
+Combines the Stage 1-5 multivariate-Gaussian framework + Round 4
+PDF / pullback / standard-MV-box bounds into:
+
+* `glwBoxProb_eq_pullback_standardMV` — explicit pullback formula for
+  the V1 candidate `boxProb`;
+* `glwBoxProb_le_one_via_pullback` — alternate proof of the trivial
+  probability bound via the pullback identity (sanity check that the
+  Stage 4-6 chain composes correctly);
+* measurability and probability-bound corollaries used by the Node 6 V1
+  instance's `boxProb_sub` and Anderson_upper-style fields.
+-/
+
+namespace Erdos524.Helpers
+open MeasureTheory ProbabilityTheory Matrix Real
+
+/-! ## Pullback formula -/
+
+/-- The candidate V1 `boxProb` for `gaussianHierCauchy m` equals the standard
+multivariate Gaussian's measure of the pulled-back box (`mulVec L⁻¹' box`). -/
+theorem glwBoxProb_eq_pullback_standardMV (m : ℕ) (ε : ℝ) :
+    glwBoxProb m ε =
+      (standardMVGaussian (Fin m × Fin m)
+        ((realMatrixSqrt (hierCauchyG m)).mulVec ⁻¹'
+          {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε})).toReal := by
+  unfold glwBoxProb gaussianHierCauchy mvGaussianFromPosDef mvGaussianFromMatrix
+  rw [Measure.map_apply (mulVec_measurable _) (box_event_measurable _ ε)]
+
+/-! ## Probability bound through the pullback -/
+
+/-- Sanity check: the V1 candidate boxProb is at most 1 via the pullback chain. -/
+theorem glwBoxProb_le_one_via_pullback (m : ℕ) (ε : ℝ) : glwBoxProb m ε ≤ 1 := by
+  rw [glwBoxProb_eq_pullback_standardMV]
+  exact standardMVGaussian_le_one (Fin m × Fin m) _
+
+/-! ## Nonnegativity through the pullback -/
+
+theorem glwBoxProb_nonneg_via_pullback (m : ℕ) (ε : ℝ) : 0 ≤ glwBoxProb m ε := by
+  rw [glwBoxProb_eq_pullback_standardMV]
+  exact ENNReal.toReal_nonneg
+
+/-! ## Box-event measurability under the pullback -/
+
+theorem mulVec_realMatrixSqrt_preimage_box_measurable (m : ℕ) (ε : ℝ) :
+    MeasurableSet
+      ((realMatrixSqrt (hierCauchyG m)).mulVec ⁻¹'
+        {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε}) :=
+  (mulVec_measurable _) (box_event_measurable _ ε)
+
+/-! ## Monotonicity in ε for the V1 boxProb -/
+
+theorem glwBoxProb_mono (m : ℕ) {ε₁ ε₂ : ℝ} (hε : ε₁ ≤ ε₂) :
+    glwBoxProb m ε₁ ≤ glwBoxProb m ε₂ := by
+  rw [glwBoxProb, glwBoxProb]
+  apply ENNReal.toReal_mono
+  · -- gaussianHierCauchy m {x | ∀ ij, |x ij| ≤ ε₂} ≠ ⊤
+    have h_le :
+        gaussianHierCauchy m {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε₂} ≤ 1 :=
+      le_trans (measure_mono (Set.subset_univ _)) (le_of_eq measure_univ)
+    exact ne_of_lt (lt_of_le_of_lt h_le ENNReal.one_lt_top)
+  · exact measure_mono (box_event_mono (Fin m × Fin m) hε)
+
+/-! ## Subset bound: glwBoxProb ε ≤ glwBoxProb (ε + δ) for δ ≥ 0 -/
+
+theorem glwBoxProb_le_of_le {m : ℕ} {ε₁ ε₂ : ℝ} (hε : ε₁ ≤ ε₂) :
+    glwBoxProb m ε₁ ≤ glwBoxProb m ε₂ := glwBoxProb_mono m hε
+
+/-! ## Empty box: glwBoxProb m 0 ≤ 1 trivially -/
+
+theorem glwBoxProb_zero_le_one (m : ℕ) : glwBoxProb m 0 ≤ 1 :=
+  glwBoxProb_le_one_via_pullback m 0
+
+/-! ## Finite ENNReal: gaussianHierCauchy box ≠ ⊤ -/
+
+theorem gaussianHierCauchy_box_finite (m : ℕ) (ε : ℝ) :
+    gaussianHierCauchy m {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε} ≠ ⊤ := by
+  have h_le :
+      gaussianHierCauchy m {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε} ≤ 1 :=
+    le_trans (measure_mono (Set.subset_univ _)) (le_of_eq measure_univ)
+  exact ne_of_lt (lt_of_le_of_lt h_le ENNReal.one_lt_top)
+
+/-! ## Pulled-back-box probability bound: trivial 1 -/
+
+theorem standard_pullback_box_le_one (m : ℕ) (ε : ℝ) :
+    (standardMVGaussian (Fin m × Fin m)
+      ((realMatrixSqrt (hierCauchyG m)).mulVec ⁻¹'
+        {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε})).toReal ≤ 1 :=
+  standardMVGaussian_le_one (Fin m × Fin m) _
+
+end Erdos524.Helpers
