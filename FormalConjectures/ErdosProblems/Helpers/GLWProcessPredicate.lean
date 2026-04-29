@@ -124,6 +124,36 @@ theorem isGLWProcess_exists :
           _hY_gauss, _hY_paths, _hY_tail⟩ := Y_GLW_exists
   exact ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov⟩
 
+/-- **Full witness:** there exist `(Ω, ℙ, Y)` with `Y` satisfying the
+full `IsGLWProcess` predicate (all nine conjuncts: measurability,
+integrability, integrable-prod, centeredness, K_GLW covariance, joint
+Gaussianity, a.s. continuous paths, a.s. tail decay).
+
+This packages the `Y_GLW_exists` axiom into the structured form. It
+shows that the Round 8 lower-bound theorem statement (which has
+`IsGLWProcess Y` as a hypothesis) is NOT vacuous — there is a concrete
+process witnessing the predicate. -/
+theorem isGLWProcess_exists_full :
+    ∃ (Ω : Type) (_mΩ : MeasurableSpace Ω) (μ : Measure Ω)
+      (_hμ : IsProbabilityMeasure μ),
+      letI : MeasureSpace Ω := ⟨μ⟩
+      ∃ Y : ℝ → Ω → ℝ, IsGLWProcess Y := by
+  obtain ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov,
+          hY_gauss, hY_paths, hY_tail⟩ := Y_GLW_exists
+  refine ⟨Ω, mΩ, μ, hμ, ?_⟩
+  letI : MeasureSpace Ω := ⟨μ⟩
+  refine ⟨Y, ?_⟩
+  exact {
+    measurable := hY_meas
+    integrable := hY_int
+    integrable_prod := hY_int_prod
+    centered := hY_centered
+    cov := hY_cov
+    gaussian := hY_gauss
+    continuous_paths := hY_paths
+    tail_decay := hY_tail
+  }
+
 /-! ## `IsGLWProcess` projections and basic facts -/
 
 variable {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
