@@ -11,3 +11,21 @@ _literate_html/
 site/site/
 # Conjectures Data gets added by CI
 site/data/conjectures.json
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.toc
+*.pdf
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Local scratch / experiments (kept out of cloud-build pulls)
+scratch.lean
+pristine.lean
+test_*.lean
+
+# Claude worktrees / IDE state
+.claude/worktrees/
