@@ -176,7 +176,7 @@ theorem K_GLW_aux_continuous : Continuous K_GLW_aux := by
     · exact hy hy0
   · -- ContinuousAt K_GLW_aux x for x ≠ 0
     have h_neighborhood : ∀ᶠ y in 𝓝 x, y ≠ 0 := eventually_ne_nhds hx
-    have h_eq : ∀ᶠ y in 𝓝 x, K_GLW_aux y = (1 - Real.exp (-y)) / y := by
+    have h_eq : K_GLW_aux =ᶠ[𝓝 x] (fun y => (1 - Real.exp (-y)) / y) := by
       filter_upwards [h_neighborhood] with y hy
       exact K_GLW_aux_of_ne y hy
     have h_at_x : K_GLW_aux x = (1 - Real.exp (-x)) / x := K_GLW_aux_of_ne x hx
@@ -188,7 +188,9 @@ theorem K_GLW_aux_continuous : Continuous K_GLW_aux := by
       · exact hx
     show Tendsto K_GLW_aux (𝓝 x) (𝓝 (K_GLW_aux x))
     rw [h_at_x]
-    exact Filter.Tendsto.congr' h_eq.symm h_cont_quotient
+    have h_tend : Tendsto (fun y : ℝ => (1 - Real.exp (-y)) / y) (𝓝 x)
+        (𝓝 ((1 - Real.exp (-x)) / x)) := h_cont_quotient
+    exact h_tend.congr' h_eq.symm
 
 theorem K_GLW_continuous : Continuous (Function.uncurry K_GLW) := by
   have h_eq : Function.uncurry K_GLW =
@@ -208,12 +210,12 @@ matrix by the hierarchical Cauchy matrix `hierCauchyG m`. -/
 theorem K_GLW_cauchy_asymptotic (u v : ℝ) (huv : 0 < u + v) :
     |K_GLW u v - 1 / (u + v)| ≤ Real.exp (-(u + v)) / (u + v) := by
   rw [K_GLW_def, K_GLW_aux_of_ne _ (ne_of_gt huv)]
-  -- Goal: |(1 - exp(-(u+v)))/(u+v) - 1/(u+v)| ≤ exp(-(u+v))/(u+v)
-  rw [div_sub_div_eq_sub_div]
-  have h_simp : (1 - Real.exp (-(u + v)) - 1) / (u + v) =
-                -Real.exp (-(u + v)) / (u + v) := by
+  -- Combine the two quotients over the common denominator `u + v`.
+  have h_ne : u + v ≠ 0 := ne_of_gt huv
+  have h_combine : (1 - Real.exp (-(u + v))) / (u + v) - 1 / (u + v) =
+                   -Real.exp (-(u + v)) / (u + v) := by
+    field_simp
     ring
-  rw [h_simp]
-  rw [abs_div, abs_neg, abs_of_pos (Real.exp_pos _), abs_of_pos huv]
+  rw [h_combine, abs_div, abs_neg, abs_of_pos (Real.exp_pos _), abs_of_pos huv]
 
 end Erdos524.Helpers
