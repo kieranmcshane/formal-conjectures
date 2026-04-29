@@ -168,20 +168,32 @@ self-contained Mathlib-API-gap that Round 5 documents but does not close.
 theorem mvGaussian_pushforward_cov_eq (L : Matrix n n ℝ) (u v : EuclideanSpace ℝ n) :
     covarianceBilin (mvGaussianEuclideanFromMatrix L) u v =
       inner ℝ u (toEuclideanCLM (n := n) (𝕜 := ℝ) (L * Lᵀ) v) := by
-  -- Proof outline (depends on three sub-lemmas, two of which are documented
-  -- sorries):
-  --   1. covarianceBilin_map: pushforward by CLM transforms cov via adjoint.
-  --      (Uses `standardMVGaussianEuclidean_memLp_two`, sorry'd.)
-  --   2. toEuclideanCLM_adjoint: (toEuclideanCLM L).adjoint = toEuclideanCLM Lᵀ.
-  --      (Proved.)
-  --   3. standardMVGaussianEuclidean_cov_eq_inner: identity covariance.
-  --      (sorry'd.)
-  -- 4. Inner-adjoint move + map_mul to combine: `⟪Lᵀ u, Lᵀ v⟫ = ⟪u, L Lᵀ v⟫`.
-  -- The chain assembles cleanly once the sub-sorries are filled. The Lean
-  -- elaboration of the full chain hits the 800k heartbeat ceiling, so we
-  -- ship the headline as a `sorry` whose proof obligation reduces to the
-  -- sub-sorries.
-  sorry
+  unfold mvGaussianEuclideanFromMatrix
+  rw [covarianceBilin_map standardMVGaussianEuclidean_memLp_two
+        ((toEuclideanCLM (n := n) (𝕜 := ℝ) L))]
+  rw [toEuclideanCLM_adjoint]
+  rw [standardMVGaussianEuclidean_cov_eq_inner]
+  -- Goal: ⟪toEuclideanCLM Lᵀ u, toEuclideanCLM Lᵀ v⟫ = ⟪u, toEuclideanCLM (L * Lᵀ) v⟫.
+  -- Use map_mul + adjoint move to identify these.
+  have h_adj := toEuclideanCLM_adjoint L
+  have h_swap_sym : (toEuclideanCLM (n := n) (𝕜 := ℝ) Lᵀ : EuclideanSpace ℝ n →L[ℝ]
+      EuclideanSpace ℝ n) = ((toEuclideanCLM (n := n) (𝕜 := ℝ) L) :
+        EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n).adjoint := h_adj.symm
+  rw [show (toEuclideanCLM (n := n) (𝕜 := ℝ) Lᵀ) u =
+        (((toEuclideanCLM (n := n) (𝕜 := ℝ) L) :
+            EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n).adjoint) u from
+      congrArg (· u) h_swap_sym]
+  rw [ContinuousLinearMap.adjoint_inner_left]
+  congr 1
+  -- Goal: toEuclideanCLM L (toEuclideanCLM Lᵀ v) = toEuclideanCLM (L * Lᵀ) v.
+  have h_map_mul : (toEuclideanCLM (n := n) (𝕜 := ℝ) (L * Lᵀ) :
+      EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n) =
+        ((toEuclideanCLM (n := n) (𝕜 := ℝ) L) *
+          toEuclideanCLM (n := n) (𝕜 := ℝ) Lᵀ :
+            EuclideanSpace ℝ n →L[ℝ] EuclideanSpace ℝ n) :=
+    map_mul _ L Lᵀ
+  rw [h_map_mul]
+  rfl
 
 /-! ## Specialisation to symmetric square root of PosSemidef M -/
 
