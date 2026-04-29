@@ -218,4 +218,27 @@ theorem IsGLWProcess.centered_at (h : IsGLWProcess Y) (u : ℝ) :
     ∫ ω, Y u ω ∂ℙ = 0 :=
   h.centered u
 
+/-- Variance at the origin is strictly positive (immediate from
+`var_at_zero_eq_one`). Used downstream to discharge the `0 < cov`
+positivity hypothesis required by Anderson-style bounds when one needs
+to invert the covariance at a finite grid containing `0`. -/
+theorem IsGLWProcess.var_at_zero_pos (h : IsGLWProcess Y) :
+    0 < ∫ ω, Y 0 ω * Y 0 ω ∂ℙ := by
+  rw [h.var_at_zero_eq_one]
+  exact one_pos
+
+/-- Continuity of the covariance function on the nonneg quadrant: for
+`(u, v) ∈ [0, ∞)²`, `(u, v) ↦ ∫ Y u · Y v` is continuous (it equals
+`K_GLW(u, v)` there, and `K_GLW` is globally continuous via
+`K_GLW_continuous`). Useful for chaining arguments that require the
+covariance to be jointly continuous in the indices. -/
+theorem IsGLWProcess.cov_continuousOn_nonneg (h : IsGLWProcess Y) :
+    ContinuousOn (fun uv : ℝ × ℝ => ∫ ω, Y uv.1 ω * Y uv.2 ω ∂ℙ)
+      {uv | 0 ≤ uv.1 ∧ 0 ≤ uv.2} := by
+  have hK : ContinuousOn (fun uv : ℝ × ℝ => K_GLW uv.1 uv.2)
+      {uv | 0 ≤ uv.1 ∧ 0 ≤ uv.2} := K_GLW_continuous.continuousOn
+  refine hK.congr ?_
+  intro uv huv
+  exact h.cov uv.1 uv.2 huv.1 huv.2
+
 end Erdos524.Helpers

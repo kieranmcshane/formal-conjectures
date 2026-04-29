@@ -190,6 +190,24 @@ theorem glwLowerEpsZero_lt_one : glwLowerEpsZero < 1 := by
 theorem glwLowerEpsZero_le_one : glwLowerEpsZero ≤ 1 :=
   le_of_lt glwLowerEpsZero_lt_one
 
+/-- Explicit value of `Real.log ε₀` at the chosen lower-bound threshold. -/
+theorem glwLowerEpsZero_log : Real.log glwLowerEpsZero = -100 := by
+  unfold glwLowerEpsZero
+  exact Real.log_exp (-100)
+
+/-- Explicit value of `|Real.log ε₀| = 100`. -/
+theorem glwLowerEpsZero_abs_log : |Real.log glwLowerEpsZero| = 100 := by
+  rw [glwLowerEpsZero_log]
+  rw [abs_neg]
+  exact abs_of_nonneg (by norm_num)
+
+/-- The cubic factor evaluated at the chosen `ε₀ := exp(-100)` simplifies
+to `exp(-c · 10^6)`. Useful as a sanity check for the asymptotic regime. -/
+theorem glwLowerCubicFactor_at_eps_zero (c : ℝ) :
+    glwLowerCubicFactor c glwLowerEpsZero = Real.exp (-c * 100 ^ 3) := by
+  unfold glwLowerEpsZero
+  exact glwLowerCubicFactor_at_exp_neg_hundred c
+
 
 /-! ## Sup-box event: `{ω | ∀ u ≥ 0, |Y u ω| ≤ ε}` -/
 
