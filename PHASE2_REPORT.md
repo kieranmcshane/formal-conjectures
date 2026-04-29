@@ -1,30 +1,29 @@
-# Phase 2 Round-2 Report
+# Phase 2 Round-3 Report
 
-**HEAD:** `fe23136 feat: K_GLW vs hierCauchyG determinant bridge` on `kmc-erdos-gaussian-smallball`.
+**HEAD:** `55a8f55 feat: V1 instance scaffold — 5/16 fields discharged` on `kmc-erdos-gaussian-smallball`.
 
-## This round's commits
+## This round (6 stages, all green, ~50 min)
 
 ```
-fe23136 feat: K_GLW vs hierCauchyG determinant bridge (Node 6 prereq)
-4b6a3cf feat: hierCauchyG entrywise + determinant positivity facts (Node 6 prereq)
-e94a294 feat: matrix-perturbation determinant lemma (Node 6 prerequisite)
+55a8f55 feat: V1 instance scaffold — 5/16 fields discharged
+9d49b42 feat: Gaussian with hierCauchyG covariance (V1 instance prereq)
+e3a4b1f feat: multivariate Gaussian with arbitrary PosDef covariance (Node 6 prereq)
+35a8009 feat: linear pushforward of multivariate Gaussian (Node 6 prereq)
+c081ea4 feat: standard multivariate Gaussian (Node 6 prereq)
+5073dfe feat: Cholesky factorization existence (Node 6 prereq)
 ```
 
-## Per-task status
+## Per-stage status
 
-* **Task 1** (matrix-perturbation det lemma) — **DONE**. `Helpers/MatrixDetPerturbation.lean` 206 LOC: `abs_prod_sub_prod_le` (telescoping product) + `abs_det_sub_det_le` (Leibniz + per-permutation telescoping). Pure linear algebra, no PosDef needed (sup-norm version, cleaner than original op-norm spec).
-* **Task 2** (V1 instance prereqs) — **2/8 fields-worth done**. Shipped `HierCauchyFacts.lean` (5 lemmas: entrywise unfolding/positivity/symmetry/upper bound + det positivity) and `KGLWHierCauchyDet.lean` (3 lemmas: K_GLW vs hierCauchyG det bridge specialised to the Node 2 entrywise bound, M=1 corollary). The full V1 instance still needs an actual multivariate Gaussian construction, which is the gap.
-* **Task 3** (theorem signatures) — **NOT STARTED**. Without a V1 instance, the theorem proofs would need stubs.
-* **Task 4** (524.lean axiom replacement) — **NOT STARTED**. Blocked on Task 3.
+* Stages 1-5: **DONE** — Cholesky → standardMVGaussian → mvGaussianFromMatrix → mvGaussianFromPosDef → gaussianHierCauchy chain shipped.
+* Stage 6: **5/16 V1 fields**. cov + cov_eq_hierCauchy + cov_det_pos + boxProb candidate + nonneg/≤1 bounds.
 
-## Net counts (unchanged from previous report)
+Outcome vs ladder: **Best** (all 6 stages shipped). V1 instance pending: 11 remaining fields split as 7-via-Anderson + 4-via-block-decomposition.
 
-Axioms 4 (`Y_GLW_exists` + 3 unchanged GLW/KMT). Sorrys 0.
+## Net counts
 
-## Outcome vs ladder
-
-Above **Acceptable** (Task 1 fully done), below **Good** (only 2/8 V1 prereqs vs the "2-4" target).
+Axioms 4 (unchanged from Round 2: `Y_GLW_exists` + 3 GLW/KMT). Sorrys 0. Total Phase 2 LOC: ~1100.
 
 ## Next session
 
-Task 2 cont: pick Mathlib's multivariate Gaussian path or build one locally (~300-500 LOC) so a V1 instance with `cov := hierCauchyG m` becomes constructible; once that lands, Task 3's GLW theorems fall out of `gaussian_grid_smallball_*_final` + `K_GLW_hierCauchy_det_close_unit_M` + Node 4 discretization.
+Mathlib has no Anderson's inequality. Either: (a) build a local Anderson on PosDef Gaussians (~200-300 LOC), or (b) sidestep via the hierCauchyG-PosDef + det-bound route to get a direct boxProb upper bound. Path (b) is shorter; once it lands, anderson_upper falls out and the remaining 6 V1 fields are mostly bookkeeping over Stages 1-5.
