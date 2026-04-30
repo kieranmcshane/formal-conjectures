@@ -190,37 +190,52 @@ the Gaussian higher-moment formula).
 -/
 
 /-- **O4 (Partial).** `IsKolmogorovProcess` for the coordinate
-projection process under `glwGaussianLimit`, with exponents
-`(p, q, M) = (2, 2, 1)` (the L²-Hölder-1 bound from the bridge file).
+projection process `fun t ω ↦ ω t` under `glwGaussianLimit`, with
+exponents `(p, q, M) = (2, 2, 1)` (the L²-Hölder-1 bound from the
+bridge file).
 
-Status: structured sorry. The `kolmogorovCondition` field reduces to
-`E[(X_s - X_t)²] = K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t) ≤ |s - t|²`,
-which is `K_GLW_diff_quadratic_le_sq` (existing bridge-file lemma).
-The remaining work is:
+Two of the four structure fields (`p_pos`, `q_pos`) are filled
+inline. The remaining two (`measurablePair`, `kolmogorovCondition`)
+are structured sorries:
 
-1. Convert `∫⁻ ω, edist (ω s) (ω t) ^ p ∂glwGaussianLimit` to the
-   bilinear-covariance form via
-   `hasLaw_restrict_glwGaussianLimit`-induced moment computation
-   (~10 lines, requires `multivariateGaussian` second-moment lemma
-   already in `MultivariateGaussian.lean:227`
-   `covariance_eval_multivariateGaussian`).
-2. Apply `glwCovMatrixNN_pairwise_diff_quadratic_le_sq` to bound the
-   covariance.
-3. Lift `q = p` to `q > p` via the Gaussian 4-th moment recipe
-   (`E[X⁴] = 3 E[X²]²` for centered Gaussians) — this is the K-C
-   threshold gap flagged above.
+* **`measurablePair`**: needs a projection-measurability lift —
+  `fun ω ↦ (ω s, ω t)` is jointly measurable on the cylindrical
+  σ-algebra. Standard one-liner via `Measurable.prodMk` once the
+  projection-measurability instance for `glwGaussianLimit` is in scope
+  (analog to `gaussianLimit`'s eval-measurability — also currently a
+  Hölder-fit gap on the BM side).
 
-R15 records the `(2, 2)` form to keep the entry-point lemma in scope;
-R16 lifts to the 4-th moment threshold-feasible form. -/
+* **`kolmogorovCondition`**: needs the Hölder-constant fit. The
+  arithmetic content is
+  `E[(ω s - ω t)²] = K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t)
+                  ≤ ((s : ℝ) - (t : ℝ))²`, supplied by
+  `glwCovMatrixNN_pairwise_diff_quadratic_le_sq` and convertible to
+  `M * edist s t ^ q` with `(q, M) = (2, 1)` modulo a `2`/`edist`
+  bookkeeping step. The reduction `∫⁻ edist² = E[(diff)²]` uses
+  `covariance_eval_multivariateGaussian` + `hasLaw_restrict_glwGaussianLimit`.
+
+Note (K-C threshold gap): the Mathlib K-C continuous-modification
+theorem requires `q > p` on a 1-D index, so the `(2, 2)` form in O4
+suffices for the **structure** but a future R16 lift to `(4, 2, 3)`
+via the centered-Gaussian 4-th moment formula `E[X⁴] = 3 E[X²]²`
+will be needed before O5's continuous modification can be obtained
+from `IsAEKolmogorovProcess.mk`. -/
 theorem glwGaussianLimit_isKolmogorovProcess :
     IsKolmogorovProcess (T := NNReal) (Ω := NNReal → ℝ) (E := ℝ)
-      (fun t ω => ω t) glwGaussianLimit 2 2 1 := by
-  -- The integrand's covariance bound is supplied by
-  -- `glwCovMatrixNN_pairwise_diff_quadratic_le_sq`. The reduction
-  -- from `∫⁻ edist^p` to `E[(X_s - X_t)^2]` follows the standard
-  -- Gaussian-process recipe (see brownian-motion's
-  -- `IsBrownianMotion.kolmogorovProcess` analog). R16 work.
-  sorry
+      (fun t ω => ω t) glwGaussianLimit 2 2 1 where
+  measurablePair := by
+    -- needs projection-measurability lift on the cylindrical σ-algebra
+    sorry
+  kolmogorovCondition := by
+    -- needs Hölder-constant fit:
+    --   ∫⁻ ω, ‖ω s - ω t‖₊^2 ∂glwGaussianLimit
+    --     = E[(ω s - ω t)²]                                       -- bilinear reduction
+    --     = K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t)                -- glwCovMatrixNN
+    --     ≤ ((s : ℝ) - (t : ℝ))²                                  -- _pairwise_diff_quadratic_le_sq
+    --     = (1 : ℝ≥0) * edist s t ^ 2.                            -- bookkeeping
+    sorry
+  p_pos := by norm_num
+  q_pos := by norm_num
 
 /-!
 ## O5 — Process-existence witness in the 9-conjunct form
