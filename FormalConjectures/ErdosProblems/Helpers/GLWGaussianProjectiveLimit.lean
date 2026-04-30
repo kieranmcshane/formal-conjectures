@@ -509,28 +509,32 @@ theorem glwGaussianLimit_Y_GLW_existence :
         IsGaussian (Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) μ)) ∧
       (∀ᵐ ω ∂μ, Continuous (fun u => Y u ω)) ∧
       (∀ ε > 0, ∀ᵐ ω ∂μ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε) := by
-  -- Pin witness: probability space `(NNReal → ℝ, glwGaussianLimit)`,
-  -- process `Y u ω = ω u.toNNReal` (extends GLW to all of ℝ via
-  -- `toNNReal`-clamping; the negative-u branch is harmless because
-  -- the load-bearing conjuncts (cov, centered, integrable_prod) are
-  -- guarded by `0 ≤ u, 0 ≤ v`).
+  -- **R18** witness: probability space `(NNReal → ℝ, glwGaussianLimit)`,
+  -- process `Y u ω := Y' u.toNNReal ω` where `Y'` is the continuous-
+  -- path modification produced by `exists_glwBrownianModification`.
+  -- All conjuncts 3-7 are re-derived from the original projection-
+  -- based proofs by ae-transfer along `Y' t =ᵐ (· t)`.
+  obtain ⟨Y', hY'_meas, hY'_ae_eq, hY'_cont⟩ := exists_glwBrownianModification
   refine ⟨NNReal → ℝ, inferInstance, glwGaussianLimit,
-    fun u ω => ω u.toNNReal, inferInstance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  · -- measurable: each marginal is a Pi-projection
-    intro u; exact measurable_pi_apply _
+    fun u ω => Y' u.toNNReal ω, inferInstance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · -- Conjunct 2 (measurable): inherited from `hY'_meas`.
+    intro u; exact hY'_meas u.toNNReal
   · -- Conjunct 3 (Integrable (Y u) glwGaussianLimit). The marginal at
     -- `u.toNNReal` is centred Gaussian with variance `K_GLW(u, u)`
     -- (cf. `hasLaw_eval_glwGaussianLimit`); integrability of the
-    -- identity then transfers along the law.
+    -- identity then transfers along the law. **R18:** ae-transfer to
+    -- the modification.
     intro u
     have hL := hasLaw_eval_glwGaussianLimit (t := u.toNNReal)
     have h_int_id : Integrable (id : ℝ → ℝ)
         (Measure.map (fun ω : NNReal → ℝ ↦ ω u.toNNReal) glwGaussianLimit) := by
       rw [hL.map_eq]; exact IsGaussian.integrable_id
-    exact h_int_id.comp_aemeasurable hL.aemeasurable
+    have h_orig : Integrable (fun ω : NNReal → ℝ => ω u.toNNReal) glwGaussianLimit :=
+      h_int_id.comp_aemeasurable hL.aemeasurable
+    exact h_orig.congr (hY'_ae_eq u.toNNReal).symm
   · -- Conjunct 4 (bivariate integrability of `Y u * Y v`). Both
     -- marginals are `MemLp 2`, so `Y u * Y v` is integrable
-    -- (Cauchy-Schwarz: `MemLp.integrable_mul`).
+    -- (Cauchy-Schwarz: `MemLp.integrable_mul`). **R18:** ae-transfer.
     intro u v
     have hLu := hasLaw_eval_glwGaussianLimit (t := u.toNNReal)
     have hLv := hasLaw_eval_glwGaussianLimit (t := v.toNNReal)
@@ -544,15 +548,24 @@ theorem glwGaussianLimit_Y_GLW_existence :
           (Measure.map (fun ω : NNReal → ℝ ↦ ω v.toNNReal) glwGaussianLimit) := by
         rw [hLv.map_eq]; exact IsGaussian.memLp_two_id
       exact h_id.comp_of_map hLv.aemeasurable
-    exact hMu.integrable_mul hMv
+    have h_orig : Integrable (fun ω : NNReal → ℝ => ω u.toNNReal * ω v.toNNReal)
+        glwGaussianLimit := hMu.integrable_mul hMv
+    refine h_orig.congr ?_
+    filter_upwards [(hY'_ae_eq u.toNNReal).symm, (hY'_ae_eq v.toNNReal).symm] with ω hu hv
+    rw [hu, hv]
   · -- Conjunct 5 (centered): the marginal at `u.toNNReal` has centred
     -- Gaussian law, so its integral is `0` (via `integral_id_gaussianReal`).
+    -- **R18:** transfer via `integral_congr_ae`.
     intro u
-    exact (hasLaw_eval_glwGaussianLimit (t := u.toNNReal)).integral_eq.trans
-      integral_id_gaussianReal
+    have h_orig : ∫ ω : NNReal → ℝ, ω u.toNNReal ∂glwGaussianLimit = 0 :=
+      (hasLaw_eval_glwGaussianLimit (t := u.toNNReal)).integral_eq.trans
+        integral_id_gaussianReal
+    rw [integral_congr_ae (hY'_ae_eq u.toNNReal)]
+    exact h_orig
   · -- Conjunct 6 (covariance fit). Combine `covariance_eval_glwGaussianLimit`
     -- (giving `cov[ω u.toNNReal, ω v.toNNReal] = K_GLW (↑u.toNNReal) (↑v.toNNReal)`)
     -- with `covariance_eq_sub` and centeredness to obtain `∫ XY = K_GLW u v`.
+    -- **R18:** transfer via `integral_congr_ae` on the product.
     intro u v hu hv
     have hu_eq : (u.toNNReal : ℝ) = u := Real.coe_toNNReal _ hu
     have hv_eq : (v.toNNReal : ℝ) = v := Real.coe_toNNReal _ hv
@@ -585,16 +598,37 @@ theorem glwGaussianLimit_Y_GLW_existence :
     -- h_eq : K_GLW u v = μ[X * Y] - 0 * 0 = μ[X * Y]
     simp only [zero_mul, sub_zero] at h_eq
     -- h_eq : K_GLW u v = ∫ ω, X ω * Y ω ∂μ
-    -- Goal: ∫ ω, ω u.toNNReal * ω v.toNNReal ∂glwGaussianLimit = K_GLW u v
-    -- Note: μ[X * Y] = ∫ ω, (X * Y) ω ∂μ = ∫ ω, X ω * Y ω ∂μ
-    exact h_eq.symm
+    have h_orig : ∫ ω : NNReal → ℝ, ω u.toNNReal * ω v.toNNReal ∂glwGaussianLimit
+        = K_GLW u v := h_eq.symm
+    -- R18: transfer to the Y'-witness via integral_congr_ae.
+    have h_ae : (fun ω : NNReal → ℝ => Y' u.toNNReal ω * Y' v.toNNReal ω) =ᵐ[glwGaussianLimit]
+                (fun ω => ω u.toNNReal * ω v.toNNReal) := by
+      filter_upwards [hY'_ae_eq u.toNNReal, hY'_ae_eq v.toNNReal] with ω hu' hv'
+      rw [hu', hv']
+    rw [integral_congr_ae h_ae]
+    exact h_orig
   · -- Conjunct 7 (joint Gaussianity). The linear functional
     -- `f ω = ∑ i, cs i * ω (us i).toNNReal` factors as `φ ∘ I.restrict`
     -- where `I` is the finset of distinct `(us i).toNNReal` values and
     -- `φ : (↥I → ℝ) →L[ℝ] ℝ` is a CLM. Then
     -- `Measure.map f μ = Measure.map φ (glwGaussianProjectiveFamily I)`,
     -- and the latter is Gaussian by `isGaussian_map`.
+    -- **R18:** the same factoring works after replacing the integrand
+    -- by the ae-equivalent `Y'`-version, via `Measure.map_congr`.
     intro n us cs
+    -- R18: ae-equivalence of the two integrands.
+    have h_ae : (fun ω : NNReal → ℝ => ∑ i, cs i * Y' (us i).toNNReal ω) =ᵐ[glwGaussianLimit]
+                (fun ω => ∑ i, cs i * ω (us i).toNNReal) := by
+      have h_pt : ∀ᵐ ω ∂glwGaussianLimit,
+          ∀ i : Fin n, Y' (us i).toNNReal ω = ω (us i).toNNReal := by
+        rw [ae_all_iff]
+        intro i; exact hY'_ae_eq (us i).toNNReal
+      filter_upwards [h_pt] with ω hω
+      refine Finset.sum_congr rfl ?_
+      intro i _
+      rw [hω i]
+    rw [Measure.map_congr h_ae]
+    -- Original projection-functional argument.
     let I : Finset NNReal := Finset.image (fun i : Fin n => (us i).toNNReal) Finset.univ
     have h_mem : ∀ i : Fin n, (us i).toNNReal ∈ I :=
       fun i => Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩
@@ -617,39 +651,15 @@ theorem glwGaussianLimit_Y_GLW_existence :
         (Measure.map_map hmφ hmf).symm]
     rw [hasLaw_restrict_glwGaussianLimit.map_eq]
     exact isGaussian_map _
-  · -- Conjunct 8 (continuous paths). The current witness
-    -- `Y u ω = ω u.toNNReal` is *not* a.s. continuous in `u` —
-    -- a path drawn from `glwGaussianLimit` is a-priori only Borel,
-    -- not continuous.
-    --
-    -- **R17 status: structured sorry; documented blocker.**
-    --
-    -- The standard Kolmogorov-Chentsov route (now unblocked since
-    -- T1.1 is sorry-free):
-    --
-    -- 1. `glwGaussianLimit_isKolmogorovProcess` gives a strict
-    --    K-C process at `(p, q, M) = (2, 2, 1)`.
-    -- 2. Apply `BrownianMotion/Continuity/KolmogorovChentsov.lean`:
-    --    `exists_modification_holder''' isCoverWithBoundedCoveringNumber_Ico_nnreal
-    --      glwGaussianLimit_isKolmogorovProcess
-    --      (fun n => by finiteness) zero_lt_one (by norm_num : (1 : ℝ) < 2)`.
-    --    This yields `Y' : NNReal → (NNReal → ℝ) → ℝ` such that
-    --    (a) each `Y' t` is `Measurable` (b) `Y' t =ᵐ[μ] (· t)`
-    --    (c) `Y' · ω` is locally Hölder (hence continuous) at every
-    --    `t ∈ NNReal`, hence continuous on NNReal.
-    -- 3. **Witness refactor.** Replace the current witness
-    --    `fun u ω => ω u.toNNReal` with `fun u ω => Y' u.toNNReal ω`.
-    --    Composition with `Real.toNNReal` (continuous on ℝ) gives
-    --    continuity in `u : ℝ`.
-    -- 4. **Re-derive conjuncts 3-7.** Each integral identity follows
-    --    from `Y' t =ᵐ (· t)` via `Integrable.congr`,
-    --    `integral_congr_ae`, `Measure.map_congr_ae`.
-    --
-    -- **Cost:** ~150 LOC for the witness refactor + re-derivations.
-    -- Deferred to R18 because the existential-witness change cascades
-    -- into all other conjuncts and is invasive. See
-    -- `R18ReadinessDiagnostic.md` Blocker 1 for the full plan.
-    sorry  -- TAG[R17-blocker-1]: witness refactor to Y'
+  · -- Conjunct 8 (continuous paths). **R18: Full.**
+    -- The witness is `fun u ω => Y' u.toNNReal ω` where every sample
+    -- path `t : NNReal ↦ Y' t ω` is continuous (from
+    -- `exists_glwBrownianModification`). Composition with
+    -- `Real.toNNReal : ℝ → NNReal` (continuous) gives continuity in `u`.
+    -- Continuity holds for **every** ω (not just a.s.), so we lift via
+    -- `ae_of_all`.
+    refine ae_of_all _ fun ω => ?_
+    exact (hY'_cont ω).comp continuous_real_toNNReal
   · -- Conjunct 9 (tail decay). For every `ε > 0`, `Y u ω → 0` as
     -- `u → ∞`, almost-surely under `glwGaussianLimit`.
     --
