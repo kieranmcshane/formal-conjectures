@@ -271,6 +271,58 @@ theorem gramMatrixL2_PosSemidef {n : ℕ} (φ : Fin n → ℝ → ℝ)
     exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
       (fun _ => sq_nonneg _)
 
+/-! ## 4.55b. Generic Gram-matrix corollaries (Mathlib-PR-shaped)
+
+The diagonal entries `gramMatrixL2 φ i i = ∫ (φᵢ)²` are the squared
+L²-norms of the family. Combined with the PSD result, these give
+clean structural identities. -/
+
+/-- The diagonal entries of `gramMatrixL2` equal the integrand-squared
+integrals (= squared L²([0,1]) norms). -/
+@[simp]
+theorem gramMatrixL2_diag_eq {n : ℕ} (φ : Fin n → ℝ → ℝ) (i : Fin n) :
+    gramMatrixL2 φ i i = ∫ s in (0 : ℝ)..1, (φ i s)^2 := by
+  rw [gramMatrixL2_apply]
+  congr 1
+  funext s
+  ring
+
+/-- Each diagonal entry of `gramMatrixL2` is non-negative. The integrand
+`(φᵢ s)²` is non-negative pointwise, so the integral over `[0, 1]` is. -/
+theorem gramMatrixL2_diag_nonneg {n : ℕ} (φ : Fin n → ℝ → ℝ)
+    (i : Fin n) :
+    0 ≤ gramMatrixL2 φ i i := by
+  rw [gramMatrixL2_diag_eq]
+  exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
+    (fun _ => sq_nonneg _)
+
+/-- The "L²-distance squared" identity:
+`∫₀¹ (φᵢ - φⱼ)² = G_{ii} + G_{jj} - 2 G_{ij}`. The deterministic
+shadow of `‖X - Y‖²_{L²(Ω)} = Var(X) + Var(Y) - 2 Cov(X, Y)`. -/
+theorem gramMatrixL2_diff_sq {n : ℕ} (φ : Fin n → ℝ → ℝ)
+    (h_cont : ∀ i, Continuous (φ i)) (i j : Fin n) :
+    ∫ s in (0 : ℝ)..1, (φ i s - φ j s)^2 =
+      gramMatrixL2 φ i i - 2 * gramMatrixL2 φ i j + gramMatrixL2 φ j j := by
+  have h_expand : (fun s : ℝ => (φ i s - φ j s)^2) =
+      fun s : ℝ => (φ i s)^2 - 2 * (φ i s * φ j s) + (φ j s)^2 := by
+    funext s; ring
+  rw [h_expand]
+  have h_ii : IntervalIntegrable (fun s : ℝ => (φ i s)^2) MeasureTheory.volume 0 1 := by
+    have h_cont_ii : Continuous (fun s : ℝ => (φ i s)^2) := (h_cont i).pow 2
+    exact h_cont_ii.intervalIntegrable 0 1
+  have h_jj : IntervalIntegrable (fun s : ℝ => (φ j s)^2) MeasureTheory.volume 0 1 := by
+    have h_cont_jj : Continuous (fun s : ℝ => (φ j s)^2) := (h_cont j).pow 2
+    exact h_cont_jj.intervalIntegrable 0 1
+  have h_ij : IntervalIntegrable (fun s : ℝ => φ i s * φ j s)
+      MeasureTheory.volume 0 1 :=
+    ((h_cont i).mul (h_cont j)).intervalIntegrable 0 1
+  have h_2ij : IntervalIntegrable (fun s : ℝ => 2 * (φ i s * φ j s))
+      MeasureTheory.volume 0 1 := h_ij.const_mul 2
+  rw [intervalIntegral.integral_add (h_ii.sub h_2ij) h_jj,
+      intervalIntegral.integral_sub h_ii h_2ij,
+      intervalIntegral.integral_const_mul,
+      gramMatrixL2_diag_eq, gramMatrixL2_diag_eq, gramMatrixL2_apply]
+
 /-! ## 4.56. K_GLW Gram-matrix as a special case of `gramMatrixL2`
 
 The K_GLW Gram matrix `glwCovMatrix us` is the generic Gram matrix
