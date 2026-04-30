@@ -1868,6 +1868,24 @@ private lemma absorb_ENN {T : ℕ} (hT : 1 ≤ T) :
   rw [h_LHS_eq]
   exact h_real
 
+/-- **R25 / step-1 (pointwise AM-QM at ENNReal).** ENNReal version of
+`am_qm_three_term`: `ofReal((L+k+2)²) ≤ 2 ofReal((L+2)²) + 2 ofReal(k²)`. -/
+private lemma am_qm_three_term_ENN (L : ℝ) (k : ℕ) :
+    ENNReal.ofReal ((L + (k : ℝ) + 2) ^ 2)
+      ≤ 2 * ENNReal.ofReal ((L + 2) ^ 2) + 2 * ENNReal.ofReal ((k : ℝ) ^ 2) := by
+  have h_real := am_qm_three_term L k
+  have h_lift : ENNReal.ofReal ((L + (k : ℝ) + 2) ^ 2)
+      ≤ ENNReal.ofReal (2 * (L + 2) ^ 2 + 2 * (k : ℝ) ^ 2) :=
+    ENNReal.ofReal_le_ofReal h_real
+  refine le_trans h_lift ?_
+  rw [ENNReal.ofReal_add (by positivity) (by positivity),
+      ENNReal.ofReal_mul (by norm_num : (0:ℝ) ≤ 2),
+      ENNReal.ofReal_mul (by norm_num : (0:ℝ) ≤ 2)]
+  have h_two : ENNReal.ofReal (2 : ℝ) = (2 : ℝ≥0∞) := by
+    rw [show (2 : ℝ) = ((2 : ℕ) : ℝ) from by norm_num, ENNReal.ofReal_natCast]
+    norm_num
+  rw [h_two]
+
 
 /-- **R23 / T2.1 (Partial → R24 Full).** Summability of the chaining moment
 constants `Cp_T_explicit T`. Per Commitment C (Grok-validated),
