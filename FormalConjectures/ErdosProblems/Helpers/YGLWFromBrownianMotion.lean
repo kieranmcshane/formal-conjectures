@@ -1828,6 +1828,11 @@ theorem K_GLW_processKernel_at_zero_left (t : NNReal) :
   rw [K_GLW_processKernel_K]
   simp [K_GLW_zero_left]
 
+/-- Final R12 capstone identity: the kernel-data witness commutes
+through the structure projections — kernel value at any pair. -/
+theorem K_GLW_processKernel_K_eq_K_GLW (s t : NNReal) :
+    K_GLW_processKernel.K s t = K_GLW (s : ℝ) (t : ℝ) := rfl
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
