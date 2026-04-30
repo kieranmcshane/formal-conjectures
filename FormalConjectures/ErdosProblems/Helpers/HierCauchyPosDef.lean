@@ -197,4 +197,32 @@ theorem hierCauchyG_isHermitian (m : ℕ) :
   rw [show star (hierCauchyG m j i) = hierCauchyG m j i from rfl]
   exact (hierCauchyG_symm m j i).trans (by rfl)
 
+/- ## §3. Cauchy integral identity `1/(a+b) = ∫₀^∞ exp(-(a+b) t) dt` -/
+
+/-- Real version of the Cauchy integral identity: for `c > 0`,
+`∫_(0,∞) exp(-c t) dt = 1/c`. Direct corollary of Mathlib's
+`integral_exp_mul_Ioi` applied with `a = -c < 0`. -/
+theorem integral_exp_neg_mul_Ioi_zero {c : ℝ} (hc : 0 < c) :
+    ∫ t : ℝ in Ioi 0, Real.exp (-c * t) = 1 / c := by
+  have h := integral_exp_mul_Ioi (a := -c) (by linarith) 0
+  -- h : ∫ x in Ioi 0, rexp (-c * x) = -rexp (-c * 0) / -c
+  rw [show (-c : ℝ) * (0 : ℝ) = 0 from by ring, Real.exp_zero] at h
+  -- Now h : ∫ x in Ioi 0, rexp (-c * x) = -1 / -c
+  rw [h]
+  have hc_ne : c ≠ 0 := ne_of_gt hc
+  field_simp
+
+/-- The Cauchy integral identity: for `a, b > 0`,
+`1/(a + b) = ∫_(0,∞) exp(-(a+b) t) dt`. This is the analytic core of the
+Cauchy-matrix Gram representation. -/
+theorem cauchy_inv_eq_integral_exp_neg {a b : ℝ} (ha : 0 < a) (hb : 0 < b) :
+    1 / (a + b) = ∫ t : ℝ in Ioi 0, Real.exp (-(a + b) * t) := by
+  have hab : 0 < a + b := add_pos ha hb
+  rw [integral_exp_neg_mul_Ioi_zero hab]
+
+/-- Integrability of `t ↦ exp(-c t)` on `Ioi 0` for `c > 0`. -/
+theorem integrableOn_exp_neg_mul_Ioi_zero {c : ℝ} (hc : 0 < c) :
+    IntegrableOn (fun t : ℝ => Real.exp (-c * t)) (Ioi 0) :=
+  integrableOn_exp_mul_Ioi (a := -c) (by linarith) 0
+
 end Erdos524.Helpers
