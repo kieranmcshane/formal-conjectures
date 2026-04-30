@@ -665,6 +665,48 @@ theorem glwCovMatrix_two_dim_det_nonneg_via_cauchy (us : Fin 2 → ℝ)
   rw [glwCovMatrix_two_dim_det_symm]
   linarith [K_GLW_cauchy_schwarz (h_us 0) (h_us 1)]
 
+/-! ## 4.12. Diagonal-entry identities and zero-grid case
+
+Round 12 additions. The diagonal entry `Mᵢᵢ = K_GLW(uᵢ, uᵢ) =
+K_GLW_aux(2·uᵢ)` is the building block of every variance / sup-bound
+calculation. The zero-grid case is the simplest non-trivial Gram
+matrix (every entry = 1). Together these give the boundary cases
+needed for the inductive grid arguments. -/
+
+/-- The diagonal of `glwCovMatrix` factors through `K_GLW_aux` applied
+to twice the grid value. -/
+theorem glwCovMatrix_diag_eq_K_GLW_aux_double {n : ℕ} (us : Fin n → ℝ)
+    (i : Fin n) :
+    glwCovMatrix us i i = K_GLW_aux (2 * us i) := by
+  rw [glwCovMatrix_diag_eq, K_GLW_def]
+  congr 1
+  ring
+
+/-- All entries of `glwCovMatrix` equal `1` when `us` is the zero
+constant grid. -/
+theorem glwCovMatrix_zero_grid_apply {n : ℕ} (i j : Fin n) :
+    glwCovMatrix (fun _ : Fin n => (0 : ℝ)) i j = 1 := by
+  rw [glwCovMatrix_apply, K_GLW_zero]
+
+/-- The K_GLW Gram matrix on the zero constant grid is the all-ones
+matrix. -/
+theorem glwCovMatrix_zero_grid {n : ℕ} :
+    glwCovMatrix (fun _ : Fin n => (0 : ℝ)) =
+      Matrix.of (fun _ _ : Fin n => (1 : ℝ)) := by
+  ext i j
+  exact glwCovMatrix_zero_grid_apply i j
+
+/-- The constant-grid `glwCovMatrix` is positive semi-definite — direct
+specialisation of `glwCovMatrix_PosSemidef`. -/
+theorem glwCovMatrix_const_grid_PosSemidef {n : ℕ} {c : ℝ} (hc : 0 ≤ c) :
+    (glwCovMatrix (fun _ : Fin n => c)).PosSemidef :=
+  glwCovMatrix_PosSemidef _ (fun _ => hc)
+
+/-- The zero-grid `glwCovMatrix` is positive semi-definite. -/
+theorem glwCovMatrix_zero_grid_PosSemidef {n : ℕ} :
+    (glwCovMatrix (fun _ : Fin n => (0 : ℝ))).PosSemidef :=
+  glwCovMatrix_const_grid_PosSemidef le_rfl
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
