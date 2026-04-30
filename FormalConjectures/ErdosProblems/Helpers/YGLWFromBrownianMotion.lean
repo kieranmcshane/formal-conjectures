@@ -3266,8 +3266,9 @@ for the full diagnostic and updated R14 procedure recommendations.
 
 ### R13 Tier 4 deliverables — final tally
 
-R13 (combining initial Tier 4 + post-retry Tier 4) produced **twenty-four**
-new sub-sections (~1220 lines of new theorems, all sorry-free):
+R13 (combining initial Tier 4 + post-retry Tier 4) produced **twenty-five**
+new sub-sections (~1260 lines of new theorems, all sorry-free), capped
+by an R14-readiness capstone:
 
 * §4.25 — Extended `ProcessKernel` Hölder corollaries
 * §4.26 — Extended `K_GLW_processKernel` corollaries
@@ -3291,6 +3292,8 @@ new sub-sections (~1220 lines of new theorems, all sorry-free):
 * §4.46 — Combined "all-in-one" downstream bound bundles
 * §4.47 — Determinant non-negativity + empty/singleton det values
 * §4.48 — kernelMatrix entry-level Ioc/Icc membership + four-fact bundle
+* §4.49 — **R14-readiness capstone**: single ∃-statement packaging all
+  kernel-side data needed for `Y_GLW_exists` retirement
 
 ### Net axiom count (post-R13)
 
