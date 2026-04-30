@@ -129,4 +129,21 @@ example {ε : ℝ} (hε : 0 < ε) :
         (Real.sqrt (hierCauchyG 1).det)⁻¹ :=
   gaussianHierCauchy_box_anderson_upper (by norm_num) hε
 
+/-! ## Round 10 — Reformulation via realMatrixSqrt det
+
+Equivalent form of the Anderson upper bound using the realMatrixSqrt
+determinant identity `(realMatrixSqrt M).det = sqrt(det M)`. -/
+
+/-- Anderson upper bound rewritten using `(realMatrixSqrt _).det` instead of
+`Real.sqrt _.det`. -/
+theorem glwBoxProb_anderson_upper_via_sqrt {m : ℕ} (hm : 1 ≤ m)
+    {ε : ℝ} (hε : 0 < ε) :
+    glwBoxProb m ε ≤
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+        ((realMatrixSqrt (hierCauchyG m)).det)⁻¹ := by
+  classical
+  rw [hierCauchyG_realMatrixSqrt_det m hm]
+  exact glwBoxProb_anderson_upper_v1 hm hε
+
 end Erdos524.Helpers
