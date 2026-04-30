@@ -126,4 +126,15 @@ theorem glwBoxProb_anderson_upper_via_round9 {m : ℕ}
   unfold glwBoxProb gaussianHierCauchy
   exact mvGaussian_isotropic_box_density_at_mode_bound_rpow hPosDef hε
 
+/-- V1-instance-shaped form: `Fintype.card (Fin m × Fin m) = m * m`. -/
+theorem glwBoxProb_anderson_upper_via_round9_mm {m : ℕ}
+    (hPosDef : (hierCauchyG m).PosDef) {ε : ℝ} (hε : 0 ≤ ε) :
+    glwBoxProb m ε ≤
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+        (Real.sqrt (hierCauchyG m).det)⁻¹ := by
+  have h := glwBoxProb_anderson_upper_via_round9 hPosDef hε
+  rwa [show Fintype.card (Fin m × Fin m) = m * m from by
+        rw [Fintype.card_prod, Fintype.card_fin]] at h
+
 end Erdos524.Helpers
