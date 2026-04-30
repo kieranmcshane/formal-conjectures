@@ -164,6 +164,25 @@ theorem sqrt_det_nonneg_of_posDef [DecidableEq n]
     {M : Matrix n n ℝ} (hM : M.PosDef) : 0 ≤ Real.sqrt M.det :=
   le_of_lt (sqrt_det_pos_of_posDef hM)
 
+/-! ## Round 9 — Convenience: `c • 1` is PosDef for `c > 0`
+
+A small constructor lemma: scalar multiples of the identity by a positive
+constant are PosDef. This is a clean Mathlib-style derived lemma reusing
+`Matrix.PosDef.diagonal`. Useful for the scalar-covariance V1 instance
+(the `c • 1` Gaussian) and any other consumer that wants to instantiate
+`mvGaussian_box_density_at_mode_bound` at a scalar covariance.
+-/
+
+theorem smul_one_PosDef [DecidableEq n] {c : ℝ} (hc : 0 < c) :
+    (c • (1 : Matrix n n ℝ)).PosDef := by
+  rw [show (c • (1 : Matrix n n ℝ)) = Matrix.diagonal (fun _ : n => c) from ?_]
+  · exact Matrix.PosDef.diagonal (fun _ => hc)
+  · ext i j
+    by_cases hij : i = j
+    · subst hij
+      simp [Matrix.diagonal_apply_eq, Matrix.smul_apply, Matrix.one_apply_eq]
+    · simp [Matrix.smul_apply, hij]
+
 /-! ## Round 9 — Determinant of the symmetric square root
 
 For a PosDef matrix `M`, the symmetric square root `realMatrixSqrt M` (= `CFC.sqrt M`)
