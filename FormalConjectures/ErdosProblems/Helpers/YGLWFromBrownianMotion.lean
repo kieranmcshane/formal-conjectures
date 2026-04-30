@@ -1368,6 +1368,36 @@ theorem glwCovMatrixNN_frobenius_sq_nonneg (I : Finset NNReal) :
   intros t _
   exact sq_nonneg _
 
+/-! ### Continuity of `glwCovMatrix` entries in the grid argument
+
+K_GLW is jointly continuous (proved as `K_GLW_continuous` in
+`GLWKernel.lean`). This lifts to entry-wise continuity of
+`glwCovMatrix us i j` as a function of `us : Fin n → ℝ`. -/
+
+/-- Each entry `glwCovMatrix us i j` is continuous as a function of
+the grid `us : Fin n → ℝ`. -/
+theorem glwCovMatrix_apply_continuous {n : ℕ} (i j : Fin n) :
+    Continuous (fun us : Fin n → ℝ => glwCovMatrix us i j) := by
+  show Continuous (fun us : Fin n → ℝ => K_GLW (us i) (us j))
+  have h_pair : Continuous (fun us : Fin n → ℝ => (us i, us j)) :=
+    Continuous.prodMk (continuous_apply i) (continuous_apply j)
+  exact K_GLW_continuous.comp h_pair
+
+/-- Each diagonal `glwCovMatrix us i i` is continuous as a function of
+the grid. -/
+theorem glwCovMatrix_diag_continuous {n : ℕ} (i : Fin n) :
+    Continuous (fun us : Fin n → ℝ => glwCovMatrix us i i) :=
+  glwCovMatrix_apply_continuous i i
+
+/-- The trace `tr(glwCovMatrix us)` is continuous as a function of the
+grid. -/
+theorem glwCovMatrix_trace_continuous {n : ℕ} :
+    Continuous (fun us : Fin n → ℝ => (glwCovMatrix us).trace) := by
+  show Continuous (fun us : Fin n → ℝ => ∑ i : Fin n, (glwCovMatrix us).diag i)
+  apply continuous_finset_sum
+  intros i _
+  exact glwCovMatrix_diag_continuous i
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
