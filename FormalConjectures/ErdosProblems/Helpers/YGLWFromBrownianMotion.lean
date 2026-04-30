@@ -1547,6 +1547,39 @@ theorem glwCovMatrixNN_grid_nonneg (I : Finset NNReal)
     (s : {x : NNReal // x ∈ I}) :
     0 ≤ (s.1 : ℝ) := NNReal.coe_nonneg _
 
+/-! ### NNReal-grid value-bound corollaries on a positive grid
+
+For a Finset where every element is positive (`∀ s ∈ I, 0 < s`), all
+the variance-decay bounds tighten to strict inequalities. -/
+
+/-- All diagonal entries are strictly less than `1` on a strictly
+positive Finset. -/
+theorem glwCovMatrixNN_diag_lt_one_of_pos
+    {I : Finset NNReal} (h_pos : ∀ s ∈ I, (0 : NNReal) < s)
+    (s : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s s < 1 :=
+  glwCovMatrixNN_diag_lt_one I s
+    (by exact_mod_cast h_pos s.1 s.2)
+
+/-- All diagonals are bounded above by `1/(2(s:ℝ))` on a strictly
+positive Finset. -/
+theorem glwCovMatrixNN_diag_le_recip_of_pos
+    {I : Finset NNReal} (h_pos : ∀ s ∈ I, (0 : NNReal) < s)
+    (s : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s s ≤ 1 / (2 * (s.1 : ℝ)) :=
+  glwCovMatrixNN_diag_le_recip I s
+    (by exact_mod_cast h_pos s.1 s.2)
+
+/-- The trace bound tightens to `Σₛ 1/(2 s)` on a strictly positive Finset. -/
+theorem glwCovMatrixNN_trace_le_recip_sum
+    {I : Finset NNReal} (h_pos : ∀ s ∈ I, (0 : NNReal) < s) :
+    (glwCovMatrixNN I).trace ≤
+      ∑ s : {x : NNReal // x ∈ I}, 1 / (2 * (s.1 : ℝ)) := by
+  rw [Matrix.trace]
+  apply Finset.sum_le_sum
+  intros s _
+  exact glwCovMatrixNN_diag_le_recip_of_pos h_pos s
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
