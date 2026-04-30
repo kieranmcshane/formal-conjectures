@@ -3678,6 +3678,46 @@ copies coupled jointly, with independence of the limits) is a Chojecki-specific
 refinement beyond KMT. Once 1D KMT is in Mathlib, the 2D version follows from
 an independence/coupling argument that is much shorter.
 
+**Letwin–Sawhney 2026 refinement (arXiv:2604.19294).** Letwin and Sawhney
+show that the *2D* coupling appearing in Chojecki Lemma 13 does *not*
+require Zaitsev-style 2D-vector KMT. Instead, two **independent**
+applications of the classical *1D* KMT — one to the "+ branch" partial
+sums `Σ a_k e^{-uk/n}` and one to the "− branch" partial sums
+`Σ a_k (-e^{-u/n})^k` — suffice. The independence of `Y⁺, Y⁻` is then
+*built in* by construction (the two 1D couplings use independent Brownian
+motions `B⁺, B⁻`), and the joint sup-error bound retains the
+`O(log n / √n)` rate.
+
+**Reference.** *Letwin–Sawhney 2026, Lemma 4.7* (arXiv:2604.19294,
+"On polynomial small-ball estimates"): explicit statement that for two
+sequences of partial sums of independent Rademacher random variables with
+distinct deterministic kernels, joint coupling to Gaussian limits via
+two independent applications of 1D KMT preserves both the sup-error rate
+and the independence of the Gaussian limits.
+
+**Why this matters for retirement.** With the LS reduction in place, the
+formalization roadmap is:
+
+1. **Step 1 — 1D KMT in Mathlib.** Single major formalization target;
+   tracked separately. Once available, the rest is mechanical.
+2. **Step 2 — Apply 1D KMT twice.** Once to the `+`-branch sequence,
+   once to the `−`-branch sequence, each using a fresh Brownian motion
+   carried on the same enriched space.
+3. **Step 3 — Independence.** Routine: products of independent measure-
+   preserving constructions are independent; uses
+   `ProbabilityTheory.IndepFun_iff_pi_map_eq` (already in Mathlib).
+4. **Step 4 — Sample-path regularity.** Continuity & tail decay flow from
+   the Itô-integral structure of the limiting Gaussians (already
+   formalised in `brownian-motion`'s `KolmogorovChentsov` +
+   `gaussianLimit` infrastructure).
+
+The "2D KMT" framing in this axiom is therefore *expositional* — the
+underlying mathematical content is two 1D couplings glued by
+independence, not a genuinely two-dimensional invariance principle. R15
+or R16 should retire this axiom by following the four-step LS roadmap as
+soon as 1D KMT lands in Mathlib (or via the `brownian-motion`
+dependency, which is the more likely upstream path).
+
 **Sample-path regularity conjuncts.** The two Gaussian limits `Y±` are Itô
 integrals against the deterministic L² kernels `s ↦ ±e^{-us}` (built on the
 independent Brownian motions `B±`). Two mathematical corollaries flow from
