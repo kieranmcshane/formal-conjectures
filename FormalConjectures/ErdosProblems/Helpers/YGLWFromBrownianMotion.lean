@@ -2515,6 +2515,63 @@ theorem K_GLW_processKernel_K_diag_tendsto_zero :
     NNReal.tendsto_coe_atTop.mpr Filter.tendsto_id
   exact h_real.comp h_coe
 
+/-! ## 4.38. K_GLW_processKernel — auxiliary scalar bounds and norm-style facts
+
+Additional scalar bounds on the GLW process kernel useful for downstream
+lower-bound arguments, all derived from existing infrastructure. -/
+
+/-- The off-diagonal kernel value squared bound:
+`K(s, t)² ≤ K(s, t) · 1` (since `K ≤ 1`). -/
+theorem K_GLW_processKernel_sq_le_self (s t : NNReal) :
+    (K_GLW_processKernel.K s t)^2 ≤ K_GLW_processKernel.K s t := by
+  have h_pos := K_GLW_processKernel_pos s t
+  have h_le := K_GLW_processKernel_le_one s t
+  nlinarith
+
+/-- The kernel value lies in `[K(s,t)², 1]`: a sandwich. -/
+theorem K_GLW_processKernel_sandwich (s t : NNReal) :
+    (K_GLW_processKernel.K s t)^2 ≤ K_GLW_processKernel.K s t ∧
+      K_GLW_processKernel.K s t ≤ 1 :=
+  ⟨K_GLW_processKernel_sq_le_self s t, K_GLW_processKernel_le_one s t⟩
+
+/-- The product `K(s, t) · K(t, u)` is non-negative and bounded above by `1`. -/
+theorem K_GLW_processKernel_prod_le_one (s t u v : NNReal) :
+    K_GLW_processKernel.K s t * K_GLW_processKernel.K u v ≤ 1 := by
+  have h1 := K_GLW_processKernel_pos s t
+  have h2 := K_GLW_processKernel_pos u v
+  have h1' := K_GLW_processKernel_le_one s t
+  have h2' := K_GLW_processKernel_le_one u v
+  nlinarith
+
+/-- The product of two kernel values is non-negative. -/
+theorem K_GLW_processKernel_prod_nonneg (s t u v : NNReal) :
+    0 ≤ K_GLW_processKernel.K s t * K_GLW_processKernel.K u v :=
+  mul_nonneg (le_of_lt (K_GLW_processKernel_pos s t))
+             (le_of_lt (K_GLW_processKernel_pos u v))
+
+/-- `1 - K(s, t)` is non-negative, since `K(s, t) ≤ 1`. -/
+theorem K_GLW_processKernel_one_minus_nonneg (s t : NNReal) :
+    0 ≤ 1 - K_GLW_processKernel.K s t := by
+  have := K_GLW_processKernel_le_one s t
+  linarith
+
+/-- `K(s, t) + K(s', t') ≤ 2` for any quadruple. -/
+theorem K_GLW_processKernel_sum_le_two (s t s' t' : NNReal) :
+    K_GLW_processKernel.K s t + K_GLW_processKernel.K s' t' ≤ 2 := by
+  have h1 := K_GLW_processKernel_le_one s t
+  have h2 := K_GLW_processKernel_le_one s' t'
+  linarith
+
+/-- The kernel difference `K(s, t) - K(s', t')` is bounded in `[-1, 1]`. -/
+theorem K_GLW_processKernel_diff_bounded (s t s' t' : NNReal) :
+    |K_GLW_processKernel.K s t - K_GLW_processKernel.K s' t'| ≤ 1 := by
+  have h1_pos := K_GLW_processKernel_pos s t
+  have h2_pos := K_GLW_processKernel_pos s' t'
+  have h1_le := K_GLW_processKernel_le_one s t
+  have h2_le := K_GLW_processKernel_le_one s' t'
+  rw [abs_le]
+  constructor <;> linarith
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
