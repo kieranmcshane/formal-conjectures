@@ -2556,6 +2556,60 @@ retiring `Y_GLW_exists` reduces to applying:
 
 Each step is a substitution at the call site. The diagnostic file
 `ToolchainBumpDiagnostic.md` documents the R13 setup procedure in
-detail. -/
+detail.
+
+### Round 13 — Tier 1 outcome (2026-04-30)
+
+The R13 Tier-1 pin attempt (downgrade `v4.27.0 → v4.27.0-rc1`,
+Mathlib pin `25ce63313608`, brownian-motion `91267abd`,
+kolmogorov_extension4 `2c2b44e55251`) was reverted at minute ~7
+under the 15-min HARD CAP, but with strong positive signal:
+
+* `lake update` succeeded in ~33 s (deps + Mathlib cache fetched).
+* `lake build` reached **7891 / 7893 jobs** before failing on **4
+  files**:
+  - 2 trivial `Set.self_mem_Ici → Set.left_mem_Ici` renames in
+    `EndpointReparametrization.lean` and `CentralBinomLower.lean`
+  - 2 unrelated `FormalConjecturesForMathlib` API drift fixes
+    (`GCDMonoid/Finset.lean:27`, `Powerfree.lean:81`) — **none of
+    these are on the GLW dependency path**.
+* The complete GLW chain (`GLWKernel`, `GLWProcess`,
+  `GLWProcessPredicate`, `GLWLowerProof`, `GLWUpperProof`,
+  `IndepSetBridge`, `StandardMVGaussian`, `MVGaussianFromPosDef`,
+  `MVGaussianPushforward`, `CholeskyExistence`) **built cleanly under
+  the pin**. Once R14 patches the 4 unrelated blockers, the actual
+  `Y_GLW_exists` retirement work is unblocked.
+
+See `ToolchainBumpDiagnostic.md §R13` for the full diagnostic.
+
+### Round 13 — Tier 4 deliverables (this file)
+
+R13 also added eight new sub-sections (~520 lines, 51 new theorems)
+strengthening the bridge with reusable kernel-side infrastructure for
+R14+:
+
+* §4.25 — Extended `ProcessKernel` Hölder corollaries (lower-bound
+  forms, three-point Hölder, scaled Hölder, reflexivity)
+* §4.26 — Extended `K_GLW_processKernel` corollaries (singleton/pair
+  PSD, three-pair sum bounds)
+* §4.27 — `ProcessKernel.K_diag_nonneg` proven via abstract
+  `Matrix.PosSemidef.diag_nonneg`
+* §4.28 — K_GLW_processKernel pair-level Cauchy-Schwarz +
+  discriminant-non-negative + abs-≤-sqrt(prod) bounds
+* §4.29 — `ProcessKernel.kernelMatrix` packaged matrix abstraction
+  (PSD, isHermitian, trace, quadratic-form, consistent)
+* §4.30 — Structural lifts of `glwCovMatrixNN` lemmas to
+  `K_GLW_processKernel.kernelMatrix` (entry, diag, trace, sum,
+  submatrix PSD)
+* §4.31-4.32 — Quadratic-form lifts + explicit K(0,t), K(s,0), K(s,s)
+  closed-form expressions
+* §4.33-4.34 — General K(s,t) explicit formula and integral/Mercer
+  representation lifted to `K_GLW_processKernel`
+
+### Net axiom count (post-R13)
+
+Still 2 axioms (`Y_GLW_exists`, `two_dim_KMT_coupling`). The R13
+deliverables prepare the ground for R14 retirement of
+`Y_GLW_exists` via the pin + 4-file patch pathway. -/
 
 end Erdos524.Helpers
