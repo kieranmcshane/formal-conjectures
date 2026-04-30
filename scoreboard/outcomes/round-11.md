@@ -26,20 +26,34 @@ satisfied by the deterministic-analytic content of
 Pred 1 and Pred 4 resolve **PARTIAL** (bridge file proven, but the
 axiom itself is intact pending toolchain alignment).
 
-## Files added
+## Files added (final state)
 
-* `Helpers/YGLWConstruction.lean` (~880 lines, 7 commits): the
+* `Helpers/YGLWConstruction.lean` (893 lines, 7 commits): the
   deterministic-analytic skeleton — covariance integral identity,
   Mercer L²-inner-product representation, K_GLW positive
   semi-definiteness, Cauchy–Schwarz, variance-decay roadmap, L²
   Hölder-1 bound for Kolmogorov–Chentsov, K_GLW antitone-on-diagonal,
   marginal expectation identity.
-* `Helpers/YGLWFromBrownianMotion.lean` (230 lines): the bridge file
-  — `glwCovMatrix`, `glwCovMatrix_isHermitian`,
+* `Helpers/YGLWFromBrownianMotion.lean` (552 lines, 8 commits): the
+  bridge file — `glwCovMatrix`, `glwCovMatrix_isHermitian`,
   **`glwCovMatrix_PosSemidef`** (the main contribution: proven via
-  `K_GLW_quadratic_form_nonneg`), explicit diagonal entries, and
-  documented BLOCKERs B1–B5 specifying which `brownian-motion`
-  project API calls are needed.
+  `K_GLW_quadratic_form_nonneg`), explicit diagonal entries,
+  **kernel-generic** abstractions `gramMatrixL2`,
+  `gramMatrixL2_PosSemidef`, `gramMatrixL2_diag_eq`,
+  `gramMatrixL2_diff_sq`, `gramMatrixL2_smul_family`, `gramMatrixL2_zero`;
+  K_GLW special cases `glwCovMatrix_eq_gramMatrixL2`,
+  `glwCovMatrix_PosSemidef_via_gramMatrixL2`;
+  submatrix / sub-grid restriction `gramMatrixL2_submatrix`,
+  `glwCovMatrix_submatrix`, `glwCovMatrix_submatrix_PosSemidef`
+  (the BLOCKER-B2 precondition); det/trace bounds
+  `glwCovMatrix_det_nonneg`, `glwCovMatrix_trace_nonneg`,
+  `glwCovMatrix_trace_le`; entry-wise `glwCovMatrix_entry_pos`,
+  `glwCovMatrix_entry_le_one`, `glwCovMatrix_diag_at_zero`; and
+  documented BLOCKERs B1–B5 with PRECONDITION SATISFIED for B1, B2,
+  B4, B5 (only B3 — the abstract projective-limit — requires the
+  `brownian-motion` project's API).
+
+**Total: 1445 lines, 18 substantive Round 11 commits.**
 
 ## Cross-reference updates
 
