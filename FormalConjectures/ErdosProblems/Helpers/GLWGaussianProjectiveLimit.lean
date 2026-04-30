@@ -18,6 +18,7 @@ import BrownianMotion.Gaussian.ProjectiveLimit
 import BrownianMotion.Continuity.HasBoundedInternalCoveringNumber
 import BrownianMotion.Continuity.KolmogorovChentsov
 import Mathlib.Topology.Instances.NNReal.Lemmas
+import Mathlib.Analysis.PSeries
 
 /-!
 # Phase 2 / Round 15 — GLW Gaussian projective limit
@@ -1644,15 +1645,116 @@ deserves its own engineering pass. R22 isolates this as a single
 named `sorry` and routes the conjunct-9 closure through it; R23
 discharges it. -/
 
-/-- **R22 / T4.3 (Stub — explicit asymptotic bound).** Summability of
-the chaining moment constants `Cp_T_explicit T`. Per Commitment C,
-`Cp_T_explicit T = O(1/T²)`, hence summable. The Lean proof requires
-unfolding `constL` and bounding the dyadic-tsum + log² factor; this is
-the **single isolated sorry remaining in `GLWGaussianProjectiveLimit.lean`
-after R22**, deferred to R23. -/
+/-! ## R23 / T2.1 — discharge of `tsum_Cp_T_explicit_lt_top_R22`
+
+Strategy (Grok-validated, α = 1/2 / p = 3/2 route): bound
+`Cp_T_explicit T ≤ ENNReal.ofReal (boundReal T)` for a real-valued
+summable function `boundReal`, then apply `ENNReal.tsum_le_tsum` and
+`ENNReal.ofReal_tsum_of_nonneg`.
+
+The asymptotic is `Cp_T_explicit T = Θ((log T)²/T²) = O(1/T^(3/2))`,
+proved uniformly via `Real.log_le_rpow_div` at α = 1/4 (squaring gives
+`(log x)² ≤ 16 √x`, hence `(log T)² / T² ≤ 16/T^(3/2)`).
+
+The unfolding of `constL` is mechanical: separate the inner dyadic
+tsum from the `T`-dependence using the Cauchy-Schwarz split
+`(L + (k+2))² ≤ 2L² + 2(k+2)²`. -/
+
+/-- **R23 / T2.1 (auxiliary).** Logarithmic asymptotic: for `x ≥ 1`,
+`(Real.log x)^2 ≤ 16 * x^(1/2)` (uniform via `Real.log_le_rpow_div`
+at α = 1/4). -/
+private lemma log_sq_le_sqrt {x : ℝ} (hx : 1 ≤ x) :
+    (Real.log x) ^ 2 ≤ 16 * x ^ (1 / 2 : ℝ) := by
+  have hx_nn : 0 ≤ x := by linarith
+  have h_log_nn : 0 ≤ Real.log x := Real.log_nonneg hx
+  have h_log_le : Real.log x ≤ 4 * x ^ (1 / 4 : ℝ) := by
+    have h := Real.log_le_rpow_div hx_nn (by norm_num : (0 : ℝ) < 1 / 4)
+    linarith
+  have h_pow_eq : (x ^ (1 / 4 : ℝ)) ^ 2 = x ^ (1 / 2 : ℝ) := by
+    have hx_pos : 0 < x := lt_of_lt_of_le zero_lt_one hx
+    rw [sq, ← Real.rpow_add hx_pos]
+    norm_num
+  calc (Real.log x) ^ 2
+      ≤ (4 * x ^ (1 / 4 : ℝ)) ^ 2 := by
+        have h_sq := sq_le_sq' (by linarith : -(4 * x ^ (1 / 4 : ℝ)) ≤ Real.log x) h_log_le
+        linarith
+    _ = 16 * (x ^ (1 / 4 : ℝ)) ^ 2 := by ring
+    _ = 16 * x ^ (1 / 2 : ℝ) := by rw [h_pow_eq]
+
+/-- **R23 / T2.1 (auxiliary, summable bound).** Summability of
+`K / (T+1)^(3/2)` for any positive constant K. Used as the
+asymptotic upper bound for `Cp_T_explicit T`. -/
+private lemma summable_K_div_succ_rpow_three_halves (K : ℝ) :
+    Summable (fun T : ℕ => K / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) := by
+  -- Reduce to `Real.summable_one_div_nat_rpow` at p = 3/2 > 1.
+  have h_base : Summable (fun T : ℕ => 1 / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) := by
+    have h_p : Summable (fun n : ℕ => 1 / (n : ℝ) ^ (3 / 2 : ℝ)) :=
+      Real.summable_one_div_nat_rpow.mpr (by norm_num : (1 : ℝ) < 3 / 2)
+    have h_shift := (summable_nat_add_iff (G := ℝ) 1).mpr h_p
+    exact h_shift.congr (fun n => by push_cast; rfl)
+  exact h_base.mul_left K |>.congr (fun n => by ring)
+
+/-- **R23 / T2.1 (auxiliary).** A.s. nonnegativity of the bound, for
+the `ENNReal.ofReal_tsum_of_nonneg` step. -/
+private lemma K_div_succ_rpow_nonneg (K : ℝ) (hK : 0 ≤ K) :
+    ∀ T : ℕ, 0 ≤ K / ((T : ℝ) + 1) ^ (3 / 2 : ℝ) := by
+  intro T
+  have h_pos : (0 : ℝ) < ((T : ℝ) + 1) ^ (3 / 2 : ℝ) :=
+    Real.rpow_pos_of_pos (by positivity) _
+  positivity
+
+/-! ## R23 / T2.1 (PARTIAL)
+
+The asymptotic bound `Cp_T_explicit T = O((log T)²/T²) = O(1/T^(3/2))`
+is supplied through `log_sq_le_sqrt` (uniform `(log x)² ≤ 16√x` for
+`x ≥ 1`) and the chain of `constL` unfoldings + Cauchy-Schwarz on
+`(L+(k+2))² ≤ 2L² + 2(k+2)²`. Per Grok validation the math is
+flawless; the obstacle is the substantial ENNReal arithmetic plumbing
+needed to expose `constL` and propagate the bound through the inner
+dyadic tsum (`~150-300 LOC` per the R22 manifest's projection).
+
+R23 lands the **summability of the bound itself** as Full
+(`summable_K_div_succ_rpow_three_halves`) and the **uniform
+logarithmic asymptotic** as Full (`log_sq_le_sqrt`); the *pointwise*
+bound `Cp_T_explicit T ≤ ENNReal.ofReal (K / (T+1)^(3/2))` remains
+the residual sorry, gated on the constL-unfolding plumbing. -/
+
+/-- **R23 / T2.1 (Partial).** Summability of the chaining moment
+constants `Cp_T_explicit T`. Per Commitment C (Grok-validated),
+`Cp_T_explicit T = O((log T)²/T²) = O(1/T^(3/2))`. The summability of
+the bound side is Full (via `Real.summable_one_div_nat_rpow` at
+p = 3/2). The residual sorry is the **per-T pointwise bound**, which
+needs the `constL` unfolding + Cauchy-Schwarz inner-dyadic split. -/
 private theorem tsum_Cp_T_explicit_lt_top_R22 :
     (∑' T : ℕ, Cp_T_explicit T) < ∞ := by
-  sorry  -- TAG[R22-Cp-summability]: Cp_T_explicit T = O(1/T²); see R22APIScoping.md (Commitment C).
+  -- Plan: Cp_T_explicit T ≤ ENNReal.ofReal (K_total / (T+1)^(3/2)) for an absolute K_total.
+  -- Then ∑' T, ofReal(K_total / (T+1)^(3/2)) = ofReal(K_total · ∑' 1/(T+1)^(3/2)) < ∞.
+  -- The asymptotic (log T)² ≤ 16√T (`log_sq_le_sqrt`) reduces (log T)²/T² to 16/T^(3/2).
+  -- Set K_total to a sufficiently large absolute constant.
+  set K_total : ℝ := 2 ^ 30 with hK_total_def  -- generous absolute upper bound
+  have hK_nn : (0 : ℝ) ≤ K_total := by positivity
+  -- Pointwise bound. For T = 0: Cp_T_explicit 0 = 0 (since M_0 = 0); trivial.
+  -- For T ≥ 1: requires the constL unfolding (residual sorry, R23-Partial).
+  have h_bound : ∀ T : ℕ,
+      Cp_T_explicit T ≤ ENNReal.ofReal (K_total / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) := by
+    intro T
+    by_cases hT0 : T = 0
+    · -- Cp_T_explicit 0 = ofReal(0) * constL = 0.
+      subst hT0
+      have h_M0 : Real.toNNReal (1 / (2 * ((0 : ℕ) : ℝ) ^ 3)) = 0 := by
+        simp
+      simp only [Cp_T_explicit, h_M0, ENNReal.coe_zero, zero_mul]
+      exact zero_le _
+    · -- T ≥ 1: residual sorry on the asymptotic bound.
+      sorry  -- TAG[R23-bound-pointwise]: needs constL unfolding + Cauchy-Schwarz inner-dyadic split.
+  have h_summable := summable_K_div_succ_rpow_three_halves K_total
+  have h_nonneg := K_div_succ_rpow_nonneg K_total hK_nn
+  calc (∑' T : ℕ, Cp_T_explicit T)
+      ≤ ∑' T : ℕ, ENNReal.ofReal (K_total / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) :=
+        ENNReal.tsum_le_tsum h_bound
+    _ = ENNReal.ofReal (∑' T : ℕ, K_total / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) :=
+        (ENNReal.ofReal_tsum_of_nonneg h_nonneg h_summable).symm
+    _ < ∞ := ENNReal.ofReal_lt_top
 
 /-! ## R22 / T4.3 — block-event summability and Borel-Cantelli
 
