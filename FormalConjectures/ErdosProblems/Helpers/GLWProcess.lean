@@ -79,11 +79,27 @@ measures does **not** imply integrability of `Y u` itself (different measure).
 * **L² Hölder-1 bound** `‖exp(-u·) - exp(-v·)‖²_{L²([0,1])} ≤ |u - v|²`
   (deterministic ground floor for Kolmogorov–Chentsov continuous paths).
 
-Until Mathlib gains Brownian motion + Wiener integral (the documented
-BLOCKERs in `YGLWConstruction.lean`), the axiom cannot be discharged
-to a theorem. When those land, the discharge reduces to a one-line
-application of the Itô isometry plus Kolmogorov–Chentsov, with all the
-analytic content already in place.
+The companion bridge file `Helpers/YGLWFromBrownianMotion.lean`
+packages the matrix-side preconditions for an eventual retirement via
+the [Degenne–Pfaffelhuber `brownian-motion`]
+(https://github.com/RemyDegenne/brownian-motion) project (which already
+implements the kernel-generic projective-limit construction). It
+proves:
+
+* `glwCovMatrix`: the K_GLW finite-grid Gram matrix.
+* `glwCovMatrix_PosSemidef`: positive semi-definiteness, the
+  precondition for `multivariateGaussian`.
+* `gramMatrixL2_PosSemidef`: a **Mathlib-PR-shaped abstraction**
+  showing that the Gram matrix of any continuous family of L²([0,1])
+  functions is PSD; `glwCovMatrix_PosSemidef` is the K_GLW special
+  case.
+
+Until the `brownian-motion` project's API is available in our
+toolchain (toolchain alignment pending), the axiom cannot be
+discharged to a theorem. When that lands, the discharge reduces to a
+5-step proof in `YGLWFromBrownianMotion.lean`, each step a one-line
+application of a project-API call to the kernel-side content already
+proved.
 -/
 
 namespace Erdos524.Helpers
