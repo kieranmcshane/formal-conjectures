@@ -151,11 +151,11 @@ trivially PosDef (`localSchur_posDef` field) and unit-conditioned
 noncomputable def glwLocalSchur (_m : ℕ) (_p : Fin _m) : Matrix (Fin _m) (Fin _m) ℝ :=
   1
 
-theorem glwLocalSchur_posDef (m : ℕ) (hm : 1 ≤ m) (p : Fin m) :
+theorem glwLocalSchur_posDef (m : ℕ) (_hm : 1 ≤ m) (p : Fin m) :
     (glwLocalSchur m p).PosDef := by
   unfold glwLocalSchur
   -- The identity matrix is PosDef on a Fintype with a nonempty index.
-  haveI : NeZero m := ⟨by omega⟩
+  haveI : NeZero m := ⟨Nat.pos_iff_ne_zero.mp p.pos⟩
   exact Matrix.PosDef.one
 
 /-! ## V1 field — `glwBlockBox_measurable` (Round 5)
