@@ -3009,6 +3009,45 @@ theorem K_GLW_processKernel_kernelMatrix_full_entry_data
    K_GLW_processKernel_kernelMatrix_swap I s t,
    K_GLW_processKernel_kernelMatrix_entry_sq_le_diag_prod I s t⟩
 
+/-! ## 4.49. R14-readiness facade: the complete kernel-side data bundle
+
+A single capstone theorem packaging EVERYTHING R14 needs from this
+bridge file to retire `Y_GLW_exists` once the brownian-motion API is
+in scope. This is the load-bearing kernel-side specification.  -/
+
+/-- **R14-ready capstone**: the complete kernel-side data needed to
+retire `Y_GLW_exists` via the brownian-motion projective-limit
+construction. Everything sorry-free; just plug in BM's
+`gaussianProjectiveFamily` + `projectiveLimit` + `KolmogorovChentsov`. -/
+theorem K_GLW_processKernel_R14_capstone :
+    -- Field 1: a packaged `ProcessKernel` with all four axioms satisfied.
+    ∃ P : ProcessKernel,
+      -- Field 2: the kernel value matches `K_GLW`.
+      (∀ s t : NNReal, P.K s t = K_GLW (s : ℝ) (t : ℝ)) ∧
+      -- Field 3: PSD on every Finset.
+      (∀ I : Finset NNReal, (P.kernelMatrix I).PosSemidef) ∧
+      -- Field 4: sub-Finset consistency (B2 precondition).
+      (∀ {I J : Finset NNReal} (hJI : J ⊆ I),
+        ((P.kernelMatrix I).submatrix
+            (fun j : {x : NNReal // x ∈ J} =>
+              (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+            (fun j : {x : NNReal // x ∈ J} =>
+              (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef) ∧
+      -- Field 5: pairwise Hölder (B4 precondition for KolmogorovChentsov).
+      (∀ s t : NNReal,
+        P.K s s + P.K t t - 2 * P.K s t ≤ ((s : ℝ) - (t : ℝ))^2) ∧
+      -- Field 6: continuity of the kernel.
+      Continuous (Function.uncurry P.K) ∧
+      -- Field 7: kernel value is bounded in `[0, 1]`.
+      (∀ s t : NNReal, P.K s t ∈ Set.Icc (0 : ℝ) 1) :=
+  ⟨K_GLW_processKernel,
+   fun _ _ => rfl,
+   K_GLW_processKernel.PSD,
+   fun {_ _} hJI => K_GLW_processKernel.consistent hJI,
+   K_GLW_processKernel.hoelder,
+   K_GLW_processKernel_continuous,
+   fun s t => K_GLW_processKernel_K_mem_Icc s t⟩
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
