@@ -564,6 +564,55 @@ theorem K_GLW_diff_quadratic_nonneg {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
   exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
     (fun _ => sq_nonneg _)
 
+/-! ## 6.6. Monotonicity & dominance bounds
+
+Two simple but useful deterministic bounds on `K_GLW`:
+
+* the variance `K_GLW(u, u)` is monotonically *decreasing* in `u ≥ 0`,
+* the marginal expectation `∫₀¹ glwIntegrand u s ds = K_GLW(u, 0)`
+  (an alternative form of the cross-covariance with the constant
+  marginal `Y(0)`). -/
+
+/-- The marginal expectation of `glwIntegrand u` on `[0, 1]` equals
+`K_GLW(u, 0)`. The deterministic shadow of `E[Y_GLW(u) · Y_GLW(0)] =
+K_GLW(u, 0)` (since `Y_GLW(0) ≡ 1` in the L²-completion of the
+Wiener-integral feature map). -/
+theorem integral_glwIntegrand_eq_K_GLW_zero {u : ℝ} (hu : 0 ≤ u) :
+    ∫ s in (0 : ℝ)..1, glwIntegrand u s = K_GLW u 0 := by
+  rw [K_GLW_eq_intervalIntegral_of_nonneg hu (le_refl 0)]
+  congr 1
+  funext s
+  unfold glwIntegrand
+  congr 1
+  ring
+
+/-- `K_GLW` is non-increasing in `u` along the diagonal. For `0 ≤ u ≤ v`,
+`K_GLW(v, v) ≤ K_GLW(u, u)`. -/
+theorem K_GLW_var_antitone {u v : ℝ} (hu : 0 ≤ u) (huv : u ≤ v) :
+    K_GLW v v ≤ K_GLW u u := by
+  -- Use the integral form: K(u, u) = ∫₀¹ exp(-2us) ds.
+  rw [glwIntegrand_L2_norm_sq hu, glwIntegrand_L2_norm_sq (le_trans hu huv)]
+  -- ∫₀¹ exp(-2vs)² ds ≤ ∫₀¹ exp(-2us)² ds because exp(-2vs)² ≤ exp(-2us)²
+  -- pointwise (for s ≥ 0, u ≤ v ⟹ -2vs ≤ -2us ⟹ exp(-2vs) ≤ exp(-2us)).
+  apply intervalIntegral.integral_mono_on (by norm_num : (0 : ℝ) ≤ 1)
+    (intervalIntegrable_glwIntegrand_sq v) (intervalIntegrable_glwIntegrand_sq u)
+  intro s hs
+  have hs_nn : 0 ≤ s := hs.1
+  -- Pointwise: (glwIntegrand v s)² ≤ (glwIntegrand u s)².
+  unfold glwIntegrand
+  have h_exp_pos_v : 0 < Real.exp (-v * s) := Real.exp_pos _
+  have h_exp_pos_u : 0 < Real.exp (-u * s) := Real.exp_pos _
+  have h_le : Real.exp (-v * s) ≤ Real.exp (-u * s) := by
+    apply Real.exp_le_exp.mpr
+    have : -v * s ≤ -u * s := by
+      have h1 : -v ≤ -u := by linarith
+      exact mul_le_mul_of_nonneg_right h1 hs_nn
+    exact this
+  -- Square preserves order on nonneg reals.
+  apply sq_le_sq'
+  · linarith [sq_nonneg (Real.exp (-u * s)), h_exp_pos_v, h_exp_pos_u]
+  · exact h_le
+
 /-! ## 7. Variance decay roadmap
 
 For the eventual sample-path tail-decay conjunct of `Y_GLW_exists`, the
