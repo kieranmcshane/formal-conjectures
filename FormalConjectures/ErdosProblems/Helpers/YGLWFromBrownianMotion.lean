@@ -2409,6 +2409,74 @@ theorem K_GLW_processKernel_kernelMatrix_eq_integral
   rw [ProcessKernel.kernelMatrix_apply]
   exact K_GLW_processKernel_K_eq_integral s.1 t.1
 
+/-! ## 4.35. Generic `ProcessKernel` — extended pair-PSD corollaries
+
+Pair-level PSD facts derivable purely from the four `ProcessKernel`
+axioms, without any reference to the GLW kernel specifically. -/
+
+namespace ProcessKernel
+
+variable (P : ProcessKernel)
+
+/-- For any process kernel, the singleton-Finset PSD matrix has
+non-negative diagonal at the unique index. -/
+theorem singleton_diag_nonneg (a : NNReal) :
+    0 ≤ P.K a a := P.K_diag_nonneg a
+
+/-- For any process kernel, `K(s, s) + K(t, t) ≥ 0` (sum of two
+diagonal entries). -/
+theorem two_diag_sum_nonneg (s t : NNReal) :
+    0 ≤ P.K s s + P.K t t :=
+  add_nonneg (P.K_diag_nonneg s) (P.K_diag_nonneg t)
+
+end ProcessKernel
+
+/-! ## 4.36. K_GLW_processKernel — derived bound applications
+
+These corollaries package the K_GLW-specific pair-increment bounds
+(non-negativity from `K_GLW_diff_quadratic_nonneg`, upper bound from
+the Hölder field) for downstream use. -/
+
+/-- For any pair `s, t : NNReal`, the GLW pair-increment is bounded
+above by the squared NNReal distance (Hölder bound). -/
+theorem K_GLW_processKernel_pair_increment_le_sq (s t : NNReal) :
+    K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+      2 * K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
+  K_GLW_processKernel.hoelder s t
+
+/-- For any pair `s, t : NNReal`, the GLW pair-increment is non-negative
+(variance of an L²-difference is non-negative). -/
+theorem K_GLW_processKernel_pair_increment_nonneg (s t : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+        2 * K_GLW_processKernel.K s t :=
+  K_GLW_processKernel_diff_nonneg s t
+
+/-- The pair-increment satisfies the abstract bound
+`0 ≤ K(s,s) + K(t,t) - 2 K(s,t) ≤ (s-t)²`. -/
+theorem K_GLW_processKernel_pair_increment_bounds (s t : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+        2 * K_GLW_processKernel.K s t ∧
+      K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+        2 * K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
+  ⟨K_GLW_processKernel_pair_increment_nonneg s t,
+   K_GLW_processKernel_pair_increment_le_sq s t⟩
+
+/-- Average form of the GLW Hölder bound:
+`(K(s, s) + K(t, t))/2 - K(s, t) ≤ (s - t)² / 2`. -/
+theorem K_GLW_processKernel_avg_hoelder (s t : NNReal) :
+    (K_GLW_processKernel.K s s + K_GLW_processKernel.K t t) / 2 -
+      K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 / 2 := by
+  have h := K_GLW_processKernel_pair_increment_le_sq s t
+  linarith
+
+/-- Average form non-negativity: `(K(s, s) + K(t, t))/2 ≥ K(s, t)` modulo
+the (s - t)² correction. -/
+theorem K_GLW_processKernel_avg_ge_off_diag (s t : NNReal) :
+    (K_GLW_processKernel.K s s + K_GLW_processKernel.K t t) / 2 -
+      ((s : ℝ) - (t : ℝ))^2 / 2 ≤ K_GLW_processKernel.K s t := by
+  have h := K_GLW_processKernel_pair_increment_le_sq s t
+  linarith
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
