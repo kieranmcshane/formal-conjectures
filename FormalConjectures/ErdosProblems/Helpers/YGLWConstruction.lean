@@ -951,4 +951,141 @@ retirement reduces to a 5-step proof in `YGLWFromBrownianMotion.lean`,
 each step a one-line application of a project-API call to the kernel
 data. -/
 
+/-! ## 9. K_GLW Lipschitz on the nonneg quadrant (3-point Mercer-PSD)
+
+Using the 3-point Mercer-PSD argument: applying `K_GLW_quadratic_form_nonneg`
+to the grid `(u, u', v)` with coefficients `(a, -a, b)` yields the
+quadratic form (in `(a, b) ∈ ℝ²`):
+
+  `a² · (K(u,u) - 2 K(u,u') + K(u',u')) + 2 a b · (K(u,v) - K(u',v))
+   + b² · K(v,v) ≥ 0`.
+
+Non-negativity for all `(a, b)` forces the discriminant `≤ 0`, giving
+the **Cauchy–Schwarz-type bound** on `K`-differences. Combined with the
+L²-Hölder bound (`K_GLW_diff_quadratic_le_sq`) and the variance bound
+(`K_GLW_le_one`), this yields the **K_GLW Lipschitz-1 bound**:
+`(K(u, v) - K(u', v))² ≤ (u - u')²`. -/
+
+namespace Erdos524.Helpers
+open Real Set MeasureTheory intervalIntegral
+
+/-- The 3-point Mercer-PSD identity used to prove the Cauchy–Schwarz-type
+bound on K_GLW differences. For any `u, u', v ≥ 0` and `a, b ∈ ℝ`:
+
+  `a²·(K(u,u) - 2 K(u,u') + K(u',u')) + 2 a b·(K(u,v) - K(u',v))
+   + b²·K(v,v) ≥ 0`. -/
+theorem K_GLW_three_point_psd (u u' v : ℝ) (a b : ℝ)
+    (hu : 0 ≤ u) (hu' : 0 ≤ u') (hv : 0 ≤ v) :
+    0 ≤ a^2 * (K_GLW u u - 2 * K_GLW u u' + K_GLW u' u') +
+        2 * a * b * (K_GLW u v - K_GLW u' v) + b^2 * K_GLW v v := by
+  set us : Fin 3 → ℝ := ![u, u', v] with hus
+  set cs : Fin 3 → ℝ := ![a, -a, b] with hcs
+  have h_us_nn : ∀ i, 0 ≤ us i := by
+    intro i
+    fin_cases i <;> simp [hus, hu, hu', hv]
+  have h_qf := K_GLW_quadratic_form_nonneg us cs h_us_nn
+  have h_expand : (∑ i : Fin 3, ∑ j : Fin 3, cs i * cs j * K_GLW (us i) (us j)) =
+      cs 0 * cs 0 * K_GLW (us 0) (us 0) + cs 0 * cs 1 * K_GLW (us 0) (us 1) +
+      cs 0 * cs 2 * K_GLW (us 0) (us 2) + cs 1 * cs 0 * K_GLW (us 1) (us 0) +
+      cs 1 * cs 1 * K_GLW (us 1) (us 1) + cs 1 * cs 2 * K_GLW (us 1) (us 2) +
+      cs 2 * cs 0 * K_GLW (us 2) (us 0) + cs 2 * cs 1 * K_GLW (us 2) (us 1) +
+      cs 2 * cs 2 * K_GLW (us 2) (us 2) := by
+    simp [Fin.sum_univ_three]
+    ring
+  rw [h_expand] at h_qf
+  -- Reduce all `![..] i` for i ∈ {0, 1, 2 : Fin 3}.
+  simp [hus, hcs] at h_qf
+  rw [show K_GLW u' u = K_GLW u u' from K_GLW_symm u' u,
+      show K_GLW v u = K_GLW u v from K_GLW_symm v u,
+      show K_GLW v u' = K_GLW u' v from K_GLW_symm v u'] at h_qf
+  linarith [h_qf]
+
+/-- **Cauchy–Schwarz-type bound on K_GLW differences**: for `u, u', v ≥ 0`,
+`(K(u, v) - K(u', v))² ≤ (K(u, u) - 2 K(u, u') + K(u', u')) · K(v, v)`.
+
+Direct corollary of the 3-point PSD identity by completing the square. -/
+theorem K_GLW_diff_sq_le_quadratic_form_mul {u u' v : ℝ}
+    (hu : 0 ≤ u) (hu' : 0 ≤ u') (hv : 0 ≤ v) :
+    (K_GLW u v - K_GLW u' v)^2 ≤
+      (K_GLW u u - 2 * K_GLW u u' + K_GLW u' u') * K_GLW v v := by
+  set A := K_GLW u u - 2 * K_GLW u u' + K_GLW u' u' with hA_def
+  set B := K_GLW u v - K_GLW u' v with hB_def
+  set C := K_GLW v v with hC_def
+  have hA_nn : 0 ≤ A := K_GLW_diff_quadratic_nonneg hu hu'
+  have hC_pos : 0 < C := K_GLW_pos v v hv hv
+  have h_psd : ∀ a b : ℝ, 0 ≤ a^2 * A + 2 * a * b * B + b^2 * C := by
+    intro a b
+    have := K_GLW_three_point_psd u u' v a b hu hu' hv
+    rw [← hA_def, ← hB_def, ← hC_def] at this
+    exact this
+  by_cases hA_zero : A = 0
+  · -- A = 0 case: linear in a forces B = 0.
+    rw [hA_zero] at h_psd
+    have h_lin : ∀ a : ℝ, 0 ≤ 2 * a * B + C := by
+      intro a
+      have := h_psd a 1
+      nlinarith
+    have h_B_zero : B = 0 := by
+      by_contra hB
+      rcases lt_or_gt_of_ne hB with hBneg | hBpos
+      · have ha_eval := h_lin ((C + 1) / (-2 * B))
+        have h_neg2B : -2 * B > 0 := by linarith
+        have h_B_ne : B ≠ 0 := ne_of_lt hBneg
+        have h_calc : 2 * ((C + 1) / (-2 * B)) * B = -(C + 1) := by
+          field_simp
+        rw [h_calc] at ha_eval
+        linarith
+      · have ha_eval := h_lin (-(C + 1) / (2 * B))
+        have h_2B_pos : (0 : ℝ) < 2 * B := by linarith
+        have h_B_ne : B ≠ 0 := ne_of_gt hBpos
+        have h_calc : 2 * (-(C + 1) / (2 * B)) * B = -(C + 1) := by
+          field_simp
+        rw [h_calc] at ha_eval
+        linarith
+    rw [h_B_zero, hA_zero]
+    nlinarith [hC_pos]
+  · -- A > 0 case: choose a := -B/A, b := 1.
+    have hA_strict : 0 < A := lt_of_le_of_ne hA_nn (Ne.symm hA_zero)
+    have h_specific := h_psd (-B / A) 1
+    have h_simplify : ((-B / A))^2 * A + 2 * (-B / A) * 1 * B + 1^2 * C =
+                      C - B^2 / A := by
+      field_simp
+      ring
+    rw [h_simplify] at h_specific
+    have h_div : B^2 / A ≤ C := by linarith
+    rw [div_le_iff₀ hA_strict] at h_div
+    linarith
+
+/-- **K_GLW is 1-Lipschitz in the first argument** on the nonneg quadrant:
+`(K_GLW(u, v) - K_GLW(u', v))² ≤ (u - u')²` for `u, u', v ≥ 0`.
+
+Direct corollary of the Cauchy–Schwarz-type bound + L²-Hölder bound +
+variance bound. -/
+theorem K_GLW_lipschitz_first {u u' v : ℝ}
+    (hu : 0 ≤ u) (hu' : 0 ≤ u') (hv : 0 ≤ v) :
+    (K_GLW u v - K_GLW u' v)^2 ≤ (u - u')^2 := by
+  calc (K_GLW u v - K_GLW u' v)^2
+      ≤ (K_GLW u u - 2 * K_GLW u u' + K_GLW u' u') * K_GLW v v :=
+        K_GLW_diff_sq_le_quadratic_form_mul hu hu' hv
+    _ ≤ (u - u')^2 * K_GLW v v := by
+        apply mul_le_mul_of_nonneg_right
+        · exact K_GLW_diff_quadratic_le_sq hu hu'
+        · exact le_of_lt (K_GLW_pos v v hv hv)
+    _ ≤ (u - u')^2 * 1 := by
+        apply mul_le_mul_of_nonneg_left
+        · exact K_GLW_le_one v v hv hv
+        · exact sq_nonneg _
+    _ = (u - u')^2 := by ring
+
+/-- **K_GLW is 1-Lipschitz in the second argument** on the nonneg quadrant:
+`(K_GLW(u, v) - K_GLW(u, v'))² ≤ (v - v')²` for `u, v, v' ≥ 0`.
+
+Symmetric form of `K_GLW_lipschitz_first`. -/
+theorem K_GLW_lipschitz_second {u v v' : ℝ}
+    (hu : 0 ≤ u) (hv : 0 ≤ v) (hv' : 0 ≤ v') :
+    (K_GLW u v - K_GLW u v')^2 ≤ (v - v')^2 := by
+  rw [show K_GLW u v = K_GLW v u from K_GLW_symm u v,
+      show K_GLW u v' = K_GLW v' u from K_GLW_symm u v']
+  exact K_GLW_lipschitz_first hv hv' hu
+
 end Erdos524.Helpers
