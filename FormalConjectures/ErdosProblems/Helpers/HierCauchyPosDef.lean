@@ -276,6 +276,15 @@ theorem expProfile_continuous (m : ℕ) (x : Fin m × Fin m → ℝ) :
     continuous_const.mul continuous_id'
   exact continuous_const.mul (Real.continuous_exp.comp h_inner)
 
+/-- `expProfile m 0 t = 0` for all `t`. -/
+theorem expProfile_zero (m : ℕ) (t : ℝ) : expProfile m 0 t = 0 := by
+  unfold expProfile
+  simp
+
+/-- The squared `expProfile` is non-negative (immediate from `sq_nonneg`). -/
+theorem expProfile_sq_nonneg (m : ℕ) (x : Fin m × Fin m → ℝ) (t : ℝ) :
+    0 ≤ (expProfile m x t)^2 := sq_nonneg _
+
 /-- Integrability of each summand `t ↦ exp(-(g_i + g_j) t)` on `Ioi 0`. -/
 theorem integrableOn_exp_neg_sum_Ioi_zero (m : ℕ) (i j : Fin m × Fin m) :
     IntegrableOn (fun t : ℝ => Real.exp (-(hierGrid m i + hierGrid m j) * t)) (Ioi 0) :=
