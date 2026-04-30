@@ -3018,7 +3018,14 @@ in scope. This is the load-bearing kernel-side specification.  -/
 /-- **R14-ready capstone**: the complete kernel-side data needed to
 retire `Y_GLW_exists` via the brownian-motion projective-limit
 construction. Everything sorry-free; just plug in BM's
-`gaussianProjectiveFamily` + `projectiveLimit` + `KolmogorovChentsov`. -/
+`gaussianProjectiveFamily` + `projectiveLimit` + `KolmogorovChentsov`.
+
+NOTE for R14: the R13 retry investigation confirmed that the only
+non-mechanical blocker beyond the surgical 4-file patches is the
+`StronglyAdapted → Adapted` rename in `524.lean:662+` (mathlib
+2026-01-13 rename). With that rename pre-staged on a refactor branch,
+the pin should succeed and this capstone becomes the kernel-side
+specification consumed by the BM-side projective-limit constructor. -/
 theorem K_GLW_processKernel_R14_capstone :
     -- Field 1: a packaged `ProcessKernel` with all four axioms satisfied.
     ∃ P : ProcessKernel,
