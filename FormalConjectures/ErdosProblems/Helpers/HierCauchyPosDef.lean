@@ -646,4 +646,10 @@ example (g₀ : ℝ) (h : 0 < g₀) :
     (cauchyMatrix (fun _ : Fin 1 => g₀)).PosSemidef :=
   cauchyMatrix_PosSemidef (fun _ => h)
 
+/-- Sanity-check: `cauchyMatrix_PosDef` chains correctly when det>0 is
+externally verified (here, by the existing hierCauchyG infrastructure). -/
+example : (hierCauchyG 1).PosDef := by
+  rw [hierCauchyG_eq_cauchyMatrix]
+  exact cauchyMatrix_PosDef (hierGrid_pos 1) (hierCauchyG_det_pos 1 (by norm_num))
+
 end Erdos524.Helpers
