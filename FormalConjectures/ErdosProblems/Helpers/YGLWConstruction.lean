@@ -497,6 +497,19 @@ theorem K_GLW_at_zero_le_one {u : ℝ} (hu : 0 < u) :
 theorem K_GLW_at_zero_pos {u : ℝ} (hu : 0 < u) :
     0 < K_GLW u 0 := K_GLW_pos u 0 (le_of_lt hu) (le_refl _)
 
+/-- `K_GLW(0, v) = (1 - exp(-v))/v` for `v > 0` (symmetric to
+`K_GLW_at_zero`). -/
+theorem K_GLW_zero_at {v : ℝ} (hv : 0 < v) :
+    K_GLW 0 v = (1 - Real.exp (-v)) / v := by
+  rw [K_GLW_symm 0 v]
+  exact K_GLW_at_zero hv
+
+/-- `K_GLW` is uniformly bounded by `1` on the nonneg quadrant. -/
+theorem K_GLW_bounded_on_nonneg {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    |K_GLW u v| ≤ 1 := by
+  rw [abs_of_pos (K_GLW_pos u v hu hv)]
+  exact K_GLW_le_one u v hu hv
+
 /-! ## 6.5. L²([0,1]) distance — Kolmogorov–Chentsov ground floor
 
 The eventual continuous-paths conjunct of `Y_GLW_exists` is proven via
