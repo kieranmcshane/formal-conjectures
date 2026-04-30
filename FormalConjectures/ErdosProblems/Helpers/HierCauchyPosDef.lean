@@ -784,6 +784,24 @@ theorem cauchyMatrix_smul {n : Type*} [Fintype n] {c : ℝ} (hc : c ≠ 0)
   rw [show (1 : ℝ) / (c * (g i + g j)) = c⁻¹ * (1 / (g i + g j)) from by
     field_simp]
 
+/-- For positive `g`, `cauchyMatrix g` is invertible iff its determinant is
+strictly positive. (Forward: invertibility implies non-zero determinant,
+combined with PSD non-negativity gives strict positivity. Backward:
+positive determinant means non-zero determinant, hence invertible.) -/
+theorem cauchyMatrix_isUnit_iff_det_pos {n : Type*} [Fintype n] [DecidableEq n]
+    {g : n → ℝ} (hg : ∀ i, 0 < g i) :
+    IsUnit (cauchyMatrix g) ↔ 0 < (cauchyMatrix g).det := by
+  refine ⟨fun h => ?_, fun h => ?_⟩
+  · -- Invertible + PSD → det > 0.
+    have h_det_ne : (cauchyMatrix g).det ≠ 0 := by
+      rwa [Matrix.isUnit_iff_isUnit_det, isUnit_iff_ne_zero] at h
+    have h_det_nn : 0 ≤ (cauchyMatrix g).det :=
+      (cauchyMatrix_PosSemidef hg).det_nonneg
+    exact lt_of_le_of_ne h_det_nn (Ne.symm h_det_ne)
+  · -- det > 0 → invertible (over a field).
+    rw [Matrix.isUnit_iff_isUnit_det]
+    exact isUnit_iff_ne_zero.mpr (ne_of_gt h)
+
 /- ## §10. Round 10 milestone summary
 
 Round 10 closed the central PosDef status of the hierarchical Cauchy
