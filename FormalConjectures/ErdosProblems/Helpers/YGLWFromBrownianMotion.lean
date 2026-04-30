@@ -2695,6 +2695,38 @@ theorem K_GLW_processKernel_kernelMatrix_frobenius_sq_nonneg
           (K_GLW_processKernel.kernelMatrix I s t)^2 :=
   K_GLW_processKernel.kernelMatrix_frobenius_sq_nonneg I
 
+/-! ## 4.42. K_GLW_processKernel — Cauchy-Schwarz at sum level
+
+The matrix-level Cauchy-Schwarz inequality lifted from the Frobenius
+bound: for any test vector, the dot product is bounded by the
+Frobenius norm times the L²-norm of the vector. -/
+
+/-- Sum-of-`x_s · x_t · K(s, t)` is bounded by the L²-norms (Cauchy-Schwarz form). -/
+theorem K_GLW_processKernel_sum_kernel_le_L2_sq
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    ∑ s, ∑ t, x s * x t * K_GLW_processKernel.K s.1 t.1 ≤
+      (∑ s : {y : NNReal // y ∈ I}, |x s|)^2 := by
+  have h_qf := glwCovMatrixNN_quadratic_form_le_l1_sq I x
+  rw [glwCovMatrixNN_quadratic_form_eq_sum] at h_qf
+  exact h_qf
+
+/-- Sum-of-`x_s · x_t · K(s, t)` is non-negative (PSD applied to test vector). -/
+theorem K_GLW_processKernel_sum_kernel_nonneg
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    0 ≤ ∑ s, ∑ t, x s * x t * K_GLW_processKernel.K s.1 t.1 := by
+  have h_qf := glwCovMatrixNN_quadratic_form_nonneg I x
+  rw [glwCovMatrixNN_quadratic_form_eq_sum] at h_qf
+  exact h_qf
+
+/-- Combined: `0 ≤ ∑ x_s x_t K(s, t) ≤ (∑ |x_s|)²`. -/
+theorem K_GLW_processKernel_sum_kernel_bounds
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    0 ≤ ∑ s, ∑ t, x s * x t * K_GLW_processKernel.K s.1 t.1 ∧
+      ∑ s, ∑ t, x s * x t * K_GLW_processKernel.K s.1 t.1 ≤
+        (∑ s : {y : NNReal // y ∈ I}, |x s|)^2 :=
+  ⟨K_GLW_processKernel_sum_kernel_nonneg I x,
+   K_GLW_processKernel_sum_kernel_le_L2_sq I x⟩
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
