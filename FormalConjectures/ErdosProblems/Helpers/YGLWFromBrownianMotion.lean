@@ -859,6 +859,42 @@ theorem glwCovMatrix_dilate_PosSemidef {n : ℕ} (us : Fin n → ℝ)
     (glwCovMatrix (fun i => lam * us i)).PosSemidef :=
   glwCovMatrix_PosSemidef _ (fun i => mul_nonneg h_lam (h_us i))
 
+/-! ## 4.17. Trace expansion via K_GLW and K_GLW_aux
+
+Round 12 additions. Explicit form of the trace as a sum of variances
+`K_GLW(uᵢ, uᵢ)` and as a sum of single-variable kernel values
+`K_GLW_aux(2·uᵢ)`. These are the standard re-writings used in
+variance / sup-norm estimates downstream. -/
+
+/-- The trace of `glwCovMatrix us` equals the sum of variances
+`K_GLW(uᵢ, uᵢ)`. -/
+theorem glwCovMatrix_trace_eq_sum_var {n : ℕ} (us : Fin n → ℝ) :
+    (glwCovMatrix us).trace = ∑ i : Fin n, K_GLW (us i) (us i) := by
+  rw [Matrix.trace]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  exact glwCovMatrix_diag_eq us i
+
+/-- The trace of `glwCovMatrix us` equals the sum of single-variable
+kernel values `K_GLW_aux(2·uᵢ)` (via the diagonal factorisation). -/
+theorem glwCovMatrix_trace_eq_sum_K_GLW_aux_double {n : ℕ} (us : Fin n → ℝ) :
+    (glwCovMatrix us).trace = ∑ i : Fin n, K_GLW_aux (2 * us i) := by
+  rw [Matrix.trace]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  exact glwCovMatrix_diag_eq_K_GLW_aux_double us i
+
+/-- The trace of the constant-grid `glwCovMatrix` equals
+`n · K_GLW(c, c)`. -/
+theorem glwCovMatrix_const_grid_trace {n : ℕ} (c : ℝ) :
+    (glwCovMatrix (fun _ : Fin n => c)).trace = (n : ℝ) * K_GLW c c := by
+  rw [glwCovMatrix_trace_eq_sum_var]
+  simp [Finset.sum_const]
+
+/-- The trace of the zero-grid `glwCovMatrix` equals `n` (since each
+diagonal entry is `K_GLW(0, 0) = 1`). -/
+theorem glwCovMatrix_zero_grid_trace {n : ℕ} :
+    (glwCovMatrix (fun _ : Fin n => (0 : ℝ))).trace = (n : ℝ) := by
+  rw [glwCovMatrix_const_grid_trace, K_GLW_zero, mul_one]
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
