@@ -1266,6 +1266,38 @@ theorem glwCovMatrixNN_pairwise_diff_quadratic_nonneg
               (NNReal.coe_nonneg s.1) (NNReal.coe_nonneg t.1)
   linarith
 
+/-! ### NNReal-grid entry-wise bounds — direct lifts of Fin n versions -/
+
+/-- Each entry of `glwCovMatrixNN I` is strictly positive. -/
+theorem glwCovMatrixNN_entry_pos (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    0 < glwCovMatrixNN I s t := by
+  rw [glwCovMatrixNN_apply]
+  exact K_GLW_pos _ _ (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
+
+/-- Each entry of `glwCovMatrixNN I` is bounded above by `1`. -/
+theorem glwCovMatrixNN_entry_le_one (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s t ≤ 1 := by
+  rw [glwCovMatrixNN_apply]
+  exact K_GLW_le_one _ _ (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
+
+/-- Each diagonal entry of `glwCovMatrixNN I` is non-negative. -/
+theorem glwCovMatrixNN_diag_nonneg (I : Finset NNReal) (s : {x : NNReal // x ∈ I}) :
+    0 ≤ glwCovMatrixNN I s s :=
+  le_of_lt (glwCovMatrixNN_entry_pos I s s)
+
+/-- Each diagonal entry of `glwCovMatrixNN I` is bounded above by `1`. -/
+theorem glwCovMatrixNN_diag_le_one (I : Finset NNReal) (s : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s s ≤ 1 :=
+  glwCovMatrixNN_entry_le_one I s s
+
+/-- Cauchy-Schwarz for NNReal-grid Gram entries: each squared
+off-diagonal is bounded by the product of the two diagonals. -/
+theorem glwCovMatrixNN_entry_sq_le_diag_prod
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    (glwCovMatrixNN I s t)^2 ≤ glwCovMatrixNN I s s * glwCovMatrixNN I t t := by
+  rw [glwCovMatrixNN_apply, glwCovMatrixNN_apply, glwCovMatrixNN_apply]
+  exact K_GLW_cauchy_schwarz (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
