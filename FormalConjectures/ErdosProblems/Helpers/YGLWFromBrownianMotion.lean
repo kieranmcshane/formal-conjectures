@@ -49,20 +49,70 @@ the kernel-side arguments proved in full.
 
 ## What this file contributes
 
-* **`glwCovMatrix`**: the concrete K_GLW Gram matrix on a finite grid
-  `us : Fin n → ℝ`.
-* **`glwCovMatrix_isHermitian`**: the Gram matrix is symmetric (a
-  corollary of `K_GLW_symm`).
-* **`glwCovMatrix_PosSemidef`**: positive semi-definiteness, a
-  corollary of `K_GLW_quadratic_form_nonneg` from
-  `YGLWConstruction.lean`.
-* **`glwCovMatrix_diag_eq`**: explicit diagonal entries (= `K_GLW(uᵢ, uᵢ)`).
-* **Documented BLOCKERs** for each `brownian-motion`-side step.
+### K_GLW-specific content
 
-The PSD result is the main mathematical contribution: it is the
-*precondition* for `multivariateGaussian` (Mathlib's existing API and
-the `brownian-motion` project's). Once the toolchain alignment lands,
-the bridge becomes a real proof with no sorries.
+* **`glwCovMatrix`**: the concrete K_GLW Gram matrix on a finite grid
+  `us : Fin n → ℝ`, with `(glwCovMatrix us) i j = K_GLW (us i) (us j)`.
+* **`glwCovMatrix_isHermitian`** and **`glwCovMatrix_symm`**: symmetry
+  (corollary of `K_GLW_symm`).
+* **`glwCovMatrix_PosSemidef`**: positive semi-definiteness, a corollary
+  of `K_GLW_quadratic_form_nonneg` from `YGLWConstruction.lean`. This
+  is the **mathematical core of the bridge**: the precondition for
+  `multivariateGaussian` (Mathlib's existing API and the
+  `brownian-motion` project's).
+* **`glwCovMatrix_eq_gramMatrixL2`**: K_GLW Gram = generic Gram of
+  the exponential family.
+* **`glwCovMatrix_PosSemidef_via_gramMatrixL2`**: alternative 2-line
+  proof of K_GLW PSD via the generic abstraction below.
+* **Entry-wise**: `glwCovMatrix_entry_pos` (every entry > 0 on nonneg
+  grids), `glwCovMatrix_entry_le_one`, `glwCovMatrix_diag_at_zero`,
+  `glwCovMatrix_diag_nonneg`, `glwCovMatrix_diag_le_one`.
+* **Mercer matrix form**: `glwCovMatrix_eq_integral` recasts each entry
+  as the L²([0,1]) inner product of the exponential integrands.
+* **Sub-grid restriction**: `glwCovMatrix_submatrix`,
+  `glwCovMatrix_submatrix_PosSemidef` — restriction of the K_GLW Gram
+  matrix to a sub-grid is again the K_GLW Gram of the sub-grid, with
+  PSD preserved (the BLOCKER-B2 precondition).
+* **Det / trace bounds**: `glwCovMatrix_det_nonneg`,
+  `glwCovMatrix_trace_nonneg`, `glwCovMatrix_trace_le`.
+
+### Generic Gram-matrix abstraction (Mathlib-PR-shaped)
+
+* **`gramMatrixL2`**: for any family `(φᵢ : Fin n → ℝ → ℝ)`, the Gram
+  matrix `G_{ij} = ∫₀¹ φᵢ φⱼ`.
+* **`gramMatrixL2_PosSemidef`**: for any continuous family, `G` is
+  positive semi-definite. Proof via the integral-of-square argument.
+  `glwCovMatrix_PosSemidef` is the K_GLW special case where
+  `φᵢ s := exp(-uᵢ s)`.
+* **`gramMatrixL2_diag_eq`**: G_{ii} = ‖φᵢ‖²_{L²([0,1])}.
+* **`gramMatrixL2_diff_sq`**: ∫ (φᵢ - φⱼ)² = G_{ii} + G_{jj} - 2 G_{ij}
+  (the L²-distance / variance-of-difference identity).
+* **`gramMatrixL2_smul_family`**: bilinearity in per-index scaling.
+* **`gramMatrixL2_zero`**: the constant-zero family yields the zero
+  matrix.
+* **`gramMatrixL2_submatrix`**: sub-grid restriction.
+
+### Documented BLOCKERs
+
+For each step of the `brownian-motion` projective-limit construction
+the bridge documents the missing project API and identifies the
+**preconditions already proven here**:
+
+* **B1 (multivariateGaussian)**: `glwCovMatrix_PosSemidef` ✓
+* **B2 (gaussianProjectiveFamily consistency)**:
+  `glwCovMatrix_submatrix_PosSemidef` ✓
+* **B3 (projectiveLimit / Kolmogorov extension)**: external API needed.
+* **B4 (Kolmogorov–Chentsov continuity)**: `L2_diff_le_sq` from
+  `YGLWConstruction.lean` ✓
+* **B5 (Borell + Borel–Cantelli tail decay)**: `K_GLW_var_tendsto_zero`
+  from `YGLWConstruction.lean` ✓
+
+Only B3 (the abstract projective-limit theorem) requires the
+`brownian-motion` project's API. All four other preconditions have
+explicit Lean witnesses proved across this file and `YGLWConstruction.lean`.
+
+When the toolchain alignment lands, the bridge becomes a 5-step proof
+with no sorries.
 -/
 
 namespace Erdos524.Helpers
