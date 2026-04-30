@@ -165,6 +165,138 @@ theorem glwCovMatrix_diag_at_zero {n : ℕ} (us : Fin n → ℝ) {i : Fin n}
   rw [glwCovMatrix_diag_eq, hi]
   exact K_GLW_zero
 
+/-! ## 4.55. Generic Mercer / Gram-matrix abstraction (Mathlib-PR-shaped)
+
+The Mercer / Gram structure is **kernel-generic**: for any family
+`(φᵢ : ℝ → ℝ)_{i ∈ Fin n}` of square-integrable functions on `[0, 1]`,
+the Gram matrix `Gᵢⱼ := ⟨φᵢ, φⱼ⟩_{L²([0,1])} = ∫₀¹ φᵢ φⱼ` is positive
+semi-definite. This is exactly what makes Mercer kernels well-defined.
+
+`glwCovMatrix_PosSemidef` is the K_GLW specialisation; the abstraction
+below lifts the argument to any kernel of the form `K(i, j) = ⟨φᵢ, φⱼ⟩`. -/
+
+/-- The Gram matrix of a family of continuous functions, evaluated as
+`G_{i,j} := ∫₀¹ φᵢ(s) · φⱼ(s) ds`. -/
+noncomputable def gramMatrixL2 {n : ℕ} (φ : Fin n → ℝ → ℝ) :
+    Matrix (Fin n) (Fin n) ℝ :=
+  Matrix.of fun i j => ∫ s in (0 : ℝ)..1, φ i s * φ j s
+
+@[simp]
+theorem gramMatrixL2_apply {n : ℕ} (φ : Fin n → ℝ → ℝ) (i j : Fin n) :
+    gramMatrixL2 φ i j = ∫ s in (0 : ℝ)..1, φ i s * φ j s := rfl
+
+/-- The Gram matrix is symmetric. -/
+theorem gramMatrixL2_symm {n : ℕ} (φ : Fin n → ℝ → ℝ) (i j : Fin n) :
+    gramMatrixL2 φ i j = gramMatrixL2 φ j i := by
+  simp [gramMatrixL2_apply]
+  congr 1
+  funext s
+  ring
+
+/-- **Generic Mercer / Gram-matrix PSD** (Mathlib-PR-shaped abstraction):
+for any family of continuous functions `(φᵢ)_{i ∈ Fin n}`, the Gram
+matrix `Gᵢⱼ := ∫₀¹ φᵢ φⱼ` is positive semi-definite.
+
+Proof: the quadratic form is `∑ᵢⱼ xᵢ xⱼ ∫₀¹ φᵢ φⱼ = ∫₀¹ (∑ᵢ xᵢ φᵢ)²`,
+the integral of a square — non-negative. This is a Mathlib-PR-shaped
+generalisation of `glwCovMatrix_PosSemidef` (which is the special case
+`φᵢ(s) := exp(-uᵢ s)`). -/
+theorem gramMatrixL2_PosSemidef {n : ℕ} (φ : Fin n → ℝ → ℝ)
+    (h_cont : ∀ i, Continuous (φ i)) :
+    (gramMatrixL2 φ).PosSemidef := by
+  refine PosSemidef.of_dotProduct_mulVec_nonneg ?_ ?_
+  · -- Hermitian: gramMatrixL2 is symmetric (i,j-swap preserves the integral).
+    ext i j
+    simp [Matrix.conjTranspose, Matrix.transpose, gramMatrixL2_apply]
+    congr 1
+    funext s
+    ring
+  · intro x
+    -- Goal: 0 ≤ star x ⬝ᵥ (G *ᵥ x).
+    show 0 ≤ ∑ i, star (x i) * ((gramMatrixL2 φ *ᵥ x) i)
+    -- Step 1: rewrite each row entry as ∫₀¹ φᵢ * (∑ⱼ xⱼ φⱼ).
+    have h_pair_int : ∀ i j : Fin n,
+        IntervalIntegrable (fun s => x i * x j * (φ i s * φ j s))
+          MeasureTheory.volume 0 1 := by
+      intro i j
+      have h_cont_ij : Continuous (fun s => x i * x j * (φ i s * φ j s)) := by
+        exact continuous_const.mul ((h_cont i).mul (h_cont j))
+      exact h_cont_ij.intervalIntegrable 0 1
+    have h_rowsum_cont : ∀ i, Continuous
+        (fun s => ∑ j : Fin n, x i * x j * (φ i s * φ j s)) := by
+      intro i
+      apply continuous_finset_sum
+      intro j _
+      exact continuous_const.mul ((h_cont i).mul (h_cont j))
+    have h_rowsum_int : ∀ i, IntervalIntegrable
+        (fun s => ∑ j : Fin n, x i * x j * (φ i s * φ j s))
+        MeasureTheory.volume 0 1 :=
+      fun i => (h_rowsum_cont i).intervalIntegrable 0 1
+    -- Step 2: the entire sum equals ∫₀¹ (∑ᵢ xᵢ φᵢ s)².
+    have h_quad_eq : (∑ i, star (x i) * ((gramMatrixL2 φ *ᵥ x) i)) =
+        ∫ s in (0 : ℝ)..1, (∑ i, x i * φ i s)^2 := by
+      -- Step 2a: expand each row entry.
+      have h_row_simp : ∀ i, star (x i) * ((gramMatrixL2 φ *ᵥ x) i) =
+          ∑ j : Fin n, x i * x j * (gramMatrixL2 φ i j) := by
+        intro i
+        rw [Matrix.mulVec, dotProduct]
+        rw [show star (x i) = x i from rfl, Finset.mul_sum]
+        refine Finset.sum_congr rfl fun j _ => ?_
+        ring
+      have h_pair_eq : ∀ i j : Fin n, x i * x j * (gramMatrixL2 φ i j) =
+          ∫ s in (0 : ℝ)..1, x i * x j * (φ i s * φ j s) := by
+        intro i j
+        rw [gramMatrixL2_apply, intervalIntegral.integral_const_mul]
+      have h_row_eq : ∀ i, star (x i) * ((gramMatrixL2 φ *ᵥ x) i) =
+          ∫ s in (0 : ℝ)..1, ∑ j : Fin n, x i * x j * (φ i s * φ j s) := by
+        intro i
+        rw [h_row_simp]
+        rw [show (∑ j : Fin n, x i * x j * gramMatrixL2 φ i j) =
+              ∑ j : Fin n, ∫ s in (0 : ℝ)..1, x i * x j * (φ i s * φ j s) from
+              Finset.sum_congr rfl fun j _ => h_pair_eq i j]
+        symm
+        exact intervalIntegral.integral_finset_sum (fun j _ => h_pair_int i j)
+      -- Step 2b: now sum over i and pull integral out.
+      rw [Finset.sum_congr rfl (fun i _ => h_row_eq i)]
+      rw [← intervalIntegral.integral_finset_sum
+            (fun i _ => h_rowsum_int i)]
+      congr 1
+      funext s
+      -- Goal: ∑ᵢⱼ xᵢ xⱼ φᵢ s φⱼ s = (∑ᵢ xᵢ φᵢ s)².
+      rw [sq, Finset.sum_mul_sum]
+      refine Finset.sum_congr rfl fun i _ => Finset.sum_congr rfl fun j _ => ?_
+      ring
+    rw [h_quad_eq]
+    -- ∫₀¹ f² ≥ 0.
+    exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
+      (fun _ => sq_nonneg _)
+
+/-! ## 4.56. K_GLW Gram-matrix as a special case of `gramMatrixL2`
+
+The K_GLW Gram matrix `glwCovMatrix us` is the generic Gram matrix
+`gramMatrixL2` applied to the exponential family
+`s ↦ exp(-uᵢ s)`. So `glwCovMatrix_PosSemidef` factors through
+`gramMatrixL2_PosSemidef`. -/
+
+/-- For nonneg grids `us`, the K_GLW Gram matrix equals the generic
+L²([0,1])-Gram matrix of the exponential integrand family. -/
+theorem glwCovMatrix_eq_gramMatrixL2 {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    glwCovMatrix us = gramMatrixL2 (fun i => glwIntegrand (us i)) := by
+  ext i j
+  rw [glwCovMatrix_apply, gramMatrixL2_apply]
+  exact K_GLW_eq_integral_glwIntegrand_mul (h_us i) (h_us j)
+
+/-- **Alternative proof of `glwCovMatrix_PosSemidef`** via the generic
+Gram-matrix abstraction. The original proof in Section 3 unrolls the
+integral-of-square argument inline; this alternative shows the same
+result is a 2-line corollary of the generic Mathlib-PR-shaped lemma. -/
+theorem glwCovMatrix_PosSemidef_via_gramMatrixL2 {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    (glwCovMatrix us).PosSemidef := by
+  rw [glwCovMatrix_eq_gramMatrixL2 us h_us]
+  exact gramMatrixL2_PosSemidef _ (fun i => glwIntegrand_continuous (us i))
+
 /-! ## 4.6. Mercer integral representation, matrix form
 
 The matrix form of the Mercer / L²-inner-product representation
