@@ -1636,6 +1636,30 @@ noncomputable def K_GLW_processKernel : ProcessKernel where
               (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
     linarith
 
+/-! ### Structural corollaries of `ProcessKernel`
+
+Generic facts derivable from the `ProcessKernel` axioms — these
+are what downstream brownian-motion-side arguments would consume. -/
+
+namespace ProcessKernel
+
+variable (P : ProcessKernel)
+
+/-- For any process kernel, the Hölder-1 bound at `(s, s)` gives `0 ≤ 0`
+(trivially) — useful sanity check. -/
+theorem K_hoelder_self (s : NNReal) :
+    P.K s s + P.K s s - 2 * P.K s s ≤ 0 := by
+  have := P.hoelder s s
+  simp at this
+  linarith
+
+/-- For any process kernel, the off-diagonal Hölder-1 bound. -/
+theorem K_off_diag_le (s t : NNReal) :
+    P.K s s + P.K t t - 2 * P.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
+  P.hoelder s t
+
+end ProcessKernel
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
