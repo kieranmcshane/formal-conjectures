@@ -798,22 +798,43 @@ theorem K_GLW_var_tendsto_zero :
     linarith
   linarith
 
-/-! ## 8. Construction blockers (BLOCKER / TRIED / NEEDS)
+/-! ## 8. Construction blockers — see `YGLWFromBrownianMotion.lean`
 
-The following Mathlib gaps prevent the full retirement of `Y_GLW_exists`
-in this round. Each is documented in the standard BLOCKER / TRIED / NEEDS
-format used elsewhere in the campaign.
+The full retirement of `Y_GLW_exists` is blocked on the unavailability,
+in our pinned toolchain, of the
+**[Degenne–Pfaffelhuber 2025 `brownian-motion` Lean project]
+(https://github.com/RemyDegenne/brownian-motion)**, which already
+implements the kernel-generic projective-limit construction we need
+(parameterised over a PSD covariance matrix). That project's master
+branch uses `leanprover/lean4:v4.30.0-rc1` and its historical commit
+`91267abd` uses `v4.27.0-rc1` — neither matches our pinned `v4.27.0`,
+so a direct Lake dep is currently infeasible without a coordinated
+toolchain bump.
 
-### BLOCKER #1: Brownian motion is not in Mathlib.
+The companion bridge file `YGLWFromBrownianMotion.lean` packages
+everything needed for the eventual Y_GLW_exists retirement: the
+finite-grid covariance matrix `glwCovMatrix`, its Hermitian and
+PosSemidef properties (the latter via `K_GLW_quadratic_form_nonneg`
+from this file), and detailed BLOCKER documentation B1-B5 of the
+specific `brownian-motion` API calls needed.
+
+The original detailed BLOCKER analysis is preserved below for
+reference; each is now a "satisfied precondition + missing API" pair
+documented in the bridge file.
+
+### BLOCKER #1: Brownian motion (or kernel-generic projective limit).
 
 * **TRIED**: searched
   `Mathlib/Probability/Process/{Adapted,Filtration,FiniteDimensionalLaws,
   HittingTime,Kolmogorov,PartitionFiltration,Predictable,Stopping}.lean`
   and `Mathlib/Probability/Distributions/Gaussian/{Basic,CharFun,Fernique,
   Real}.lean`. None of these define a Brownian-motion measure or process.
-* **NEEDS**: `IsBrownianMotion B` or `wienerMeasure : Measure C([0,∞), ℝ)`
-  with the standard properties (`B 0 = 0`, independent increments,
-  `B t - B s ~ N(0, t-s)`, continuous paths).
+* **STATUS**: **AVAILABLE in `brownian-motion` project** (Degenne–
+  Pfaffelhuber, 2025) — fully formalised via projective limits.
+  Migration to Mathlib is in progress. Not yet pinnable from our
+  toolchain.
+* **NEEDS**: toolchain alignment OR `multivariateGaussian +
+  projectiveLimit + KolmogorovChentsov` migration to Mathlib.
 
 ### BLOCKER #2: Wiener integral against deterministic L² integrands.
 
@@ -856,13 +877,17 @@ format used elsewhere in the campaign.
 
 ### Remediation timeline
 
-A direct path to all five blockers exists once mathlib gains Brownian
-motion and the Wiener integral: when those land, the present file can be
-extended with a `Y_GLW` *theorem* replacing the axiom, with the analytic
-content (covariance, Mercer representation, PSD) already in place here.
+A direct path to all five blockers exists once the `brownian-motion`
+project's API lands in our toolchain (either via toolchain bump or
+Mathlib merge). The kernel-side preconditions are all proved here:
 
-Until then, this file's deterministic-analytic content gives the
-`K_GLW`-side of the construction so the eventual Wiener-integral
-plug-in is a one-line application of the Itô isometry. -/
+* `K_GLW_quadratic_form_nonneg` ⇒ `glwCovMatrix.PosSemidef` (B1, B2)
+* `L2_diff_le_sq` ⇒ Kolmogorov–Chentsov hypothesis (B4)
+* `K_GLW_var_tendsto_zero` ⇒ tail-decay seed (B5)
+
+When the brownian-motion project becomes available, `Y_GLW_exists`
+retirement reduces to a 5-step proof in `YGLWFromBrownianMotion.lean`,
+each step a one-line application of a project-API call to the kernel
+data. -/
 
 end Erdos524.Helpers
