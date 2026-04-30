@@ -419,4 +419,43 @@ theorem hierCauchyG_PosDef (m : ℕ) (hm : 1 ≤ m) :
   intro i
   exact eigenvalues_pos_of_PosSemidef_of_det_pos hH hPSD hDet i
 
+/- ## §7. Corollaries of PosDef -/
+
+/-- The hierarchical Cauchy matrix is invertible for `m ≥ 1`. -/
+theorem hierCauchyG_isUnit (m : ℕ) (hm : 1 ≤ m) : IsUnit (hierCauchyG m) := by
+  classical
+  exact (hierCauchyG_PosDef m hm).isUnit
+
+/-- The inverse of the hierarchical Cauchy matrix is also positive definite. -/
+theorem hierCauchyG_inv_PosDef (m : ℕ) (hm : 1 ≤ m) :
+    ((hierCauchyG m)⁻¹).PosDef := by
+  classical
+  exact (hierCauchyG_PosDef m hm).inv
+
+/-- Strict positivity of the quadratic form: for `m ≥ 1` and `x ≠ 0`,
+the quadratic form `xᵀ (hierCauchyG m) x` is strictly positive. -/
+theorem hierCauchyG_quadForm_pos_of_ne_zero (m : ℕ) (hm : 1 ≤ m)
+    {x : Fin m × Fin m → ℝ} (hx : x ≠ 0) :
+    0 < x ⬝ᵥ (hierCauchyG m) *ᵥ x :=
+  (hierCauchyG_PosDef m hm).dotProduct_mulVec_pos hx
+
+/-- Strict positivity of the quadratic-form integral. For `m ≥ 1` and
+`x ≠ 0`, `∫_(0,∞) (expProfile m x t)² dt > 0`. -/
+theorem expProfile_sq_integral_pos_of_ne_zero (m : ℕ) (hm : 1 ≤ m)
+    {x : Fin m × Fin m → ℝ} (hx : x ≠ 0) :
+    0 < ∫ t : ℝ in Ioi 0, (expProfile m x t)^2 := by
+  -- Apply hierCauchyG_quadForm_pos_of_ne_zero combined with the integral
+  -- representation `xᵀ M x = ∫ (expProfile m x t)² dt`.
+  have hdot := hierCauchyG_quadForm_pos_of_ne_zero m hm hx
+  have h_quad : x ⬝ᵥ (hierCauchyG m) *ᵥ x =
+      ∑ i, ∑ j, x i * hierCauchyG m i j * x j := by
+    simp only [dotProduct, mulVec, Finset.mul_sum]
+    apply Finset.sum_congr rfl
+    intro i _
+    apply Finset.sum_congr rfl
+    intro j _
+    ring
+  rw [h_quad, hierCauchyG_quadForm_eq_integral_sq m x] at hdot
+  exact hdot
+
 end Erdos524.Helpers
