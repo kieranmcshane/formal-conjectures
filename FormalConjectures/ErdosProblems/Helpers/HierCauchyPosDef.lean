@@ -377,7 +377,13 @@ sidesteps the analytic strict-positivity-of-quadratic-form argument
 positive `g_i`) entirely. -/
 
 /-- For a real Hermitian PosSemidef matrix with strictly positive
-determinant, all eigenvalues are strictly positive. -/
+determinant, all eigenvalues are strictly positive.
+
+(Mathlib-PR-shaped lemma: this could be upstreamed as a general
+`Matrix.PosSemidef.eigenvalues_pos_of_det_pos`. The proof is short:
+the eigenvalues product equals the determinant, all are non-negative
+by PSD, and a product of non-negative reals is positive iff none is
+zero.) -/
 theorem eigenvalues_pos_of_PosSemidef_of_det_pos
     {n : Type*} [Fintype n] [DecidableEq n]
     {A : Matrix n n ℝ}
@@ -407,17 +413,26 @@ theorem eigenvalues_pos_of_PosSemidef_of_det_pos
   -- Combine `0 ≤` and `≠ 0` to get `0 <`.
   exact lt_of_le_of_ne (h_nonneg i) (Ne.symm h_ne)
 
+/-- General-form `PosSemidef + det > 0 ⇒ PosDef` over ℝ. This is the
+key short-circuit that bypassed the analytic strict-positivity argument
+in our PosDef derivation; it is Mathlib-PR-quality and could replace
+significantly more elaborate arguments anywhere a PSD-with-positive-det
+matrix needs to be shown PosDef. -/
+theorem PosDef_of_PosSemidef_of_det_pos
+    {n : Type*} [Fintype n] [DecidableEq n]
+    {A : Matrix n n ℝ}
+    (hPSD : A.PosSemidef) (hDet : 0 < A.det) : A.PosDef := by
+  have hH : A.IsHermitian := hPSD.isHermitian
+  rw [hH.posDef_iff_eigenvalues_pos]
+  intro i
+  exact eigenvalues_pos_of_PosSemidef_of_det_pos hH hPSD hDet i
+
 /-- The hierarchical Cauchy matrix is positive definite for `m ≥ 1`. -/
 theorem hierCauchyG_PosDef (m : ℕ) (hm : 1 ≤ m) :
     (hierCauchyG m).PosDef := by
   classical
-  have hH : (hierCauchyG m).IsHermitian := hierCauchyG_isHermitian m
-  have hPSD : (hierCauchyG m).PosSemidef := hierCauchyG_PosSemidef m
-  have hDet : 0 < (hierCauchyG m).det := hierCauchyG_det_pos m hm
-  -- Use the eigenvalue characterization.
-  rw [hH.posDef_iff_eigenvalues_pos]
-  intro i
-  exact eigenvalues_pos_of_PosSemidef_of_det_pos hH hPSD hDet i
+  exact PosDef_of_PosSemidef_of_det_pos (hierCauchyG_PosSemidef m)
+    (hierCauchyG_det_pos m hm)
 
 /- ## §7. Corollaries of PosDef -/
 
