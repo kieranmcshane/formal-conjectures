@@ -722,6 +722,13 @@ example : (hierCauchyG 1).PosDef := by
   rw [hierCauchyG_eq_cauchyMatrix]
   exact cauchyMatrix_PosDef (hierGrid_pos 1) (hierCauchyG_det_pos 1 (by norm_num))
 
+/-- Sanity-check: at `m = 1`, the entry `hierCauchyG 1 (0,0) (0,0) = 1/16`.
+Computation: `hierGrid 1 (0,0) = 4^1 · 2 = 8`, so the entry is `1/(8+8) = 1/16`. -/
+example : hierCauchyG 1 (0, 0) (0, 0) = 1 / 16 := by
+  rw [hierCauchyG_apply]
+  unfold hierGrid
+  norm_num
+
 /- ## §9. Abstract entry-level integral representation -/
 
 /-- The abstract Cauchy matrix entry equals the Cauchy integral
