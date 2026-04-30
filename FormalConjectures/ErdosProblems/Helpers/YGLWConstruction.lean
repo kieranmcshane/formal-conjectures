@@ -1149,4 +1149,35 @@ theorem K_GLW_lipschitz_joint {u u' v v' : ℝ}
         · exact K_GLW_lipschitz_first_abs hu hu' hv
         · exact K_GLW_lipschitz_second_abs hu' hv hv'
 
+/-! ## 10. Round-11 final summary
+
+Round 11 closed Phase B's first attack on the `Y_GLW_exists` axiom.
+Mathlib lacks a Brownian motion + Wiener integral, but the
+[Degenne–Pfaffelhuber `brownian-motion` Lean
+project](https://github.com/RemyDegenne/brownian-motion) implements
+the kernel-generic projective-limit construction we need; toolchain
+alignment with `v4.27.0` is the only outstanding obstacle.
+
+This file (`YGLWConstruction.lean`) supplies the **deterministic-
+analytic kernel-side content** the eventual retirement requires:
+
+* covariance integral identity (Section 1),
+* Mercer / L²-inner-product representation (Section 2),
+* PSD via integral-of-square (Section 3),
+* variance closed form (Section 4),
+* Cauchy–Schwarz (Section 6),
+* L²-distance identity (Section 6.5),
+* monotonicity / antitone (Section 6.6),
+* L²-Hölder bound = KC ground floor (Section 6.7),
+* variance decay (Section 7),
+* K_GLW Lipschitz-1 joint (Section 9).
+
+The companion bridge file `YGLWFromBrownianMotion.lean` packages the
+matrix-side: `glwCovMatrix`, the kernel-generic `gramMatrixL2`
+abstraction, PSD, sub-grid restriction, det/trace bounds, and
+documented BLOCKER preconditions B1–B5 (B1, B2, B4, B5 satisfied; only
+B3 — the abstract projective-limit theorem — requires the external
+project API). When that lands, `Y_GLW_exists` becomes a 5-step proof
+with all the analytic content already in place. -/
+
 end Erdos524.Helpers
