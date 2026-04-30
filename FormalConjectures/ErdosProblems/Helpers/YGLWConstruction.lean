@@ -40,16 +40,38 @@ forthcoming Brownian-motion + Wiener-integral API.
 
 ## What this file proves
 
-* `K_GLW_eq_intervalIntegral_exp_neg`: the covariance integral identity
-  `K_GLW(u, v) = ∫₀¹ exp(-(u+v)·s) ds` for `u + v > 0`.
-* `K_GLW_zero_eq_intervalIntegral`: the same identity at `u = v = 0`
-  (the boundary case where both sides equal `1`).
-* `K_GLW_eq_integral_glwIntegrand`: `K_GLW(u, v) = ∫₀¹ glwIntegrand u s ·
-  glwIntegrand v s ds`, recognising `K_GLW` as the **L²([0,1]) inner
-  product** of the integrand family `glwIntegrand u (s) := exp(-u s)`.
-* `K_GLW_quadratic_form_nonneg`: positive semi-definiteness of `K_GLW`
-  on `[0, ∞)ⁿ`, derived from the Mercer-style integral representation
-  `∑ᵢⱼ cᵢ cⱼ K(uᵢ, uⱼ) = ∫₀¹ (∑ᵢ cᵢ exp(-uᵢ s))² ds ≥ 0`.
+* **Covariance integral identity** (Section 1):
+  `K_GLW_eq_intervalIntegral_exp_neg` —
+  `K_GLW(u, v) = ∫₀¹ exp(-(u+v)·s) ds` for `u + v > 0`;
+  `K_GLW_zero_eq_intervalIntegral` for the boundary case at the origin.
+* **Mercer / L²-inner-product representation** (Section 2):
+  `K_GLW_eq_integral_glwIntegrand_mul`:
+  `K_GLW(u, v) = ∫₀¹ glwIntegrand u (s) · glwIntegrand v (s) ds`,
+  recognising `K_GLW` as the L²([0,1]) inner product of the
+  exponential family `glwIntegrand u (s) := exp(-u s)`.
+* **Positive semi-definiteness** (Section 3): `K_GLW_quadratic_form_nonneg`
+  via the integral-of-square representation.
+* **Variance** (Sections 4, 6.45): `K_GLW_var_eq` (closed form),
+  `glwIntegrand_L2_norm_sq` (Mercer form), `K_GLW_at_zero`,
+  `K_GLW_var_lt_one` (strict bound).
+* **Linearity in coefficients** (Section 5): `glwExpProfile_smul` /
+  `_add` / `_zero_coeff`.
+* **Cauchy–Schwarz** (Section 6): `K_GLW_cauchy_schwarz` —
+  `K_GLW(u, v)² ≤ K_GLW(u, u) · K_GLW(v, v)` via 2-point Mercer-PSD.
+* **L²-distance identity** (Section 6.5): `L2_distance_glwIntegrand_eq`,
+  `K_GLW_diff_quadratic_nonneg`.
+* **Monotonicity** (Section 6.6): `K_GLW_var_antitone`,
+  `integral_glwIntegrand_eq_K_GLW_zero`.
+* **L² Hölder-1 bound** (Section 6.7): `glwIntegrand_diff_sq_le`,
+  `L2_diff_le_sq`, `K_GLW_diff_quadratic_le_sq` — the Kolmogorov–Chentsov
+  ground floor.
+* **Variance decay** (Section 7): `K_GLW_var_le_recip` (`K(u, u) ≤ 1/(2u)`),
+  `K_GLW_var_tendsto_zero` (`K(u, u) → 0` as `u → ∞`).
+* **K_GLW Lipschitz-1 bound on the nonneg quadrant** (Section 9):
+  `K_GLW_three_point_psd`, `K_GLW_diff_sq_le_quadratic_form_mul`,
+  `K_GLW_lipschitz_first` / `_second` / `_first_abs` / `_second_abs` /
+  `_joint`. Direct kernel-side modulus-of-continuity bound, derived
+  from the 3-point Mercer-PSD discriminant + L²-Hölder + variance bound.
 
 Each lemma is purely real-analytic — no probability content — and re-uses
 Round 10's exponential-integral techniques (`integral_exp_mul_complex`,
