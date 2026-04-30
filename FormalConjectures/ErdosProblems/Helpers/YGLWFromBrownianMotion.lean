@@ -2302,6 +2302,70 @@ theorem K_GLW_processKernel_kernelMatrix_submatrix_PSD
   rw [K_GLW_processKernel_kernelMatrix_eq]
   exact glwCovMatrixNN_PosSemidef J
 
+/-! ## 4.31. K_GLW_processKernel.kernelMatrix — quadratic form lifts -/
+
+/-- Quadratic form on the kernel matrix is non-negative. -/
+theorem K_GLW_processKernel_kernelMatrix_quadratic_form_nonneg
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    0 ≤ ∑ s, x s * (K_GLW_processKernel.kernelMatrix I *ᵥ x) s :=
+  K_GLW_processKernel.kernelMatrix_quadratic_form_nonneg I x
+
+/-- Quadratic form on the kernel matrix bounded by `(∑ |x|)²`. -/
+theorem K_GLW_processKernel_kernelMatrix_quadratic_form_le_l1_sq
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    ∑ s, x s * (K_GLW_processKernel.kernelMatrix I *ᵥ x) s ≤
+      (∑ s : {y : NNReal // y ∈ I}, |x s|)^2 := by
+  rw [show (K_GLW_processKernel.kernelMatrix I *ᵥ x) =
+        (glwCovMatrixNN I *ᵥ x) by rw [K_GLW_processKernel_kernelMatrix_eq]]
+  exact glwCovMatrixNN_quadratic_form_le_l1_sq I x
+
+/-- Quadratic form on the kernel matrix expanded as a double sum. -/
+theorem K_GLW_processKernel_kernelMatrix_quadratic_form_eq_sum
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    ∑ s, x s * (K_GLW_processKernel.kernelMatrix I *ᵥ x) s =
+      ∑ s, ∑ t, x s * x t * K_GLW_processKernel.K s.1 t.1 := by
+  exact K_GLW_processKernel.kernelMatrix_quadratic_form_eq_sum I x
+
+/-- Hermitian property of `K_GLW_processKernel.kernelMatrix`. -/
+theorem K_GLW_processKernel_kernelMatrix_isHermitian (I : Finset NNReal) :
+    (K_GLW_processKernel.kernelMatrix I).IsHermitian :=
+  (K_GLW_processKernel.PSD I).1
+
+/-! ## 4.32. Explicit K_GLW_processKernel values at zero and on the diagonal
+
+These specialised forms make the relationship between `K_GLW_processKernel.K`
+and the `(1 - exp(-x))/x` formula explicit, useful for any
+quantitative estimates in downstream lower-bound arguments. -/
+
+/-- For `t > 0`, the kernel value `K(0, t) = (1 - exp(-t)) / t`. -/
+theorem K_GLW_processKernel_K_zero_left_eq (t : NNReal) (ht : 0 < (t : ℝ)) :
+    K_GLW_processKernel.K 0 t = (1 - Real.exp (-(t : ℝ))) / (t : ℝ) := by
+  rw [K_GLW_processKernel_K]
+  show K_GLW (0 : ℝ) (t : ℝ) = (1 - Real.exp (-(t : ℝ))) / (t : ℝ)
+  rw [K_GLW_def, zero_add]
+  exact K_GLW_aux_of_ne (t : ℝ) (ne_of_gt ht)
+
+/-- By symmetry, for `s > 0`, `K(s, 0) = (1 - exp(-s))/s`. -/
+theorem K_GLW_processKernel_K_zero_right_eq (s : NNReal) (hs : 0 < (s : ℝ)) :
+    K_GLW_processKernel.K s 0 = (1 - Real.exp (-(s : ℝ))) / (s : ℝ) := by
+  rw [K_GLW_processKernel.symm s 0]
+  exact K_GLW_processKernel_K_zero_left_eq s hs
+
+/-- The diagonal value `K(s, s) = (1 - exp(-2s))/(2s)` for `s > 0`. -/
+theorem K_GLW_processKernel_K_diag_eq (s : NNReal) (hs : 0 < (s : ℝ)) :
+    K_GLW_processKernel.K s s = (1 - Real.exp (-(2 * s : ℝ))) / (2 * (s : ℝ)) := by
+  rw [K_GLW_processKernel_K]
+  show K_GLW (s : ℝ) (s : ℝ) = (1 - Real.exp (-(2 * s : ℝ))) / (2 * (s : ℝ))
+  rw [K_GLW_def, show ((s : ℝ) + (s : ℝ)) = 2 * (s : ℝ) from by ring]
+  have h_ne : (2 * (s : ℝ)) ≠ 0 := by
+    have : 0 < 2 * (s : ℝ) := by linarith
+    exact ne_of_gt this
+  exact K_GLW_aux_of_ne (2 * (s : ℝ)) h_ne
+
+/-- The diagonal value at zero: `K(0, 0) = 1` (specialisation). -/
+theorem K_GLW_processKernel_K_diag_at_zero :
+    K_GLW_processKernel.K 0 0 = 1 := K_GLW_processKernel_at_zero
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
