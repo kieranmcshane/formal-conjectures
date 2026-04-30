@@ -13,6 +13,7 @@ limitations under the License.
 
 import FormalConjectures.ErdosProblems.Helpers.YGLWConstruction
 import Mathlib.LinearAlgebra.Matrix.PosDef
+import Mathlib.Analysis.Matrix.PosDef
 
 /-!
 # Phase 2 / Round 11 — Bridge to the `brownian-motion` project
@@ -397,6 +398,40 @@ theorem glwCovMatrix_submatrix_PosSemidef {m n : ℕ} (us : Fin n → ℝ)
     ((glwCovMatrix us).submatrix f f).PosSemidef := by
   rw [glwCovMatrix_submatrix]
   exact glwCovMatrix_PosSemidef (us ∘ f) (fun i => h_us (f i))
+
+/-! ## 4.8. Determinant and trace bounds
+
+Standard PSD corollaries: `det ≥ 0` and `trace ≥ 0`. -/
+
+/-- The determinant of `glwCovMatrix us` is non-negative for nonneg
+grids (a corollary of `PosSemidef.det_nonneg`). -/
+theorem glwCovMatrix_det_nonneg {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    0 ≤ (glwCovMatrix us).det :=
+  (glwCovMatrix_PosSemidef us h_us).det_nonneg
+
+/-- The trace of `glwCovMatrix us` is non-negative for nonneg grids
+(sum of non-negative diagonal entries). -/
+theorem glwCovMatrix_trace_nonneg {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    0 ≤ (glwCovMatrix us).trace := by
+  rw [Matrix.trace]
+  apply Finset.sum_nonneg
+  intro i _
+  exact glwCovMatrix_diag_nonneg us h_us i
+
+/-- The trace of `glwCovMatrix us` is bounded above by `n` (each
+diagonal entry is `≤ 1`). -/
+theorem glwCovMatrix_trace_le {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    (glwCovMatrix us).trace ≤ (n : ℝ) := by
+  rw [Matrix.trace]
+  calc ∑ i : Fin n, (glwCovMatrix us).diag i
+      ≤ ∑ _i : Fin n, (1 : ℝ) := by
+        apply Finset.sum_le_sum
+        intro i _
+        exact glwCovMatrix_diag_le_one us h_us i
+    _ = (n : ℝ) := by simp
 
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
