@@ -173,6 +173,7 @@ constant are PosDef. This is a clean Mathlib-style derived lemma reusing
 `mvGaussian_box_density_at_mode_bound` at a scalar covariance.
 -/
 
+omit [Fintype n] in
 theorem smul_one_PosDef [DecidableEq n] {c : ℝ} (hc : 0 < c) :
     (c • (1 : Matrix n n ℝ)).PosDef := by
   rw [show (c • (1 : Matrix n n ℝ)) = Matrix.diagonal (fun _ : n => c) from ?_]
