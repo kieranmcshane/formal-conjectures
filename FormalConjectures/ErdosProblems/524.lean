@@ -3599,11 +3599,11 @@ theorem gao_li_wellner_small_ball_lower (glw : GaoLiWellnerConstants) :
   --   lower-tail entropy bound.
   -- TRIED: combining the Round 6 cov_eq_inner cascade with the
   --   `mvGaussian_box_density_at_mode_bound` finite-grid LOWER bound
-  --   (the Round 6 PosDef Anderson sorry, retiring which would close
-  --   90% of the lower-bound difficulty); the optimization
-  --   `m(ε) ~ |log ε|` then yields the cubic exponent. The Round 6
-  --   sorry is itself open and the full Karhunen–Loève + Talagrand
-  --   machinery for K_GLW is a Mathlib gap.
+  --   (the Round 6 PosDef Anderson sorry — **closed in Round 9**, see
+  --   `Helpers/MVGaussianDensityBound.lean`); the optimization
+  --   `m(ε) ~ |log ε|` then yields the cubic exponent. With the
+  --   Anderson piece now available, the dominant remaining blocker is
+  --   the Karhunen–Loève + Talagrand machinery for K_GLW (Mathlib gap).
   -- NEEDS: (a) Karhunen–Loève expansion of `K_GLW` as a Mercer-style
   --   eigenfunction series with explicit eigenvalue decay — not in
   --   Mathlib (multi-year project); OR (b) Talagrand's generic-chaining
