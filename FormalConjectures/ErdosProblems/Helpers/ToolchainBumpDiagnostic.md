@@ -282,3 +282,86 @@ skeleton in `YGLWFromBrownianMotion.lean §5`, with the
 `glwCovMatrixNN` (R12 deliverable) as input directly.
 
 Estimated R14 effort: 30–60 min if Flavour B fixes prove simple.
+
+## R13 Pin Retry — Outcome (2026-04-30, T+25)
+
+**Round**: R13 retry (kmc-erdos-glw-lower @ eed01ad)
+**Trigger**: midcourse pivot from cowork — observation that the 4
+initial pin failures were all *outside the GLW chain* warranted a
+retry under a harder cap.
+**Cap**: T+15 from retry start (12:12:57).
+**Result**: REVERTED at T+15 (~12:12) under the hard cap.
+
+### What we learned (the retry was informative)
+
+The first 4 errors patched cleanly:
+
+1. ✅ `Set.self_mem_Ici → Set.left_mem_Ici` rename (3 lines, 2 files).
+2. ✅ `Powerfree.lean:81` — typeclass strengthening
+   `[CommMonoidWithZero] [IsCancelMulZero] → [CancelCommMonoidWithZero]`.
+3. ✅ `GCDMonoid/Finset.lean:27` — same typeclass strengthening as Fix 2.
+
+**Two new errors then surfaced**:
+
+4. ⚠️ `CauchyDetLowerBound.lean:1907` — "no goals to be solved" at
+   the second `congr 1` bullet. Fixed by removing the (now redundant)
+   `· offDiag piece` block: in v4.27.0-rc1 mathlib, `congr 1` over
+   `(∑ filter +) + (∑ filter ¬)` and `(∑ diag) + (∑ univ.offDiag)`
+   auto-closes the offDiag bullet via `rfl` because
+   `univ.offDiag = filter (¬·) (univ ×ˢ univ)` matches definitionally.
+5. ❌ **Hard blocker**: `524.lean:662` — `StronglyAdapted` is no longer
+   defined in v4.27.0-rc1 Mathlib. `grep StronglyAdapted` on the
+   pinned mathlib returns empty. This is the
+   `Mathlib/Probability/Process/StronglyAdapted` module that was
+   refactored or removed between v4.27.0 and v4.27.0-rc1. The fix
+   requires either (a) finding the renamed concept (likely
+   `Adapted`/`IsAdaptedToFiltration` with related changes to
+   `StronglyMeasurable[ℱ k]`) or (b) restructuring the submartingale
+   proof in `524.lean` (Phase B Step 1, `hadapted` block ~line 662).
+
+### Conclusion: R13 hypothesis falsified
+
+The midcourse-pivot hypothesis ("4 errors are all surgical / outside
+GLW chain") was correct for the *initial* 4 errors. But the cascade
+revealed *additional* errors deeper in `524.lean` that ARE on the GLW
+dependency path and that involve **non-mechanical refactors** (the
+`StronglyAdapted` removal in particular). The discipline rule
+correctly fired at T+15.
+
+### Updated R14 procedure (revised)
+
+R14 should NOT attempt a quick pin retry. The pin path requires:
+
+1. Patches 1–3 (trivial; 5 min total).
+2. Patch 4 (CauchyDetLowerBound; 5 min).
+3. **Major refactor** of `524.lean:662–700+` for `StronglyAdapted`
+   removal. Estimated effort: 30–90 min depending on whether
+   `Mathlib.Probability` exposes a clean replacement.
+4. Possibly **further unknown errors** beneath the StronglyAdapted
+   blocker (we never got past it).
+
+### Recommendation
+
+R14 should pursue one of:
+
+* **Path A**: Continue extending the bridge file with kernel-side
+  content; defer pin to R15+. **Lowest risk, no axiom retired.**
+* **Path B**: Investigate the `StronglyAdapted` replacement *separately*
+  on `kmc-erdos-glw-lower` (no pin) and prepare a refactor branch. Once
+  ready, attempt the pin again with the refactor pre-staged. **Medium
+  risk, possibly retires the axiom in 2 rounds.**
+* **Path C**: Direct upstream coordination with Mathlib /
+  brownian-motion to either (i) ask brownian-motion to track Mathlib
+  v4.27.0 release tag, or (ii) wait for the next brownian-motion
+  release that targets a Mathlib commit closer to v4.27.0. **Lowest
+  marginal cost, but bottlenecked on external timing.**
+
+### State at end of R13
+
+* Branch `kmc-erdos-glw-lower` HEAD: post-revert, restored to
+  `kmc-erdos-glw-lower` baseline (toolchain v4.27.0, mathlib pin
+  `v4.27.0`, no brownian-motion / kolmogorov_extension4 deps).
+* Build: green (8009 jobs).
+* Axiom count: 2 (`Y_GLW_exists`, `two_dim_KMT_coupling`).
+* Bridge file deliverables from R13 Tier 4: ~520 lines, 51 new
+  theorems, all committed.
