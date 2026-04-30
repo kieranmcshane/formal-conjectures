@@ -2873,6 +2873,63 @@ theorem K_GLW_processKernel_K_continuousAt_right (s t : NNReal) :
     ContinuousAt (fun t' : NNReal => K_GLW_processKernel.K s t') t :=
   (K_GLW_processKernel_K_continuous_right s).continuousAt
 
+/-! ## 4.46. K_GLW_processKernel — combined "all-in-one" downstream bounds
+
+Bundled bound theorems that combine multiple atomic facts into single
+load-bearing statements convenient for downstream brownian-motion-side
+arguments. -/
+
+/-- All-in-one: `K(s, t)` lies in `[0, 1]`, is symmetric, has diagonal
+in `[0, 1]`, and the pair-Hölder bound holds. -/
+theorem K_GLW_processKernel_full_pair_data (s t : NNReal) :
+    0 ≤ K_GLW_processKernel.K s t ∧
+      K_GLW_processKernel.K s t ≤ 1 ∧
+      K_GLW_processKernel.K s t = K_GLW_processKernel.K t s ∧
+      0 ≤ K_GLW_processKernel.K s s ∧
+      K_GLW_processKernel.K s s ≤ 1 ∧
+      0 ≤ K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+            2 * K_GLW_processKernel.K s t ∧
+      K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+            2 * K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
+  ⟨le_of_lt (K_GLW_processKernel_pos s t),
+   K_GLW_processKernel_le_one s t,
+   K_GLW_processKernel.symm s t,
+   K_GLW_processKernel.K_diag_nonneg s,
+   K_GLW_processKernel_le_one s s,
+   K_GLW_processKernel_pair_increment_nonneg s t,
+   K_GLW_processKernel_pair_increment_le_sq s t⟩
+
+/-- All-in-one: kernel matrix is PSD, has non-negative trace bounded by
+`card I`, with sum-of-entries non-negative bounded by `(card I)²`,
+and the integral representation holds. -/
+theorem K_GLW_processKernel_kernelMatrix_full_finite_data
+    (I : Finset NNReal) :
+    (K_GLW_processKernel.kernelMatrix I).PosSemidef ∧
+      0 ≤ (K_GLW_processKernel.kernelMatrix I).trace ∧
+      (K_GLW_processKernel.kernelMatrix I).trace ≤ (I.card : ℝ) ∧
+      0 ≤ ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+            K_GLW_processKernel.kernelMatrix I s t ∧
+      ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+            K_GLW_processKernel.kernelMatrix I s t ≤
+        (I.card : ℝ) * (I.card : ℝ) :=
+  ⟨K_GLW_processKernel.PSD I,
+   K_GLW_processKernel_kernelMatrix_trace_nonneg I,
+   K_GLW_processKernel_kernelMatrix_trace_le_card I,
+   K_GLW_processKernel_kernelMatrix_sum_entries_nonneg I,
+   K_GLW_processKernel_kernelMatrix_sum_entries_le I⟩
+
+/-- All-in-one: continuity, monotonicity, and asymptotic facts about
+the diagonal `s ↦ K(s, s)`. -/
+theorem K_GLW_processKernel_K_diag_full_data :
+    Continuous (fun s : NNReal => K_GLW_processKernel.K s s) ∧
+      (∀ {s t : NNReal}, s ≤ t →
+        K_GLW_processKernel.K t t ≤ K_GLW_processKernel.K s s) ∧
+      Filter.Tendsto (fun s : NNReal => K_GLW_processKernel.K s s)
+        Filter.atTop (nhds 0) :=
+  ⟨K_GLW_processKernel_K_diag_continuous,
+   K_GLW_processKernel_diag_antitone,
+   K_GLW_processKernel_K_diag_tendsto_zero⟩
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
