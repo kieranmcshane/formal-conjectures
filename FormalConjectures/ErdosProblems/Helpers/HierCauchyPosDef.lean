@@ -225,4 +225,93 @@ theorem integrableOn_exp_neg_mul_Ioi_zero {c : ℝ} (hc : 0 < c) :
     IntegrableOn (fun t : ℝ => Real.exp (-c * t)) (Ioi 0) :=
   integrableOn_exp_mul_Ioi (a := -c) (by linarith) 0
 
+/- ## §4. Gram-matrix integral representation
+
+The key identity `xᵀ M x = ∫_(0,∞) (∑ i, x i · exp(-g_i t))²` is broken
+into pieces: scalar multiplication of integrals, exchanging integral
+and finite sum, factoring `(∑ a_i)² = ∑∑ a_i a_j`, and combining
+exponentials. -/
+
+/-- The "exponential profile" `f x t := ∑ i, x i · exp(-(hierGrid m i) · t)`,
+the function whose integrated square equals the quadratic form. -/
+noncomputable def expProfile (m : ℕ) (x : Fin m × Fin m → ℝ) (t : ℝ) : ℝ :=
+  ∑ i : Fin m × Fin m, x i * Real.exp (-(hierGrid m i) * t)
+
+/-- Integrability of each summand `t ↦ exp(-(g_i + g_j) t)` on `Ioi 0`. -/
+theorem integrableOn_exp_neg_sum_Ioi_zero (m : ℕ) (i j : Fin m × Fin m) :
+    IntegrableOn (fun t : ℝ => Real.exp (-(hierGrid m i + hierGrid m j) * t)) (Ioi 0) :=
+  integrableOn_exp_neg_mul_Ioi_zero (hierGrid_sum_pos m i j)
+
+/-- Integrability of the scaled summand `t ↦ x i * x j * exp(-(g_i + g_j) t)`. -/
+theorem integrableOn_pair_term (m : ℕ) (x : Fin m × Fin m → ℝ) (i j : Fin m × Fin m) :
+    IntegrableOn
+      (fun t : ℝ => x i * x j * Real.exp (-(hierGrid m i + hierGrid m j) * t))
+      (Ioi 0) := by
+  exact (integrableOn_exp_neg_sum_Ioi_zero m i j).const_mul (x i * x j)
+
+/-- Each per-pair Cauchy entry equals the integral of the scaled exponential. -/
+theorem hierCauchyG_entry_eq_integral (m : ℕ) (i j : Fin m × Fin m) :
+    hierCauchyG m i j =
+      ∫ t : ℝ in Ioi 0, Real.exp (-(hierGrid m i + hierGrid m j) * t) := by
+  rw [hierCauchyG_apply]
+  exact cauchy_inv_eq_integral_exp_neg (hierGrid_pos m i) (hierGrid_pos m j)
+
+/-- The factored form: `exp(-(g_i + g_j) t) = exp(-g_i t) * exp(-g_j t)`. -/
+theorem exp_neg_sum_factor (g h t : ℝ) :
+    Real.exp (-(g + h) * t) = Real.exp (-g * t) * Real.exp (-h * t) := by
+  rw [← Real.exp_add]; ring_nf
+
+/-- Quadratic-form-as-integral-of-square identity (the heart of the Gram
+representation). For all `x : Fin m × Fin m → ℝ`,
+`∑ i ∑ j, x i * (hierCauchyG m i j) * x j = ∫_(0,∞) (expProfile m x t)² dt`. -/
+theorem hierCauchyG_quadForm_eq_integral_sq (m : ℕ) (x : Fin m × Fin m → ℝ) :
+    ∑ i, ∑ j, x i * hierCauchyG m i j * x j =
+      ∫ t : ℝ in Ioi 0, (expProfile m x t)^2 := by
+  -- Step 1: rewrite each entry as the integral.
+  have h_entry_eq : ∀ i j : Fin m × Fin m,
+      x i * hierCauchyG m i j * x j =
+        ∫ t : ℝ in Ioi 0, x i * x j *
+          Real.exp (-(hierGrid m i + hierGrid m j) * t) := by
+    intro i j
+    rw [hierCauchyG_entry_eq_integral m i j]
+    rw [MeasureTheory.integral_const_mul]
+    ring
+  -- Step 2: substitute into the double sum and exchange with integral.
+  calc ∑ i, ∑ j, x i * hierCauchyG m i j * x j
+      = ∑ i, ∑ j, ∫ t : ℝ in Ioi 0, x i * x j *
+          Real.exp (-(hierGrid m i + hierGrid m j) * t) := by
+        congr 1; ext i; congr 1; ext j; exact h_entry_eq i j
+    _ = ∫ t : ℝ in Ioi 0, ∑ i, ∑ j, x i * x j *
+          Real.exp (-(hierGrid m i + hierGrid m j) * t) := by
+        -- Pull the inner integral out of ∑ j first, then the outer.
+        have step1 : ∀ i : Fin m × Fin m,
+            ∑ j : Fin m × Fin m,
+              ∫ t : ℝ in Ioi 0,
+                x i * x j * Real.exp (-(hierGrid m i + hierGrid m j) * t) =
+            ∫ t : ℝ in Ioi 0,
+              ∑ j : Fin m × Fin m,
+                x i * x j * Real.exp (-(hierGrid m i + hierGrid m j) * t) := by
+          intro i
+          rw [← integral_finset_sum]
+          intro j _
+          exact integrableOn_pair_term m x i j
+        simp_rw [step1]
+        rw [← integral_finset_sum]
+        intro i _
+        apply integrable_finset_sum
+        intro j _
+        exact integrableOn_pair_term m x i j
+    _ = ∫ t : ℝ in Ioi 0, (expProfile m x t)^2 := by
+        congr 1; ext t
+        unfold expProfile
+        -- ∑ i ∑ j, x i x j exp(-(g_i+g_j)t) = (∑ i, x i exp(-g_i t))^2
+        have h_factor : ∀ i j : Fin m × Fin m,
+            x i * x j * Real.exp (-(hierGrid m i + hierGrid m j) * t) =
+              (x i * Real.exp (-(hierGrid m i) * t)) *
+                (x j * Real.exp (-(hierGrid m j) * t)) := by
+          intro i j
+          rw [exp_neg_sum_factor]; ring
+        simp_rw [h_factor]
+        rw [sq, ← Finset.sum_mul_sum]
+
 end Erdos524.Helpers
