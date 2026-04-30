@@ -659,6 +659,21 @@ theorem mvGaussian_box_density_at_mode_bound_one [DecidableEq n]
   rw [mvGaussianFromPosDef_one_eq]
   exact standardMVGaussian_anisotropic_box_density_at_mode_bound ε hε
 
+/-! ## Round 9 — Sanity-check examples (uses of the new API)
+
+These examples verify the chain compiles correctly when applied to
+concrete instances. They are typeclass-light sanity tests, not
+mathematical content. -/
+
+/-- For `c > 0` and any anisotropic ε, the box probability under the
+scalar covariance `c² • 1` is bounded by the Round 9 Anderson form. -/
+example {c : ℝ} (hc : 0 < c) (ε : Fin 3 → ℝ) (hε : ∀ i, 0 ≤ ε i) :
+    ((mvGaussianFromPosDef ((c ^ 2) • (1 : Matrix (Fin 3) (Fin 3) ℝ)))
+        {x : Fin 3 → ℝ | ∀ i, |x i| ≤ ε i}).toReal ≤
+      (∏ i, 2 * ε i) * (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card (Fin 3) /
+        Real.sqrt ((c ^ 2) • (1 : Matrix (Fin 3) (Fin 3) ℝ)).det :=
+  mvGaussian_box_density_at_mode_bound (smul_one_PosDef (by positivity)) ε hε
+
 /-! ## Round 9 — Consumer-facing API summary
 
 Round 9 delivers the following consumer entry points (all sorry-free):
