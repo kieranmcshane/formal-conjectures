@@ -367,6 +367,30 @@ theorem glwCovMatrix_eq_integral {n : ℕ} (us : Fin n → ℝ)
   rw [glwCovMatrix_apply]
   exact K_GLW_eq_integral_glwIntegrand_mul (h_us i) (h_us j)
 
+/-! ## 4.65. Bilinearity in the family
+
+`gramMatrixL2 φ` is bilinear in the family `φ` in the natural sense:
+scaling each integrand `φᵢ` by `cᵢ` scales the (i, j) entry by `cᵢ · cⱼ`. -/
+
+/-- Scaling the integrand family by per-index constants scales each
+Gram-matrix entry by the product of the constants. -/
+theorem gramMatrixL2_smul_family {n : ℕ} (φ : Fin n → ℝ → ℝ)
+    (cs : Fin n → ℝ) (i j : Fin n) :
+    gramMatrixL2 (fun i s => cs i * φ i s) i j =
+      cs i * cs j * gramMatrixL2 φ i j := by
+  rw [gramMatrixL2_apply, gramMatrixL2_apply,
+      ← intervalIntegral.integral_const_mul]
+  congr 1
+  funext s
+  ring
+
+/-- The Gram matrix of the constant-zero family is zero. -/
+@[simp]
+theorem gramMatrixL2_zero {n : ℕ} :
+    gramMatrixL2 (fun (_ : Fin n) (_ : ℝ) => (0 : ℝ)) = 0 := by
+  ext i j
+  simp [gramMatrixL2_apply]
+
 /-! ## 4.7. Submatrix / sub-grid restriction
 
 For the projective-family consistency hypothesis (BLOCKER B2 below):
