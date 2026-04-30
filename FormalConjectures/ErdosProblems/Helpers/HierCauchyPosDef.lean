@@ -314,4 +314,52 @@ theorem hierCauchyG_quadForm_eq_integral_sq (m : ℕ) (x : Fin m × Fin m → �
         simp_rw [h_factor]
         rw [sq, ← Finset.sum_mul_sum]
 
+/- ## §5. Non-negativity → `PosSemidef` -/
+
+/-- Integrability of the squared profile: `t ↦ (∑ x_i exp(-g_i t))²`.
+
+The squared profile expands to a finite double sum of integrable
+exponentials, so it is itself integrable. -/
+theorem integrableOn_expProfile_sq (m : ℕ) (x : Fin m × Fin m → ℝ) :
+    IntegrableOn (fun t => (expProfile m x t)^2) (Ioi 0) := by
+  -- Expand the square as a finite sum of pair-products.
+  have h_eq : (fun t => (expProfile m x t)^2) =
+      fun t => ∑ i : Fin m × Fin m, ∑ j : Fin m × Fin m,
+        x i * x j * Real.exp (-(hierGrid m i + hierGrid m j) * t) := by
+    ext t
+    unfold expProfile
+    rw [sq, Finset.sum_mul_sum]
+    apply Finset.sum_congr rfl
+    intro i _
+    apply Finset.sum_congr rfl
+    intro j _
+    rw [exp_neg_sum_factor]; ring
+  rw [h_eq]
+  apply integrable_finset_sum
+  intro i _
+  apply integrable_finset_sum
+  intro j _
+  exact integrableOn_pair_term m x i j
+
+/-- The hierarchical Cauchy matrix is positive semi-definite (over ℝ). -/
+theorem hierCauchyG_PosSemidef (m : ℕ) :
+    (hierCauchyG m).PosSemidef := by
+  refine Matrix.posSemidef_iff_dotProduct_mulVec.mpr ⟨hierCauchyG_isHermitian m, ?_⟩
+  intro x
+  -- Over ℝ, `star x = x`. Reduce `x ⬝ᵥ M *ᵥ x` to `∑ i ∑ j, x i * M i j * x j`.
+  show 0 ≤ x ⬝ᵥ (hierCauchyG m) *ᵥ x
+  have h_quad : x ⬝ᵥ (hierCauchyG m) *ᵥ x =
+      ∑ i, ∑ j, x i * hierCauchyG m i j * x j := by
+    simp only [dotProduct, mulVec, Finset.mul_sum]
+    apply Finset.sum_congr rfl
+    intro i _
+    apply Finset.sum_congr rfl
+    intro j _
+    ring
+  rw [h_quad, hierCauchyG_quadForm_eq_integral_sq m x]
+  -- `∫ (expProfile m x t)² dt ≥ 0`.
+  apply MeasureTheory.integral_nonneg
+  intro t
+  exact sq_nonneg _
+
 end Erdos524.Helpers
