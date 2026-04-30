@@ -616,6 +616,55 @@ theorem glwCovMatrix_one_dim_det_le_one (us : Fin 1 → ℝ)
   rw [glwCovMatrix_one_dim_det]
   exact K_GLW_le_one _ _ (h_us 0) (h_us 0)
 
+/-! ## 4.11. Constant-grid and 2-dim determinant identities
+
+Round 12 additions. The constant-grid case (all `uᵢ = c`) gives the
+all-`K_GLW(c, c)` matrix — a rank-1 matrix whose PSD structure is
+trivial. The 2-dim explicit determinant identity makes the
+Cauchy-Schwarz inequality structurally visible: PSD = (det ≥ 0)
+in 2 dimensions is exactly Cauchy-Schwarz. -/
+
+/-- For a constant grid `uᵢ = c`, every entry of `glwCovMatrix` is
+`K_GLW(c, c)`. -/
+theorem glwCovMatrix_const_grid_apply {n : ℕ} (c : ℝ) (i j : Fin n) :
+    glwCovMatrix (fun _ : Fin n => c) i j = K_GLW c c := by
+  rw [glwCovMatrix_apply]
+
+/-- For a constant grid, `glwCovMatrix` equals the all-`K_GLW(c, c)`
+constant matrix. -/
+theorem glwCovMatrix_const_grid {n : ℕ} (c : ℝ) :
+    glwCovMatrix (fun _ : Fin n => c) =
+      Matrix.of (fun _ _ : Fin n => K_GLW c c) := by
+  ext i j
+  exact glwCovMatrix_const_grid_apply c i j
+
+/-- 2-dim determinant identity: for `n = 2`, the determinant is exactly
+`K_GLW(u₀, u₀) · K_GLW(u₁, u₁) - K_GLW(u₀, u₁)²`. The non-negativity of
+this quantity for nonneg grids is exactly `K_GLW_cauchy_schwarz`. -/
+theorem glwCovMatrix_two_dim_det (us : Fin 2 → ℝ) :
+    (glwCovMatrix us).det =
+      K_GLW (us 0) (us 0) * K_GLW (us 1) (us 1) -
+      K_GLW (us 0) (us 1) * K_GLW (us 1) (us 0) := by
+  rw [Matrix.det_fin_two]
+  simp [glwCovMatrix_apply]
+
+/-- 2-dim determinant identity, simplified using K_GLW symmetry. -/
+theorem glwCovMatrix_two_dim_det_symm (us : Fin 2 → ℝ) :
+    (glwCovMatrix us).det =
+      K_GLW (us 0) (us 0) * K_GLW (us 1) (us 1) -
+      (K_GLW (us 0) (us 1))^2 := by
+  rw [glwCovMatrix_two_dim_det]
+  rw [show K_GLW (us 1) (us 0) = K_GLW (us 0) (us 1) from K_GLW_symm _ _]
+  ring
+
+/-- 2-dim determinant non-negativity via Cauchy-Schwarz (alternative to
+the generic `glwCovMatrix_det_nonneg` proof through `PosSemidef`). -/
+theorem glwCovMatrix_two_dim_det_nonneg_via_cauchy (us : Fin 2 → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    0 ≤ (glwCovMatrix us).det := by
+  rw [glwCovMatrix_two_dim_det_symm]
+  linarith [K_GLW_cauchy_schwarz (h_us 0) (h_us 1)]
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
