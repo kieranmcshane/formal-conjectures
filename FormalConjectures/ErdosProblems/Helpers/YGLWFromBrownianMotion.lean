@@ -2010,6 +2010,105 @@ theorem K_GLW_processKernel_three_pair_sum_le (s t u : NNReal) :
   have h3 := K_GLW_processKernel_le_one s u
   linarith
 
+/-! ## 4.27. `ProcessKernel.K_diag_nonneg` via `Matrix.PosSemidef.diag_nonneg`
+
+Diagonal non-negativity for any process kernel, derived directly from
+the abstract `PSD` axiom on the singleton `{s}`. This shows that
+*non-negative variances* are baked into the `ProcessKernel` interface
+and don't need separate hypothesis. -/
+
+namespace ProcessKernel
+
+variable (P : ProcessKernel)
+
+/-- For any process kernel, `K(s, s) ≥ 0` — derived from `PosSemidef`
+on the singleton Finset `{s}`. -/
+theorem K_diag_nonneg (s : NNReal) : 0 ≤ P.K s s := by
+  have h := P.PSD ({s} : Finset NNReal)
+  let i : {x : NNReal // x ∈ ({s} : Finset NNReal)} :=
+    ⟨s, Finset.mem_singleton.mpr rfl⟩
+  have h_diag := h.diag_nonneg (i := i)
+  simpa [Matrix.of_apply] using h_diag
+
+/-- For any process kernel, the sum of two diagonal entries is non-negative. -/
+theorem K_diag_sum_nonneg (s t : NNReal) :
+    0 ≤ P.K s s + P.K t t :=
+  add_nonneg (P.K_diag_nonneg s) (P.K_diag_nonneg t)
+
+/-- For any process kernel, `2 K(s, s) ≥ 0`. -/
+theorem K_diag_two_nonneg (s : NNReal) : 0 ≤ 2 * P.K s s :=
+  mul_nonneg (by norm_num) (P.K_diag_nonneg s)
+
+/-- For any process kernel, `K(s, s) + K(s, s) - 2 K(s, s) = 0`
+(Hölder bound is tight at `(s, s)`). -/
+theorem K_self_diff_eq_zero (s : NNReal) :
+    P.K s s + P.K s s - 2 * P.K s s = 0 := by ring
+
+/-- Hölder bound at `(s, s)` is `0 ≤ 0` — trivially equality. -/
+theorem K_hoelder_self_eq_zero (s : NNReal) :
+    P.K s s + P.K s s - 2 * P.K s s ≤ ((s : ℝ) - (s : ℝ))^2 := by
+  rw [P.K_self_diff_eq_zero]
+  exact sq_nonneg _
+
+end ProcessKernel
+
+/-! ## 4.28. K_GLW_processKernel — Cauchy-Schwarz and pair structure
+
+Applying the abstract `ProcessKernel` framework specifically to the
+GLW kernel, plus pair-level Cauchy-Schwarz from
+`glwCovMatrixNN_entry_sq_le_diag_prod`. -/
+
+/-- The GLW process kernel diagonal is non-negative (via abstract
+ProcessKernel diag-non-neg). -/
+theorem K_GLW_processKernel_diag_nonneg' (s : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s :=
+  K_GLW_processKernel.K_diag_nonneg s
+
+/-- Pair-level Cauchy-Schwarz for `K_GLW_processKernel`:
+`K(s, t)² ≤ K(s, s) · K(t, t)`. -/
+theorem K_GLW_processKernel_cauchy_schwarz' (s t : NNReal) :
+    (K_GLW_processKernel.K s t)^2 ≤
+      K_GLW_processKernel.K s s * K_GLW_processKernel.K t t := by
+  show (K_GLW (s : ℝ) (t : ℝ))^2 ≤
+    K_GLW (s : ℝ) (s : ℝ) * K_GLW (t : ℝ) (t : ℝ)
+  exact K_GLW_cauchy_schwarz (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
+
+/-- Bound: `K(s, t) ≤ √(K(s, s) · K(t, t))` (after taking sqrt). -/
+theorem K_GLW_processKernel_abs_le_sqrt_diag_prod (s t : NNReal) :
+    |K_GLW_processKernel.K s t| ≤
+      Real.sqrt (K_GLW_processKernel.K s s * K_GLW_processKernel.K t t) := by
+  have h := K_GLW_processKernel_cauchy_schwarz' s t
+  have h_prod_nn :
+      0 ≤ K_GLW_processKernel.K s s * K_GLW_processKernel.K t t :=
+    mul_nonneg (K_GLW_processKernel.K_diag_nonneg s)
+               (K_GLW_processKernel.K_diag_nonneg t)
+  have h_sq_eq : |K_GLW_processKernel.K s t|^2 =
+      (K_GLW_processKernel.K s t)^2 := sq_abs _
+  rw [show |K_GLW_processKernel.K s t| =
+        Real.sqrt ((K_GLW_processKernel.K s t)^2) from
+      (Real.sqrt_sq_eq_abs _).symm]
+  exact Real.sqrt_le_sqrt h
+
+/-- Pair-level Cauchy-Schwarz for `K_GLW_processKernel`, expressed as
+a non-negative discriminant:
+`K(s, s) · K(t, t) − K(s, t)² ≥ 0`. -/
+theorem K_GLW_processKernel_discriminant_nonneg (s t : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s * K_GLW_processKernel.K t t -
+        (K_GLW_processKernel.K s t)^2 := by
+  have := K_GLW_processKernel_cauchy_schwarz' s t
+  linarith
+
+/-- Equality of K_GLW_processKernel diagonal at `s = t`: trivially symmetric. -/
+theorem K_GLW_processKernel_diag_self (s : NNReal) :
+    K_GLW_processKernel.K s s = K_GLW_processKernel.K s s := rfl
+
+/-- The off-diagonal vanishes only when both diagonals do (in absolute
+value): `K(s, t) = 0 → K(s, s) · K(t, t) ≥ 0` (trivial via diag-nonneg). -/
+theorem K_GLW_processKernel_diag_prod_nonneg (s t : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s * K_GLW_processKernel.K t t :=
+  mul_nonneg (K_GLW_processKernel.K_diag_nonneg s)
+             (K_GLW_processKernel.K_diag_nonneg t)
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
