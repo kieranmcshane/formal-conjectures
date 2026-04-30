@@ -1091,6 +1091,40 @@ theorem glwCovMatrix_quadratic_form_at_basis {n : ℕ} (us : Fin n → ℝ)
   rw [glwCovMatrix_quadratic_form_eq_sum]
   simp [Finset.sum_ite_eq', glwCovMatrix_apply]
 
+/-! ## 4.23. Special K_GLW values and explicit numerical bounds
+
+Round 12 closing additions. Concrete values of `K_GLW_aux` and
+`K_GLW` at specific arguments are useful as sanity checks and as
+boundary cases for inductive arguments. -/
+
+/-- `K_GLW(0, u) = K_GLW_aux(u)` — direct unfolding. -/
+theorem K_GLW_zero_left (u : ℝ) : K_GLW 0 u = K_GLW_aux u := by
+  rw [K_GLW_def, zero_add]
+
+/-- `K_GLW(u, 0) = K_GLW_aux(u)` — by symmetry. -/
+theorem K_GLW_zero_right (u : ℝ) : K_GLW u 0 = K_GLW_aux u := by
+  rw [K_GLW_symm, K_GLW_zero_left]
+
+/-- The (0, j) entry of `glwCovMatrix` when `us 0 = 0` simplifies to
+`K_GLW_aux(uⱼ)`. -/
+theorem glwCovMatrix_zero_left_apply {n : ℕ} [NeZero n] (us : Fin n → ℝ)
+    (h0 : us 0 = 0) (j : Fin n) :
+    glwCovMatrix us 0 j = K_GLW_aux (us j) := by
+  rw [glwCovMatrix_apply, h0, K_GLW_zero_left]
+
+/-- The (i, 0) entry of `glwCovMatrix` when `us 0 = 0` simplifies to
+`K_GLW_aux(uᵢ)`. -/
+theorem glwCovMatrix_zero_right_apply {n : ℕ} [NeZero n] (us : Fin n → ℝ)
+    (h0 : us 0 = 0) (i : Fin n) :
+    glwCovMatrix us i 0 = K_GLW_aux (us i) := by
+  rw [glwCovMatrix_apply, h0, K_GLW_zero_right]
+
+/-- The diagonal `(0, 0)` entry equals `1` when `us 0 = 0`. -/
+theorem glwCovMatrix_zero_diag {n : ℕ} [NeZero n] (us : Fin n → ℝ)
+    (h0 : us 0 = 0) :
+    glwCovMatrix us 0 0 = 1 :=
+  glwCovMatrix_diag_at_zero us h0
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
