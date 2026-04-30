@@ -1580,6 +1580,19 @@ theorem glwCovMatrixNN_trace_le_recip_sum
   intros s _
   exact glwCovMatrixNN_diag_le_recip_of_pos h_pos s
 
+/-! ### NNReal-grid PSD-derivative properties -/
+
+/-- The transpose of `glwCovMatrixNN I` is also PSD (trivially, since
+the matrix is symmetric). -/
+theorem glwCovMatrixNN_transpose_PosSemidef (I : Finset NNReal) :
+    ((glwCovMatrixNN I).transpose).PosSemidef :=
+  (glwCovMatrixNN_PosSemidef I).transpose
+
+/-- The determinant of `glwCovMatrixNN I` is non-negative. -/
+theorem glwCovMatrixNN_det_nonneg (I : Finset NNReal) :
+    0 ≤ (glwCovMatrixNN I).det :=
+  (glwCovMatrixNN_PosSemidef I).det_nonneg
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
