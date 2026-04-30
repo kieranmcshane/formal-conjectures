@@ -12,6 +12,7 @@ limitations under the License.
 -/
 
 import FormalConjectures.ErdosProblems.Helpers.YGLWFromBrownianMotion
+import FormalConjectures.ErdosProblems.Helpers.SubGaussianGaussianReal
 import BrownianMotion.Gaussian.MultivariateGaussian
 import BrownianMotion.Gaussian.ProjectiveLimit
 import BrownianMotion.Continuity.HasBoundedInternalCoveringNumber
@@ -459,6 +460,192 @@ theorem exists_glwBrownianModification :
   -- Pick β = 1/4 ∈ (0, 1/2) = (0, (q - d)/p).
   obtain ⟨C, hC⟩ := hU ((1 : ℝ≥0) / 4) (by norm_num) (by norm_num)
   exact (hC.continuousOn (by norm_num : (0 : ℝ≥0) < 1 / 4)).continuousAt hU_mem
+
+/-!
+## R19 / T2.1 — Sub-Gaussian + measurable-Hölder prerequisites
+
+R19 T1.1's API scoping (`Helpers/R19APIScoping.md`) corrected the
+R18 diagnostic on Claim 2: the Hölder constant in
+`KolmogorovChentsov.holderOnWith_holderModification` is *explicitly
+defined* (lines 650-651) as a countable iSup of measurable functions,
+hence measurable by construction.
+
+This block exposes the two T2.1 prerequisites for the conjunct-9
+proof:
+
+* **T2.1.a:** marginal sub-Gaussianness of `(· t)` under
+  `glwGaussianLimit` (via the gaussianReal adapter from
+  `Helpers/SubGaussianGaussianReal.lean`).
+* **T2.1.b:** the measurable Hölder constant `glwHolderConstant`,
+  defined directly from the iSup formula
+  `⨆ s, t : (denseCountable NNReal ∩ U), edist^p / edist^(β·p)`.
+-/
+
+/-- **R19 / T2.1.a (Path B step 1).** The coordinate evaluation
+`(· t)` is sub-Gaussian under `glwGaussianLimit` with parameter
+`K_GLW(t, t).toNNReal`. -/
+lemma hasSubgaussianMGF_eval_glwGaussianLimit (t : NNReal) :
+    HasSubgaussianMGF (fun ω : NNReal → ℝ ↦ ω t)
+      (K_GLW (t : ℝ) (t : ℝ)).toNNReal glwGaussianLimit := by
+  have hL := hasLaw_eval_glwGaussianLimit (t := t)
+  have h_meas : AEMeasurable (fun ω : NNReal → ℝ ↦ ω t) glwGaussianLimit :=
+    hL.aemeasurable
+  have h_id : HasSubgaussianMGF id (K_GLW (t : ℝ) (t : ℝ)).toNNReal
+      ((glwGaussianLimit).map (fun ω : NNReal → ℝ ↦ ω t)) := by
+    rw [hL.map_eq]
+    exact hasSubgaussianMGF_id_gaussianReal _
+  exact (HasSubgaussianMGF.id_map_iff h_meas).mp h_id
+
+/-- **R19 / T2.1.a (Path B step 2).** Two-sided Chernoff tail for the
+marginal `(· t)` under `glwGaussianLimit`. -/
+lemma eval_glwGaussianLimit_real_abs_ge_le (t : NNReal) {ε : ℝ} (hε : 0 ≤ ε) :
+    glwGaussianLimit.real {ω : NNReal → ℝ | ε ≤ |ω t|} ≤
+      2 * Real.exp (-ε ^ 2 / (2 * (K_GLW (t : ℝ) (t : ℝ)).toNNReal)) := by
+  have hL := hasLaw_eval_glwGaussianLimit (t := t)
+  have h_set : {ω : NNReal → ℝ | ε ≤ |ω t|} =
+      (fun ω : NNReal → ℝ ↦ ω t) ⁻¹' {x : ℝ | ε ≤ |x|} := rfl
+  rw [h_set]
+  have h_map : (gaussianReal 0 (K_GLW (t : ℝ) (t : ℝ)).toNNReal).real
+      {x : ℝ | ε ≤ |x|} ≤ 2 * Real.exp (-ε ^ 2 /
+        (2 * (K_GLW (t : ℝ) (t : ℝ)).toNNReal)) :=
+    gaussianReal_real_abs_ge_le _ hε
+  have h_meas_set : MeasurableSet {x : ℝ | ε ≤ |x|} :=
+    measurableSet_le measurable_const measurable_id.norm
+  have h_map_real :
+      (Measure.map (fun ω : NNReal → ℝ ↦ ω t) glwGaussianLimit).real
+        {x : ℝ | ε ≤ |x|} =
+      glwGaussianLimit.real
+        ((fun ω : NNReal → ℝ ↦ ω t) ⁻¹' {x : ℝ | ε ≤ |x|}) := by
+    rw [Measure.real, Measure.map_apply_of_aemeasurable hL.aemeasurable h_meas_set]
+    rfl
+  rw [hL.map_eq] at h_map_real
+  rw [← h_map_real]
+  exact h_map
+
+/-- **R19 / T2.1.b (measurable Hölder constant).**
+
+Per R19 / T1.1 Claim 2 correction, the Hölder constant in
+`KolmogorovChentsov.holderOnWith_holderModification` is given
+explicitly at lines 650-651 by
+
+  `C ω := ⨆ (s, t : denseCountable T ∩ U), edist (X s ω) (X t ω) ^ p
+                                              / edist s t ^ (β · p)`,
+
+a countable iSup of measurable functions of `ω`. This is the
+specialisation to the GLW projection process
+`X t ω = ω t` with our K-C parameters `(p, q, M) = (2, 2, 1)` and a
+fixed Hölder exponent `β = 1/4 < (q - d) / p = 1/2`, on the cover
+element `U = Set.Ico n (n + 1) ⊆ NNReal`.
+
+Output type is `ℝ≥0` to match the v2-manifest signature; the
+underlying iSup lives in `ℝ≥0∞` to absorb potentially-infinite values
+on the null set where the K-C modulus diverges. -/
+noncomputable def glwHolderConstant (n : NNReal) (ω : NNReal → ℝ) : ℝ≥0 :=
+  ((⨆ (s : ↥(denseCountable NNReal ∩ Set.Ico n (n + 1)))
+      (t : ↥(denseCountable NNReal ∩ Set.Ico n (n + 1))),
+        (edist (ω s.1) (ω t.1)) ^ (2 : ℝ) /
+          (edist (s.1 : NNReal) (t.1 : NNReal)) ^ ((1 / 2 : ℝ))) ^
+    (1 / 2 : ℝ)).toNNReal
+
+/-- The countable-iSup-base of `glwHolderConstant`, exposed for the
+measurability proof. -/
+noncomputable def glwHolderConstantENN (n : NNReal) (ω : NNReal → ℝ) : ℝ≥0∞ :=
+  ⨆ (s : ↥(denseCountable NNReal ∩ Set.Ico n (n + 1)))
+    (t : ↥(denseCountable NNReal ∩ Set.Ico n (n + 1))),
+      (edist (ω s.1) (ω t.1)) ^ (2 : ℝ) /
+        (edist (s.1 : NNReal) (t.1 : NNReal)) ^ ((1 / 2 : ℝ))
+
+lemma glwHolderConstant_eq (n : NNReal) (ω : NNReal → ℝ) :
+    glwHolderConstant n ω =
+      ((glwHolderConstantENN n ω) ^ (1 / 2 : ℝ)).toNNReal := rfl
+
+/-- **R19 / T2.1.b: measurability of `glwHolderConstantENN`.**
+
+The iSup is over the countable subtype `↥(denseCountable NNReal ∩
+Set.Ico n (n + 1))`. Each summand is measurable in `ω` because
+`ω ↦ ω s.1` and `ω ↦ ω t.1` are measurable (function-evaluation
+projections), `edist` is measurable (continuous), `· ^ (2 : ℝ)` and
+`· / c` (for `c` constant) are measurable. The countable iSup of
+measurable functions is measurable. -/
+lemma measurable_glwHolderConstantENN (n : NNReal) :
+    Measurable (glwHolderConstantENN n) := by
+  unfold glwHolderConstantENN
+  -- The intersection set is countable, hence the subtype is.
+  have h_count : (denseCountable NNReal ∩ Set.Ico n (n + 1)).Countable :=
+    countable_denseCountable.mono Set.inter_subset_left
+  haveI : Countable ↥(denseCountable NNReal ∩ Set.Ico n (n + 1)) :=
+    h_count.to_subtype
+  refine Measurable.iSup fun s => Measurable.iSup fun t => ?_
+  -- The denominator `edist s.1 t.1 ^ (1/2)` is constant in ω.
+  refine Measurable.div ?_ measurable_const
+  -- Numerator: edist (ω s.1) (ω t.1) ^ (2 : ℝ).
+  have h_edist : Measurable (fun ω : NNReal → ℝ => edist (ω s.1) (ω t.1)) :=
+    (measurable_pi_apply s.1).edist (measurable_pi_apply t.1)
+  exact ENNReal.continuous_rpow_const.measurable.comp h_edist
+
+lemma measurable_glwHolderConstant (n : NNReal) :
+    Measurable (fun ω : NNReal → ℝ => glwHolderConstant n ω) := by
+  unfold glwHolderConstant
+  exact ENNReal.measurable_toNNReal.comp
+    (ENNReal.continuous_rpow_const.measurable.comp
+      (measurable_glwHolderConstantENN n))
+
+/-! ## R19 / T2.1.a sequel — variance bound at integer points -/
+
+/-- **R19 / T2.1.a (Path B step 3).** For `T ≥ 1`, the variance bound
+`K_GLW(T, T) ≤ 1/(2T)` (`K_GLW_var_le_recip`) collapses the marginal
+tail to `≤ 2 · exp(-ε² T)`. The hypothesis `T ≥ 1` keeps both `K_GLW`
+and `1/(2T)` strictly positive. -/
+lemma eval_glwGaussianLimit_real_abs_ge_le_of_pos {T : ℝ} (hT : 1 ≤ T)
+    {ε : ℝ} (hε : 0 ≤ ε) :
+    glwGaussianLimit.real {ω : NNReal → ℝ | ε ≤ |ω T.toNNReal|} ≤
+      2 * Real.exp (-ε ^ 2 * T) := by
+  have hT_pos : 0 < T := by linarith
+  have h_T_toNNReal : ((T.toNNReal : NNReal) : ℝ) = T := Real.coe_toNNReal _ hT_pos.le
+  have h_var_le : K_GLW T T ≤ 1 / (2 * T) := K_GLW_var_le_recip hT_pos
+  have h_var_pos : 0 < K_GLW T T := K_GLW_pos T T hT_pos.le hT_pos.le
+  have h_marg :=
+    eval_glwGaussianLimit_real_abs_ge_le (t := T.toNNReal) (ε := ε) hε
+  rw [h_T_toNNReal] at h_marg
+  have h_coe : ((K_GLW T T).toNNReal : ℝ) = K_GLW T T :=
+    Real.coe_toNNReal _ h_var_pos.le
+  rw [h_coe] at h_marg
+  have h_two_kvar_pos : 0 < 2 * K_GLW T T := by linarith
+  have h_kvar2T_le : K_GLW T T * (2 * T) ≤ 1 :=
+    (le_div_iff₀ (by linarith : (0:ℝ) < 2 * T)).mp h_var_le
+  have h_eps_sq_nn : 0 ≤ ε ^ 2 := sq_nonneg _
+  have h_recip_le : ε ^ 2 * T ≤ ε ^ 2 / (2 * K_GLW T T) := by
+    rw [le_div_iff₀ h_two_kvar_pos]
+    nlinarith [h_kvar2T_le, h_eps_sq_nn, hT_pos.le, h_var_pos.le]
+  have h_neg_le : -(ε ^ 2 / (2 * K_GLW T T)) ≤ -(ε ^ 2 * T) := neg_le_neg h_recip_le
+  have h_div_eq : -ε ^ 2 / (2 * K_GLW T T) = -(ε ^ 2 / (2 * K_GLW T T)) := by
+    rw [neg_div]
+  rw [h_div_eq] at h_marg
+  have h_exp_mono : Real.exp (-(ε ^ 2 / (2 * K_GLW T T))) ≤ Real.exp (-(ε ^ 2 * T)) :=
+    Real.exp_le_exp.mpr h_neg_le
+  have h_neg_exp_eq : Real.exp (-(ε ^ 2 * T)) = Real.exp (-ε ^ 2 * T) := by ring_nf
+  calc glwGaussianLimit.real {ω : NNReal → ℝ | ε ≤ |ω T.toNNReal|}
+      ≤ 2 * Real.exp (-(ε ^ 2 / (2 * K_GLW T T))) := h_marg
+    _ ≤ 2 * Real.exp (-(ε ^ 2 * T)) := by gcongr
+    _ = 2 * Real.exp (-ε ^ 2 * T) := by rw [h_neg_exp_eq]
+
+/-! ## R19 / T2.1.a sequel — summability over integer points -/
+
+/-- **R19 / T2.1.a (Path B step 4).** For `ε > 0`, the geometric series
+`∑_{T : ℕ}, 2 · exp(-ε² T)` converges. -/
+lemma summable_marginal_tail {ε : ℝ} (hε : 0 < ε) :
+    Summable (fun T : ℕ => 2 * Real.exp (-ε ^ 2 * (T : ℝ))) := by
+  have h_eps_sq_pos : 0 < ε ^ 2 := by positivity
+  have h_exp_lt : Real.exp (-ε ^ 2) < 1 := by
+    rw [show (1 : ℝ) = Real.exp 0 from (Real.exp_zero).symm]
+    exact Real.exp_lt_exp.mpr (by linarith)
+  have h_exp_nn : 0 ≤ Real.exp (-ε ^ 2) := (Real.exp_pos _).le
+  have h_eq : (fun T : ℕ => 2 * Real.exp (-ε ^ 2 * (T : ℝ))) =
+              (fun T : ℕ => 2 * (Real.exp (-ε ^ 2)) ^ T) := by
+    funext T
+    rw [← Real.exp_nat_mul, mul_comm (-ε ^ 2) (T : ℝ)]
+  rw [h_eq]
+  exact (summable_geometric_of_lt_one h_exp_nn h_exp_lt).mul_left _
 
 /-!
 ## O5 — Process-existence witness in the 9-conjunct form
