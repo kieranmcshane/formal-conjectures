@@ -16,6 +16,7 @@ import FormalConjectures.ErdosProblems.Helpers.MVGaussianPullback
 import FormalConjectures.ErdosProblems.Helpers.GaussianBoxBounds
 import FormalConjectures.ErdosProblems.Helpers.GLWBoxProbInstance
 import FormalConjectures.ErdosProblems.Helpers.MVGaussianDensityBound
+import FormalConjectures.ErdosProblems.Helpers.HierCauchyPosDef
 
 /-!
 # Phase 2 Round 4 — Box-probability bounds for `gaussianHierCauchy`
@@ -136,5 +137,31 @@ theorem glwBoxProb_anderson_upper_via_round9_mm {m : ℕ}
   have h := glwBoxProb_anderson_upper_via_round9 hPosDef hε
   rwa [show Fintype.card (Fin m × Fin m) = m * m from by
         rw [Fintype.card_prod, Fintype.card_fin]] at h
+
+/-! ## Round 10 — Unconditional Anderson upper bound (Stretch A)
+
+After Round 10 closed `(hierCauchyG m).PosDef` for `m ≥ 1`, the
+`glwBoxProb_anderson_upper_via_round9_mm` conditional becomes
+unconditional: feed in `hierCauchyG_PosDef`. -/
+
+/-- Unconditional Anderson upper bound for `glwBoxProb`, valid for `m ≥ 1`.
+This is the V1-instance-shaped `anderson_upper` field. -/
+theorem glwBoxProb_anderson_upper_unconditional {m : ℕ} (hm : 1 ≤ m)
+    {ε : ℝ} (hε : 0 ≤ ε) :
+    glwBoxProb m ε ≤
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+        (Real.sqrt (hierCauchyG m).det)⁻¹ :=
+  glwBoxProb_anderson_upper_via_round9_mm (hierCauchyG_PosDef m hm) hε
+
+/-- Unconditional Anderson upper bound for `glwBoxProb`, V1 contract form
+(uses `0 < ε` rather than `0 ≤ ε`). -/
+theorem glwBoxProb_anderson_upper_v1 {m : ℕ} (hm : 1 ≤ m)
+    {ε : ℝ} (hε : 0 < ε) :
+    glwBoxProb m ε ≤
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+        (Real.sqrt (hierCauchyG m).det)⁻¹ :=
+  glwBoxProb_anderson_upper_unconditional hm hε.le
 
 end Erdos524.Helpers
