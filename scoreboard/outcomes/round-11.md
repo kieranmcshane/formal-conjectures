@@ -26,6 +26,18 @@ satisfied by the deterministic-analytic content of
 Pred 1 and Pred 4 resolve **PARTIAL** (bridge file proven, but the
 axiom itself is intact pending toolchain alignment).
 
+**Final deliverables (post-v24):**
+- 27 substantive Round 11 commits.
+- 1785 lines added across `YGLWConstruction.lean` (1183) and
+  `YGLWFromBrownianMotion.lean` (602).
+- Full `FormalConjectures.ErdosProblems.«524»` build green (8009 jobs).
+- BLOCKER preconditions B1, B2, B4, B5 all satisfied; only B3 (the
+  abstract projective-limit theorem) requires the external
+  `brownian-motion` project API.
+- Mathlib-PR-shaped contributions: `gramMatrixL2_PosSemidef`,
+  `K_GLW_three_point_psd`, `K_GLW_lipschitz_*`,
+  `glwCovMatrix_submatrix_PosSemidef`, `glwCovMatrix_det_nonneg`.
+
 ## Files added (final state)
 
 * `Helpers/YGLWConstruction.lean` (893 lines, 7 commits): the
