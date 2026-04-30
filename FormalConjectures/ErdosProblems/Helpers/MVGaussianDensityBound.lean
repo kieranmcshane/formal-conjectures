@@ -332,6 +332,28 @@ theorem setLIntegral_fintype_prod_pi_eq_prod {ι : Type*} [Fintype ι] {E : ι �
   intro i _
   rw [lintegral_indicator (hs i)]
 
+/-! ## Round 9 — pi/withDensity commutation lemma
+
+Direct corollary of `setLIntegral_fintype_prod_pi_eq_prod`: the product
+measure of `withDensity`-modified factors equals the product measure
+`withDensity`-modified by the product density. Another genuine Mathlib
+gap (no analogue in current Mathlib for ENNReal density factorisations).
+-/
+
+theorem pi_withDensity_eq_withDensity_pi {ι : Type*} [Fintype ι] {α : ι → Type*}
+    [∀ i, MeasurableSpace (α i)] {μ : (i : ι) → Measure (α i)}
+    [∀ i, SigmaFinite (μ i)]
+    {f : (i : ι) → α i → ENNReal} (hf : ∀ i, Measurable (f i))
+    [∀ i, SigmaFinite ((μ i).withDensity (f i))] :
+    Measure.pi (fun i => (μ i).withDensity (f i)) =
+      (Measure.pi μ).withDensity (fun x => ∏ i, f i (x i)) := by
+  refine Measure.pi_eq (μ := fun i => (μ i).withDensity (f i)) fun s hs => ?_
+  rw [withDensity_apply _ (MeasurableSet.univ_pi hs),
+      setLIntegral_fintype_prod_pi_eq_prod hf hs]
+  apply Finset.prod_congr rfl
+  intro i _
+  rw [withDensity_apply _ (hs i)]
+
 /-! ## Round 9 — Standard MV Gaussian uniform density-at-mode bound
 
 For any measurable set `K ⊆ n → ℝ`, the standard MV Gaussian satisfies the
