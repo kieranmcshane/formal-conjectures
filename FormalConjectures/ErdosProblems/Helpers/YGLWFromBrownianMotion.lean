@@ -2967,6 +2967,48 @@ theorem K_GLW_processKernel_kernelMatrix_singleton_det_mem_Icc (a : NNReal) :
   rw [K_GLW_processKernel.kernelMatrix_singleton_det a]
   exact K_GLW_processKernel_K_diag_mem_Icc a
 
+/-! ## 4.48. K_GLW_processKernel.kernelMatrix — combined entry bounds -/
+
+/-- Entry-level membership: every entry of the K_GLW kernel matrix lies
+in `(0, 1]` (positive bounded above by 1). -/
+theorem K_GLW_processKernel_kernelMatrix_entry_mem_Ioc
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    K_GLW_processKernel.kernelMatrix I s t ∈ Set.Ioc (0 : ℝ) 1 :=
+  ⟨K_GLW_processKernel_kernelMatrix_entry_pos I s t,
+   K_GLW_processKernel_kernelMatrix_entry_le_one I s t⟩
+
+/-- Entry-level membership: every entry of the K_GLW kernel matrix lies
+in `[0, 1]` (closed-interval form). -/
+theorem K_GLW_processKernel_kernelMatrix_entry_mem_Icc
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    K_GLW_processKernel.kernelMatrix I s t ∈ Set.Icc (0 : ℝ) 1 :=
+  ⟨le_of_lt (K_GLW_processKernel_kernelMatrix_entry_pos I s t),
+   K_GLW_processKernel_kernelMatrix_entry_le_one I s t⟩
+
+/-- Diagonal membership: every diagonal entry of the K_GLW kernel matrix
+lies in `[0, 1]`. -/
+theorem K_GLW_processKernel_kernelMatrix_diag_mem_Icc
+    (I : Finset NNReal) (s : {x : NNReal // x ∈ I}) :
+    K_GLW_processKernel.kernelMatrix I s s ∈ Set.Icc (0 : ℝ) 1 :=
+  K_GLW_processKernel_kernelMatrix_entry_mem_Icc I s s
+
+/-- Bundle: the kernel matrix entries satisfy four constraints
+simultaneously (positive, ≤ 1, symmetric, sub-diagonals satisfy
+Cauchy-Schwarz). -/
+theorem K_GLW_processKernel_kernelMatrix_full_entry_data
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    0 < K_GLW_processKernel.kernelMatrix I s t ∧
+      K_GLW_processKernel.kernelMatrix I s t ≤ 1 ∧
+      K_GLW_processKernel.kernelMatrix I s t =
+        K_GLW_processKernel.kernelMatrix I t s ∧
+      (K_GLW_processKernel.kernelMatrix I s t)^2 ≤
+        K_GLW_processKernel.kernelMatrix I s s *
+          K_GLW_processKernel.kernelMatrix I t t :=
+  ⟨K_GLW_processKernel_kernelMatrix_entry_pos I s t,
+   K_GLW_processKernel_kernelMatrix_entry_le_one I s t,
+   K_GLW_processKernel_kernelMatrix_swap I s t,
+   K_GLW_processKernel_kernelMatrix_entry_sq_le_diag_prod I s t⟩
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
