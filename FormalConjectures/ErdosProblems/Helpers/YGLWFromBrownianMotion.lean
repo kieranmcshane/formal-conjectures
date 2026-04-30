@@ -1398,6 +1398,29 @@ theorem glwCovMatrix_trace_continuous {n : ℕ} :
   intros i _
   exact glwCovMatrix_diag_continuous i
 
+/-! ### NNReal-grid Mercer / integral-form representation -/
+
+/-- Mercer / integral-form representation for `glwCovMatrixNN`:
+each entry is an L²([0, 1]) inner product. Direct lift of
+`glwCovMatrix_eq_integral` to the NNReal-grid signature. -/
+theorem glwCovMatrixNN_eq_integral (I : Finset NNReal)
+    (s t : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s t =
+      ∫ x in (0 : ℝ)..1, glwIntegrand (s.1 : ℝ) x * glwIntegrand (t.1 : ℝ) x := by
+  rw [glwCovMatrixNN_apply, K_GLW_eq_integral_glwIntegrand_mul]
+  · exact NNReal.coe_nonneg _
+  · exact NNReal.coe_nonneg _
+
+/-- The diagonal of `glwCovMatrixNN` is the L²([0, 1]) norm squared
+of `glwIntegrand`. -/
+theorem glwCovMatrixNN_diag_eq_normSq (I : Finset NNReal)
+    (s : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s s = ∫ x in (0 : ℝ)..1, (glwIntegrand (s.1 : ℝ) x)^2 := by
+  rw [glwCovMatrixNN_eq_integral]
+  congr 1
+  funext x
+  ring
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
