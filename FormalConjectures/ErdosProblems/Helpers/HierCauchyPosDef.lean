@@ -37,16 +37,39 @@ Gram-matrix-of-exponentials argument:
   argument, which is short and avoids any Vandermonde / smoothness
   machinery.
 
-Exposed:
+## Consumer-facing API (Round 10)
+
+Headline theorems:
+
+* `hierCauchyG_isHermitian` — symmetry as `IsHermitian` over `ℝ`.
+* `hierCauchyG_PosSemidef` — the matrix is positive semi-definite.
+* `hierCauchyG_PosDef` — the matrix is positive definite for `m ≥ 1`.
+
+Building blocks (often useful directly):
 
 * `hierGrid_injective` — the indexing map `Fin m × Fin m → ℝ` defining
   the Cauchy parameters is injective for `m ≥ 1`.
-* `hierCauchyG_isHermitian` — symmetry as `IsHermitian` over `ℝ`.
 * `cauchy_inv_eq_integral_exp_neg` — the Cauchy integral identity
   `1/(a+b) = ∫_(0,∞) exp(-(a+b)·t) dt` for `a, b > 0`.
-* `hierCauchyG_PosSemidef` — the matrix is positive semi-definite (real
-  symmetric Gram-matrix step).
-* `hierCauchyG_PosDef` — the matrix is positive definite for `m ≥ 1`.
+* `hierCauchyG_quadForm_eq_integral_sq` — the Gram representation
+  `xᵀ M x = ∫ (∑ x_i exp(-g_i t))² dt`.
+* `expProfile m x t := ∑ i, x i · exp(-(hierGrid m i) · t)` — the
+  exponential profile whose squared integral is the quadratic form.
+
+Mathlib-PR-quality general lemma:
+
+* `PosDef_of_PosSemidef_of_det_pos` — for any real Hermitian PSD matrix
+  with strictly positive determinant, the matrix is PosDef. (This is the
+  short-circuit that bypasses the analytic strict-positivity argument.)
+
+Corollaries:
+
+* `hierCauchyG_isUnit` — invertibility for `m ≥ 1`.
+* `hierCauchyG_inv_PosDef` — the inverse is also PosDef.
+* `hierCauchyG_quadForm_pos_of_ne_zero` — strict positivity `0 < xᵀMx`
+  for `x ≠ 0`.
+* `expProfile_sq_integral_pos_of_ne_zero` — recovers the analytic
+  strict-positivity result.
 -/
 
 set_option linter.style.ams_attribute false
