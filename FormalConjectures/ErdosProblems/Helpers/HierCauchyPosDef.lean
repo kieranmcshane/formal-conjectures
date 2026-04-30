@@ -772,6 +772,18 @@ theorem cauchyMatrix_transpose {n : Type*} [Fintype n] (g : n → ℝ) :
   ext i j
   simp only [Matrix.transpose_apply, cauchyMatrix_apply, add_comm]
 
+/-- Homogeneity of the abstract Cauchy matrix in the parameter family.
+For `c > 0`, scaling `g` by `c` divides the matrix by `c`:
+`cauchyMatrix (c • g) = c⁻¹ • cauchyMatrix g`. -/
+theorem cauchyMatrix_smul {n : Type*} [Fintype n] {c : ℝ} (hc : c ≠ 0)
+    (g : n → ℝ) :
+    cauchyMatrix (c • g) = c⁻¹ • cauchyMatrix g := by
+  ext i j
+  simp only [cauchyMatrix_apply, Matrix.smul_apply, Pi.smul_apply, smul_eq_mul]
+  rw [show c * g i + c * g j = c * (g i + g j) from by ring]
+  rw [show (1 : ℝ) / (c * (g i + g j)) = c⁻¹ * (1 / (g i + g j)) from by
+    field_simp]
+
 /- ## §10. Round 10 milestone summary
 
 Round 10 closed the central PosDef status of the hierarchical Cauchy
