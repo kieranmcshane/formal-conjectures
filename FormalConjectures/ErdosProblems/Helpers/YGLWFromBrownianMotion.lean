@@ -781,6 +781,43 @@ theorem glwCovMatrix_quadratic_form_at_one {n : ℕ} (us : Fin n → ℝ) :
   rw [glwCovMatrix_quadratic_form_eq_sum]
   simp
 
+/-! ## 4.15. Generic Gram-matrix `gramMatrixL2` further structure
+
+Round 12 additions. More Mathlib-PR-shaped abstractions: behavior of
+`gramMatrixL2` under sign-flip, addition of families, and constant
+families. -/
+
+/-- Negating the family does not change the Gram matrix:
+`gramMatrixL2 (-φ) = gramMatrixL2 φ` since `(-φᵢ)·(-φⱼ) = φᵢ·φⱼ`. -/
+theorem gramMatrixL2_neg_family {n : ℕ} (φ : Fin n → ℝ → ℝ) :
+    gramMatrixL2 (fun i s => -(φ i s)) = gramMatrixL2 φ := by
+  ext i j
+  rw [gramMatrixL2_apply, gramMatrixL2_apply]
+  congr 1
+  funext s
+  ring
+
+/-- For the constant family `φᵢ = c`, every entry of the Gram matrix
+is `c²`. -/
+theorem gramMatrixL2_const_family_apply {n : ℕ} (c : ℝ) (i j : Fin n) :
+    gramMatrixL2 (fun _ : Fin n => fun _ : ℝ => c) i j = c^2 := by
+  rw [gramMatrixL2_apply]
+  simp [sq]
+
+/-- For the constant family `φᵢ = c`, the Gram matrix is the constant
+`c²` matrix. -/
+theorem gramMatrixL2_const_family {n : ℕ} (c : ℝ) :
+    gramMatrixL2 (fun _ : Fin n => fun _ : ℝ => c) =
+      Matrix.of (fun _ _ : Fin n => c^2) := by
+  ext i j
+  exact gramMatrixL2_const_family_apply c i j
+
+/-- The constant-family Gram matrix is positive semi-definite (with
+PSD constant `c² ≥ 0`). -/
+theorem gramMatrixL2_const_family_PosSemidef {n : ℕ} (c : ℝ) :
+    (gramMatrixL2 (fun _ : Fin n => fun _ : ℝ => c)).PosSemidef :=
+  gramMatrixL2_PosSemidef _ (fun _ => continuous_const)
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
