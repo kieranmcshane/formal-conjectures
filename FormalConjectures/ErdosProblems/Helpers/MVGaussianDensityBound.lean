@@ -262,7 +262,7 @@ theorem lintegral_fin_nat_prod_eq_prod_aux {n : ℕ} {E : Fin n → Type*}
       ∏ i, ∫⁻ x, f i x ∂(μ i) := by
   induction n with
   | zero =>
-    simp only [Finset.univ_eq_empty, Finset.prod_empty, lintegral_const, mul_one]
+    simp only [Finset.univ_eq_empty, Finset.prod_empty, lintegral_const]
     rw [Measure.pi_univ]
     simp
   | succ n n_ih =>
@@ -418,7 +418,7 @@ The Lebesgue volume of the box `B = ∏ᵢ [-εᵢ, εᵢ]` is `∏ᵢ ENNReal.o
 via `Real.volume_Icc` per factor and `Measure.volume_pi_pi`.
 -/
 
-theorem volume_anisotropic_box (ε : n → ℝ) (hε : ∀ i, 0 ≤ ε i) :
+theorem volume_anisotropic_box (ε : n → ℝ) :
     volume {x : n → ℝ | ∀ i, |x i| ≤ ε i} = ∏ i, ENNReal.ofReal (2 * ε i) := by
   rw [anisotropic_box_event_eq_pi, MeasureTheory.volume_pi_pi]
   apply Finset.prod_congr rfl
@@ -468,7 +468,7 @@ theorem mvGaussian_box_density_at_mode_bound [DecidableEq n]
     volume_realMatrixSqrt_mulVec_preimage hM hB_meas
   -- Step 4: volume B = ∏ ENNReal.ofReal (2 ε i).
   have h_vol_box : volume B = ∏ i, ENNReal.ofReal (2 * ε i) :=
-    volume_anisotropic_box ε hε
+    volume_anisotropic_box ε
   -- Step 5: assemble the ENNReal bound.
   have h_ENNReal :
       (mvGaussianFromPosDef M) B ≤
