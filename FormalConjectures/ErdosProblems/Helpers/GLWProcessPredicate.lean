@@ -12,8 +12,6 @@ limitations under the License.
 -/
 
 import FormalConjectures.ErdosProblems.Helpers.GLWProcess
-import Mathlib.MeasureTheory.Measure.MeasureSpace
-import Mathlib.Probability.Distributions.Gaussian.Basic
 
 /-!
 # Phase 2 Round 8 — Shared `IsGLWProcess` predicate

@@ -16,8 +16,6 @@ import BrownianMotion.Gaussian.MultivariateGaussian
 import BrownianMotion.Gaussian.ProjectiveLimit
 import BrownianMotion.Continuity.HasBoundedInternalCoveringNumber
 import BrownianMotion.Continuity.KolmogorovChentsov
-import KolmogorovExtension4.KolmogorovExtension
-import Mathlib.Probability.Process.Kolmogorov
 import Mathlib.Topology.Instances.NNReal.Lemmas
 
 /-!
@@ -663,7 +661,13 @@ theorem glwGaussianLimit_Y_GLW_existence :
   · -- Conjunct 9 (tail decay). For every `ε > 0`, `Y u ω → 0` as
     -- `u → ∞`, almost-surely under `glwGaussianLimit`.
     --
-    -- **R17 status: structured sorry; documented blocker.**
+    -- **R18 status: structured sorry. The sole remaining sorry in
+    -- `glwGaussianLimit_Y_GLW_existence` after R18.**
+    --
+    -- R18 closed conjunct 8 by routing through the continuous-path
+    -- modification `Y'` from `exists_glwBrownianModification`. Conjunct
+    -- 9 is the only conjunct still gated on Mathlib infrastructure that
+    -- has not yet landed.
     --
     -- Proof outline (Borell-TIS + Borel-Cantelli):
     --
@@ -673,7 +677,7 @@ theorem glwGaussianLimit_Y_GLW_existence :
     --
     -- 2. **Block-supremum tail bound.** For each integer `T ∈ ℕ`,
     --    consider `M_T := sup_{u ∈ [T, T+1]} |Y u|` (a.s. finite by
-    --    sample-path continuity from the K-C modification, conjunct 8).
+    --    sample-path continuity, conjunct 8 — now Full).
     --    By Borell-TIS for centred Gaussian processes:
     --      `P(M_T ≥ ε) ≤ 2 * exp(-ε²/(2σ_T²))`
     --    where `σ_T² = sup_{u ∈ [T, T+1]} Var[Y u] ≤ 1/(2T)`.
@@ -682,27 +686,25 @@ theorem glwGaussianLimit_Y_GLW_existence :
     --
     -- 3. **Borel-Cantelli on the integer ladder.**
     --      `∑_T P(M_T ≥ ε) ≤ 2 * ∑_T exp(-ε² T) < ∞` (geometric series).
-    --    By BC: `P(limsup_T {M_T ≥ ε}) = 0`. Hence almost-surely,
-    --    only finitely many `T` have `M_T ≥ ε`, i.e., for all
-    --    sufficiently large `u`, `|Y u| < ε`.
+    --    By BC (`MeasureTheory.ae_eventually_notMem`): `P(limsup_T
+    --    {M_T ≥ ε}) = 0`. Hence almost-surely, only finitely many `T`
+    --    have `M_T ≥ ε`, i.e., for all sufficiently large `u`,
+    --    `|Y u| < ε`.
     --
     -- 4. **Convert to ε-existence form.** Almost-surely, for every
     --    `ε > 0`, ∃ T₀, ∀ u ≥ T₀, |Y u| ≤ ε. Quantifier interleaving
     --    via a countable rational `ε`-net.
     --
-    -- **Mathlib gap (Blocker 2 of R18ReadinessDiagnostic.md):** the
-    -- Borell-TIS inequality is not in Mathlib at HEAD. An elementary
-    -- alternative for the GLW-specific case is a finite ε-net union
-    -- bound on `[T, T+1]` (since the process is uniformly Hölder),
-    -- combined with the marginal Gaussian-tail bound from
-    -- `Mathlib.Probability.Distributions.Gaussian.Real`. This route
-    -- avoids the abstract Borell-TIS theorem at the cost of ~200 LOC
-    -- of computation.
-    --
-    -- **Also depends on conjunct 8** (continuous paths, T1.7), since
-    -- the supremum-of-absolute-value over `[T, T+1]` is a.s. finite
-    -- only if the paths are continuous on each compact block.
+    -- **Mathlib gap (R19 readiness Blocker A):** the Borell-TIS
+    -- inequality is not in Mathlib at HEAD; the brownian-motion
+    -- library has not yet landed it either. The diagnostic's
+    -- "elementary route" via finite ε-net + marginal Gaussian tail
+    -- requires (a) a Mathlib-native Gaussian tail bound (currently
+    -- only the MGF/charFun infrastructure exists) and (b) a uniform-
+    -- in-ω Hölder constant control for the modification (the
+    -- `exists_modification_holder'''` API gives only per-ω constants).
+    -- Neither is a one-wave fix. See `Helpers/R19ReadinessDiagnostic.md`.
     intro ε hε
-    sorry  -- TAG[R17-blocker-2]: Borell-TIS + BC on integer ladder
+    sorry  -- TAG[R18-blocker]: tail decay -- Borell-TIS / Mathlib gap
 
 end Erdos524.Helpers
