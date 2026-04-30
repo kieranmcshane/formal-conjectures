@@ -1778,6 +1778,14 @@ theorem K_GLW_processKernel_cauchy_schwarz (s t : NNReal) :
   rw [K_GLW_processKernel_K, K_GLW_processKernel_K, K_GLW_processKernel_K]
   exact K_GLW_cauchy_schwarz (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
 
+/-- The variance is decreasing in the index — for `s ≤ t` (in NNReal)
+the diagonal entry `K(s, s) ≥ K(t, t)`. -/
+theorem K_GLW_processKernel_diag_antitone {s t : NNReal} (hst : s ≤ t) :
+    K_GLW_processKernel.K t t ≤ K_GLW_processKernel.K s s := by
+  rw [K_GLW_processKernel_K, K_GLW_processKernel_K]
+  exact K_GLW_var_antitone (NNReal.coe_nonneg s)
+          (NNReal.coe_le_coe.mpr hst)
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
