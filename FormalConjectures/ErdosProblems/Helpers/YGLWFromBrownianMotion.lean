@@ -2762,7 +2762,7 @@ theorem kernelMatrix_empty_trace :
 theorem kernelMatrix_singleton_trace (a : NNReal) :
     (P.kernelMatrix ({a} : Finset NNReal)).trace = P.K a a := by
   rw [P.kernelMatrix_trace_eq]
-  simp [Finset.sum_subtype]
+  simp
 
 /-- Empty-Finset trace is non-negative (vacuously). -/
 theorem kernelMatrix_empty_trace_nonneg :
@@ -2795,6 +2795,46 @@ theorem K_GLW_processKernel_kernelMatrix_singleton_trace_mem_Icc (a : NNReal) :
       Set.Icc (0 : ℝ) 1 := by
   rw [K_GLW_processKernel_kernelMatrix_singleton_trace]
   exact K_GLW_processKernel_K_diag_mem_Icc a
+
+/-! ## 4.44. K_GLW_processKernel — sum-of-K bounds across paired indices
+
+Useful aggregate identities for the K_GLW process kernel summed over
+finite Finsets, lifted from existing `glwCovMatrixNN_sum_*` facts. -/
+
+/-- Sum of `K(s, t)` over all pairs `(s, t) ∈ I × I` is non-negative. -/
+theorem K_GLW_processKernel_sum_pair_K_nonneg (I : Finset NNReal) :
+    0 ≤ ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+          K_GLW_processKernel.K s.1 t.1 := by
+  have h := glwCovMatrixNN_sum_entries_nonneg I
+  simpa [glwCovMatrixNN_apply] using h
+
+/-- Sum of `K(s, t)` over all pairs `(s, t) ∈ I × I` is bounded above
+by `(card I)²`. -/
+theorem K_GLW_processKernel_sum_pair_K_le_card_sq (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+          K_GLW_processKernel.K s.1 t.1 ≤ (I.card : ℝ) * (I.card : ℝ) := by
+  have h := glwCovMatrixNN_sum_entries_le I
+  simpa [glwCovMatrixNN_apply] using h
+
+/-- The trace of the `K_GLW_processKernel.kernelMatrix I` equals the sum
+of diagonal kernel evaluations. -/
+theorem K_GLW_processKernel_trace_eq_sum_diag (I : Finset NNReal) :
+    (K_GLW_processKernel.kernelMatrix I).trace =
+      ∑ s : {x : NNReal // x ∈ I}, K_GLW_processKernel.K s.1 s.1 :=
+  K_GLW_processKernel.kernelMatrix_trace_eq I
+
+/-- The trace of `K_GLW_processKernel.kernelMatrix I` is a sum of values
+in `[0, 1]`. -/
+theorem K_GLW_processKernel_trace_eq_sum_diag_bounded (I : Finset NNReal) :
+    ∀ s : {x : NNReal // x ∈ I}, K_GLW_processKernel.K s.1 s.1 ∈
+      Set.Icc (0 : ℝ) 1 :=
+  fun s => K_GLW_processKernel_K_diag_mem_Icc s.1
+
+/-- The trace of `K_GLW_processKernel.kernelMatrix I` is in `[0, card I]`. -/
+theorem K_GLW_processKernel_kernelMatrix_trace_mem_Icc (I : Finset NNReal) :
+    (K_GLW_processKernel.kernelMatrix I).trace ∈ Set.Icc (0 : ℝ) (I.card : ℝ) :=
+  ⟨K_GLW_processKernel_kernelMatrix_trace_nonneg I,
+   K_GLW_processKernel_kernelMatrix_trace_le_card I⟩
 
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
