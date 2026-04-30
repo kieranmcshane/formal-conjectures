@@ -1646,4 +1646,61 @@ to the kernel-side content already proved in this file and in
 the **mathematical core** of the bridge: it is what makes the
 projective family well-defined. -/
 
+/-! ## 6. Round 12 closing summary
+
+Round 12 substantially extended this bridge file. The Tier-1 attempt
+(toolchain bump + brownian-motion dep) failed at minute ~7 with 30+
+cascading Mathlib v4.27 → v4.30 API drift errors and was reverted
+under the HARD CAP discipline. R12 then proceeded in Tier 3,
+producing:
+
+### New kernel-side sections (Fin n grid):
+
+* §4.9  — sum-of-entries and Frobenius bounds
+* §4.10 — Cauchy-Schwarz + 1-dim determinant
+* §4.11 — constant-grid + 2-dim determinant
+* §4.12 — diagonal + zero-grid identities
+* §4.13 — generic gramMatrixL2 small-dim det (Mathlib-PR-shaped)
+* §4.14 — quadratic-form expansion identities
+* §4.15 — gramMatrixL2 sign-flip + constant-family
+* §4.16 — grid translation and dilation
+* §4.17 — trace expansion via K_GLW / K_GLW_aux
+* §4.18 — variance decay bounds (1/(2u))
+* §4.19 — pairwise Hölder bound (B4 precondition)
+* §4.20 — Hermitian + trace properties (gramMatrixL2)
+* §4.21 — packaged Y_GLW_kernel_data witness
+* §4.22 — variance-of-sum quadratic form bounds
+* §4.23 — special K_GLW values (zero-grid)
+
+### New brownian-motion-aligned NNReal-grid section (§4.24):
+
+* `glwCovMatrixNN : Finset NNReal → Matrix ↑I ↑I ℝ` mirroring
+  brownian-motion's `brownianCovMatrix` signature exactly
+* `glwCovMatrixNN_PosSemidef` — the B1 precondition in BM's signature
+* `glwCovMatrixNN_submatrix` — sub-Finset restriction (B2)
+* `glwCovMatrixNN_submatrix_PosSemidef` — combined B1+B2
+* `Y_GLW_kernel_data_NN_full` — packaged B1+B2+B4 witness
+* All entry-wise / diagonal / trace / sum / Frobenius / Hölder /
+  variance-decay / Mercer-integral bounds lifted to NNReal grid
+* Continuity of `glwCovMatrix` entries in the grid argument
+* NNReal-grid quadratic-form expansion + non-negativity
+
+### Significance for R13
+
+The kernel side is now **fully formalised** in both type
+signatures (`Fin n → ℝ` and `Finset NNReal`). Once the
+`brownian-motion` API is in scope (R13 Option C — pin at the
+historical commit `91267abd` on Mathlib `25ce63313608`),
+retiring `Y_GLW_exists` reduces to applying:
+
+1. `posSemidef_brownianCovMatrix` ⟹ `glwCovMatrixNN_PosSemidef`
+2. `gaussianProjectiveFamily ⟹ glwGaussianProjectiveFamily K_GLW`
+3. `projectiveLimit ⟹ glwLimit`
+4. Kolmogorov-Chentsov via `glwCovMatrixNN_pairwise_diff_quadratic_le_sq`
+5. Define `Y_GLW(u, ω) := ω u`; verify `IsGLWProcess Y_GLW`.
+
+Each step is a substitution at the call site. The diagnostic file
+`ToolchainBumpDiagnostic.md` documents the R13 setup procedure in
+detail. -/
+
 end Erdos524.Helpers
