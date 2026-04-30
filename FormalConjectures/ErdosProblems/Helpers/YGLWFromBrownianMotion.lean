@@ -1739,6 +1739,16 @@ theorem K_GLW_processKernel_le_one (s t : NNReal) :
   rw [K_GLW_processKernel_K]
   exact K_GLW_le_one _ _ (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
 
+/-- The kernel `K_GLW_processKernel.K` is jointly continuous as a
+function on `NNReal × NNReal`. -/
+theorem K_GLW_processKernel_continuous :
+    Continuous (Function.uncurry K_GLW_processKernel.K) := by
+  show Continuous (fun p : NNReal × NNReal => K_GLW (p.1 : ℝ) (p.2 : ℝ))
+  have h_pair : Continuous (fun p : NNReal × NNReal => ((p.1 : ℝ), (p.2 : ℝ))) :=
+    Continuous.prodMk (NNReal.continuous_coe.comp continuous_fst)
+                       (NNReal.continuous_coe.comp continuous_snd)
+  exact K_GLW_continuous.comp h_pair
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
