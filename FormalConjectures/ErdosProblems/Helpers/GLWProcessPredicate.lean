@@ -124,6 +124,44 @@ theorem isGLWProcess_exists :
           _hY_gauss, _hY_paths, _hY_tail⟩ := Y_GLW_exists
   exact ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov⟩
 
+/-- **R16 O4 (Full).** Generic re-wrap from a 9-conjunct existence
+statement (the shape produced by `Y_GLW_exists` /
+`glwGaussianLimit_Y_GLW_existence`) to an `IsGLWProcess`-typed
+witness. Decouples the predicate-side packaging from the
+projective-limit-side construction, so any future reproof of the
+9-conjunct existence (e.g. a future Wiener-integral construction)
+plugs in here without re-deriving the structure-instance assembly. -/
+theorem isGLWProcess_from_existence
+    (h : ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (Y : ℝ → Ω → ℝ),
+      IsProbabilityMeasure μ ∧
+      (∀ u, Measurable (Y u)) ∧
+      (∀ u, Integrable (Y u) μ) ∧
+      (∀ u v : ℝ, Integrable (fun ω => Y u ω * Y v ω) μ) ∧
+      (∀ u, ∫ ω, Y u ω ∂μ = 0) ∧
+      (∀ u v : ℝ, 0 ≤ u → 0 ≤ v →
+        ∫ ω, Y u ω * Y v ω ∂μ = K_GLW u v) ∧
+      (∀ (n : ℕ) (us : Fin n → ℝ) (cs : Fin n → ℝ),
+        IsGaussian (Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) μ)) ∧
+      (∀ᵐ ω ∂μ, Continuous (fun u => Y u ω)) ∧
+      (∀ ε > 0, ∀ᵐ ω ∂μ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε)) :
+    ∃ (Ω : Type) (_mΩ : MeasurableSpace Ω) (μ : Measure Ω)
+      (_hμ : IsProbabilityMeasure μ),
+      letI : MeasureSpace Ω := ⟨μ⟩
+      ∃ Y : ℝ → Ω → ℝ, IsGLWProcess Y := by
+  obtain ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov,
+          hY_gauss, hY_paths, hY_tail⟩ := h
+  refine ⟨Ω, mΩ, μ, hμ, ?_⟩
+  letI : MeasureSpace Ω := ⟨μ⟩
+  exact ⟨Y, {
+    measurable := hY_meas
+    integrable := hY_int
+    integrable_prod := hY_int_prod
+    centered := hY_centered
+    cov := hY_cov
+    gaussian := hY_gauss
+    continuous_paths := hY_paths
+    tail_decay := hY_tail }⟩
+
 /-- **Full witness:** there exist `(Ω, ℙ, Y)` with `Y` satisfying the
 full `IsGLWProcess` predicate (all nine conjuncts: measurability,
 integrability, integrable-prod, centeredness, K_GLW covariance, joint
@@ -132,27 +170,16 @@ Gaussianity, a.s. continuous paths, a.s. tail decay).
 This packages the `Y_GLW_exists` axiom into the structured form. It
 shows that the Round 8 lower-bound theorem statement (which has
 `IsGLWProcess Y` as a hypothesis) is NOT vacuous — there is a concrete
-process witnessing the predicate. -/
+process witnessing the predicate.
+
+**R16 refactor.** Now derived as the `Y_GLW_exists` specialization of
+the generic `isGLWProcess_from_existence` corollary above. -/
 theorem isGLWProcess_exists_full :
     ∃ (Ω : Type) (_mΩ : MeasurableSpace Ω) (μ : Measure Ω)
       (_hμ : IsProbabilityMeasure μ),
       letI : MeasureSpace Ω := ⟨μ⟩
-      ∃ Y : ℝ → Ω → ℝ, IsGLWProcess Y := by
-  obtain ⟨Ω, mΩ, μ, Y, hμ, hY_meas, hY_int, hY_int_prod, hY_centered, hY_cov,
-          hY_gauss, hY_paths, hY_tail⟩ := Y_GLW_exists
-  refine ⟨Ω, mΩ, μ, hμ, ?_⟩
-  letI : MeasureSpace Ω := ⟨μ⟩
-  refine ⟨Y, ?_⟩
-  exact {
-    measurable := hY_meas
-    integrable := hY_int
-    integrable_prod := hY_int_prod
-    centered := hY_centered
-    cov := hY_cov
-    gaussian := hY_gauss
-    continuous_paths := hY_paths
-    tail_decay := hY_tail
-  }
+      ∃ Y : ℝ → Ω → ℝ, IsGLWProcess Y :=
+  isGLWProcess_from_existence Y_GLW_exists
 
 /-! ## `IsGLWProcess` projections and basic facts -/
 

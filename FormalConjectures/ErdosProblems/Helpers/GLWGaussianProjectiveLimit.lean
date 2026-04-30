@@ -224,15 +224,30 @@ theorem glwGaussianLimit_isKolmogorovProcess :
     IsKolmogorovProcess (T := NNReal) (Ω := NNReal → ℝ) (E := ℝ)
       (fun t ω => ω t) glwGaussianLimit 2 2 1 where
   measurablePair := by
-    -- needs projection-measurability lift on the cylindrical σ-algebra
-    sorry
+    intro s t
+    rw [← BorelSpace.measurable_eq]
+    fun_prop
   kolmogorovCondition := by
-    -- needs Hölder-constant fit:
-    --   ∫⁻ ω, ‖ω s - ω t‖₊^2 ∂glwGaussianLimit
-    --     = E[(ω s - ω t)²]                                       -- bilinear reduction
-    --     = K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t)                -- glwCovMatrixNN
-    --     ≤ ((s : ℝ) - (t : ℝ))²                                  -- _pairwise_diff_quadratic_le_sq
-    --     = (1 : ℝ≥0) * edist s t ^ 2.                            -- bookkeeping
+    -- Hölder-constant fit. Mirrors `isKolmogorovProcess_preBrownian` from
+    -- `brownian-motion`:`Gaussian/BrownianMotion.lean` line 704, but
+    -- specialized to `(p, q, M) = (2, 2, 1)` via the **L²-Hölder-1**
+    -- bound `glwCovMatrixNN_pairwise_diff_quadratic_le_sq` rather than
+    -- the brownian's `(2n, n, ...)` family from
+    -- `centralMoment_fun_two_mul_gaussianReal`.
+    --
+    -- Reduction chain (R16 structured sorry):
+    --   ∫⁻ ω, edist (ω s) (ω t)² ∂glwGaussianLimit
+    --     = ∫⁻ ω, ENNReal.ofReal ((ω s - ω t)²) ∂glwGaussianLimit   -- edist_dist
+    --     = ENNReal.ofReal (∫ ω, (ω s - ω t)² ∂glwGaussianLimit)    -- ofReal_integral_eq_lintegral_ofReal
+    --     = ENNReal.ofReal (Var(ω s - ω t))                          -- centered + integrability
+    --     = ENNReal.ofReal (K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t)) -- covariance_eval_multivariateGaussian + hasLaw_restrict_glwGaussianLimit (on {s, t})
+    --     ≤ ENNReal.ofReal ((s : ℝ) - (t : ℝ))²                      -- glwCovMatrixNN_pairwise_diff_quadratic_le_sq
+    --     = 1 * edist s t ^ 2.                                       -- NNReal/edist bookkeeping
+    --
+    -- Open dependency: need a `hasLaw_eval_sub_eval_glwGaussianLimit`
+    -- analog of `hasLaw_eval_sub_eval_gaussianProjectiveFamily`
+    -- (brownian-motion `Gaussian/ProjectiveLimit.lean` line 130) — a
+    -- mechanical 1-line port using `glwCovMatrixNN` covariance identity.
     sorry
   p_pos := by norm_num
   q_pos := by norm_num
@@ -256,26 +271,21 @@ projecting back to `IsGLWProcess` is a downstream `intro/exact`-style
 1-line move that consumers do at use-site.
 -/
 
-/-- **O5 (Stub).** Existence of a probability space carrying a
-continuous modification of the projection process under
-`glwGaussianLimit`, in the **9-conjunct shape** that matches the
-existing `Y_GLW_exists` axiom statement (Helpers/GLWProcess.lean:122).
-Once O4 is at Full, the continuous modification is supplied by
-`IsAEKolmogorovProcess.mk` applied to O4. The 9 conjuncts are then:
+/-- **O2 (Partial — R16).** Existence of a probability space carrying a
+process satisfying the **9-conjunct shape** that matches
+`Y_GLW_exists` (`Helpers/GLWProcess.lean:130`).
 
-1. `IsProbabilityMeasure μ`     — from `IsProbabilityMeasure_glwGaussianLimit`.
-2. `Measurable (Y u)`           — pointwise eval of measurable continuous mod.
-3. `Integrable (Y u)`           — Gaussian implies integrable (pushforward).
-4. `Integrable (Y u · Y v)`     — bivariate Gaussian: `IsGaussian.integrable_id`.
-5. `∫ Y u = 0`                  — `integral_id_multivariateGaussian` + restrict.
-6. `∫ Y u · Y v = K_GLW u v`    — `covariance_eval_multivariateGaussian`
-                                  + `glwCovMatrixNN_apply`.
-7. `IsGaussian (∑ cs i · Y (us i))` — linearity of multivariateGaussian.
-8. `Continuous (Y · ω) a.e.`    — Kolmogorov-Chentsov continuous modification (O4).
-9. `sup_{u ≥ T₀} |Y u| → 0 a.e.` — Borell + Borel-Cantelli on the
-                                   integer grid.
+R16 progress vs R15:
 
-R15 records the signature; R16 work fills the proof. -/
+* Conjuncts 1, 2 (`IsProbabilityMeasure`, `Measurable (Y u)`) — Full.
+* Conjuncts 3-7 — structured sorries, each pointing at the precise
+  brownian-motion-shaped helper needed (`hasLaw_eval_glwGaussianLimit`
+  / `covariance_eval_glwGaussianLimit`-style ports of the existing
+  `gaussianLimit` API).
+* Conjunct 8 (continuous paths) — depends on O1 Full: once
+  `glwGaussianLimit_isKolmogorovProcess` is sorry-free, the continuous
+  modification follows from `IsAEKolmogorovProcess.mk`.
+* Conjunct 9 (tail decay) — independent dependency on Borell + BC. -/
 theorem glwGaussianLimit_Y_GLW_existence :
     ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (Y : ℝ → Ω → ℝ),
       IsProbabilityMeasure μ ∧
@@ -298,25 +308,45 @@ theorem glwGaussianLimit_Y_GLW_existence :
     fun u ω => ω u.toNNReal, inferInstance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · -- measurable: each marginal is a Pi-projection
     intro u; exact measurable_pi_apply _
-  · -- integrable: needs Gaussian ⇒ integrable id of the projection
+  · -- Conjunct 3 (Integrable (Y u) glwGaussianLimit): needs port of
+    -- `hasLaw_eval_gaussianProjectiveFamily` to GLW
+    -- (`hasLaw_eval_glwGaussianProjectiveFamily`), composed with
+    -- `hasLaw_restrict_glwGaussianLimit` and `IsGaussian.integrable_id`.
     intro u
-    sorry  -- needs O5: Gaussian projection integrable
-  · -- integrable_prod: bivariate Gaussian moment integrability
+    sorry  -- TAG[R16-port-hasLawEval]: needs hasLaw_eval_glwGaussianLimit
+  · -- Conjunct 4 (Integrable (Y u · Y v) glwGaussianLimit): bivariate
+    -- Gaussian product integrability via Cauchy-Schwarz on the joint
+    -- multivariate Gaussian on `{u, v}.toNNReal`.
     intro u v
-    sorry  -- needs O5: bivariate Gaussian moment integrability
-  · -- centered: ∫ ω u.toNNReal = 0 via hasLaw_restrict + integral_id
+    sorry  -- TAG[R16-port-bivariate-integrable]
+  · -- Conjunct 5 (centered): port of `integral_id_gaussianProjectiveFamily`
+    -- composed with `hasLaw_restrict_glwGaussianLimit` on `{u.toNNReal}`.
     intro u
-    sorry  -- needs O5: centered marginal via integral_id_multivariateGaussian
-  · -- covariance fit (THE main one)
+    sorry  -- TAG[R16-port-integralId]: needs integral_id_glwGaussianProjectiveFamily
+  · -- Conjunct 6 (covariance fit, THE main one): port of
+    -- `covariance_eval_gaussianProjectiveFamily`. Uses
+    -- `covarianceBilin_multivariateGaussian (glwCovMatrixNN_PosSemidef I)`
+    -- and `glwCovMatrixNN_apply`. Hypotheses `0 ≤ u, 0 ≤ v` enter
+    -- through `Real.toNNReal_eq_self.mpr` to identify
+    -- `(u.toNNReal : ℝ) = u`.
     intro u v hu hv
-    sorry  -- needs O5: covariance fit via covariance_eval_multivariateGaussian
-  · -- joint Gaussianity: linearity of multivariateGaussian
+    sorry  -- TAG[R16-port-covarianceEval]: needs covariance_eval_glwGaussianLimit
+  · -- Conjunct 7 (joint Gaussianity): linearity of multivariateGaussian.
+    -- Use `IsGaussian.map_continuousLinearMap` on the linear functional
+    -- `(ω : (Finset.image (fun i => (us i).toNNReal) Finset.univ → ℝ)) ↦
+    --   ∑ i, cs i * ω ⟨(us i).toNNReal, _⟩`.
     intro n us cs
-    sorry  -- needs O5: joint Gaussianity via multivariateGaussian linearity
-  · -- continuous paths: depends on O4 K-C threshold lift (q > p)
-    sorry  -- needs O4: continuous modification via IsAEKolmogorovProcess.mk
-  · -- tail decay: Borell + Borel-Cantelli on the integer grid
+    sorry  -- TAG[R16-port-jointGaussian]
+  · -- Conjunct 8 (continuous paths): pending O1 Full. Once O1's
+    -- `kolmogorovCondition` is sorry-free, apply `IsAEKolmogorovProcess.mk`
+    -- + brownian-motion's `IsKolmogorovProcess.continuousModification`
+    -- to get the a.e. continuous modification, which replaces `Y` here.
+    sorry  -- TAG[R16-await-O1]: continuous modification via K-C
+  · -- Conjunct 9 (tail decay): independent. Borell on
+    -- `sup_{u ∈ [T, T+1]} |Y u|` (Ledoux *Concentration of Measure*
+    -- §1.3 eq. (1.7)) + Borel-Cantelli on `T = 1, 2, 3, …`. Uses
+    -- `K_GLW_var_tendsto_zero` from `Helpers/YGLWConstruction.lean`.
     intro ε hε
-    sorry  -- needs O5: tail decay via Borell + Borel-Cantelli
+    sorry  -- TAG[R16-tailDecay-Borell]
 
 end Erdos524.Helpers

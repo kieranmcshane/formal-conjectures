@@ -132,3 +132,46 @@ R15 plan options (decreasing order of feasibility):
 
 Option 2 is the recommended R15 starting point. Option 3 is a useful
 fallback if `brownian-motion` API surface is more limited than expected.
+
+---
+
+## R16 update (2026-04-30)
+
+**Status table:**
+
+| Blocker | R14/R15 status | R16 status | Priority for R17 |
+|---------|----------------|------------|------------------|
+| A1 — Slepian | `True` placeholder | Stub signature + 30-line proof outline (`PhaseAUpperBound.slepian_comparison_GLW`) | **HIGH** — load-bearing for A2 |
+| A2 — Sudakov–Fernique | `True` placeholder | Stub signature + countable-dense-set proof outline | MEDIUM — derives from A1 |
+| A3 — Borell–TIS | `True` placeholder | Stub signature + log-Sobolev/Herbst proof outline | MEDIUM — independent of A1/A2 |
+| A4 — quantitative K-C | partial via `brownian-motion` | unchanged | LOW — can accept log-slack |
+
+**R16 narrowing:** the proof outlines committed in R16 each identify a
+specific Mathlib gap (not just a generic "Slepian missing" diagnosis).
+The narrowed gaps are:
+
+* **A1.** Differentiability of the multivariate-Gaussian distribution
+  function w.r.t. the covariance matrix (`Mathlib.Probability.
+  Distributions.Gaussian.*` does not have this; the closest is
+  `multivariateGaussian_density_eq` in `brownian-motion`). A 30-50 LOC
+  Mathlib PR could close this.
+* **A2.** Countable-dense-set reduction — relies on
+  `KolmogorovChentsov.continuousModification` (already in
+  `brownian-motion`) plus a missing "sup over interval = sup over
+  countable dense subset a.s." lemma. ~20 LOC PR.
+* **A3.** Probabilistic log-Sobolev inequality for the standard
+  Gaussian. This is the actual upstream gap; the analytic log-Sobolev
+  in `Mathlib.Analysis.SpecialFunctions.Log` is unrelated. Requires a
+  dedicated PR.
+
+**Path forward (R17 priority order):**
+
+1. PR A2-reduction lemma (smallest, isolated).
+2. PR A1 differentiability (medium, well-defined statement).
+3. PR A3 log-Sobolev (largest, but unblocks all of Phase A).
+
+**Bypass option (R17 fallback):** Option 2 from R14/R15 — accept Borell–TIS
+as a deferred `axiom` analogous to the still-pending
+`two_dim_KMT_coupling`. This re-axiomatises A3 but lets us close A1+A2
+honestly within the toolchain. R16 R17ReadinessDiagnostic argues this
+is the correct trade given the relative cost of A3 vs A1+A2.
