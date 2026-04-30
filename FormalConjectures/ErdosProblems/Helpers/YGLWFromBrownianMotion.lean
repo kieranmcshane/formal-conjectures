@@ -2477,6 +2477,44 @@ theorem K_GLW_processKernel_avg_ge_off_diag (s t : NNReal) :
   have h := K_GLW_processKernel_pair_increment_le_sq s t
   linarith
 
+/-! ## 4.37. K_GLW_processKernel — endpoint and asymptotic lifts -/
+
+/-- Combined `K(s, t) ∈ (0, 1]` bound for the GLW process kernel. -/
+theorem K_GLW_processKernel_K_mem_Ioc (s t : NNReal) :
+    K_GLW_processKernel.K s t ∈ Set.Ioc (0 : ℝ) 1 :=
+  ⟨K_GLW_processKernel_pos s t, K_GLW_processKernel_le_one s t⟩
+
+/-- The diagonal `K(s, s) ∈ (0, 1]` for the GLW process kernel. -/
+theorem K_GLW_processKernel_K_diag_mem_Ioc (s : NNReal) :
+    K_GLW_processKernel.K s s ∈ Set.Ioc (0 : ℝ) 1 :=
+  K_GLW_processKernel_K_mem_Ioc s s
+
+/-- The diagonal `K(s, s) ∈ [0, 1]` for the GLW process kernel
+(closed-interval form, useful for sandwich arguments). -/
+theorem K_GLW_processKernel_K_diag_mem_Icc (s : NNReal) :
+    K_GLW_processKernel.K s s ∈ Set.Icc (0 : ℝ) 1 :=
+  ⟨K_GLW_processKernel.K_diag_nonneg s,
+   K_GLW_processKernel_le_one s s⟩
+
+/-- The off-diagonal `K(s, t) ∈ [0, 1]` for the GLW process kernel
+(closed-interval form). -/
+theorem K_GLW_processKernel_K_mem_Icc (s t : NNReal) :
+    K_GLW_processKernel.K s t ∈ Set.Icc (0 : ℝ) 1 :=
+  ⟨le_of_lt (K_GLW_processKernel_pos s t),
+   K_GLW_processKernel_le_one s t⟩
+
+/-- The diagonal `K(s, s)` decays to zero as `s → ∞` along
+`atTop` filter on `NNReal` (variance-decay limit). -/
+theorem K_GLW_processKernel_K_diag_tendsto_zero :
+    Filter.Tendsto (fun s : NNReal => K_GLW_processKernel.K s s)
+      Filter.atTop (nhds 0) := by
+  have h_real : Filter.Tendsto (fun u : ℝ => K_GLW u u) Filter.atTop (nhds 0) :=
+    K_GLW_var_tendsto_zero
+  have h_coe : Filter.Tendsto (fun s : NNReal => (s : ℝ))
+      Filter.atTop Filter.atTop :=
+    NNReal.tendsto_coe_atTop.mpr Filter.tendsto_id
+  exact h_real.comp h_coe
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
