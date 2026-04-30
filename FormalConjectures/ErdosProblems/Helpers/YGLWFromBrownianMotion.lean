@@ -3055,6 +3055,19 @@ theorem K_GLW_processKernel_R14_capstone :
    K_GLW_processKernel_continuous,
    fun s t => K_GLW_processKernel_K_mem_Icc s t⟩
 
+/-- R14-capstone usage doc: `K_GLW_processKernel_R14_capstone` produces
+the unique kernel-side data witness which, combined with the
+brownian-motion API
+(`gaussianProjectiveFamily`, `projectiveLimit`, `KolmogorovChentsov`),
+yields a continuous Gaussian process `Y_GLW : NNReal → Ω → ℝ`
+satisfying the `IsGLWProcess` predicate.
+
+The full retirement skeleton is documented in §5 below. -/
+theorem K_GLW_processKernel_R14_capstone_witness :
+    ∃ P : ProcessKernel,
+      (∀ s t : NNReal, P.K s t = K_GLW (s : ℝ) (t : ℝ)) :=
+  K_GLW_processKernel_R14_capstone.imp (fun _ h => h.1)
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
