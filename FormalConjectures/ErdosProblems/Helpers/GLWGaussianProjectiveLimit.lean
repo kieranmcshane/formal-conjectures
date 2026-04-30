@@ -540,12 +540,35 @@ theorem glwGaussianLimit_Y_GLW_existence :
     -- Goal: ∫ ω, ω u.toNNReal * ω v.toNNReal ∂glwGaussianLimit = K_GLW u v
     -- Note: μ[X * Y] = ∫ ω, (X * Y) ω ∂μ = ∫ ω, X ω * Y ω ∂μ
     exact h_eq.symm
-  · -- Conjunct 7 (joint Gaussianity): linearity of multivariateGaussian.
-    -- Use `IsGaussian.map_continuousLinearMap` on the linear functional
-    -- `(ω : (Finset.image (fun i => (us i).toNNReal) Finset.univ → ℝ)) ↦
-    --   ∑ i, cs i * ω ⟨(us i).toNNReal, _⟩`.
+  · -- Conjunct 7 (joint Gaussianity). The linear functional
+    -- `f ω = ∑ i, cs i * ω (us i).toNNReal` factors as `φ ∘ I.restrict`
+    -- where `I` is the finset of distinct `(us i).toNNReal` values and
+    -- `φ : (↥I → ℝ) →L[ℝ] ℝ` is a CLM. Then
+    -- `Measure.map f μ = Measure.map φ (glwGaussianProjectiveFamily I)`,
+    -- and the latter is Gaussian by `isGaussian_map`.
     intro n us cs
-    sorry  -- TAG[R16-port-jointGaussian]
+    let I : Finset NNReal := Finset.image (fun i : Fin n => (us i).toNNReal) Finset.univ
+    have h_mem : ∀ i : Fin n, (us i).toNNReal ∈ I :=
+      fun i => Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩
+    let φ : (↥I → ℝ) →L[ℝ] ℝ :=
+      ∑ i : Fin n, cs i • ContinuousLinearMap.proj (R := ℝ) (φ := fun _ : ↥I => ℝ)
+        ⟨(us i).toNNReal, h_mem i⟩
+    have h_factor : (fun ω : NNReal → ℝ => ∑ i, cs i * ω (us i).toNNReal) =
+        φ ∘ (Finset.restrict I (π := fun _ : NNReal => ℝ)) := by
+      funext ω
+      show ∑ i, cs i * ω (us i).toNNReal = φ (I.restrict ω)
+      simp only [φ, ContinuousLinearMap.coe_sum', ContinuousLinearMap.coe_smul',
+        ContinuousLinearMap.proj_apply, Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
+      rfl
+    rw [h_factor]
+    have hmf : Measurable (Finset.restrict I (π := fun _ : NNReal => ℝ)) :=
+      Finset.measurable_restrict _
+    have hmφ : Measurable (⇑φ) := φ.continuous.measurable
+    rw [show Measure.map (⇑φ ∘ I.restrict) glwGaussianLimit
+          = Measure.map φ (Measure.map I.restrict glwGaussianLimit) from
+        (Measure.map_map hmφ hmf).symm]
+    rw [hasLaw_restrict_glwGaussianLimit.map_eq]
+    exact isGaussian_map _
   · -- Conjunct 8 (continuous paths): pending O1 Full. Once O1's
     -- `kolmogorovCondition` is sorry-free, apply `IsAEKolmogorovProcess.mk`
     -- + brownian-motion's `IsKolmogorovProcess.continuousModification`
