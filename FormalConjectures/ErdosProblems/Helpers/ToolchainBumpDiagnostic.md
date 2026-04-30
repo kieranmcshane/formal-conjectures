@@ -412,6 +412,35 @@ The `StronglyMeasurable[ℱ k]` calls inside the block (e.g. line 664
 need to change** — `StronglyMeasurable` is unchanged across the
 rename, since the rename only swapped the *Adapted-level* names.
 
+### Caveat: cannot pre-stage the rename on master
+
+The rename `StronglyAdapted → Adapted` (and likewise
+`stronglyAdapted_natural → adapted_natural`) **cannot** be applied as a
+preparatory commit on `kmc-erdos-glw-lower` (or `main`) under v4.27.0,
+because:
+
+* In v4.27.0, `StronglyAdapted` is the StronglyMeasurable-based
+  predicate (what we want).
+* In v4.27.0, `Adapted` is the (new, post-2026-01-13)
+  Measurable-based predicate (different concept).
+
+Pre-staging the rename on master would change the SEMANTICS, not just
+the name — the proof would be against a stricter measurability
+hypothesis (just `Measurable`, not `StronglyMeasurable`). That could
+break the build.
+
+Therefore R14 must do the rename **atomically with the pin**:
+
+1. Branch from `kmc-erdos-glw-lower`.
+2. Apply pin (toolchain + lakefile).
+3. Apply the 5 mechanical fixes (Set.left_mem_Ici × 2, Powerfree,
+   GCDMonoid.Finset, CauchyDetLowerBound).
+4. Apply the StronglyAdapted rename (in v4.27.0-rc1 mathlib, the
+   StronglyMeasurable-based predicate IS called `Adapted`, so this is
+   semantically correct under the pin).
+5. Build, verify, retire `Y_GLW_exists`.
+6. Cascade to consumers.
+
 ### Updated R14 procedure (revised again, with new finding)
 
 R14 effort estimate revised DOWN to **30-45 min** total:
