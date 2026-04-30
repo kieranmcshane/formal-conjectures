@@ -24,11 +24,11 @@ project](https://github.com/RemyDegenne/brownian-motion). That project
 has a fully formalised Brownian motion via the
 **projective-limit construction**:
 
-1. `brownianCovMatrix I : Matrix I I ℝ` for finite `I ⊆ ℝ≥0` with
+1. `brownianCovMatrix I : Matrix I I ℝ` for finite `I ⊆ NNReal` with
    `K_BM(s, t) = min(s, t)`,
 2. `gaussianProjectiveFamily I` from `multivariateGaussian 0
    (brownianCovMatrix I)`,
-3. `projectiveLimit gaussianProjectiveFamily : Measure (ℝ≥0 → ℝ)`,
+3. `projectiveLimit gaussianProjectiveFamily : Measure (NNReal → ℝ)`,
 4. `kolmogorov_chentsov_continuity` for continuous-paths modification.
 
 The construction is **kernel-generic**: replacing `min(s, t)` with
@@ -1125,6 +1125,65 @@ theorem glwCovMatrix_zero_diag {n : ℕ} [NeZero n] (us : Fin n → ℝ)
     glwCovMatrix us 0 0 = 1 :=
   glwCovMatrix_diag_at_zero us h0
 
+/-! ## 4.24. NNReal-grid covariance — direct alignment with brownian-motion
+
+Round 12 closing additions. The `brownian-motion` project's
+`brownianCovMatrix` is indexed by `I : Finset NNReal` rather than
+`Fin n → ℝ`. The K_GLW analogue below mirrors that signature
+exactly, making R13 retirement of `Y_GLW_exists` a direct
+substitution at the call site.
+
+```
+brownianCovMatrix (I : Finset NNReal) : Matrix I I ℝ :=
+  Matrix.of fun s t ↦ min s.1 t.1
+```
+
+vs.
+
+```
+glwCovMatrixNN (I : Finset NNReal) : Matrix I I ℝ :=
+  Matrix.of fun s t ↦ K_GLW s.1.toReal t.1.toReal
+```
+
+Both index types `↑I = {x : NNReal // x ∈ I}` give the matrix
+indexed by NNReal grid points. -/
+
+/-- The K_GLW Gram matrix on a Finset `I : Finset NNReal`, mirroring
+brownian-motion's `brownianCovMatrix` signature exactly. Each entry
+is `K_GLW (s : ℝ) (t : ℝ)` for grid points `s t : ↑I` (subtype of
+NNReal). -/
+noncomputable def glwCovMatrixNN (I : Finset NNReal) :
+    Matrix {x : NNReal // x ∈ I} {x : NNReal // x ∈ I} ℝ :=
+  Matrix.of fun s t => K_GLW (s.1 : ℝ) (t.1 : ℝ)
+
+/-- Entry-access for `glwCovMatrixNN`. -/
+@[simp]
+theorem glwCovMatrixNN_apply (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s t = K_GLW (s.1 : ℝ) (t.1 : ℝ) := rfl
+
+/-- `glwCovMatrixNN I` is symmetric. -/
+theorem glwCovMatrixNN_symm (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s t = glwCovMatrixNN I t s := by
+  simp [glwCovMatrixNN_apply, K_GLW_symm]
+
+/-- `glwCovMatrixNN I` is Hermitian. -/
+theorem glwCovMatrixNN_isHermitian (I : Finset NNReal) :
+    (glwCovMatrixNN I).IsHermitian := by
+  ext i j
+  simp [Matrix.conjTranspose, Matrix.transpose,
+        glwCovMatrixNN_apply, K_GLW_symm]
+
+/-- Sub-Finset restriction: for `J ⊆ I`, restricting `glwCovMatrixNN I`
+to indices in `J` yields `glwCovMatrixNN J`. Mirrors
+`brownianCovMatrix_submatrix`. -/
+theorem glwCovMatrixNN_submatrix {I J : Finset NNReal} (hJI : J ⊆ I) :
+    (glwCovMatrixNN I).submatrix
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I})) =
+      glwCovMatrixNN J := by
+  ext i j
+  rfl
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
@@ -1166,10 +1225,10 @@ parameterised by the kernel data we just proved.
 * **TRIED**: Mathlib has `Measure.infinitePi` (countable independent
   product), `IsProjectiveLimit` predicate, but no
   Kolmogorov-extension constructor for general projective families
-  parameterised over `Finset ℝ≥0`.
+  parameterised over `Finset NNReal`.
 * **PROJECT API**: `projectiveLimit (F : ∀ I : Finset ι, Measure (I → ℝ))
   (hF : IsProjectiveMeasureFamily F) : Measure (ι → ℝ)`. Closure of the
-  projective limit when the index set is `ℝ≥0` (uncountable).
+  projective limit when the index set is `NNReal` (uncountable).
 
 ### BLOCKER B4: Kolmogorov–Chentsov continuity.
 
@@ -1204,7 +1263,7 @@ alignment / Mathlib merge), the proof of `Y_GLW_exists` reduces to:
 ```
 theorem Y_GLW_exists_from_brownian_motion : Y_GLW_exists.statement := by
   -- 1. Apply B1 + B2 to glwCovMatrix to get gaussianProjectiveFamily.
-  -- 2. Apply B3 to get projectiveLimit measure on `ℝ≥0 → ℝ`.
+  -- 2. Apply B3 to get projectiveLimit measure on `NNReal → ℝ`.
   -- 3. Define Y(u, ω) := ω u; verify centeredness, covariance from B1.
   -- 4. Apply B4 with L2_diff_le_sq to get continuous-paths modification.
   -- 5. Apply B5 with K_GLW_var_tendsto_zero to get tail decay.
