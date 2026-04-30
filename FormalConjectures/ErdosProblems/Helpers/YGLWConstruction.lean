@@ -479,7 +479,59 @@ theorem K_GLW_cauchy_schwarz {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
     nonneg_of_mul_nonneg_right h_qf h_var_v_pos
   linarith [h_inner]
 
-/-! ## 4. Construction blockers (BLOCKER / TRIED / NEEDS)
+/-! ## 7. Variance decay roadmap
+
+For the eventual sample-path tail-decay conjunct of `Y_GLW_exists`, the
+ground floor is `K_GLW(u, u) → 0` as `u → ∞`. Here we prove the
+quantitative bound `K_GLW(u, u) ≤ 1/(2u)` for `u > 0`, which is the
+deterministic shadow of `Var(Y_GLW(u)) ≤ 1/(2u)`.
+
+Combined with Borell's inequality (BLOCKER #5), this gives
+`P(|Y_GLW(u)| > ε) ≤ 2 exp(-ε² u)` and hence a.s. tail decay via
+Borel–Cantelli. The `1/(2u)` ground floor is what we can prove
+deterministically. -/
+
+/-- **Variance decay bound** `K_GLW(u, u) ≤ 1/(2u)` for `u > 0`. -/
+theorem K_GLW_var_le_recip {u : ℝ} (hu : 0 < u) :
+    K_GLW u u ≤ 1 / (2 * u) := by
+  rw [K_GLW_var_eq hu]
+  have h2u : 0 < 2 * u := by linarith
+  rw [div_le_div_iff_of_pos_right h2u]
+  -- Goal: 1 - exp(-(2u)) ≤ 1, i.e. exp(-(2u)) ≥ 0.
+  have h_exp_nn : 0 ≤ Real.exp (-(2 * u)) := le_of_lt (Real.exp_pos _)
+  linarith
+
+/-- The variance decay limit at infinity: `K_GLW(u, u) → 0` as `u → ∞`.
+The deterministic content of "tail-decay-of-Y-marginal in L²". -/
+theorem K_GLW_var_tendsto_zero :
+    Filter.Tendsto (fun u : ℝ => K_GLW u u) Filter.atTop (nhds 0) := by
+  -- Apply `Tendsto.squeeze_atTop` style: use the eventual sandwich
+  -- `0 ≤ K_GLW(u, u) ≤ 1/(2u)` for `u > 0` and `1/(2u) → 0`.
+  rw [Metric.tendsto_atTop]
+  intro ε hε
+  -- Pick a strict threshold `N := max 1 (1/(2ε) + 1)` to avoid the
+  -- boundary case `u = 1/(2ε)`.
+  refine ⟨max 1 (1 / (2 * ε) + 1), fun u hu => ?_⟩
+  have hu_pos : 0 < u := lt_of_lt_of_le one_pos (le_of_max_le_left hu)
+  have hu_lower : 1 / (2 * ε) + 1 ≤ u := le_of_max_le_right hu
+  have h_kvar_pos : 0 ≤ K_GLW u u :=
+    le_of_lt (K_GLW_pos u u (le_of_lt hu_pos) (le_of_lt hu_pos))
+  have h_kvar_le : K_GLW u u ≤ 1 / (2 * u) := K_GLW_var_le_recip hu_pos
+  -- Convert to the metric statement.
+  rw [Real.dist_eq, sub_zero, abs_of_nonneg h_kvar_pos]
+  -- Show `K_GLW u u < ε`.
+  apply lt_of_le_of_lt h_kvar_le
+  -- 1/(2u) < ε. Use the strict bound from `1/(2ε) < 1/(2ε) + 1 ≤ u`.
+  have hu_strict : 1 / (2 * ε) < u := by linarith
+  have h2e : 0 < 2 * ε := by linarith
+  -- 1/(2ε) < u ⇒ multiply by 2ε > 0: 1 < 2εu ⇒ 1/(2u) < ε.
+  rw [div_lt_iff₀ (by positivity)]
+  have h_aux : 1 < 2 * ε * u := by
+    have := (div_lt_iff₀ h2e).mp hu_strict
+    linarith
+  linarith
+
+/-! ## 8. Construction blockers (BLOCKER / TRIED / NEEDS)
 
 The following Mathlib gaps prevent the full retirement of `Y_GLW_exists`
 in this round. Each is documented in the standard BLOCKER / TRIED / NEEDS
