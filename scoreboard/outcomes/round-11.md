@@ -91,16 +91,17 @@ If Kieran rules PARTIAL gives full credit: +20 + 10 + 5 + 20 + 20 + 15 + 20 - 70
 | Discovery bonus #3 | `intervalIntegral.integral_finset_sum` + `integral_eq_sub_of_hasDerivAt` API — first use in campaign for the Mercer integral-of-square argument | +50 |
 | Tier-2 ecosystem-integration bonus | Bridge file `YGLWFromBrownianMotion.lean` is the first formal-conjectures contribution showing how to spec a Lake-dep-pending external project (`brownian-motion`) with full kernel-side preconditions proven | +50 |
 | Mathlib-PR-shaped abstraction (post-pivot work) | `gramMatrixL2_PosSemidef` — the **kernel-generic** Gram-matrix PSD theorem (any continuous family of L²([0,1]) functions yields a PSD Gram matrix). `glwCovMatrix_PosSemidef` is a 2-line corollary. Exactly the kind of "lift from kernel-specific to general abstraction" that earns the discovery framing | +50 |
+| Mathlib-PR-shaped theorem (post-pivot work) | `K_GLW_lipschitz_first` / `K_GLW_lipschitz_second` — K_GLW is 1-Lipschitz on the nonneg quadrant, proved via 3-point Mercer-PSD discriminant argument (without external Cauchy-Schwarz). The deterministic shadow of process modulus-of-continuity for KC. Shipped with Cauchy-Schwarz-type lemma `K_GLW_diff_sq_le_quadratic_form_mul` and the supporting `K_GLW_three_point_psd` PSD identity | +50 |
 | Axiom retirement bonus (+150) | Not earned (axiom not retired) | 0 |
 | Mathlib-construction bonus (+50) | Partial: `Y_GLW` not defined as a concrete process; only the kernel-side covariance proven concretely. Claim 0 to be conservative | 0 |
-| Cascade bonus (+100) | Not earned (Stretch A NOT closed — continuity of Y proper requires Y to exist; only the deterministic shadow `L2_diff_le_sq` was proven) | 0 |
+| Cascade bonus (+100) | Not earned (Stretch A NOT closed — continuity of Y proper requires Y to exist; only the deterministic shadow `L2_diff_le_sq` + the Lipschitz bound `K_GLW_lipschitz_first` were proven) | 0 |
 
-**Local Claude net: +250 units.**
+**Local Claude net: +300 units.**
 
 ## New balances proposed
 
 * Cowork Claude: 1240 + (-80 to +40, depending on PARTIAL ruling) = **1160 to 1280**
-* Local Claude: 1244 + 250 = **1494**
+* Local Claude: 1244 + 300 = **1544**
 
 ## Notes for validator (Kieran)
 
