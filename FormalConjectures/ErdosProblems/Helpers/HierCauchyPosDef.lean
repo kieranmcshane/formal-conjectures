@@ -285,6 +285,7 @@ theorem expProfile_zero (m : ℕ) (t : ℝ) : expProfile m 0 t = 0 := by
 theorem expProfile_sq_nonneg (m : ℕ) (x : Fin m × Fin m → ℝ) (t : ℝ) :
     0 ≤ (expProfile m x t)^2 := sq_nonneg _
 
+
 /-- Integrability of each summand `t ↦ exp(-(g_i + g_j) t)` on `Ioi 0`. -/
 theorem integrableOn_exp_neg_sum_Ioi_zero (m : ℕ) (i j : Fin m × Fin m) :
     IntegrableOn (fun t : ℝ => Real.exp (-(hierGrid m i + hierGrid m j) * t)) (Ioi 0) :=
@@ -388,6 +389,55 @@ theorem integrableOn_expProfile_sq (m : ℕ) (x : Fin m × Fin m → ℝ) :
   apply integrable_finset_sum
   intro j _
   exact integrableOn_pair_term m x i j
+
+/-- Direct (integral-only) strict positivity in the special case where
+`∑ x i ≠ 0`. The integral `∫_(0,∞) (expProfile m x t)² dt` is strictly
+positive without invoking PosDef.
+
+Argument: `expProfile m x 0 = ∑ x i ≠ 0` is nonzero; by continuity,
+`expProfile m x` is nonzero on an open neighborhood of `0`, hence on
+`(0, δ)` for some `δ > 0`, so the squared integrand has support of
+positive Lebesgue measure there.
+
+This is the *analytic* strict-positivity, complementing the spectral
+proof in `expProfile_sq_integral_pos_of_ne_zero`. -/
+theorem expProfile_sq_integral_pos_of_sum_ne_zero (m : ℕ)
+    {x : Fin m × Fin m → ℝ} (hsum : (∑ i, x i) ≠ 0) :
+    0 < ∫ t : ℝ in Ioi 0, (expProfile m x t)^2 := by
+  -- expProfile m x is continuous, with value `∑ x i ≠ 0` at `t = 0`.
+  have hcont := expProfile_continuous m x
+  have hzero_val : expProfile m x 0 = ∑ i, x i := expProfile_at_zero m x
+  have hzero_ne : expProfile m x 0 ≠ 0 := hzero_val ▸ hsum
+  -- By continuity at 0, expProfile m x is nonzero in an open neighborhood of 0.
+  have h_isOpen : IsOpen {t : ℝ | expProfile m x t ≠ 0} :=
+    isOpen_ne_fun hcont continuous_const
+  have h_mem : (0 : ℝ) ∈ {t : ℝ | expProfile m x t ≠ 0} := hzero_ne
+  obtain ⟨δ, hδ_pos, hδ⟩ := Metric.isOpen_iff.mp h_isOpen 0 h_mem
+  -- The open interval `(0, δ)` is contained in the support of `expProfile m x`.
+  have h_subset : Ioo (0 : ℝ) δ ⊆ {t : ℝ | expProfile m x t ≠ 0} := fun t ⟨h0, hδt⟩ => by
+    apply hδ
+    rw [Metric.mem_ball, Real.dist_eq, sub_zero, abs_of_pos h0]
+    exact hδt
+  -- Apply `integral_pos_iff_support_of_nonneg_ae` to the indicator form.
+  rw [show (∫ t in Ioi 0, (expProfile m x t)^2) =
+      ∫ t, ((Ioi 0).indicator (fun s => (expProfile m x s)^2)) t from
+      (integral_indicator measurableSet_Ioi).symm]
+  apply (integral_pos_iff_support_of_nonneg_ae ?_ ?_).mpr
+  · -- Support contains `Ioo 0 δ`, which has positive Lebesgue measure.
+    apply lt_of_lt_of_le (b := volume (Set.Ioo (0 : ℝ) δ))
+    · simp [Real.volume_Ioo, hδ_pos]
+    · apply MeasureTheory.measure_mono
+      intro t ⟨h0, hδt⟩
+      have h_in : t ∈ Ioi (0 : ℝ) := h0
+      have h_ne : expProfile m x t ≠ 0 := h_subset ⟨h0, hδt⟩
+      show ((Ioi 0).indicator (fun s => (expProfile m x s)^2)) t ≠ 0
+      rw [Set.indicator_of_mem h_in]
+      exact pow_ne_zero _ h_ne
+  · -- AE non-negative.
+    exact Filter.Eventually.of_forall (fun t => Set.indicator_apply_nonneg (fun _ => sq_nonneg _))
+  · -- Integrable.
+    rw [MeasureTheory.integrable_indicator_iff measurableSet_Ioi]
+    exact integrableOn_expProfile_sq m x
 
 /-- The hierarchical Cauchy matrix is positive semi-definite (over ℝ). -/
 theorem hierCauchyG_PosSemidef (m : ℕ) :
