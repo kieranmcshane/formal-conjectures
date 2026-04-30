@@ -507,6 +507,74 @@ theorem glwCovMatrix_trace_le {n : ℕ} (us : Fin n → ℝ)
         exact glwCovMatrix_diag_le_one us h_us i
     _ = (n : ℝ) := by simp
 
+/-! ## 4.9. Sum-of-entries and Frobenius bounds
+
+Round 12 additions. The **sum of all entries** of `glwCovMatrix us` is
+the variance of the random sum `Σᵢ Y(uᵢ)` once a process realisation
+exists; the bound below gives the deterministic constraints on that
+variance, controlling Borell-type sup bounds independently of the
+`brownian-motion` projective-limit construction.
+
+Likewise the **Frobenius squared norm** `Σᵢⱼ Mᵢⱼ²` controls the
+operator norm: `‖M‖_op ≤ ‖M‖_F`, so any operator-norm bound on
+`glwCovMatrix` factors through these inequalities. -/
+
+/-- Sum of all entries of `glwCovMatrix us` is non-negative on nonneg
+grids — a direct consequence of `glwCovMatrix_entry_pos`. -/
+theorem glwCovMatrix_sum_entries_nonneg {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    0 ≤ ∑ i : Fin n, ∑ j : Fin n, glwCovMatrix us i j := by
+  apply Finset.sum_nonneg
+  intros i _
+  apply Finset.sum_nonneg
+  intros j _
+  exact le_of_lt (glwCovMatrix_entry_pos us h_us i j)
+
+/-- Sum of all entries of `glwCovMatrix us` is bounded above by `n²`
+on nonneg grids — direct from `glwCovMatrix_entry_le_one`. -/
+theorem glwCovMatrix_sum_entries_le {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    ∑ i : Fin n, ∑ j : Fin n, glwCovMatrix us i j ≤ (n : ℝ) * n := by
+  calc ∑ i : Fin n, ∑ j : Fin n, glwCovMatrix us i j
+      ≤ ∑ _i : Fin n, ∑ _j : Fin n, (1 : ℝ) := by
+        apply Finset.sum_le_sum
+        intros i _
+        apply Finset.sum_le_sum
+        intros j _
+        exact glwCovMatrix_entry_le_one us h_us i j
+    _ = (n : ℝ) * n := by simp [Finset.sum_const]
+
+/-- Frobenius-squared bound for `glwCovMatrix us` on nonneg grids:
+`Σᵢⱼ Mᵢⱼ² ≤ n²`. Each entry lies in `[0, 1]`, so its square does too. -/
+theorem glwCovMatrix_frobenius_sq_le {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    ∑ i : Fin n, ∑ j : Fin n, (glwCovMatrix us i j)^2 ≤ (n : ℝ) * n := by
+  calc ∑ i : Fin n, ∑ j : Fin n, (glwCovMatrix us i j)^2
+      ≤ ∑ _i : Fin n, ∑ _j : Fin n, (1 : ℝ) := by
+        apply Finset.sum_le_sum
+        intros i _
+        apply Finset.sum_le_sum
+        intros j _
+        have hpos : 0 ≤ glwCovMatrix us i j :=
+          le_of_lt (glwCovMatrix_entry_pos us h_us i j)
+        have hle : glwCovMatrix us i j ≤ 1 :=
+          glwCovMatrix_entry_le_one us h_us i j
+        calc (glwCovMatrix us i j)^2
+            = glwCovMatrix us i j * glwCovMatrix us i j := sq _
+          _ ≤ 1 * 1 := mul_le_mul hle hle hpos (by norm_num)
+          _ = 1 := by norm_num
+    _ = (n : ℝ) * n := by simp [Finset.sum_const]
+
+/-- Frobenius-squared lower bound for `glwCovMatrix us` on nonneg
+grids: `Σᵢⱼ Mᵢⱼ² ≥ 0`. -/
+theorem glwCovMatrix_frobenius_sq_nonneg {n : ℕ} (us : Fin n → ℝ) :
+    0 ≤ ∑ i : Fin n, ∑ j : Fin n, (glwCovMatrix us i j)^2 := by
+  apply Finset.sum_nonneg
+  intros i _
+  apply Finset.sum_nonneg
+  intros j _
+  exact sq_nonneg _
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
