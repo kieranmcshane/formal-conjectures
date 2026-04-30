@@ -3082,6 +3082,25 @@ theorem K_GLW_processKernel_R14_capstone_hoelder_witness :
       ∀ s t : NNReal, P.K s s + P.K t t - 2 * P.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
   ⟨K_GLW_processKernel, K_GLW_processKernel.hoelder⟩
 
+/-- R14-capstone consistency-only projection: a ProcessKernel exists
+with the sub-Finset consistency property (B2 precondition). -/
+theorem K_GLW_processKernel_R14_capstone_consistent_witness :
+    ∃ P : ProcessKernel,
+      ∀ {I J : Finset NNReal} (hJI : J ⊆ I),
+        ((P.kernelMatrix I).submatrix
+            (fun j : {x : NNReal // x ∈ J} =>
+              (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+            (fun j : {x : NNReal // x ∈ J} =>
+              (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef :=
+  ⟨K_GLW_processKernel, fun {_ _} hJI => K_GLW_processKernel.consistent hJI⟩
+
+/-- R14-capstone continuity-only projection: a ProcessKernel exists
+with continuous kernel function (B5 precondition). -/
+theorem K_GLW_processKernel_R14_capstone_continuous_witness :
+    ∃ P : ProcessKernel,
+      Continuous (Function.uncurry P.K) :=
+  ⟨K_GLW_processKernel, K_GLW_processKernel_continuous⟩
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
