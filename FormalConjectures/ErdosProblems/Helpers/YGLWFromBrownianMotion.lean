@@ -1766,6 +1766,18 @@ theorem K_GLW_processKernel_diag_le_one (s : NNReal) :
     K_GLW_processKernel.K s s ≤ 1 :=
   K_GLW_processKernel_le_one s s
 
+/-- Direct K_GLW_processKernel Hölder bound at the diagonal: trivially 0. -/
+theorem K_GLW_processKernel_self_diag_diff (s : NNReal) :
+    K_GLW_processKernel.K s s + K_GLW_processKernel.K s s -
+      2 * K_GLW_processKernel.K s s = 0 := by ring
+
+/-- The Cauchy-Schwarz inequality at the kernel level. -/
+theorem K_GLW_processKernel_cauchy_schwarz (s t : NNReal) :
+    (K_GLW_processKernel.K s t)^2 ≤
+      K_GLW_processKernel.K s s * K_GLW_processKernel.K t t := by
+  rw [K_GLW_processKernel_K, K_GLW_processKernel_K, K_GLW_processKernel_K]
+  exact K_GLW_cauchy_schwarz (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
