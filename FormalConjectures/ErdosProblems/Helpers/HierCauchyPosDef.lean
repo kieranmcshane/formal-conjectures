@@ -608,4 +608,16 @@ theorem cauchyMatrix_PosDef {n : Type*} [Fintype n] [DecidableEq n] [Nonempty n]
     (cauchyMatrix g).PosDef := by
   exact PosDef_of_PosSemidef_of_det_pos (cauchyMatrix_PosSemidef hg) hDet
 
+/-- Sanity-check: the abstract `cauchyMatrix_PosSemidef` recovers
+`hierCauchyG_PosSemidef` as a corollary. -/
+example (m : ℕ) : (hierCauchyG m).PosSemidef := by
+  rw [hierCauchyG_eq_cauchyMatrix]
+  exact cauchyMatrix_PosSemidef (hierGrid_pos m)
+
+/-- Sanity-check: 1×1 abstract Cauchy matrix is PSD for any positive
+`g₀`. -/
+example (g₀ : ℝ) (h : 0 < g₀) :
+    (cauchyMatrix (fun _ : Fin 1 => g₀)).PosSemidef :=
+  cauchyMatrix_PosSemidef (fun _ => h)
+
 end Erdos524.Helpers
