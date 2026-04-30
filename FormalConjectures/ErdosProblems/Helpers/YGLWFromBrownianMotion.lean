@@ -2619,6 +2619,82 @@ theorem K_GLW_processKernel_kernelMatrix_offdiag_sum_nonneg
   intros p _
   exact le_of_lt (K_GLW_processKernel_kernelMatrix_entry_pos I p.1 p.2)
 
+/-! ## 4.40. Generic `ProcessKernel` — additional structural corollaries
+
+More abstract corollaries derivable purely from the `ProcessKernel`
+axioms, useful for downstream brownian-motion-side arguments
+applied generically. -/
+
+namespace ProcessKernel
+
+variable (P : ProcessKernel)
+
+/-- The kernel matrix is its own transpose (in the symmetric sense)
+because of the symmetry axiom. -/
+theorem kernelMatrix_eq_transpose (I : Finset NNReal) :
+    P.kernelMatrix I = (P.kernelMatrix I).transpose := by
+  funext s t
+  rw [Matrix.transpose_apply]
+  exact P.kernelMatrix_symm I s t
+
+/-- The kernel matrix `(M)ᵀ` equals `M`. -/
+theorem kernelMatrix_transpose_eq (I : Finset NNReal) :
+    (P.kernelMatrix I).transpose = P.kernelMatrix I :=
+  (P.kernelMatrix_eq_transpose I).symm
+
+/-- For any process kernel and any Finset `I`, the trace is the sum of
+diagonal entries via the `kernelMatrix` view. -/
+theorem kernelMatrix_trace_eq_sum (I : Finset NNReal) :
+    (P.kernelMatrix I).trace =
+      ∑ s : {x : NNReal // x ∈ I}, P.K s.1 s.1 :=
+  P.kernelMatrix_trace_eq I
+
+/-- The sum of squared kernel matrix entries
+(Frobenius norm squared) is non-negative. -/
+theorem kernelMatrix_frobenius_sq_nonneg (I : Finset NNReal) :
+    0 ≤ ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+          (P.kernelMatrix I s t)^2 := by
+  apply Finset.sum_nonneg
+  intros s _
+  apply Finset.sum_nonneg
+  intros t _
+  exact sq_nonneg _
+
+/-- Reflexivity of the kernel matrix: the matrix at `(s, s)` evaluates
+to `K(s, s)` for any indexing. -/
+theorem kernelMatrix_diag_apply
+    (I : Finset NNReal) (s : {x : NNReal // x ∈ I}) :
+    P.kernelMatrix I s s = P.K s.1 s.1 := rfl
+
+end ProcessKernel
+
+/-! ## 4.41. K_GLW_processKernel — Frobenius/transpose lifts -/
+
+/-- The K_GLW kernel matrix is symmetric (matrix-level transpose). -/
+theorem K_GLW_processKernel_kernelMatrix_eq_transpose (I : Finset NNReal) :
+    K_GLW_processKernel.kernelMatrix I =
+      (K_GLW_processKernel.kernelMatrix I).transpose :=
+  K_GLW_processKernel.kernelMatrix_eq_transpose I
+
+/-- Frobenius-norm-squared bound on the K_GLW kernel matrix:
+`‖M‖²_F ≤ card²` (lift of `glwCovMatrixNN_frobenius_sq_le`). -/
+theorem K_GLW_processKernel_kernelMatrix_frobenius_sq_le
+    (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+          (K_GLW_processKernel.kernelMatrix I s t)^2 ≤
+      (I.card : ℝ) * (I.card : ℝ) := by
+  have h_eq : K_GLW_processKernel.kernelMatrix I = glwCovMatrixNN I :=
+    K_GLW_processKernel_kernelMatrix_eq I
+  rw [h_eq]
+  exact glwCovMatrixNN_frobenius_sq_le I
+
+/-- Frobenius-norm-squared non-negativity on the K_GLW kernel matrix. -/
+theorem K_GLW_processKernel_kernelMatrix_frobenius_sq_nonneg
+    (I : Finset NNReal) :
+    0 ≤ ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+          (K_GLW_processKernel.kernelMatrix I s t)^2 :=
+  K_GLW_processKernel.kernelMatrix_frobenius_sq_nonneg I
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
