@@ -2572,6 +2572,53 @@ theorem K_GLW_processKernel_diff_bounded (s t s' t' : NNReal) :
   rw [abs_le]
   constructor <;> linarith
 
+/-! ## 4.39. K_GLW_processKernel.kernelMatrix — scalar action and Hermitian
+restatements
+
+Additional structural properties of the kernel matrix useful for
+downstream linear-algebraic arguments, all sorry-free corollaries
+of existing lemmas. -/
+
+/-- The kernel matrix is invariant under reflection in the diagonal:
+swapping indices gives the same value (matrix-level symmetry). -/
+theorem K_GLW_processKernel_kernelMatrix_swap (I : Finset NNReal)
+    (s t : {x : NNReal // x ∈ I}) :
+    K_GLW_processKernel.kernelMatrix I s t =
+      K_GLW_processKernel.kernelMatrix I t s :=
+  K_GLW_processKernel.kernelMatrix_symm I s t
+
+/-- The sum of diagonal entries of the kernel matrix is non-negative. -/
+theorem K_GLW_processKernel_kernelMatrix_diag_sum_nonneg
+    (I : Finset NNReal) :
+    0 ≤ ∑ s : {x : NNReal // x ∈ I},
+        K_GLW_processKernel.kernelMatrix I s s := by
+  apply Finset.sum_nonneg
+  intros s _
+  exact K_GLW_processKernel_kernelMatrix_diag_nonneg I s
+
+/-- The sum of diagonal entries of the kernel matrix is bounded by
+`card I` (each diag ≤ 1). -/
+theorem K_GLW_processKernel_kernelMatrix_diag_sum_le_card
+    (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I},
+        K_GLW_processKernel.kernelMatrix I s s ≤ (I.card : ℝ) := by
+  rw [show ((I.card : ℝ)) = ∑ _s : {x : NNReal // x ∈ I}, (1 : ℝ) by
+    rw [Finset.sum_const, Finset.card_univ]
+    simp [Fintype.card_coe]]
+  apply Finset.sum_le_sum
+  intros s _
+  exact K_GLW_processKernel_kernelMatrix_diag_le_one I s
+
+/-- The sum of off-diagonal entries of the kernel matrix is non-negative
+(each entry is positive). -/
+theorem K_GLW_processKernel_kernelMatrix_offdiag_sum_nonneg
+    (I : Finset NNReal) :
+    0 ≤ ∑ p ∈ Finset.univ.offDiag,
+        K_GLW_processKernel.kernelMatrix I p.1 p.2 := by
+  apply Finset.sum_nonneg
+  intros p _
+  exact le_of_lt (K_GLW_processKernel_kernelMatrix_entry_pos I p.1 p.2)
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
