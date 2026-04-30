@@ -1528,6 +1528,25 @@ theorem glwCovMatrixNN_sum_K_GLW_nonneg (I : Finset NNReal) :
   rw [← glwCovMatrixNN_sum_entries_eq]
   exact glwCovMatrixNN_sum_entries_nonneg I
 
+/-! ### NNReal-grid translation invariance and dilation
+
+K_GLW is invariant under the index-coercion to ℝ, so any natural
+arithmetic on the NNReal index translates to additive / multiplicative
+behavior on the matrix entries. -/
+
+/-- For NNReal `s, t` and a fixed grid `I` containing both, the entry
+`Mₛₜ = M_{s', t'}` whenever `s.1 = s'.1` and `t.1 = t'.1`. -/
+theorem glwCovMatrixNN_apply_eq_of_val_eq (I : Finset NNReal)
+    (s s' t t' : {x : NNReal // x ∈ I})
+    (hs : s.1 = s'.1) (ht : t.1 = t'.1) :
+    glwCovMatrixNN I s t = glwCovMatrixNN I s' t' := by
+  rw [glwCovMatrixNN_apply, glwCovMatrixNN_apply, hs, ht]
+
+/-- The NNReal-coercion `(s : ℝ)` is non-negative. -/
+theorem glwCovMatrixNN_grid_nonneg (I : Finset NNReal)
+    (s : {x : NNReal // x ∈ I}) :
+    0 ≤ (s.1 : ℝ) := NNReal.coe_nonneg _
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
