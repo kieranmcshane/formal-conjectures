@@ -15,6 +15,7 @@ import FormalConjectures.ErdosProblems.Helpers.GaussianHierCauchy
 import FormalConjectures.ErdosProblems.Helpers.MVGaussianPullback
 import FormalConjectures.ErdosProblems.Helpers.GaussianBoxBounds
 import FormalConjectures.ErdosProblems.Helpers.GLWBoxProbInstance
+import FormalConjectures.ErdosProblems.Helpers.MVGaussianDensityBound
 
 /-!
 # Phase 2 Round 4 — Box-probability bounds for `gaussianHierCauchy`
@@ -106,5 +107,23 @@ theorem standard_pullback_box_le_one (m : ℕ) (ε : ℝ) :
       ((realMatrixSqrt (hierCauchyG m)).mulVec ⁻¹'
         {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε})).toReal ≤ 1 :=
   standardMVGaussian_le_one (Fin m × Fin m) _
+
+/-! ## Round 9 — Anderson upper bound for `glwBoxProb`, conditional on
+`hierCauchyG.PosDef`
+
+If `(hierCauchyG m).PosDef` holds (a separate spectral / Cauchy-matrix
+PosDef result, currently a Mathlib gap), then Round 9's
+`mvGaussian_isotropic_box_density_at_mode_bound_rpow` yields the V1
+instance's `anderson_upper`-shaped bound for `glwBoxProb`. Records the
+exact dependency. -/
+
+theorem glwBoxProb_anderson_upper_via_round9 {m : ℕ}
+    (hPosDef : (hierCauchyG m).PosDef) {ε : ℝ} (hε : 0 ≤ ε) :
+    glwBoxProb m ε ≤
+      (2 * ε) ^ (Fintype.card (Fin m × Fin m)) *
+        (2 * Real.pi) ^ (-((Fintype.card (Fin m × Fin m) : ℕ) : ℝ) / 2) *
+        (Real.sqrt (hierCauchyG m).det)⁻¹ := by
+  unfold glwBoxProb gaussianHierCauchy
+  exact mvGaussian_isotropic_box_density_at_mode_bound_rpow hPosDef hε
 
 end Erdos524.Helpers
