@@ -36,11 +36,10 @@ that depend on Mathlib lemmas not present in this snapshot).
 
 ## Fields NOT yet dischargeable in this snapshot
 
-* `anderson_upper` — requires `(hierCauchyG m).PosDef` (so that
-  `mvGaussian_isotropic_box_density_at_mode_bound` from `MVGaussianDensityBound`
-  applies). The Anderson PosDef bound itself was a Mathlib gap retired in
-  Round 9; only the PosDef status of the specific covariance `hierCauchyG`
-  remains (a Cauchy-matrix spectral analysis).
+* ~~`anderson_upper`~~ — **CLOSED in Round 10** by
+  `glwBoxProb_anderson_upper_field` in `Helpers/V1FieldsCorollary.lean`.
+  Round 10's `hierCauchyG_PosDef` (in `Helpers/HierCauchyPosDef.lean`)
+  discharged the conditional that Round 9 had left dangling.
 * `anderson_lower` — requires the Anderson LOWER bound (not yet in Mathlib).
 * `boxProb_le_sub` / `anderson_upper_sub` — require the Anderson bound on
   sub-grid marginals.
@@ -48,10 +47,9 @@ that depend on Mathlib lemmas not present in this snapshot).
   `fine_blocks_combined_lower` / `relevant_blocks_combined_lower` —
   require the block-decomposition story for Gaussian box probabilities.
 
-These fields are the remaining math content of Node 6. After Round 9, the
-Anderson UPPER part is no longer the blocker — it's the
-hierCauchyG-specific spectral analysis (PosDef status) plus the
-Anderson-LOWER and chain-rule machinery.
+After Rounds 9 + 10, the Anderson UPPER side of the V1 instance is fully
+discharged. The remaining blockers are the Anderson-LOWER and chain-rule
+machinery.
 -/
 
 namespace Erdos524.Helpers
