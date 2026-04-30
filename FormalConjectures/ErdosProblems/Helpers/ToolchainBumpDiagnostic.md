@@ -137,3 +137,48 @@ If Option C fails because the API is master-only, fall back to
 - Continued strengthening of `YGLWFromBrownianMotion.lean`
   kernel-side content (next commit), which is independent of the
   bump path.
+
+## R12 Option-C investigation (added mid-round, post-revert)
+
+Searched `brownian-motion` git history for v4.27.0-compatible
+historical commits. The toolchain timeline:
+
+| brownian-motion commit | date         | toolchain      |
+|------------------------|--------------|----------------|
+| `35122bd`              | 2026-04-08   | v4.30.0-rc1    |
+| `fdcef67`              | 2026-04-07   | v4.29.0        |
+| `b92f18e`              | 2026-03-16   | v4.29.0-rc6    |
+| `4fa8fc01e`            | 2026-03-04   | v4.28.0        |
+| **`91267abd`**         | **2025-12-18** | **v4.27.0-rc1** |
+
+At commit `91267abd`, the project's `BrownianMotion/Gaussian/`
+directory contains all the API entry points we need:
+
+- `Gaussian/MultivariateGaussian.lean`  → B1
+- `Gaussian/CovMatrix.lean`             → B1 supporting infrastructure
+- `Gaussian/GaussianProcess.lean`       → B2 supporting infrastructure
+- `Gaussian/ProjectiveLimit.lean`       → B3 (the headline blocker)
+- `Gaussian/BrownianMotion.lean`        → the BM construction itself
+- `Continuity/KolmogorovChentsov.lean`  → B4
+
+So the API is present at the v4.27.0-rc1 commit. Mathlib commit
+pinned at `25ce63313608`, which is close to the v4.27.0-rc1 tag but
+not exactly the v4.27.0 release tag we use. Compatibility check
+needed in R13.
+
+### Recommended R13 procedure
+
+1. Pin `brownian-motion` to `91267abd` (v4.27.0-rc1).
+2. Pin our `mathlib` to commit `25ce63313608` (matching
+   brownian-motion 91267abd) — this is the smallest mathlib drift
+   that aligns the two projects. Likely a few API differences vs the
+   current `v4.27.0` tag we use, so still some patching needed but
+   far less than the 3-version v4.27→v4.30 cascade.
+3. Pin `proofwidgets` to `ef8377f31b55` to match the
+   brownian-motion 91267abd manifest (otherwise inherited mismatch).
+4. Run `lake update`.
+5. Build. Patch any remaining drift in our codebase.
+
+If Option C succeeds, the retirement of `Y_GLW_exists` follows the
+5-step proof skeleton already documented in
+`YGLWFromBrownianMotion.lean §5`.
