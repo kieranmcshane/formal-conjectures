@@ -674,6 +674,16 @@ example {c : ℝ} (hc : 0 < c) (ε : Fin 3 → ℝ) (hε : ∀ i, 0 ≤ ε i) :
         Real.sqrt ((c ^ 2) • (1 : Matrix (Fin 3) (Fin 3) ℝ)).det :=
   mvGaussian_box_density_at_mode_bound (smul_one_PosDef (by positivity)) ε hε
 
+/-- Isotropic-ε form: the same statement with all coordinates having the
+same radius. -/
+example {c ε : ℝ} (hc : 0 < c) (hε : 0 ≤ ε) :
+    ((mvGaussianFromPosDef ((c ^ 2) • (1 : Matrix (Fin 3) (Fin 3) ℝ)))
+        {x : Fin 3 → ℝ | ∀ i, |x i| ≤ ε}).toReal ≤
+      (2 * ε) ^ Fintype.card (Fin 3) *
+        (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card (Fin 3) /
+        Real.sqrt ((c ^ 2) • (1 : Matrix (Fin 3) (Fin 3) ℝ)).det :=
+  mvGaussian_isotropic_box_density_at_mode_bound (smul_one_PosDef (by positivity)) hε
+
 /-! ## Round 9 — Consumer-facing API summary
 
 Round 9 delivers the following consumer entry points (all sorry-free):
