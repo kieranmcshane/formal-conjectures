@@ -1045,6 +1045,52 @@ theorem Y_GLW_kernel_data :
   · intro u v hu hv
     exact K_GLW_diff_quadratic_le_sq hu hv
 
+/-! ## 4.22. Variance-of-sum quadratic form bounds
+
+Round 12 additions. The quadratic form `x · M · x` represents the
+variance of the random sum `Σᵢ xᵢ Y(uᵢ)` once a process realisation
+exists. For nonneg grids, this form is bounded below by `0` (PSD) and
+above by `(Σᵢ |xᵢ|)²` via a Cauchy-Schwarz-like argument
+(`Mᵢⱼ ≤ 1` everywhere). -/
+
+/-- The quadratic form `x · M · x` is bounded above by `(Σᵢ |xᵢ|)²` for
+nonneg grids: every entry of `M` is at most `1`, so
+`Σᵢⱼ xᵢ xⱼ Mᵢⱼ ≤ Σᵢⱼ |xᵢ| |xⱼ| = (Σᵢ |xᵢ|)²`. -/
+theorem glwCovMatrix_quadratic_form_le_l1_sq {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) (x : Fin n → ℝ) :
+    ∑ i, x i * ((glwCovMatrix us *ᵥ x) i) ≤ (∑ i, |x i|)^2 := by
+  rw [glwCovMatrix_quadratic_form_eq_sum]
+  calc ∑ i : Fin n, ∑ j : Fin n, x i * x j * K_GLW (us i) (us j)
+      ≤ ∑ i : Fin n, ∑ j : Fin n, |x i| * |x j| := by
+        apply Finset.sum_le_sum
+        intros i _
+        apply Finset.sum_le_sum
+        intros j _
+        have h_pos : 0 ≤ K_GLW (us i) (us j) :=
+          le_of_lt (K_GLW_pos _ _ (h_us i) (h_us j))
+        have h_le : K_GLW (us i) (us j) ≤ 1 :=
+          K_GLW_le_one _ _ (h_us i) (h_us j)
+        calc x i * x j * K_GLW (us i) (us j)
+            ≤ |x i * x j| * K_GLW (us i) (us j) := by
+              have hpos : 0 ≤ K_GLW (us i) (us j) := h_pos
+              nlinarith [abs_nonneg (x i * x j), le_abs_self (x i * x j)]
+          _ ≤ |x i * x j| * 1 := by
+              have habs : 0 ≤ |x i * x j| := abs_nonneg _
+              nlinarith [abs_nonneg (x i * x j)]
+          _ = |x i| * |x j| := by rw [mul_one, abs_mul]
+    _ = (∑ i : Fin n, |x i|)^2 := by
+        rw [sq, Finset.sum_mul_sum]
+
+/-- The quadratic form `x · M · x` at the indicator vector `δᵢ` equals
+the diagonal entry `Mᵢᵢ`. -/
+theorem glwCovMatrix_quadratic_form_at_basis {n : ℕ} (us : Fin n → ℝ)
+    (i : Fin n) :
+    let e : Fin n → ℝ := fun j => if j = i then 1 else 0
+    ∑ k, e k * ((glwCovMatrix us *ᵥ e) k) = glwCovMatrix us i i := by
+  simp only
+  rw [glwCovMatrix_quadratic_form_eq_sum]
+  simp [Finset.sum_ite_eq', glwCovMatrix_apply]
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
