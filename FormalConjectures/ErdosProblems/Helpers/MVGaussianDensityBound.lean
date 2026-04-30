@@ -41,9 +41,11 @@ This file:
 * Proves the **standard MV Gaussian** anisotropic-box bound (cov = `1`)
   fully, no `sorry`. This is the supporting lemma of Target A.
 
-* States the **general PosDef** version with a single documented `sorry`
-  on the precise change-of-variables / density-formula step that Mathlib
-  does not expose for general PosDef covariance.
+* Proves the **general PosDef** version (Round 9) by composing change of
+  variables, the Jacobian formula, the standard MV uniform density bound,
+  and the box volume — all closed with the new `lintegral_fintype_prod_eq_prod`
+  Tonelli lemma added in this file (Mathlib gap: ENNReal analogue of
+  `MeasureTheory.integral_fintype_prod_eq_prod`).
 
 * Specialises the PosDef version to `M = 1` (provable from the standard
   MV bound — no `sorry`).
@@ -311,32 +313,104 @@ which would follow from the missing pi/withDensity commutation lemma in
 Mathlib. We package it as a single, narrowly-scoped sub-lemma below; the
 rest of the Round 9 chain depends only on this. -/
 
--- BLOCKER: `standardMVGaussian = volume.withDensity (∏ᵢ gaussianPDF 0 1 (xᵢ))`.
--- TRIED:
---  (1) `Measure.pi_eq` reduces equality to checking on rectangles
---      `R = Set.pi univ s`. On the LHS, `pi_pi` gives
---      `∏ᵢ gaussianReal 0 1 (sᵢ)`. On the RHS we need
---      `∫⁻ x in R, ∏ᵢ gaussianPDF 0 1 (xᵢ) ∂volume = ∏ᵢ gaussianReal 0 1 (sᵢ)`,
---      which is Tonelli's theorem for finitely many factors with an
---      ENNReal integrand. The integral version
---      `MeasureTheory.integral_fintype_prod_eq_prod`
---      (in `Mathlib/MeasureTheory/Integral/Pi.lean`) handles the real-valued
---      case but not the ENNReal one we need.
---  (2) Reducing via `lmarginal_univ` + iterated `lmarginal_insert'` is
---      possible but exceeds a 90-minute budget.
---  (3) `Measure.pi (c • μ)`-style scaling lemmas, which would let us go
---      directly via `Measure.pi_le_pi`-style monotonicity, are not in
---      Mathlib either.
--- NEEDS: a `lintegral_fintype_prod_eq_prod` for ENNReal-valued nonneg
--- factors (the obvious analogue of `integral_fintype_prod_eq_prod`).
--- Equivalently, a `pi_withDensity_eq_withDensity_pi` commutation lemma.
+/-- The product density `x ↦ ∏ᵢ gaussianPDF 0 1 (xᵢ)` is measurable. -/
+theorem measurable_prod_gaussianPDF :
+    Measurable (fun (x : n → ℝ) => ∏ i, gaussianPDF 0 1 (x i)) := by
+  refine Finset.measurable_prod _ (fun i _ => ?_)
+  exact (measurable_gaussianPDF _ _).comp (measurable_pi_apply i)
+
+/-- The product density is bounded pointwise by `(√(2π))⁻¹^n`, since each 1-D
+Gaussian PDF achieves its maximum `(√(2π))⁻¹` at the mode `0`. -/
+theorem prod_gaussianPDF_le (x : n → ℝ) :
+    ∏ i, gaussianPDF 0 1 (x i) ≤
+      ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) := by
+  have h_factor : ∀ y : ℝ, gaussianPDF 0 1 y ≤ ENNReal.ofReal (Real.sqrt (2 * Real.pi))⁻¹ := by
+    intro y
+    rw [gaussianPDF, gaussianPDFReal]
+    refine ENNReal.ofReal_le_ofReal ?_
+    have h_exp_le : Real.exp (-(y - 0) ^ 2 / (2 * (1 : ℝ≥0))) ≤ 1 := by
+      apply Real.exp_le_one_iff.mpr
+      have h_sq_nn : 0 ≤ (y - 0) ^ 2 := by positivity
+      have h_two_v_pos : (0 : ℝ) < 2 * (1 : ℝ≥0) := by norm_num
+      have h_div_nn : 0 ≤ (y - 0) ^ 2 / (2 * (1 : ℝ≥0)) :=
+        div_nonneg h_sq_nn (le_of_lt h_two_v_pos)
+      have h_neg : -(y - 0) ^ 2 / (2 * (1 : ℝ≥0)) =
+                    -((y - 0) ^ 2 / (2 * (1 : ℝ≥0))) := by ring
+      rw [h_neg]
+      linarith
+    have h_inv_sqrt_nn : 0 ≤ (Real.sqrt (2 * Real.pi * (1 : ℝ≥0)))⁻¹ := by positivity
+    calc (Real.sqrt (2 * Real.pi * (1 : ℝ≥0)))⁻¹ *
+          Real.exp (-(y - 0) ^ 2 / (2 * (1 : ℝ≥0)))
+        ≤ (Real.sqrt (2 * Real.pi * (1 : ℝ≥0)))⁻¹ * 1 :=
+          mul_le_mul_of_nonneg_left h_exp_le h_inv_sqrt_nn
+      _ = (Real.sqrt (2 * Real.pi))⁻¹ := by
+          simp [NNReal.coe_one, mul_one]
+  calc ∏ i, gaussianPDF 0 1 (x i)
+      ≤ ∏ i, ENNReal.ofReal (Real.sqrt (2 * Real.pi))⁻¹ :=
+        Finset.prod_le_prod' (fun i _ => h_factor (x i))
+    _ = ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹) ^ Fintype.card n := by
+        rw [Finset.prod_const, Finset.card_univ]
+    _ = ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) := by
+        rw [← ENNReal.ofReal_pow (by positivity)]
+
+/-- The standard MV Gaussian, expressed as a `withDensity` of Lebesgue volume
+with the explicit product density. -/
+theorem standardMVGaussian_eq_withDensity :
+    standardMVGaussian n =
+      (volume : Measure (n → ℝ)).withDensity
+        (fun x => ∏ i, gaussianPDF 0 1 (x i)) := by
+  unfold standardMVGaussian
+  refine Measure.pi_eq (μ := fun _ : n => gaussianReal 0 1) fun s hs => ?_
+  -- LHS on rectangle: ∫⁻ x in univ.pi s, ∏ pdf(x_i) ∂volume.
+  rw [withDensity_apply _ (MeasurableSet.univ_pi hs)]
+  -- Convert to indicator over the full space (volume = Measure.pi volume).
+  rw [← lintegral_indicator (MeasurableSet.univ_pi hs), MeasureTheory.volume_pi]
+  -- Now: ∫⁻ x, indicator (univ.pi s) (∏ pdf(x_i)) ∂(Measure.pi volume).
+  -- Express indicator as product of indicators.
+  have h_eq : ∀ x : n → ℝ,
+      (Set.univ.pi s).indicator (fun y => ∏ i, gaussianPDF 0 1 (y i)) x =
+        ∏ i, (s i).indicator (gaussianPDF 0 1) (x i) := by
+    intro x
+    by_cases hx : x ∈ Set.univ.pi s
+    · rw [Set.indicator_of_mem hx]
+      apply Finset.prod_congr rfl
+      intro i _
+      rw [Set.indicator_of_mem (hx i (Set.mem_univ i))]
+    · rw [Set.indicator_of_notMem hx]
+      have : ∃ i, x i ∉ s i := by
+        by_contra hall
+        push_neg at hall
+        exact hx (fun i _ => hall i)
+      obtain ⟨i, hi⟩ := this
+      refine (Finset.prod_eq_zero (Finset.mem_univ i) ?_).symm
+      rw [Set.indicator_of_notMem hi]
+  simp_rw [h_eq]
+  -- Apply our new lintegral product lemma.
+  have h_meas_factor : ∀ i : n,
+      Measurable (fun y : ℝ => (s i).indicator (gaussianPDF 0 1) y) :=
+    fun i => (measurable_gaussianPDF _ _).indicator (hs i)
+  rw [lintegral_fintype_prod_eq_prod (μ := fun _ : n => (volume : Measure ℝ))
+        h_meas_factor]
+  -- Each factor: ∫⁻ y, (s i).indicator pdf y ∂volume = gaussianReal 0 1 (s i).
+  apply Finset.prod_congr rfl
+  intro i _
+  rw [lintegral_indicator (hs i)]
+  exact (gaussianReal_apply _ one_ne_zero (s i)).symm
+
 /-- Round 9 sub-lemma. The standard multivariate Gaussian uniform density
 bound: for any measurable set `K ⊆ n → ℝ`,
 `standardMVGaussian n K ≤ ((√(2π))⁻¹)^n · volume K`. -/
 theorem standardMVGaussian_le_volume_smul (K : Set (n → ℝ)) (hK : MeasurableSet K) :
     standardMVGaussian n K ≤
       ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) * volume K := by
-  sorry
+  rw [standardMVGaussian_eq_withDensity, withDensity_apply _ hK]
+  calc ∫⁻ x in K, ∏ i, gaussianPDF 0 1 (x i) ∂volume
+      ≤ ∫⁻ _ in K, ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) ∂volume := by
+        apply MeasureTheory.setLIntegral_mono measurable_const
+        intro x _
+        exact prod_gaussianPDF_le x
+    _ = ENNReal.ofReal ((Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n) * volume K := by
+        rw [setLIntegral_const]
 
 /-! ## Round 9 — Volume of the anisotropic symmetric box
 
@@ -362,7 +436,7 @@ The general PosDef multivariate Gaussian Anderson-upper / density-at-mode
 small-ball bound for an anisotropic symmetric box. The proof composes:
 
 * `mvGaussianFromPosDef_box_apply_eq` (change of variables);
-* `standardMVGaussian_le_volume_smul` (uniform density bound, sub-sorry above);
+* `standardMVGaussian_le_volume_smul` (uniform density bound, fully proven);
 * `volume_realMatrixSqrt_mulVec_preimage` (Jacobian);
 * `volume_anisotropic_box` (box volume).
 -/
