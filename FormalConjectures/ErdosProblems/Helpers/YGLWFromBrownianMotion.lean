@@ -2727,6 +2727,75 @@ theorem K_GLW_processKernel_sum_kernel_bounds
   ⟨K_GLW_processKernel_sum_kernel_nonneg I x,
    K_GLW_processKernel_sum_kernel_le_L2_sq I x⟩
 
+/-! ## 4.43. Generic `ProcessKernel` — empty/singleton/pair specialisations
+
+Special-case PSD assertions for the empty, singleton, and pair Finsets,
+provable abstractly from the `ProcessKernel.PSD` axiom. -/
+
+namespace ProcessKernel
+
+variable (P : ProcessKernel)
+
+/-- Empty-Finset PSD assertion — trivially derivable from `PSD`. -/
+theorem kernelMatrix_empty_PSD :
+    (P.kernelMatrix ∅).PosSemidef := P.PSD ∅
+
+/-- Singleton-Finset PSD assertion. -/
+theorem kernelMatrix_singleton_PSD (a : NNReal) :
+    (P.kernelMatrix {a}).PosSemidef := P.PSD {a}
+
+/-- Pair-Finset PSD assertion. -/
+theorem kernelMatrix_pair_PSD (a b : NNReal) :
+    (P.kernelMatrix {a, b}).PosSemidef := P.PSD {a, b}
+
+/-- Triple-Finset PSD assertion. -/
+theorem kernelMatrix_triple_PSD (a b c : NNReal) :
+    (P.kernelMatrix {a, b, c}).PosSemidef := P.PSD {a, b, c}
+
+/-- Empty-Finset trace is zero. -/
+theorem kernelMatrix_empty_trace :
+    (P.kernelMatrix ∅).trace = 0 := by
+  rw [P.kernelMatrix_trace_eq]
+  simp
+
+/-- Singleton-Finset trace equals the diagonal kernel value. -/
+theorem kernelMatrix_singleton_trace (a : NNReal) :
+    (P.kernelMatrix ({a} : Finset NNReal)).trace = P.K a a := by
+  rw [P.kernelMatrix_trace_eq]
+  simp [Finset.sum_subtype]
+
+/-- Empty-Finset trace is non-negative (vacuously). -/
+theorem kernelMatrix_empty_trace_nonneg :
+    0 ≤ (P.kernelMatrix ∅).trace := by
+  rw [kernelMatrix_empty_trace]
+
+/-- Singleton-Finset trace is non-negative. -/
+theorem kernelMatrix_singleton_trace_nonneg (a : NNReal) :
+    0 ≤ (P.kernelMatrix ({a} : Finset NNReal)).trace := by
+  rw [kernelMatrix_singleton_trace]
+  exact P.K_diag_nonneg a
+
+end ProcessKernel
+
+/-- The K_GLW kernel matrix on the empty Finset is the trivial matrix
+(no entries). -/
+theorem K_GLW_processKernel_kernelMatrix_empty_PSD :
+    (K_GLW_processKernel.kernelMatrix ∅).PosSemidef :=
+  K_GLW_processKernel.kernelMatrix_empty_PSD
+
+/-- The K_GLW kernel matrix on a singleton has trace `K(a, a)`. -/
+theorem K_GLW_processKernel_kernelMatrix_singleton_trace (a : NNReal) :
+    (K_GLW_processKernel.kernelMatrix ({a} : Finset NNReal)).trace =
+      K_GLW_processKernel.K a a :=
+  K_GLW_processKernel.kernelMatrix_singleton_trace a
+
+/-- The K_GLW kernel matrix singleton trace is in `[0, 1]`. -/
+theorem K_GLW_processKernel_kernelMatrix_singleton_trace_mem_Icc (a : NNReal) :
+    (K_GLW_processKernel.kernelMatrix ({a} : Finset NNReal)).trace ∈
+      Set.Icc (0 : ℝ) 1 := by
+  rw [K_GLW_processKernel_kernelMatrix_singleton_trace]
+  exact K_GLW_processKernel_K_diag_mem_Icc a
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
