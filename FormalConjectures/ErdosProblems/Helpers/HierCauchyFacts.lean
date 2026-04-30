@@ -68,30 +68,30 @@ theorem hierCauchyG_det_pos (m : ℕ) (hm : 1 ≤ m) : 0 < (hierCauchyG m).det :
   obtain ⟨c₀, hc₀_pos, hc₀⟩ := cauchy_grid_det_lower_bound
   exact lt_of_lt_of_le (Real.exp_pos _) (hc₀ m hm)
 
-/-! ## Round 9 — Pending Mathlib gap: `(hierCauchyG m).PosDef` for `m ≥ 1`
+/-! ## Round 10 — `(hierCauchyG m).PosDef` for `m ≥ 1` (CLOSED)
 
-This is the spectral / Cauchy-matrix PosDef result that, combined with
-the Round 9 Anderson bound, would close the V1 instance's
-`anderson_upper` field. Standard textbook proof: the Cauchy matrix
-`C_{ij} = 1/(h_i + h_j)` is PosDef when the `h_i` are distinct positive
-reals, via the integral identity
-`1/(h_i + h_j) = ∫_0^∞ exp(-(h_i + h_j) t) dt`, which gives
-`x^T C x = ∫_0^∞ (∑_i x_i exp(-h_i t))^2 dt > 0` for `x ≠ 0`.
+CLOSED in Round 10 by `hierCauchyG_PosDef` (in the new file
+`Helpers/HierCauchyPosDef.lean`).
 
-Both `hierGrid m` is positive and injective (the latter requires a small
-combinatorial argument on the formula `4^(p+m) · (m + q + 1)`), so the
-Cauchy structure applies. This is deferred — multi-day Lean project.
+The proof avoided the analytic strict-positivity argument (which would
+require linear independence of `{exp(-g_i ·)}` for distinct positive
+`g_i`) by combining:
 
-BLOCKER: `(hierCauchyG m).PosDef` for `m ≥ 1`.
+* `hierCauchyG_PosSemidef` — proven via the integral identity
+  `1/(g_i + g_j) = ∫_(0,∞) exp(-(g_i + g_j) t) dt` and the Gram-matrix
+  representation `xᵀ M x = ∫ (∑ x_i exp(-g_i t))² dt ≥ 0`.
 
-TRIED: relating to `Matrix.PosDef.diagonal` (no, hierCauchyG is not
-diagonal); `Matrix.posDef_iff_eq_transpose_mul_self` (no clear
-factorisation); reducing to a Schur-complement decomposition (the
-per-block local Schurs are PosDef but the full hierCauchyG isn't a
-direct block sum).
+* `hierCauchyG_det_pos` — from §0 below; the determinant is strictly
+  positive for `m ≥ 1` by the BB1 lower bound.
 
-NEEDS: (a) Cauchy-matrix integral identity Lean'd up; OR (b) Mathlib-PR
-adding `PosDef` for Cauchy matrices over `ℝ` with distinct positive
-parameters; OR (c) explicit eigenvalue / quadratic-form analysis. -/
+* The eigenvalue characterization `IsHermitian.posDef_iff_eigenvalues_pos`:
+  for a real Hermitian PSD matrix, all eigenvalues are non-negative;
+  if additionally the determinant (= product of eigenvalues) is
+  strictly positive, then no eigenvalue can be zero, hence all are
+  strictly positive.
+
+This unblocks the V1 instance's `anderson_upper` field, which is
+discharged by `glwBoxProb_anderson_upper_field` in
+`Helpers/V1FieldsCorollary.lean`. -/
 
 end Erdos524.Helpers
