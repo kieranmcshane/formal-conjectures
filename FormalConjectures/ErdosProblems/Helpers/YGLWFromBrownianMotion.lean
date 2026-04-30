@@ -969,6 +969,46 @@ theorem glwCovMatrix_pairwise_diff_quadratic_nonneg {n : ℕ} (us : Fin n → �
   rw [glwCovMatrix_diag_eq, glwCovMatrix_diag_eq, glwCovMatrix_apply]
   linarith [K_GLW_diff_quadratic_nonneg (h_us i) (h_us j)]
 
+/-! ## 4.20. Hermitian property for `gramMatrixL2`
+
+Round 12 additions. Explicit Hermitian property of the generic Gram
+matrix as a standalone fact — extracted from the proof of
+`gramMatrixL2_PosSemidef`. This is a clean Mathlib-PR-shaped lemma
+independent of any kernel-specific data. -/
+
+/-- The generic Gram matrix `gramMatrixL2 φ` is Hermitian (symmetric
+real matrix). -/
+theorem gramMatrixL2_isHermitian {n : ℕ} (φ : Fin n → ℝ → ℝ) :
+    (gramMatrixL2 φ).IsHermitian := by
+  ext i j
+  simp [Matrix.conjTranspose, Matrix.transpose, gramMatrixL2_apply]
+  congr 1
+  funext s
+  ring
+
+/-- The diagonal of `gramMatrixL2 φ` is non-negative — a special case
+of `gramMatrixL2_diag_nonneg`. -/
+theorem gramMatrixL2_diag_nonneg' {n : ℕ} (φ : Fin n → ℝ → ℝ) (i : Fin n) :
+    0 ≤ (gramMatrixL2 φ).diag i :=
+  gramMatrixL2_diag_nonneg φ i
+
+/-- The trace of the generic Gram matrix is non-negative (sum of
+non-negative diagonals). -/
+theorem gramMatrixL2_trace_nonneg {n : ℕ} (φ : Fin n → ℝ → ℝ) :
+    0 ≤ (gramMatrixL2 φ).trace := by
+  rw [Matrix.trace]
+  apply Finset.sum_nonneg
+  intros i _
+  exact gramMatrixL2_diag_nonneg φ i
+
+/-- The trace of the generic Gram matrix equals the sum of L²-norms
+squared `Σᵢ ∫₀¹ (φᵢ s)²`. -/
+theorem gramMatrixL2_trace_eq {n : ℕ} (φ : Fin n → ℝ → ℝ) :
+    (gramMatrixL2 φ).trace = ∑ i : Fin n, ∫ s in (0 : ℝ)..1, (φ i s)^2 := by
+  rw [Matrix.trace]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  exact gramMatrixL2_diag_eq φ i
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
