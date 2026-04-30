@@ -1593,6 +1593,49 @@ theorem glwCovMatrixNN_det_nonneg (I : Finset NNReal) :
     0 ≤ (glwCovMatrixNN I).det :=
   (glwCovMatrixNN_PosSemidef I).det_nonneg
 
+/-! ### Structured kernel-data abstraction
+
+The complete kernel data needed to instantiate brownian-motion's
+projective limit + Kolmogorov-Chentsov pipeline. Bundling these
+properties into a `structure` makes downstream uses (R13 retirement
+of `Y_GLW_exists`) typeclass-style and eliminates the need to thread
+many hypotheses through arguments. -/
+
+/-- A `ProcessKernel` packages the kernel data needed to construct a
+covariance kernel process on `[0, ∞)` indexed by `NNReal`. -/
+structure ProcessKernel where
+  /-- The covariance kernel. -/
+  K : NNReal → NNReal → ℝ
+  /-- Symmetry. -/
+  symm : ∀ s t, K s t = K t s
+  /-- Positive semi-definiteness on every Finset. -/
+  PSD : ∀ I : Finset NNReal,
+    (Matrix.of fun s t : {x : NNReal // x ∈ I} => K s.1 t.1).PosSemidef
+  /-- Consistency under restriction (B2 precondition). -/
+  consistent : ∀ {I J : Finset NNReal} (hJI : J ⊆ I),
+    ((Matrix.of fun s t : {x : NNReal // x ∈ I} => K s.1 t.1).submatrix
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+        (fun j : {x : NNReal // x ∈ J} =>
+          (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef
+  /-- Hölder-1 bound (B4 precondition for Kolmogorov-Chentsov). -/
+  hoelder : ∀ s t : NNReal,
+    K s s + K t t - 2 * K s t ≤ ((s : ℝ) - (t : ℝ))^2
+
+/-- The K_GLW process kernel: instantiates `ProcessKernel` for the
+Gao–Li–Wellner covariance kernel `K_GLW`. All four fields are
+sorry-free, witnessing the complete kernel-side specification. -/
+noncomputable def K_GLW_processKernel : ProcessKernel where
+  K s t := K_GLW (s : ℝ) (t : ℝ)
+  symm s t := K_GLW_symm _ _
+  PSD I := glwCovMatrixNN_PosSemidef I
+  consistent {I J} hJI := glwCovMatrixNN_submatrix_PosSemidef hJI
+  hoelder s t := by
+    show K_GLW (s : ℝ) (s : ℝ) + K_GLW (t : ℝ) (t : ℝ) - 2 * K_GLW (s : ℝ) (t : ℝ) ≤
+      ((s : ℝ) - (t : ℝ))^2
+    have := K_GLW_diff_quadratic_le_sq
+              (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
+    linarith
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
