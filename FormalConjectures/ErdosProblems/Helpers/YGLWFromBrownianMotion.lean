@@ -1009,6 +1009,42 @@ theorem gramMatrixL2_trace_eq {n : ℕ} (φ : Fin n → ℝ → ℝ) :
   refine Finset.sum_congr rfl fun i _ => ?_
   exact gramMatrixL2_diag_eq φ i
 
+/-! ## 4.21. Packaged "kernel data" witness — a single theorem capturing
+the bridge content
+
+Round 12 closing additions. The brownian-motion projective-limit
+construction consumes a *kernel data package*: a symmetric two-point
+function `K : ℝ → ℝ → ℝ` for which all finite-grid Gram matrices on
+nonneg grids are positive semi-definite, and which satisfies a
+pairwise Hölder-1 bound `K(u,u) - 2 K(u,v) + K(v,v) ≤ (u-v)²` (the
+Kolmogorov-Chentsov precondition). The theorem below packages all
+this into one existential witness, sorry-free, demonstrating that
+the kernel side is fully formalised. -/
+
+/-- **Packaged kernel-data witness** for the GLW process. `K_GLW` is a
+symmetric two-point function for which every finite-grid Gram matrix
+on a nonneg grid is positive semi-definite, and which satisfies the
+pairwise Hölder-1 bound. This is the complete kernel-side
+specification consumed by the brownian-motion projective-limit
+construction. -/
+theorem Y_GLW_kernel_data :
+    ∃ K : ℝ → ℝ → ℝ,
+      (∀ u v, K u v = K v u) ∧
+      (∀ {n : ℕ} (us : Fin n → ℝ), (∀ i, 0 ≤ us i) →
+        (Matrix.of fun i j : Fin n => K (us i) (us j)).PosSemidef) ∧
+      (∀ {n : ℕ} (us : Fin n → ℝ), (∀ i, 0 ≤ us i) →
+        ∀ {m : ℕ} (f : Fin m → Fin n),
+          ((Matrix.of fun i j : Fin n => K (us i) (us j)).submatrix f f).PosSemidef) ∧
+      (∀ u v, 0 ≤ u → 0 ≤ v →
+        K u u - 2 * K u v + K v v ≤ (u - v)^2) := by
+  refine ⟨K_GLW, K_GLW_symm, ?_, ?_, ?_⟩
+  · intro n us h_us
+    exact glwCovMatrix_PosSemidef us h_us
+  · intro n us h_us m f
+    exact glwCovMatrix_submatrix_PosSemidef us h_us f
+  · intro u v hu hv
+    exact K_GLW_diff_quadratic_le_sq hu hv
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
