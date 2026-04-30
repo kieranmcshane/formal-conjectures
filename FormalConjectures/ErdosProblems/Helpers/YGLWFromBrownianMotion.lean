@@ -1807,6 +1807,13 @@ theorem K_GLW_processKernel_diff_nonneg (s t : NNReal) :
   linarith [K_GLW_diff_quadratic_nonneg
               (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)]
 
+/-- Hölder bound: `K(s, s) + K(t, t) - 2 K(s, t) ≤ |s - t|² + 0` —
+sanity-check restatement of the hoelder field. -/
+theorem K_GLW_processKernel_hoelder_via_distance (s t : NNReal) :
+    K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+      2 * K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
+  K_GLW_processKernel.hoelder s t
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
