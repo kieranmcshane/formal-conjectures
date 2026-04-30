@@ -1799,6 +1799,14 @@ theorem K_GLW_processKernel_diag_lt_one {s : NNReal} (h_s : 0 < (s : ℝ)) :
   rw [K_GLW_processKernel_K]
   exact K_GLW_var_lt_one h_s
 
+/-- Anti-symmetric L²-distance bound: pairwise difference is non-negative. -/
+theorem K_GLW_processKernel_diff_nonneg (s t : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+        2 * K_GLW_processKernel.K s t := by
+  rw [K_GLW_processKernel_K, K_GLW_processKernel_K, K_GLW_processKernel_K]
+  linarith [K_GLW_diff_quadratic_nonneg
+              (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)]
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
