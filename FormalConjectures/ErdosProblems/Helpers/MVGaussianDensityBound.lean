@@ -516,6 +516,21 @@ theorem mvGaussian_box_density_at_mode_bound [DecidableEq n]
   refine h_toReal_mono.trans (le_of_eq ?_)
   field_simp
 
+/-! ## Round 9 — Isotropic-ε consumer corollary
+
+The form actually consumed by `GaussianBoxProb.anderson_upper` (in
+`Helpers/GaussianGridSmallBall.lean`): a single radius `ε > 0` rather than an
+anisotropic vector `(εᵢ)`. Specialise the headline theorem to all `εᵢ = ε`. -/
+
+theorem mvGaussian_isotropic_box_density_at_mode_bound [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) {ε : ℝ} (hε : 0 ≤ ε) :
+    ((mvGaussianFromPosDef M) {x : n → ℝ | ∀ i, |x i| ≤ ε}).toReal ≤
+      (2 * ε) ^ Fintype.card n * (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n /
+        Real.sqrt M.det := by
+  have h_eps_nn : ∀ _ : n, (0 : ℝ) ≤ ε := fun _ => hε
+  have h := mvGaussian_box_density_at_mode_bound hM (fun _ : n => ε) h_eps_nn
+  simpa [Finset.prod_const, Finset.card_univ] using h
+
 /-! ## Identity-covariance specialisation (provable from the standard MV bound) -/
 
 /-- Specialisation of the PosDef bound to `M = 1`, where `det 1 = 1`. -/
