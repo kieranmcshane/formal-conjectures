@@ -296,6 +296,42 @@ theorem lintegral_fintype_prod_eq_prod {ι : Type*} [Fintype ι] {E : ι → Typ
   exact lintegral_fin_nat_prod_eq_prod_aux (μ := fun i => μ (e i))
     (f := fun i => f (e i)) (fun i => hf _)
 
+/-- Rectangle-restricted version of `lintegral_fintype_prod_eq_prod`: integrating
+a product of single-coordinate functions over a measurable rectangle factorises
+as a product of single-coordinate integrals over the corresponding factor sets.
+Useful corollary derived from the unrestricted Tonelli lemma above. -/
+theorem setLIntegral_fintype_prod_pi_eq_prod {ι : Type*} [Fintype ι] {E : ι → Type*}
+    {mE : ∀ i, MeasurableSpace (E i)} {μ : (i : ι) → Measure (E i)}
+    [∀ i, SigmaFinite (μ i)]
+    {f : (i : ι) → E i → ENNReal} (hf : ∀ i, Measurable (f i))
+    {s : (i : ι) → Set (E i)} (hs : ∀ i, MeasurableSet (s i)) :
+    ∫⁻ x : (i : ι) → E i in Set.univ.pi s, ∏ i, f i (x i) ∂(Measure.pi μ) =
+      ∏ i, ∫⁻ x in s i, f i x ∂(μ i) := by
+  rw [← lintegral_indicator (MeasurableSet.univ_pi hs)]
+  -- Express indicator of rectangle as product of factor indicators.
+  have h_eq : ∀ x : (i : ι) → E i,
+      (Set.univ.pi s).indicator (fun y => ∏ i, f i (y i)) x =
+        ∏ i, (s i).indicator (f i) (x i) := by
+    intro x
+    by_cases hx : x ∈ Set.univ.pi s
+    · rw [Set.indicator_of_mem hx]
+      apply Finset.prod_congr rfl
+      intro i _
+      rw [Set.indicator_of_mem (hx i (Set.mem_univ i))]
+    · rw [Set.indicator_of_notMem hx]
+      have : ∃ i, x i ∉ s i := by
+        by_contra hall
+        push_neg at hall
+        exact hx (fun i _ => hall i)
+      obtain ⟨i, hi⟩ := this
+      refine (Finset.prod_eq_zero (Finset.mem_univ i) ?_).symm
+      rw [Set.indicator_of_notMem hi]
+  simp_rw [h_eq]
+  rw [lintegral_fintype_prod_eq_prod (fun i => (hf i).indicator (hs i))]
+  apply Finset.prod_congr rfl
+  intro i _
+  rw [lintegral_indicator (hs i)]
+
 /-! ## Round 9 — Standard MV Gaussian uniform density-at-mode bound
 
 For any measurable set `K ⊆ n → ℝ`, the standard MV Gaussian satisfies the
@@ -362,39 +398,13 @@ theorem standardMVGaussian_eq_withDensity :
   unfold standardMVGaussian
   refine Measure.pi_eq (μ := fun _ : n => gaussianReal 0 1) fun s hs => ?_
   -- LHS on rectangle: ∫⁻ x in univ.pi s, ∏ pdf(x_i) ∂volume.
-  rw [withDensity_apply _ (MeasurableSet.univ_pi hs)]
-  -- Convert to indicator over the full space (volume = Measure.pi volume).
-  rw [← lintegral_indicator (MeasurableSet.univ_pi hs), MeasureTheory.volume_pi]
-  -- Now: ∫⁻ x, indicator (univ.pi s) (∏ pdf(x_i)) ∂(Measure.pi volume).
-  -- Express indicator as product of indicators.
-  have h_eq : ∀ x : n → ℝ,
-      (Set.univ.pi s).indicator (fun y => ∏ i, gaussianPDF 0 1 (y i)) x =
-        ∏ i, (s i).indicator (gaussianPDF 0 1) (x i) := by
-    intro x
-    by_cases hx : x ∈ Set.univ.pi s
-    · rw [Set.indicator_of_mem hx]
-      apply Finset.prod_congr rfl
-      intro i _
-      rw [Set.indicator_of_mem (hx i (Set.mem_univ i))]
-    · rw [Set.indicator_of_notMem hx]
-      have : ∃ i, x i ∉ s i := by
-        by_contra hall
-        push_neg at hall
-        exact hx (fun i _ => hall i)
-      obtain ⟨i, hi⟩ := this
-      refine (Finset.prod_eq_zero (Finset.mem_univ i) ?_).symm
-      rw [Set.indicator_of_notMem hi]
-  simp_rw [h_eq]
-  -- Apply our new lintegral product lemma.
-  have h_meas_factor : ∀ i : n,
-      Measurable (fun y : ℝ => (s i).indicator (gaussianPDF 0 1) y) :=
-    fun i => (measurable_gaussianPDF _ _).indicator (hs i)
-  rw [lintegral_fintype_prod_eq_prod (μ := fun _ : n => (volume : Measure ℝ))
-        h_meas_factor]
-  -- Each factor: ∫⁻ y, (s i).indicator pdf y ∂volume = gaussianReal 0 1 (s i).
+  rw [withDensity_apply _ (MeasurableSet.univ_pi hs), MeasureTheory.volume_pi,
+      setLIntegral_fintype_prod_pi_eq_prod
+        (μ := fun _ : n => (volume : Measure ℝ))
+        (fun _ => measurable_gaussianPDF _ _) hs]
+  -- Each factor: ∫⁻ y in s i, pdf y ∂volume = gaussianReal 0 1 (s i).
   apply Finset.prod_congr rfl
   intro i _
-  rw [lintegral_indicator (hs i)]
   exact (gaussianReal_apply _ one_ne_zero (s i)).symm
 
 /-- Round 9 sub-lemma. The standard multivariate Gaussian uniform density
