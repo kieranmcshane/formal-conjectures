@@ -362,4 +362,61 @@ theorem hierCauchyG_PosSemidef (m : ℕ) :
   intro t
   exact sq_nonneg _
 
+/- ## §6. Strict positivity (PosDef) via PosSemidef + det > 0
+
+The eigenvalue characterization `posDef_iff_eigenvalues_pos` reduces
+PosDef-ness to "all eigenvalues > 0". For a real Hermitian PosSemidef
+matrix, all eigenvalues are `≥ 0`. If additionally the determinant
+(= product of eigenvalues) is strictly positive, then no eigenvalue
+can be zero, so all are strictly positive — hence PosDef.
+
+The hierarchical Cauchy matrix has strictly positive determinant for
+`m ≥ 1` by `hierCauchyG_det_pos`, so this argument applies. This
+sidesteps the analytic strict-positivity-of-quadratic-form argument
+(which would require linear independence of `{exp(-g_i ·)}` for distinct
+positive `g_i`) entirely. -/
+
+/-- For a real Hermitian PosSemidef matrix with strictly positive
+determinant, all eigenvalues are strictly positive. -/
+theorem eigenvalues_pos_of_PosSemidef_of_det_pos
+    {n : Type*} [Fintype n] [DecidableEq n]
+    {A : Matrix n n ℝ}
+    (hH : A.IsHermitian) (hPSD : A.PosSemidef) (hDet : 0 < A.det)
+    (i : n) : 0 < hH.eigenvalues i := by
+  -- All eigenvalues are ≥ 0 from PSD.
+  have h_nonneg : ∀ j, 0 ≤ hH.eigenvalues j := fun j => by
+    have := hPSD.eigenvalues_nonneg j
+    -- `hPSD.eigenvalues_nonneg j` returns `0 ≤ hPSD.1.eigenvalues j`,
+    -- but `hPSD.1 = hH` since both encode the Hermitian-ness.
+    have h_eq : hPSD.1 = hH := Subsingleton.elim _ _
+    rw [h_eq] at this
+    exact this
+  -- The product of eigenvalues is `det > 0`.
+  have h_prod : 0 < ∏ j, hH.eigenvalues j := by
+    have h_eq := hH.det_eq_prod_eigenvalues
+    -- For 𝕜 = ℝ, the coercion `(eigenvalues j : ℝ)` is identity.
+    push_cast at h_eq
+    rw [h_eq] at hDet
+    exact hDet
+  -- If `eigenvalues i = 0`, the product would be 0, contradicting `h_prod > 0`.
+  have h_ne : hH.eigenvalues i ≠ 0 := by
+    intro h_eq_zero
+    have h_zero : ∏ j, hH.eigenvalues j = 0 := by
+      apply Finset.prod_eq_zero (Finset.mem_univ i) h_eq_zero
+    linarith
+  -- Combine `0 ≤` and `≠ 0` to get `0 <`.
+  exact lt_of_le_of_ne (h_nonneg i) (Ne.symm h_ne)
+
+/-- The hierarchical Cauchy matrix is positive definite for `m ≥ 1`. -/
+theorem hierCauchyG_PosDef (m : ℕ) (hm : 1 ≤ m) :
+    (hierCauchyG m).PosDef := by
+  classical
+  have hH : (hierCauchyG m).IsHermitian := hierCauchyG_isHermitian m
+  have hPSD : (hierCauchyG m).PosSemidef := hierCauchyG_PosSemidef m
+  have hDet : 0 < (hierCauchyG m).det := hierCauchyG_det_pos m hm
+  -- Use the eigenvalue characterization.
+  rw [hH.posDef_iff_eigenvalues_pos]
+  intro i
+  exact eigenvalues_pos_of_PosSemidef_of_det_pos hH hPSD hDet i
+
 end Erdos524.Helpers
