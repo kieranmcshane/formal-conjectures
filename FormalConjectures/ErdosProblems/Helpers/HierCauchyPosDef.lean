@@ -739,6 +739,10 @@ example : (cauchyMatrix (![1, 2] : Fin 2 → ℝ)).PosSemidef :=
 example : (cauchyMatrix (![1, 2, 3] : Fin 3 → ℝ)).PosSemidef :=
   cauchyMatrix_PosSemidef (by intro i; fin_cases i <;> norm_num)
 
+/-- Sanity-check: hierCauchyG_PosDef at `m = 3` and `m = 4`. -/
+example : (hierCauchyG 3).PosDef := hierCauchyG_PosDef 3 (by norm_num)
+example : (hierCauchyG 4).PosDef := hierCauchyG_PosDef 4 (by norm_num)
+
 /- ## §9. Abstract entry-level integral representation -/
 
 /-- The abstract Cauchy matrix entry equals the Cauchy integral
