@@ -564,6 +564,31 @@ theorem mvGaussian_box_density_at_mode_bound [DecidableEq n]
   refine h_toReal_mono.trans (le_of_eq ?_)
   field_simp
 
+/-! ## Round 9 — Power-form corollary of the headline theorem
+
+The same bound expressed in the `(2π)^(-n/2)` form (via
+`Real.sqrt_eq_rpow`), matching how the V1 instance / anderson_upper field
+naturally reads it. -/
+
+theorem mvGaussian_box_density_at_mode_bound_rpow [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) (ε : n → ℝ) (hε : ∀ i, 0 ≤ ε i) :
+    ((mvGaussianFromPosDef M) {x : n → ℝ | ∀ i, |x i| ≤ ε i}).toReal ≤
+      (∏ i, 2 * ε i) *
+        (2 * Real.pi) ^ (-(Fintype.card n : ℝ) / 2) *
+        (Real.sqrt M.det)⁻¹ := by
+  have h_two_pi_nn : (0 : ℝ) ≤ 2 * Real.pi := by positivity
+  have h := mvGaussian_box_density_at_mode_bound hM ε hε
+  have h_pow_eq : (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n =
+      (2 * Real.pi) ^ (-(Fintype.card n : ℝ) / 2) := by
+    rw [Real.sqrt_eq_rpow, ← Real.rpow_neg h_two_pi_nn,
+        ← Real.rpow_natCast ((2 * Real.pi) ^ (-(1 / (2 : ℝ)))) (Fintype.card n),
+        ← Real.rpow_mul h_two_pi_nn]
+    congr 1
+    ring
+  rw [h_pow_eq] at h
+  rw [div_eq_mul_inv] at h
+  exact h
+
 /-! ## Round 9 — Isotropic-ε consumer corollary
 
 The form actually consumed by `GaussianBoxProb.anderson_upper` (in
