@@ -2640,7 +2640,8 @@ private theorem running_max_lil_upper_for_eps
     (fun i => |walk a i ω|)
   rw [Filter.eventually_atTop]
   -- Include ⌈M_val⌉₊²+16 to ensure lilNorm n ≥ M_val for the j < K case.
-  use max K (⌈M_val⌉₊ ^ 2 + 16); intro n hn; intro j hj
+  use max K (⌈M_val⌉₊ ^ 2 + 16)
+  intro n hn j hj
   have hj_bd := Finset.mem_Icc.mp hj
   have hn_K : K ≤ n := le_of_max_le_left hn
   have hn_large : ⌈M_val⌉₊ ^ 2 + 16 ≤ n := le_of_max_le_right hn
