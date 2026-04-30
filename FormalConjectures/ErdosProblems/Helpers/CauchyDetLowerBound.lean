@@ -1904,18 +1904,6 @@ private lemma log_denom_double_prod {n : ℕ} (δ : Fin n → ℝ)
       simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_univ,
         true_and] at hp'
       rw [hp']
-  · -- offDiag piece: filter by ¬ (p.1 = p.2).
-    apply Finset.sum_nbij' (i := fun p => p) (j := fun p => p)
-    · intro p hp
-      simp only [Finset.mem_filter, Finset.mem_product, Finset.mem_univ,
-        true_and] at hp
-      simp [Finset.mem_offDiag, hp]
-    · intro p hp
-      simp only [Finset.mem_offDiag, Finset.mem_univ, true_and] at hp
-      simp [Finset.mem_filter, hp]
-    · intros _ _; rfl
-    · intros _ _; rfl
-    · intros _ _; rfl
 
 /-- The hierarchical grid value is a natural number cast to ℝ:
 `hierGrid m (p, q) = (4^(p+m) * (m + q + 1) : ℕ)`. -/

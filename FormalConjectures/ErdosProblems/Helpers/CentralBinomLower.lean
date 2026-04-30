@@ -657,7 +657,7 @@ theorem log_one_add_le_cubic {u : ℝ} (hu : 0 ≤ u) :
       have h1x : 0 < 1 + x := by linarith
       positivity
   have hg_u : 0 ≤ g u := by
-    have h0 : (0 : ℝ) ∈ Set.Ici (0 : ℝ) := Set.self_mem_Ici
+    have h0 : (0 : ℝ) ∈ Set.Ici (0 : ℝ) := Set.left_mem_Ici
     have hu' : u ∈ Set.Ici (0 : ℝ) := hu
     have := hmono h0 hu' hu
     rw [hg_zero] at this

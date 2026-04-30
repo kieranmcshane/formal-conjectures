@@ -256,13 +256,13 @@ private theorem biSup_Icc_abs_poly_neg_eq (c d : ℝ) (hcd : c ≤ d) :
 private theorem biSup_Ici_abs_Zplus_eq (hn : 1 ≤ n) :
     (⨆ u ∈ Set.Ici (0 : ℝ), |Zplus a n u|)
       = sSup ((fun u => |Zplus a n u|) '' Set.Ici (0 : ℝ)) :=
-  biSup_eq_sSup_image_of_bddAbove ⟨0, Set.self_mem_Ici⟩
+  biSup_eq_sSup_image_of_bddAbove ⟨0, Set.left_mem_Ici⟩
     (bddAbove_abs_Zplus_image_Ici a n hn) (fun _ _ => abs_nonneg _)
 
 private theorem biSup_Ici_abs_Zminus_eq (hn : 1 ≤ n) :
     (⨆ u ∈ Set.Ici (0 : ℝ), |Zminus a n u|)
       = sSup ((fun u => |Zminus a n u|) '' Set.Ici (0 : ℝ)) :=
-  biSup_eq_sSup_image_of_bddAbove ⟨0, Set.self_mem_Ici⟩
+  biSup_eq_sSup_image_of_bddAbove ⟨0, Set.left_mem_Ici⟩
     (bddAbove_abs_Zminus_image_Ici a n hn) (fun _ _ => abs_nonneg _)
 
 /-! ### The six main lemmas -/

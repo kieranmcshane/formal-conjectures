@@ -659,12 +659,12 @@ private theorem one_sided_running_max
   set f : ℕ → Ω → ℝ := fun k ω => Real.exp (lam * walk a k ω) with hf_def
   -- Step 1: f is a nonneg submartingale w.r.t. ℱ
   -- Extract adapted and integrable proofs so submg can reference them
-  have hadapted : StronglyAdapted ℱ f := by
+  have hadapted : Adapted ℱ f := by
     intro k
     have hwalk_sm : StronglyMeasurable[ℱ k] (walk a k) := by
       have : StronglyMeasurable[ℱ k] (∑ j ∈ Finset.Icc 1 k, fun ω => a j ω) :=
         Finset.stronglyMeasurable_sum _ fun j hj =>
-          (Filtration.stronglyAdapted_natural hm j).mono
+          (Filtration.adapted_natural hm j).mono
             (ℱ.mono (Finset.mem_Icc.mp hj).2)
       convert this using 1; ext ω; simp [walk]
     exact continuous_exp.comp_stronglyMeasurable (hwalk_sm.const_mul lam)
