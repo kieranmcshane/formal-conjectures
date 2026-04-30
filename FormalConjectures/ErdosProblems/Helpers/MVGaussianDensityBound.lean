@@ -16,7 +16,7 @@ import FormalConjectures.ErdosProblems.Helpers.MVGaussianRotation
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 
 /-!
-# Phase 2 Round 6 — Multivariate Gaussian density-at-mode small-ball bound
+# Phase 2 Round 6 / Round 9 — Multivariate Gaussian density-at-mode small-ball bound
 
 For an `n × n` symmetric positive-definite real matrix `M`, the multivariate
 Gaussian on `n → ℝ` with covariance `M`,
@@ -52,6 +52,22 @@ This file:
 
 The standard MV bound is itself the key input the V1 instance needs for
 its `anderson_upper` field on the diagonal-covariance reduction.
+
+## Round 9 contributions (Mathlib-PR-ready)
+
+The Round 9 closure of this file introduced four lemmas that fill genuine
+Mathlib gaps:
+
+* `lintegral_fin_nat_prod_eq_prod_aux` — Tonelli for ENNReal integrands
+  on `Measure.pi μ` indexed by `Fin n`.
+* `lintegral_fintype_prod_eq_prod` — Fintype-indexed counterpart.
+* `setLIntegral_fintype_prod_pi_eq_prod` — rectangle-restricted form.
+* `pi_withDensity_eq_withDensity_pi` — `Measure.pi` / `withDensity`
+  commutation.
+
+These are the ENNReal analogues of `MeasureTheory.integral_fintype_prod_eq_prod`
+(which Mathlib provides only for real-valued integrals) and are
+independently useful outside this codebase.
 -/
 
 namespace Erdos524.Helpers
