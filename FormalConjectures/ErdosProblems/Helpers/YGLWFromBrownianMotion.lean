@@ -140,6 +140,48 @@ theorem glwCovMatrix_diag_le_one {n : ℕ} (us : Fin n → ℝ) (h_us : ∀ i, 0
   rw [glwCovMatrix_diag_eq]
   exact K_GLW_le_one _ _ (h_us i) (h_us i)
 
+/-! ## 4.5. Entry-wise positivity and bounds -/
+
+/-- Every entry of `glwCovMatrix us` is strictly positive on nonneg
+grids. Direct from `K_GLW_pos`. -/
+theorem glwCovMatrix_entry_pos {n : ℕ} (us : Fin n → ℝ) (h_us : ∀ i, 0 ≤ us i)
+    (i j : Fin n) :
+    0 < glwCovMatrix us i j := by
+  rw [glwCovMatrix_apply]
+  exact K_GLW_pos _ _ (h_us i) (h_us j)
+
+/-- Every entry of `glwCovMatrix us` is bounded above by `1` on nonneg
+grids. Direct from `K_GLW_le_one`. -/
+theorem glwCovMatrix_entry_le_one {n : ℕ} (us : Fin n → ℝ) (h_us : ∀ i, 0 ≤ us i)
+    (i j : Fin n) :
+    glwCovMatrix us i j ≤ 1 := by
+  rw [glwCovMatrix_apply]
+  exact K_GLW_le_one _ _ (h_us i) (h_us j)
+
+/-- The (i, i) entry equals `1` when `uᵢ = 0`. -/
+theorem glwCovMatrix_diag_at_zero {n : ℕ} (us : Fin n → ℝ) {i : Fin n}
+    (hi : us i = 0) :
+    glwCovMatrix us i i = 1 := by
+  rw [glwCovMatrix_diag_eq, hi]
+  exact K_GLW_zero
+
+/-! ## 4.6. Mercer integral representation, matrix form
+
+The matrix form of the Mercer / L²-inner-product representation
+`K_GLW(uᵢ, uⱼ) = ∫₀¹ exp(-uᵢ s) · exp(-uⱼ s) ds` says that
+`glwCovMatrix us` is the Gram matrix of the family
+`(s ↦ exp(-uᵢ s))_{i ∈ Fin n}` under the L²([0, 1]) inner product. -/
+
+/-- Each entry of `glwCovMatrix us` equals the L²([0,1]) inner product
+of the corresponding pair of integrand functions. The matrix form of
+`K_GLW_eq_integral_glwIntegrand_mul`. -/
+theorem glwCovMatrix_eq_integral {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) (i j : Fin n) :
+    glwCovMatrix us i j =
+      ∫ s in (0 : ℝ)..1, glwIntegrand (us i) s * glwIntegrand (us j) s := by
+  rw [glwCovMatrix_apply]
+  exact K_GLW_eq_integral_glwIntegrand_mul (h_us i) (h_us j)
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
