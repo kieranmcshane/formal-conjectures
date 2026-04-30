@@ -1184,6 +1184,30 @@ theorem glwCovMatrixNN_submatrix {I J : Finset NNReal} (hJI : J ⊆ I) :
   ext i j
   rfl
 
+/-- **The NNReal-grid PSD result**: `glwCovMatrixNN I` is positive
+semi-definite for any `Finset NNReal`. The proof reindexes to the
+`Fin I.card` grid via `Finset.equivFin`, applies the existing
+`glwCovMatrix_PosSemidef` (using NNReal-coercion non-negativity),
+and pulls PSD back via `Matrix.PosSemidef.submatrix`.
+
+This is the `posSemidef_brownianCovMatrix` analogue for K_GLW —
+the precondition for `multivariateGaussian` (BLOCKER B1) expressed
+in brownian-motion's preferred type signature. -/
+theorem glwCovMatrixNN_PosSemidef (I : Finset NNReal) :
+    (glwCovMatrixNN I).PosSemidef := by
+  let e : {x : NNReal // x ∈ I} ≃ Fin I.card := I.equivFin
+  let us : Fin I.card → ℝ := fun k => ((e.symm k).1 : ℝ)
+  have h_us : ∀ k, 0 ≤ us k := fun k => NNReal.coe_nonneg _
+  have h_fin : (glwCovMatrix us).PosSemidef := glwCovMatrix_PosSemidef us h_us
+  have h_eq : glwCovMatrixNN I = (glwCovMatrix us).submatrix e e := by
+    ext s t
+    simp only [glwCovMatrixNN_apply, Matrix.submatrix_apply, glwCovMatrix_apply]
+    show K_GLW (s.1 : ℝ) (t.1 : ℝ) = K_GLW (us (e s)) (us (e t))
+    show K_GLW (s.1 : ℝ) (t.1 : ℝ) = K_GLW ((e.symm (e s)).1 : ℝ) ((e.symm (e t)).1 : ℝ)
+    rw [Equiv.symm_apply_apply e s, Equiv.symm_apply_apply e t]
+  rw [h_eq]
+  exact h_fin.submatrix e
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
