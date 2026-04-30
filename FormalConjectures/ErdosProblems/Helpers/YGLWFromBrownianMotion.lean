@@ -895,6 +895,40 @@ theorem glwCovMatrix_zero_grid_trace {n : ℕ} :
     (glwCovMatrix (fun _ : Fin n => (0 : ℝ))).trace = (n : ℝ) := by
   rw [glwCovMatrix_const_grid_trace, K_GLW_zero, mul_one]
 
+/-! ## 4.18. Tighter bounds via variance decay
+
+Round 12 additions. The kernel-side variance bounds
+`K_GLW(u, u) < 1` (strict) and `K_GLW(u, u) ≤ 1/(2u)` (decay) lift
+directly to diagonal-entry and trace bounds for `glwCovMatrix` on
+strictly positive grids — improving on the basic `≤ 1` and `≤ n`
+bounds from §4 / §4.8. -/
+
+/-- Each diagonal entry is strictly less than `1` on strictly positive
+grids — direct lift of `K_GLW_var_lt_one`. -/
+theorem glwCovMatrix_diag_lt_one {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 < us i) (i : Fin n) :
+    glwCovMatrix us i i < 1 := by
+  rw [glwCovMatrix_diag_eq]
+  exact K_GLW_var_lt_one (h_us i)
+
+/-- Each diagonal entry decays as `≤ 1/(2 uᵢ)` on strictly positive
+grids — direct lift of `K_GLW_var_le_recip`. -/
+theorem glwCovMatrix_diag_le_recip {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 < us i) (i : Fin n) :
+    glwCovMatrix us i i ≤ 1 / (2 * us i) := by
+  rw [glwCovMatrix_diag_eq]
+  exact K_GLW_var_le_recip (h_us i)
+
+/-- The trace is bounded above by the sum of variance-decay bounds:
+`tr(M) ≤ Σᵢ 1/(2 uᵢ)`. -/
+theorem glwCovMatrix_trace_le_recip_sum {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 < us i) :
+    (glwCovMatrix us).trace ≤ ∑ i : Fin n, 1 / (2 * us i) := by
+  rw [Matrix.trace]
+  apply Finset.sum_le_sum
+  intros i _
+  exact glwCovMatrix_diag_le_recip us h_us i
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
