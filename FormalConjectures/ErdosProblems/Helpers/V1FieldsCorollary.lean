@@ -96,4 +96,22 @@ theorem hierCauchyG_realMatrixSqrt_isUnit (m : ℕ) (hm : 1 ≤ m) :
   classical
   exact realMatrixSqrt_isUnit (hierCauchyG_PosDef m hm)
 
+/-! ## Round 10 — Direct gaussianHierCauchy Anderson bound
+
+A more direct entry point: bypass `glwBoxProb` entirely and state
+the Anderson upper bound for the box event under the
+`gaussianHierCauchy` measure. -/
+
+/-- Anderson upper bound for the box event under `gaussianHierCauchy m`,
+unconditional for `m ≥ 1`. Direct form. -/
+theorem gaussianHierCauchy_box_anderson_upper {m : ℕ} (hm : 1 ≤ m)
+    {ε : ℝ} (hε : 0 < ε) :
+    (gaussianHierCauchy m {x : Fin m × Fin m → ℝ | ∀ ij, |x ij| ≤ ε}).toReal ≤
+      (2 * ε) ^ (m * m) *
+        (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+        (Real.sqrt (hierCauchyG m).det)⁻¹ := by
+  -- glwBoxProb m ε = (gaussianHierCauchy m _).toReal by definition.
+  show glwBoxProb m ε ≤ _
+  exact glwBoxProb_anderson_upper_v1 hm hε
+
 end Erdos524.Helpers
