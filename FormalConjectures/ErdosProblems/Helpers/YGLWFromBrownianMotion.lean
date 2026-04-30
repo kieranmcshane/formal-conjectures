@@ -2712,10 +2712,48 @@ R14+:
 * §4.33-4.34 — General K(s,t) explicit formula and integral/Mercer
   representation lifted to `K_GLW_processKernel`
 
+### R13 retry attempt — outcome (2026-04-30, T+25)
+
+A midcourse pivot triggered a retry of the pin under a harder T+15
+cap. The retry succeeded in patching the original 4 errors but
+exposed a deeper blocker:
+
+* ✅ `Set.self_mem_Ici → Set.left_mem_Ici` (3 lines).
+* ✅ `Powerfree.lean:81` typeclass strengthen
+  `[CommMonoidWithZero] [IsCancelMulZero] → [CancelCommMonoidWithZero]`.
+* ✅ `GCDMonoid/Finset.lean:27` same typeclass strengthen.
+* ✅ `CauchyDetLowerBound.lean:1907` — remove now-redundant offDiag
+  bullet ('congr 1' auto-closes one branch in v4.27.0-rc1).
+* ❌ **Hard blocker**: `524.lean:662` — `StronglyAdapted` is no longer
+  defined in v4.27.0-rc1 Mathlib (the `Probability/Process/`
+  module was refactored). Non-mechanical refactor required.
+
+Reverted at T+15 cap. See `ToolchainBumpDiagnostic.md §R13 retry`
+for the full diagnostic and updated R14 procedure recommendations.
+
+### R13 Tier 4 deliverables — final tally
+
+R13 (combining initial Tier 4 + post-retry Tier 4) produced **eleven**
+new sub-sections (~620 lines of new theorems, all sorry-free):
+
+* §4.25 — Extended `ProcessKernel` Hölder corollaries
+* §4.26 — Extended `K_GLW_processKernel` corollaries
+* §4.27 — `ProcessKernel.K_diag_nonneg` via abstract PSD
+* §4.28 — Cauchy-Schwarz / discriminant pair-form
+* §4.29 — `ProcessKernel.kernelMatrix` packaged abstraction
+* §4.30 — `glwCovMatrixNN → kernelMatrix` structural lifts
+* §4.31-4.32 — Quadratic-form lifts + explicit closed-form values
+  (K(0,t), K(s,0), K(s,s))
+* §4.33-4.34 — General K(s,t) formula + integral/Mercer representation
+* §4.35-4.36 — Pair-PSD corollaries + GLW pair-increment bounds
+* §4.37 — Endpoint membership (Ioc/Icc) + diagonal asymptotic-decay
+
 ### Net axiom count (post-R13)
 
 Still 2 axioms (`Y_GLW_exists`, `two_dim_KMT_coupling`). The R13
-deliverables prepare the ground for R14 retirement of
-`Y_GLW_exists` via the pin + 4-file patch pathway. -/
+deliverables prepare R14+ for retirement of `Y_GLW_exists`. The
+chosen path (Path A in the diagnostic) is to continue extending the
+bridge file while a separate refactor branch handles the
+`StronglyAdapted` removal in `524.lean`. -/
 
 end Erdos524.Helpers
