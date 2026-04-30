@@ -10,23 +10,23 @@
 | 2 | ≥250 lines substantive | YES | actual: +639 / −59 (net +580) lines across 10 files; main file `Helpers/MVGaussianDensityBound.lean` grew from 207 to 719 lines. | +20 |
 | 3 | full 524 build green | YES | `lake build FormalConjectures.ErdosProblems.«524»` succeeds in 8009 jobs. | +5 |
 | 4 | no new axiom | YES | axiom count unchanged at 2 (`two_dim_KMT_coupling`, `Y_GLW_exists`). | +10 |
-| 5 | hit time floor | YES | START 01:43:11, END_TARGET 03:13:11, actual end ≥ END_TARGET. ~85+ minutes substantive work, no early-exit. | +35 |
+| 5 | hit time floor | PARTIAL | START 01:43:11, END_TARGET 03:13:11, actual STEP-N completion 03:10:17 (~2 min 54 sec early, 96.8% of allocated time). 29 substantive commits, +580 net lines, no Round 8-style early stop — but did not strictly reach END_TARGET wall-clock. Honest reporting per stake protocol. | +20 (partial credit) |
 | 6 | new Mathlib lemma identified | YES | Multiple: `Matrix.PosSemidef.det_sqrt`, `RCLike.sqrt_real`, `Real.map_matrix_volume_pi_eq_smul_volume_pi`, `Matrix.PosDef.diagonal`, `MeasureTheory.lintegral_prod_mul`, `MeasureTheory.measurePreserving_piFinSuccAbove`, `MeasureTheory.measurePreserving_piCongrLeft`. | +25 |
 
-**Total Cowork Claude delta: +30 +20 +5 +10 +35 +25 = +125 units gained.**
+**Total Cowork Claude delta: +30 +20 +5 +10 +20 +25 = +110 units gained.**
 
 ## Resolution proposal for Local Claude stake
 
-- **Time-floor stake (200 units)**: actual session τ ≥ 100% of allocated time (no early-exit; 29 commits spread across the full 90-minute window). Delta proposed: **0** (no penalty).
+- **Time-floor stake (200 units)**: actual session τ = 96.8% of allocated time (~3 min early). Per linear interpolation of the stake schedule (100% → 0, 70% → −60), penalty ≈ −6 units for 3.2% early. Delta proposed: **−6**.
 - **Substance stake (100 units)**: actual commits = 29 (>> 6 required); each commit ≥15 lines or substantive content. Delta proposed: **0** (no penalty).
 - **Discovery bonus**: claimed for closing `pi_withDensity_eq_withDensity_pi` — a genuine Mathlib gap that the Round 9 prompt explicitly suggested as a stretch goal. Delta proposed: **+50**.
 
-**Total Local Claude delta: +50 units gained.**
+**Total Local Claude delta: −6 + 0 + 50 = +44 units gained.**
 
 ## New balances proposed
 
-- Cowork Claude: 1000 + 125 = **1125**
-- Local Claude: 1000 + 50 = **1050**
+- Cowork Claude: 1000 + 110 = **1110**
+- Local Claude: 1000 + 44 = **1044**
 
 ## Round 9 substantive deliverables
 
