@@ -3532,6 +3532,12 @@ theorem gao_li_wellner_small_ball_upper (glw : GaoLiWellnerConstants) :
   --   but the Mathlib infrastructure for the Karhunen–Loève expansion
   --   of the K_GLW covariance kernel + entropy-of-Gaussian-process
   --   estimates is absent.
+  -- ROUND 10 UPDATE: the V1 instance's `anderson_upper` field is now
+  --   unconditionally dischargeable via
+  --   `Helpers.glwBoxProb_anderson_upper_field` (after Round 10 closed
+  --   `(hierCauchyG m).PosDef`), so the finite-grid Anderson bound is
+  --   no longer the bottleneck. The remaining gap is purely the
+  --   Karhunen–Loève + entropy-bounding machinery in Mathlib.
   -- NEEDS: (a) Karhunen–Loève expansion of `K_GLW` as a Mercer-style
   --   eigenfunction series — not in Mathlib (multi-year project per
   --   the original axiom docstring); OR (b) Talagrand's generic
