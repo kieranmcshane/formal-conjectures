@@ -1695,6 +1695,27 @@ theorem glwCovMatrixNN_empty_det :
     (glwCovMatrixNN ∅).det = 1 := by
   rw [Matrix.det_isEmpty]
 
+/-! ### K_GLW_processKernel projection facts -/
+
+/-- The K field of `K_GLW_processKernel` is `K_GLW` (composed with
+NNReal coercion). Useful as a definitional unfolding. -/
+@[simp]
+theorem K_GLW_processKernel_K (s t : NNReal) :
+    K_GLW_processKernel.K s t = K_GLW (s : ℝ) (t : ℝ) := rfl
+
+/-- The symmetry field of `K_GLW_processKernel` reduces to
+`K_GLW_symm`. -/
+theorem K_GLW_processKernel_symm (s t : NNReal) :
+    K_GLW_processKernel.K s t = K_GLW_processKernel.K t s :=
+  K_GLW_processKernel.symm s t
+
+/-- The PSD field of `K_GLW_processKernel` produces
+`glwCovMatrixNN_PosSemidef`. -/
+theorem K_GLW_processKernel_PSD (I : Finset NNReal) :
+    (Matrix.of fun s t : {x : NNReal // x ∈ I} =>
+       K_GLW_processKernel.K s.1 t.1).PosSemidef :=
+  K_GLW_processKernel.PSD I
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
