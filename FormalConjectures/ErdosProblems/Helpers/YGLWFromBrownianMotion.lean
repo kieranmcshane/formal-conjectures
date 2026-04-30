@@ -1441,6 +1441,34 @@ theorem glwCovMatrixNN_diag_lt_one (I : Finset NNReal)
   rw [glwCovMatrixNN_apply]
   exact K_GLW_var_lt_one h_s
 
+/-! ### NNReal-grid quadratic form expansion
+
+The matrix-form `x ⬝ M ⬝ x = Σₛₜ xₛ xₜ K(s, t)` extends to the
+NNReal-grid signature. -/
+
+/-- Quadratic-form expansion for `glwCovMatrixNN`:
+`Σₛ xₛ * (M *ᵥ x)ₛ = Σₛₜ xₛ xₜ K_GLW(s, t)`. -/
+theorem glwCovMatrixNN_quadratic_form_eq_sum (I : Finset NNReal)
+    (x : {y : NNReal // y ∈ I} → ℝ) :
+    ∑ s, x s * ((glwCovMatrixNN I *ᵥ x) s) =
+      ∑ s, ∑ t, x s * x t * K_GLW (s.1 : ℝ) (t.1 : ℝ) := by
+  refine Finset.sum_congr rfl fun s _ => ?_
+  rw [Matrix.mulVec, dotProduct, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  simp [glwCovMatrixNN_apply]
+  ring
+
+/-- The K_GLW NNReal-grid quadratic form is non-negative. -/
+theorem glwCovMatrixNN_quadratic_form_nonneg (I : Finset NNReal)
+    (x : {y : NNReal // y ∈ I} → ℝ) :
+    0 ≤ ∑ s, x s * ((glwCovMatrixNN I *ᵥ x) s) := by
+  have h_psd := glwCovMatrixNN_PosSemidef I
+  have h_dp := h_psd.dotProduct_mulVec_nonneg x
+  have h_star : star x = x := rfl
+  rw [h_star] at h_dp
+  rw [dotProduct] at h_dp
+  exact h_dp
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
