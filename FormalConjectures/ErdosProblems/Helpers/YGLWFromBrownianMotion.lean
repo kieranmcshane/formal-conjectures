@@ -421,6 +421,11 @@ parameterised by the kernel data we just proved.
 * **TRIED**: Mathlib has `IsProjectiveMeasureFamily` in
   `Mathlib/Probability/Kernel/MeasurableLebesgueDecomposition.lean`,
   but no infrastructure to build the family from a covariance.
+* **PRECONDITION SATISFIED**: `glwCovMatrix_submatrix_PosSemidef`
+  (Section 4.7 above) gives the kernel-side restriction property
+  `((glwCovMatrix us).submatrix f f).PosSemidef`. Combined with B1,
+  this gives the consistency hypothesis for the projective family
+  on any sub-grid `f : Fin m → Fin n`.
 * **PROJECT API**: `gaussianProjectiveFamily K : ∀ I, Measure (I → ℝ)`
   where the projective family is consistent under restriction to
   smaller `I' ⊆ I`.
