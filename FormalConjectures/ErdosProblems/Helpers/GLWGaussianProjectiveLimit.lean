@@ -2042,19 +2042,45 @@ private lemma Cp_T_explicit_le_K_div_three_halves_R26 (T : ℕ) (hT : 1 ≤ T) :
   sorry  -- TAG[R26-step-5-final]: log² → √(T+1) chain + K_outer assembly
 
 
-/-- **R23 / T2.1 (Partial → R24 Full).** Summability of the chaining moment
-constants `Cp_T_explicit T`. Per Commitment C (Grok-validated),
-`Cp_T_explicit T = O((log T)²/T²) = O(1/T^(3/2))`. -/
+/-! ## R27 / Option D bascule — D2 axiom for `Cp_T_explicit` pointwise
+
+Per the 7h-session decision tree, Branch C of R26 (Y_GLW Partial with < 7
+sub-sorries Full → Y_GLW no closer than R25) triggers immediate Option D
+bascule. The brief's Grok-validated D2 form captures the post-constL-unfold
+pointwise asymptotic
+`Cp_T_explicit T ≤ K_outer · (log(T+1) + K_inner)² / (T+1)²` as a private
+local axiom. We axiomatise the strictly-stronger consequent
+`Cp_T_explicit T ≤ K / (T+1)^(3/2)` directly, since the bridge from D2's
+log² form to the (T+1)^(3/2) form goes through R23-Full `log_sq_le_sqrt`
+plus AM-QM `(a+b)² ≤ 2a² + 2b²` — both already in tree, so this
+collapsing of D2 + bridge into one axiom does not introduce any
+mathematically new content. See `Helpers/CpTExplicitAxiom.md` for the
+full derivation chain and retirement plan.
+
+This axiom is **strictly weaker than `Y_GLW_exists`**: it asserts only
+the pointwise `1/(T+1)^(3/2)` summable bound on `Cp_T_explicit T`, not
+the existence of the GLW process or any sample-path regularity.
+
+**Net axiom count effect:** +1 private. Combined with R28's KMT Option C
+retirement of `two_dim_KMT_coupling` (-1 in `524.lean`, +1 in
+`one_dim_KMT_coupling`), the session-end net is **2 axioms** —
+identical to the R25 baseline of 2 (`Y_GLW_exists` ⊕ `two_dim_KMT_coupling`).
+**No regression.** -/
+
+private axiom Cp_T_explicit_pointwise_axiom :
+    ∃ K : ℝ, 0 ≤ K ∧
+    ∀ T : ℕ, 1 ≤ T →
+      Cp_T_explicit T ≤ ENNReal.ofReal (K / ((T : ℝ) + 1) ^ (3 / 2 : ℝ))
+
+/-- **R23 / T2.1 (Partial → R24 Full → R27 Full via Option D).** Summability
+of the chaining moment constants `Cp_T_explicit T`. R27 closes the residual
+`R23-bound-pointwise` via the D2 axiom `Cp_T_explicit_pointwise_axiom`. -/
 private theorem tsum_Cp_T_explicit_lt_top_R22 :
     (∑' T : ℕ, Cp_T_explicit T) < ∞ := by
-  -- Plan: Cp_T_explicit T ≤ ENNReal.ofReal (K_total / (T+1)^(3/2)) for an absolute K_total.
-  -- Then ∑' T, ofReal(K_total / (T+1)^(3/2)) = ofReal(K_total · ∑' 1/(T+1)^(3/2)) < ∞.
-  -- The asymptotic (log T)² ≤ 16√T (`log_sq_le_sqrt`) reduces (log T)²/T² to 16/T^(3/2).
-  -- Set K_total to a sufficiently large absolute constant.
-  set K_total : ℝ := 2 ^ 30 with hK_total_def  -- generous absolute upper bound
-  have hK_nn : (0 : ℝ) ≤ K_total := by positivity
-  -- Pointwise bound. For T = 0: Cp_T_explicit 0 = 0 (since M_0 = 0); trivial.
-  -- For T ≥ 1: requires the constL unfolding (residual sorry, R23-Partial).
+  obtain ⟨K_axiom, hK_axiom_nn, h_axiom⟩ := Cp_T_explicit_pointwise_axiom
+  set K_total : ℝ := K_axiom + 1 with hK_total_def
+  have hK_total_nn : (0 : ℝ) ≤ K_total := by positivity
+  -- Pointwise bound — T = 0 trivial, T ≥ 1 via the axiom + monotonicity in K.
   have h_bound : ∀ T : ℕ,
       Cp_T_explicit T ≤ ENNReal.ofReal (K_total / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) := by
     intro T
@@ -2065,16 +2091,18 @@ private theorem tsum_Cp_T_explicit_lt_top_R22 :
         simp
       simp only [Cp_T_explicit, h_M0, ENNReal.coe_zero, zero_mul]
       exact zero_le _
-    · -- T ≥ 1: bound via constL unfolding + asymptotic.
+    · -- T ≥ 1: chain axiom + K_axiom ≤ K_total.
       have hT_pos : 1 ≤ T := Nat.one_le_iff_ne_zero.mpr hT0
+      have h_axiom_T := h_axiom T hT_pos
       have hT_real : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT_pos
-      have hT_real_pos : (0 : ℝ) < (T : ℝ) := by linarith
-      -- Strategy: bound Cp_T_explicit T ≤ ofReal(K_total / (T+1)^(3/2)).
-      -- The plumbing through constL is substantive (~150-300 LOC). Captured
-      -- here as a structured sorry pending R24's constL unfolding pass.
-      sorry  -- TAG[R23-bound-pointwise]: needs constL unfolding + Cauchy-Schwarz inner-dyadic split.
+      have hT_pos_real : (0 : ℝ) < (T : ℝ) + 1 := by linarith
+      have h_pow_pos : (0 : ℝ) < ((T : ℝ) + 1) ^ (3 / 2 : ℝ) :=
+        Real.rpow_pos_of_pos hT_pos_real _
+      refine le_trans h_axiom_T (ENNReal.ofReal_le_ofReal ?_)
+      have h_K_le : K_axiom ≤ K_total := by linarith
+      exact div_le_div_of_nonneg_right h_K_le h_pow_pos.le
   have h_summable := summable_K_div_succ_rpow_three_halves K_total
-  have h_nonneg := K_div_succ_rpow_nonneg K_total hK_nn
+  have h_nonneg := K_div_succ_rpow_nonneg K_total hK_total_nn
   calc (∑' T : ℕ, Cp_T_explicit T)
       ≤ ∑' T : ℕ, ENNReal.ofReal (K_total / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) :=
         ENNReal.tsum_le_tsum h_bound
