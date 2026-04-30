@@ -336,6 +336,149 @@ theorem K_GLW_quadratic_form_nonneg {n : ℕ} (us cs : Fin n → ℝ)
   exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
     (fun _ => sq_nonneg _)
 
+/-! ## 4. Marginal L²-norm and tail-decay roadmap
+
+The variance of the eventual `Y_GLW(u)` is `K_GLW(u, u) = (1 - exp(-2u))/(2u)`.
+For the tail-decay conjunct of `Y_GLW_exists`, the eventual proof rests
+on `K_GLW(u, u) → 0` as `u → ∞`. Both facts are deterministic statements
+about the kernel — provable here without any probability machinery. -/
+
+/-- The variance of the (eventual) `Y_GLW(u)`: `K_GLW(u, u) = (1 - exp(-2u))/(2u)`
+for `u > 0`. -/
+theorem K_GLW_var_eq {u : ℝ} (hu : 0 < u) :
+    K_GLW u u = (1 - Real.exp (-(2 * u))) / (2 * u) := by
+  have h2u : 0 < u + u := by linarith
+  have hne : u + u ≠ 0 := ne_of_gt h2u
+  rw [K_GLW_def, K_GLW_aux_of_ne _ hne]
+  congr <;> ring
+
+/-- The L²([0,1]) norm of `glwIntegrand u` equals `K_GLW(u, u)`. The
+deterministic form of the variance identity: in the eventual
+construction, `Var(Y_GLW(u)) = ‖exp(-u·)‖²_{L²([0,1])} = K_GLW(u, u)`. -/
+theorem glwIntegrand_L2_norm_sq {u : ℝ} (hu : 0 ≤ u) :
+    K_GLW u u = ∫ s in (0 : ℝ)..1, (glwIntegrand u s)^2 := by
+  rw [K_GLW_eq_integral_glwIntegrand_mul hu hu]
+  congr 1
+  funext s
+  ring
+
+/-- Pointwise positivity of the variance integrand `(glwIntegrand u s)²`. -/
+theorem glwIntegrand_sq_nonneg (u s : ℝ) :
+    0 ≤ (glwIntegrand u s)^2 := sq_nonneg _
+
+/-- Variance non-negativity from the integral form (alternative proof to
+`K_GLW_pos`, useful when manipulating the integral representation). -/
+theorem K_GLW_var_nonneg_from_integral {u : ℝ} (hu : 0 ≤ u) :
+    0 ≤ K_GLW u u := by
+  rw [glwIntegrand_L2_norm_sq hu]
+  exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
+    (fun s => glwIntegrand_sq_nonneg u s)
+
+/-- Symmetry of `K_GLW` from the Mercer / inner-product form. -/
+theorem K_GLW_symm_from_integral {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    K_GLW u v = K_GLW v u := by
+  rw [K_GLW_eq_integral_glwIntegrand_mul hu hv,
+      K_GLW_eq_integral_glwIntegrand_mul hv hu]
+  congr 1
+  funext s
+  ring
+
+/-! ## 5. Linearity in the coefficient direction
+
+The Mercer representation is bilinear in the underlying coefficients.
+The following lemma exposes the linearity that drives the eventual
+`Y(au_1 + bu_2)` linear-combination Gaussianity. -/
+
+/-- Linearity of the exponential profile in the coefficient vector. -/
+theorem glwExpProfile_smul {n : ℕ} (us cs : Fin n → ℝ) (k : ℝ) (s : ℝ) :
+    glwExpProfile us (fun i => k * cs i) s = k * glwExpProfile us cs s := by
+  unfold glwExpProfile
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  ring
+
+/-- Additivity of the exponential profile in the coefficient vector. -/
+theorem glwExpProfile_add {n : ℕ} (us c1 c2 : Fin n → ℝ) (s : ℝ) :
+    glwExpProfile us (fun i => c1 i + c2 i) s =
+      glwExpProfile us c1 s + glwExpProfile us c2 s := by
+  unfold glwExpProfile
+  rw [← Finset.sum_add_distrib]
+  refine Finset.sum_congr rfl fun i _ => ?_
+  ring
+
+/-- Zero coefficient yields zero profile. -/
+theorem glwExpProfile_zero_coeff {n : ℕ} (us : Fin n → ℝ) (s : ℝ) :
+    glwExpProfile us 0 s = 0 := by
+  unfold glwExpProfile
+  simp
+
+/-! ## 6. Cauchy–Schwarz on the L²([0,1]) inner product
+
+The deterministic form of the Cauchy–Schwarz inequality on the K_GLW
+covariance: `K_GLW(u, v)² ≤ K_GLW(u, u) · K_GLW(v, v)`. Useful as a
+prerequisite for the Anderson-style chain bounds downstream. -/
+
+/-- **Cauchy–Schwarz for K_GLW**: `K_GLW(u, v)² ≤ K_GLW(u, u) · K_GLW(v, v)`
+for `u, v ≥ 0`. Specialisation of the L²([0,1]) Cauchy–Schwarz to the
+exponential family `s ↦ exp(-u·s)`. Proof via the integral-of-squares
+PSD argument applied to the 2-point grid `(u, v)` with coefficient
+direction `(c1, c2) = (1, -K_GLW(u,v) / K_GLW(u,u))` (the "best linear
+estimator" coefficient).
+
+The straightforward proof uses `K_GLW_quadratic_form_nonneg` with
+`n = 2`. For a clean statement we expose this as a separate lemma, but
+the proof is left to a future round to keep this file's scope focused on
+the Mercer representation and PSD. -/
+theorem K_GLW_cauchy_schwarz {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    (K_GLW u v)^2 ≤ K_GLW u u * K_GLW v v := by
+  -- Apply `K_GLW_quadratic_form_nonneg` to the 2-point grid with
+  -- coefficients `(K_GLW v v, -K_GLW u v)`. The resulting quadratic form
+  -- is `K_GLW v v · (K_GLW u u · K_GLW v v - (K_GLW u v)²)`. When
+  -- `K_GLW v v > 0` (always true for v ≥ 0), divide and rearrange.
+  have h_var_v_pos : 0 < K_GLW v v := K_GLW_pos v v hv hv
+  have h_var_u_pos : 0 < K_GLW u u := K_GLW_pos u u hu hu
+  -- The 2-point Mercer quadratic form with coefficients (a, b):
+  -- a² K(u, u) + 2ab K(u, v) + b² K(v, v) ≥ 0.
+  -- Choose a = K(v,v), b = -K(u,v); then the form is
+  -- K(v,v)² K(u,u) - 2 K(v,v) (K(u,v))² + (K(u,v))² K(v,v)
+  --   = K(v,v) · (K(u,u) K(v,v) - (K(u,v))²).
+  -- Nonneg + K(v,v) > 0 ⇒ K(u,u) K(v,v) ≥ (K(u,v))².
+  set us : Fin 2 → ℝ := ![u, v] with hus
+  set cs : Fin 2 → ℝ := ![K_GLW v v, -(K_GLW u v)] with hcs
+  have h_us_nn : ∀ i, 0 ≤ us i := by
+    intro i
+    fin_cases i <;> simp [hus, hu, hv]
+  have h_qf := K_GLW_quadratic_form_nonneg us cs h_us_nn
+  -- Expand the 2×2 sum.
+  have h_expand : (∑ i : Fin 2, ∑ j : Fin 2, cs i * cs j * K_GLW (us i) (us j)) =
+      cs 0 * cs 0 * K_GLW (us 0) (us 0) +
+      cs 0 * cs 1 * K_GLW (us 0) (us 1) +
+      cs 1 * cs 0 * K_GLW (us 1) (us 0) +
+      cs 1 * cs 1 * K_GLW (us 1) (us 1) := by
+    simp [Fin.sum_univ_two]
+    ring
+  rw [h_expand] at h_qf
+  -- Substitute us 0 = u, us 1 = v, cs 0 = K(v,v), cs 1 = -K(u,v).
+  simp only [hus, hcs, Matrix.cons_val_zero, Matrix.cons_val_one] at h_qf
+  -- h_qf : 0 ≤ K(v,v) * K(v,v) * K(u,u) + K(v,v) * -K(u,v) * K(u,v) +
+  --         -K(u,v) * K(v,v) * K(v,u) + -K(u,v) * -K(u,v) * K(v,v).
+  -- Use K_GLW symmetry K(v,u) = K(u,v).
+  rw [show K_GLW v u = K_GLW u v from K_GLW_symm v u] at h_qf
+  -- Now: 0 ≤ K(v,v)² K(u,u) - K(v,v)(K(u,v))² - (K(u,v))² K(v,v) + (K(u,v))² K(v,v)
+  --        = K(v,v)² K(u,u) - K(v,v) (K(u,v))²
+  --        = K(v,v) · (K(v,v) K(u,u) - (K(u,v))²).
+  have h_simplify : K_GLW v v * K_GLW v v * K_GLW u u +
+                    K_GLW v v * -K_GLW u v * K_GLW u v +
+                    -K_GLW u v * K_GLW v v * K_GLW u v +
+                    -K_GLW u v * -K_GLW u v * K_GLW v v =
+                    K_GLW v v * (K_GLW v v * K_GLW u u - (K_GLW u v)^2) := by
+    ring
+  rw [h_simplify] at h_qf
+  -- 0 ≤ K(v,v) * (K(v,v) K(u,u) - K(u,v)²) and K(v,v) > 0 ⇒ inner ≥ 0.
+  have h_inner : 0 ≤ K_GLW v v * K_GLW u u - (K_GLW u v)^2 :=
+    nonneg_of_mul_nonneg_right h_qf h_var_v_pos
+  linarith [h_inner]
+
 /-! ## 4. Construction blockers (BLOCKER / TRIED / NEEDS)
 
 The following Mathlib gaps prevent the full retirement of `Y_GLW_exists`
@@ -394,10 +537,10 @@ format used elsewhere in the campaign.
 
 ### Remediation timeline
 
-A direct path to all five blockers exists in mathlib4 PR drafts:
-`mathlib4#26145` (Brownian motion via Daniell–Kolmogorov) and the
-follow-up `#26167` (Wiener integral). When those merge, the present
-file can be extended with a `Y_GLW` *theorem* replacing the axiom.
+A direct path to all five blockers exists once mathlib gains Brownian
+motion and the Wiener integral: when those land, the present file can be
+extended with a `Y_GLW` *theorem* replacing the axiom, with the analytic
+content (covariance, Mercer representation, PSD) already in place here.
 
 Until then, this file's deterministic-analytic content gives the
 `K_GLW`-side of the construction so the eventual Wiener-integral
