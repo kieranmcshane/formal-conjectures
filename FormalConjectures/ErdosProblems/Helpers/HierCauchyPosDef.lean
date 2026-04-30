@@ -702,4 +702,30 @@ example : (hierCauchyG 1).PosDef := by
   rw [hierCauchyG_eq_cauchyMatrix]
   exact cauchyMatrix_PosDef (hierGrid_pos 1) (hierCauchyG_det_pos 1 (by norm_num))
 
+/- ## §9. Abstract entry-level integral representation -/
+
+/-- The abstract Cauchy matrix entry equals the Cauchy integral
+representation: `(cauchyMatrix g) i j = ∫_(0,∞) exp(-(g i + g j) t) dt`.
+
+This makes the Gram structure explicit at the entry level: each
+matrix entry is the inner-product (in `L²(Ioi 0)` with Lebesgue measure)
+of the functions `t ↦ exp(-g_i t)` and `t ↦ exp(-g_j t)`, modulo
+combining the exponents. -/
+theorem cauchyMatrix_apply_eq_integral {n : Type*} [Fintype n]
+    {g : n → ℝ} (hg : ∀ i, 0 < g i) (i j : n) :
+    cauchyMatrix g i j =
+      ∫ t : ℝ in Ioi 0, Real.exp (-(g i + g j) * t) := by
+  simp only [cauchyMatrix, Matrix.of_apply]
+  exact cauchy_inv_eq_integral_exp_neg (hg i) (hg j)
+
+/-- The abstract Cauchy matrix entry as an inner product of exponentials. -/
+theorem cauchyMatrix_apply_eq_exp_product_integral {n : Type*} [Fintype n]
+    {g : n → ℝ} (hg : ∀ i, 0 < g i) (i j : n) :
+    cauchyMatrix g i j =
+      ∫ t : ℝ in Ioi 0, Real.exp (-g i * t) * Real.exp (-g j * t) := by
+  rw [cauchyMatrix_apply_eq_integral hg]
+  congr 1
+  ext t
+  rw [exp_neg_sum_factor]
+
 end Erdos524.Helpers
