@@ -2366,6 +2366,49 @@ theorem K_GLW_processKernel_K_diag_eq (s : NNReal) (hs : 0 < (s : ℝ)) :
 theorem K_GLW_processKernel_K_diag_at_zero :
     K_GLW_processKernel.K 0 0 = 1 := K_GLW_processKernel_at_zero
 
+/-! ## 4.33. K_GLW_processKernel — general explicit value formula -/
+
+/-- For `s, t : NNReal` with `s + t > 0`, the kernel value is
+`K(s, t) = (1 - exp(-(s+t)))/(s+t)`. -/
+theorem K_GLW_processKernel_K_general_eq (s t : NNReal)
+    (h_sum_pos : 0 < ((s : ℝ) + (t : ℝ))) :
+    K_GLW_processKernel.K s t =
+      (1 - Real.exp (-((s : ℝ) + (t : ℝ)))) / ((s : ℝ) + (t : ℝ)) := by
+  rw [K_GLW_processKernel_K, K_GLW_def]
+  exact K_GLW_aux_of_ne ((s : ℝ) + (t : ℝ)) (ne_of_gt h_sum_pos)
+
+/-- The kernel value formula at `(s, t) = (0, 0)` (boundary case). -/
+theorem K_GLW_processKernel_K_zero_zero_eq :
+    K_GLW_processKernel.K 0 0 = 1 := K_GLW_processKernel_at_zero
+
+/-! ## 4.34. K_GLW_processKernel — integral / Mercer representation
+
+The kernel `K(s, t)` admits the explicit integral representation
+`∫₀¹ exp(-s·x) · exp(-t·x) dx`, lifted from the underlying
+`K_GLW_eq_integral_glwIntegrand_mul`. This is the deterministic
+shadow of the Itô isometry on the kernel. -/
+
+/-- Integral / Mercer representation for `K_GLW_processKernel.K`:
+`K(s, t) = ∫₀¹ exp(-s·x) · exp(-t·x) dx` for any `s, t : NNReal`. -/
+theorem K_GLW_processKernel_K_eq_integral (s t : NNReal) :
+    K_GLW_processKernel.K s t =
+      ∫ x in (0 : ℝ)..1, Real.exp (-(s : ℝ) * x) * Real.exp (-(t : ℝ) * x) := by
+  rw [K_GLW_processKernel_K]
+  show K_GLW (s : ℝ) (t : ℝ) =
+    ∫ x in (0 : ℝ)..1, Real.exp (-(s : ℝ) * x) * Real.exp (-(t : ℝ) * x)
+  rw [K_GLW_eq_integral_glwIntegrand_mul (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)]
+  refine intervalIntegral.integral_congr fun x _ => ?_
+  simp [glwIntegrand_def]
+
+/-- The kernel matrix entry has the integral representation. -/
+theorem K_GLW_processKernel_kernelMatrix_eq_integral
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    K_GLW_processKernel.kernelMatrix I s t =
+      ∫ x in (0 : ℝ)..1, Real.exp (-(s.1 : ℝ) * x) *
+        Real.exp (-(t.1 : ℝ) * x) := by
+  rw [ProcessKernel.kernelMatrix_apply]
+  exact K_GLW_processKernel_K_eq_integral s.1 t.1
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
