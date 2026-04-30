@@ -14,8 +14,11 @@ limitations under the License.
 import FormalConjectures.ErdosProblems.Helpers.YGLWFromBrownianMotion
 import BrownianMotion.Gaussian.MultivariateGaussian
 import BrownianMotion.Gaussian.ProjectiveLimit
+import BrownianMotion.Continuity.HasBoundedInternalCoveringNumber
+import BrownianMotion.Continuity.KolmogorovChentsov
 import KolmogorovExtension4.KolmogorovExtension
 import Mathlib.Probability.Process.Kolmogorov
+import Mathlib.Topology.Instances.NNReal.Lemmas
 
 /-!
 # Phase 2 / Round 15 — GLW Gaussian projective limit
@@ -413,6 +416,51 @@ theorem glwGaussianLimit_isKolmogorovProcess :
             ← ENNReal.ofReal_pow (abs_nonneg _), sq_abs]
   p_pos := by norm_num
   q_pos := by norm_num
+
+/-!
+## O4½ — Continuous-path modification (R18)
+
+The Kolmogorov-Chentsov continuous-modification theorem applied to
+`glwGaussianLimit_isKolmogorovProcess` produces a process
+`Y' : NNReal → (NNReal → ℝ) → ℝ` such that:
+
+* each `Y' t` is measurable;
+* `Y' t =ᵐ[glwGaussianLimit] (· t)` for every `t`;
+* every sample path `t ↦ Y' t ω` is continuous on `NNReal`.
+
+This is the missing ingredient for conjunct 8 of O5. The covering-
+number datum is `isCoverWithBoundedCoveringNumber_Ico_nnreal` (the
+canonical `Ico (0 : NNReal) (n+1)` exhaustion of `NNReal`); the
+strict K-C process is `glwGaussianLimit_isKolmogorovProcess` at
+`(p, q, M) = (2, 2, 1)`, which gives Hölder regularity
+`β < (q - d)/p = 1/2` after we use `d = 1` from the Ico cover.
+-/
+
+/-- **R18 — continuous-path modification of the projection process.**
+
+The output `Y'` is a measurable, continuous-path modification of
+`fun t ω ↦ ω t` under `glwGaussianLimit`. -/
+theorem exists_glwBrownianModification :
+    ∃ Y : NNReal → (NNReal → ℝ) → ℝ,
+      (∀ t, Measurable (Y t)) ∧
+      (∀ t, Y t =ᵐ[glwGaussianLimit] (fun ω => ω t)) ∧
+      (∀ ω, Continuous (fun t => Y t ω)) := by
+  obtain ⟨Y, hY_meas, hY_ae_eq, hY_holder, _⟩ :=
+    exists_modification_holder''' (T := NNReal) (Ω := NNReal → ℝ) (E := ℝ)
+      (P := glwGaussianLimit) (X := fun t ω => ω t) (p := 2) (q := 2) (M := 1)
+      isCoverWithBoundedCoveringNumber_Ico_nnreal
+      glwGaussianLimit_isKolmogorovProcess
+      (fun n => by finiteness)
+      (by norm_num : (0 : ℝ) < 1)
+      (by norm_num : (1 : ℝ) < 2)
+  refine ⟨Y, hY_meas, hY_ae_eq, fun ω => ?_⟩
+  -- Local Hölder => continuity at every point => continuity.
+  rw [continuous_iff_continuousAt]
+  intro t
+  obtain ⟨U, hU_mem, hU⟩ := hY_holder ω t
+  -- Pick β = 1/4 ∈ (0, 1/2) = (0, (q - d)/p).
+  obtain ⟨C, hC⟩ := hU ((1 : ℝ≥0) / 4) (by norm_num) (by norm_num)
+  exact (hC.continuousOn (by norm_num : (0 : ℝ≥0) < 1 / 4)).continuousAt hU_mem
 
 /-!
 ## O5 — Process-existence witness in the 9-conjunct form
