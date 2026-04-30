@@ -128,3 +128,44 @@ When 1D KMT lands upstream, the retirement proof will need:
 * `Mathlib.Topology.MetricSpace.Pseudo.Basic` — L∞ metric on `ℝ²`.
 
 No new dependency on `brownian-motion` or `kolmogorov_extension4`.
+
+## R17 upstream re-scan (2026-04-30)
+
+Re-scanned mathlib HEAD and `brownian-motion` HEAD at the time of R17
+close. **No 1D KMT primitive has appeared upstream.** Specifically:
+
+* `Mathlib.Probability` — searched for "KMT", "Komlos", "Major",
+  "Tusnady", "strong invariance", "Hungarian construction": zero hits
+  in any guise. The closest existing infrastructure is
+  `Mathlib.Probability.Moments.SubGaussian` (which only covers the
+  log-MGF side of the inequality, not the coupling).
+* `brownian-motion/BrownianMotion` — the only continuity result is
+  Kolmogorov-Chentsov; there is no Skorokhod embedding nor any KMT.
+  The library is squarely focused on Gaussian processes and the
+  Kolmogorov extension.
+* `kolmogorov-extension-4` — this is a measure-theoretic projective
+  extension library; it has nothing to do with KMT and there is no
+  prospect of adding KMT here. (It is a pure Banach-Steinhaus-style
+  measure construction.)
+
+**Implication:** the projection that R14's `O6` had hinted at —
+"wait for upstream KMT and then port" — has not advanced. R18's
+options for unblocking `two_dim_KMT_coupling` remain:
+
+1. Wait further (R19+) and accept that the axiom remains in place.
+2. Take a Skorokhod-via-explicit-CDF route (writes a much more
+   elementary 1D coupling proof but at high LOC cost — see
+   `OneDimKMTSketch.md` in this directory).
+3. Commission an upstream PR for `Mathlib.Probability.KMT` if a
+   Lean-friendly proof of the 1D KMT theorem with logarithmic error
+   surfaces in the literature.
+
+R17 leaves this file at the same Stub posture: documenting the
+state, not changing it. The axiom `two_dim_KMT_coupling` stands
+load-bearing, with two dependent consumers in `524.lean`.
+
+## Outcome label
+
+* **R14 O6**: Stub.
+* **R17 re-scan**: Stub (no upstream change).
+* **R18 next action**: see `R18ReadinessDiagnostic.md` Blocker 5.
