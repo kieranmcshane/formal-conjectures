@@ -50,4 +50,26 @@ theorem hierCauchyG_det_pos_at_one : 0 < (hierCauchyG 1).det := hierCauchyG_det_
 theorem hierCauchyG_inv_sqrt_det_pos_at_one : 0 < (Real.sqrt ((hierCauchyG 1).det))⁻¹ :=
   hierCauchyG_inv_sqrt_det_pos 1 (by norm_num)
 
+/-! ## Round 10 — Stretch B: V1-field-shaped Anderson upper
+
+The V1 contract requires `anderson_upper : ∀ ε > 0, boxProb ε ≤ (2ε)^(m·m) ·
+(2π)^(-(m·m)/2) · sqrt(cov.det)⁻¹`. With Round 10's hierCauchyG_PosDef
+discharging the Round 9 conditional, this field is now provable
+unconditionally for `m ≥ 1`. -/
+
+/-- V1-field-shaped `anderson_upper`: with `cov := glwBoxProb_cov m = hierCauchyG m`,
+the Anderson upper bound holds unconditionally for `m ≥ 1`. -/
+theorem glwBoxProb_anderson_upper_field {m : ℕ} (hm : 1 ≤ m) :
+    ∀ ε : ℝ, 0 < ε →
+      glwBoxProb m ε ≤
+        (2 * ε) ^ (m * m) *
+          (2 * Real.pi) ^ (-((m * m : ℕ) : ℝ) / 2) *
+          (Real.sqrt (glwBoxProb_cov m).det)⁻¹ := by
+  intro ε hε
+  -- glwBoxProb_cov = hierCauchyG by definition, so the dets match.
+  have h_cov_eq : (glwBoxProb_cov m).det = (hierCauchyG m).det := by
+    rw [glwBoxProb_cov_eq_hierCauchy]
+  rw [h_cov_eq]
+  exact glwBoxProb_anderson_upper_v1 hm hε
+
 end Erdos524.Helpers
