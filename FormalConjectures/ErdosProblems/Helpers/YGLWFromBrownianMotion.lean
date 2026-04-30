@@ -3185,8 +3185,8 @@ for the full diagnostic and updated R14 procedure recommendations.
 
 ### R13 Tier 4 deliverables — final tally
 
-R13 (combining initial Tier 4 + post-retry Tier 4) produced **twenty-one**
-new sub-sections (~1100 lines of new theorems, all sorry-free):
+R13 (combining initial Tier 4 + post-retry Tier 4) produced **twenty-three**
+new sub-sections (~1180 lines of new theorems, all sorry-free):
 
 * §4.25 — Extended `ProcessKernel` Hölder corollaries
 * §4.26 — Extended `K_GLW_processKernel` corollaries
@@ -3207,6 +3207,8 @@ new sub-sections (~1100 lines of new theorems, all sorry-free):
   trace bounds
 * §4.44 — Sum-of-K and trace bounds aggregating across Finset
 * §4.45 — Partial-application continuity (left/right/diag)
+* §4.46 — Combined "all-in-one" downstream bound bundles
+* §4.47 — Determinant non-negativity + empty/singleton det values
 
 ### Net axiom count (post-R13)
 
