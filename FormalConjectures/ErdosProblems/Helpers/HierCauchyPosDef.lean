@@ -458,4 +458,15 @@ theorem expProfile_sq_integral_pos_of_ne_zero (m : ℕ) (hm : 1 ≤ m)
   rw [h_quad, hierCauchyG_quadForm_eq_integral_sq m x] at hdot
   exact hdot
 
+/-- Sanity-check example: the `m = 1` case of `hierCauchyG_PosDef`. The
+matrix is the `1 × 1` matrix with single entry `1 / (2·hierGrid 1 (0,0))`,
+which is strictly positive. -/
+example : (hierCauchyG 1).PosDef := hierCauchyG_PosDef 1 (by norm_num)
+
+/-- Sanity-check example: the `m = 2` case of `hierCauchyG_PosDef`. -/
+example : (hierCauchyG 2).PosDef := hierCauchyG_PosDef 2 (by norm_num)
+
+/-- Sanity-check example: the inverse is also PosDef. -/
+example : ((hierCauchyG 1)⁻¹).PosDef := hierCauchyG_inv_PosDef 1 (by norm_num)
+
 end Erdos524.Helpers
