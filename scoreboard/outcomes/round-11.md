@@ -53,7 +53,28 @@ axiom itself is intact pending toolchain alignment).
   B4, B5 (only B3 — the abstract projective-limit — requires the
   `brownian-motion` project's API).
 
-**Total: 1445 lines, 18 substantive Round 11 commits.**
+### Post-pivot Lipschitz / abstraction work (v8 onwards)
+
+After the bridge file landed, additional Mathlib-PR-shaped work was
+completed:
+
+* **`gramMatrixL2_PosSemidef`** (and full Gram-matrix theory):
+  kernel-generic Mercer / L²-PSD theorem. `glwCovMatrix_PosSemidef`
+  becomes a 2-line corollary.
+* **`K_GLW_three_point_psd`** + **`K_GLW_diff_sq_le_quadratic_form_mul`**:
+  the 3-point Mercer-PSD discriminant gives a Cauchy–Schwarz-type bound
+  on K_GLW differences without invoking external interval-CS.
+* **`K_GLW_lipschitz_first` / `_second` / `_first_abs` / `_second_abs`
+  / `_joint`**: K_GLW is jointly 1-Lipschitz on the nonneg quadrant.
+  Direct corollary of the 3-point PSD discriminant + L²-Hölder bound +
+  variance bound. The deterministic shadow of joint Y_GLW
+  path-modulus.
+* **Submatrix theory**: `glwCovMatrix_submatrix`,
+  `glwCovMatrix_submatrix_PosSemidef` (BLOCKER-B2 precondition).
+* **Det / trace**: `glwCovMatrix_det_nonneg`,
+  `glwCovMatrix_trace_nonneg`, `glwCovMatrix_trace_le`.
+
+**Total: 1732 lines, 25 substantive Round 11 commits (final v22).**
 
 ## Cross-reference updates
 
