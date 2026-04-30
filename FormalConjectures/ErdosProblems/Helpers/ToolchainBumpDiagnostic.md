@@ -182,3 +182,103 @@ needed in R13.
 If Option C succeeds, the retirement of `Y_GLW_exists` follows the
 5-step proof skeleton already documented in
 `YGLWFromBrownianMotion.lean §5`.
+
+## R13 Pin Attempt — Outcome (2026-04-30)
+
+**Round**: R13 (kmc-erdos-glw-lower @ 9d4004c, post-R12)
+**Attempted**: pin per the recommended R13 procedure (above).
+**Result**: REVERTED at minute ~7 (well inside the 15-min HARD CAP).
+
+### Procedure
+
+1. Fresh temp branch `r13-pin-attempt` from `kmc-erdos-glw-lower`.
+2. Edited `lean-toolchain` to `leanprover/lean4:v4.27.0-rc1` (a
+   *downgrade* from `v4.27.0` to match brownian-motion @ 91267abd).
+3. Edited `lakefile.toml`:
+   - Mathlib rev `v4.27.0` → `25ce63313608` (commit pinned by
+     brownian-motion @ 91267abd).
+   - Added `[[require]] brownian-motion git ... rev "91267abd71bd..."`.
+   - Added `[[require]] kolmogorov_extension4 git ... rev "2c2b44e55251"`.
+4. `lake update` succeeded at minute ~3 (~33 s wall-clock):
+   downgraded toolchain v4.27.0 → v4.27.0-rc1, mathlib rev resolved,
+   brownian-motion + kolmogorov_extension4 fetched, ProofWidgets cache
+   refreshed.
+
+### Build outcome
+
+`lake build FormalConjectures.ErdosProblems.«524»` reached **7891 of
+7893 target jobs** before failing on **4 files**, with 2 distinct
+flavours of error:
+
+**Flavour A — `Set.self_mem_Ici` rename (trivial)**
+
+- `FormalConjectures/ErdosProblems/Erdos524/EndpointReparametrization.lean:259,265`
+- `FormalConjectures/ErdosProblems/Helpers/CentralBinomLower.lean:660`
+
+In `25ce63313608` (v4.27.0-rc1) Mathlib, `Set.self_mem_Ici` was
+renamed to `Set.left_mem_Ici` (defined at
+`Mathlib/Order/Interval/Set/Basic.lean:80`). Three call-sites; pure
+search-and-replace.
+
+**Flavour B — unrelated upstream API drift in `FormalConjecturesForMathlib`**
+
+- `FormalConjecturesForMathlib/Algebra/GCDMonoid/Finset.lean:27:66` —
+  failed instance synthesis on `lcmInterval` declaration (a typeclass
+  available under v4.27.0 mathlib became unsynthesisable under
+  `25ce63313608`).
+- `FormalConjecturesForMathlib/Algebra/Powerfree.lean:81:36` — type
+  mismatch in `Prime.powerfree := h.irreducible.powerfree hk`
+  (signature drift in `Prime.irreducible` or `Irreducible.powerfree`).
+
+Neither file is on the GLW dependency path; both are general-utility
+helpers blocking `«524».lean` only via transitive imports.
+
+### Critical positive signal
+
+The **entire GLW chain built cleanly under the pin**:
+
+- ✔ `FormalConjectures.ErdosProblems.Helpers.GLWKernel`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.IndepSetBridge`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.StandardMVGaussian`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.MVGaussianFromPosDef`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.MVGaussianPushforward`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.GLWProcess`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.GLWProcessPredicate`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.GLWLowerProof`
+- ✔ `FormalConjectures.ErdosProblems.Helpers.CholeskyExistence`
+
+This means: **once the 4 unrelated blockers are patched, R14 can
+finalise `Y_GLW_exists` retirement with no GLW-internal blockers**.
+
+### Revert
+
+Reverted at minute ~7 per the "no fighting" discipline rule (Flavour
+B errors were unrelated to GLW and risked rabbit-holing the round).
+Restoration: `git checkout kmc-erdos-glw-lower`, `git restore
+lean-toolchain lakefile.toml lake-manifest.json`, `git branch -D
+r13-pin-attempt`, `lake update` (downgrades back to v4.27.0,
+re-fetches v4.27.0 mathlib cache). Build green: 8009 jobs.
+
+### Recommended R14 procedure
+
+R14 should re-attempt the pin with a slightly larger budget for
+patching, by pre-committing to fix:
+
+1. **Three-line rename in two files** (Flavour A):
+   ```
+   Set.self_mem_Ici  →  Set.left_mem_Ici
+   ```
+   Locations: `EndpointReparametrization.lean:259,265`,
+   `CentralBinomLower.lean:660`.
+
+2. **Two `FormalConjecturesForMathlib` fixes** (Flavour B): inspect
+   `GCDMonoid.Finset.lean:27` for missing instance arg, inspect
+   `Powerfree.lean:81` for `Prime.irreducible` signature change.
+   Each likely 1–3 lines.
+
+The full retirement of `Y_GLW_exists` then follows the 5-step proof
+skeleton in `YGLWFromBrownianMotion.lean §5`, with the
+`glwGaussianProjectiveFamily` construction taking
+`glwCovMatrixNN` (R12 deliverable) as input directly.
+
+Estimated R14 effort: 30–60 min if Flavour B fixes prove simple.
