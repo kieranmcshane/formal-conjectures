@@ -2930,6 +2930,43 @@ theorem K_GLW_processKernel_K_diag_full_data :
    K_GLW_processKernel_diag_antitone,
    K_GLW_processKernel_K_diag_tendsto_zero⟩
 
+/-! ## 4.47. K_GLW_processKernel.kernelMatrix — determinant non-negativity -/
+
+/-- Determinant of `K_GLW_processKernel.kernelMatrix I` is non-negative
+(consequence of PSD). -/
+theorem K_GLW_processKernel_kernelMatrix_det_nonneg (I : Finset NNReal) :
+    0 ≤ (K_GLW_processKernel.kernelMatrix I).det := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_det_nonneg I
+
+/-- Determinant of the empty-Finset kernel matrix equals `1`. -/
+theorem K_GLW_processKernel_kernelMatrix_empty_det :
+    (K_GLW_processKernel.kernelMatrix ∅).det = 1 := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_empty_det
+
+/-- For abstract `ProcessKernel`, the determinant of the empty kernel
+matrix equals `1`. -/
+theorem ProcessKernel.kernelMatrix_empty_det (P : ProcessKernel) :
+    (P.kernelMatrix ∅).det = 1 := by
+  rw [Matrix.det_isEmpty]
+
+/-- For abstract `ProcessKernel`, the determinant of the kernel matrix
+on a singleton equals the diagonal kernel value. -/
+theorem ProcessKernel.kernelMatrix_singleton_det
+    (P : ProcessKernel) (a : NNReal) :
+    (P.kernelMatrix ({a} : Finset NNReal)).det = P.K a a := by
+  classical
+  rw [Matrix.det_unique]
+  rfl
+
+/-- Specialised: K_GLW kernel matrix on singleton has det in `[0, 1]`. -/
+theorem K_GLW_processKernel_kernelMatrix_singleton_det_mem_Icc (a : NNReal) :
+    (K_GLW_processKernel.kernelMatrix ({a} : Finset NNReal)).det ∈
+      Set.Icc (0 : ℝ) 1 := by
+  rw [K_GLW_processKernel.kernelMatrix_singleton_det a]
+  exact K_GLW_processKernel_K_diag_mem_Icc a
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
