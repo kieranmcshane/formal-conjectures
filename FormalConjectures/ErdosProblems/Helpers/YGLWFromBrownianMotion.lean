@@ -1489,6 +1489,16 @@ theorem glwCovMatrixNN_trace_eq_sum_K_GLW_aux (I : Finset NNReal) :
   congr 1
   ring
 
+/-- For the all-ones test vector on ↑I, the quadratic form
+`Σₛ (M *ᵥ 1)ₛ = Σₛₜ Mₛₜ`. -/
+theorem glwCovMatrixNN_quadratic_form_at_one (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I}, (1 : ℝ) *
+        ((glwCovMatrixNN I *ᵥ (fun _ => 1)) s) =
+      ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+        K_GLW (s.1 : ℝ) (t.1 : ℝ) := by
+  rw [glwCovMatrixNN_quadratic_form_eq_sum]
+  simp
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
