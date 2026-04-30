@@ -64,8 +64,8 @@ counterpart here.
 
 namespace Erdos524.Helpers
 
-open MeasureTheory NormedSpace Set ProbabilityTheory
-open scoped ENNReal NNReal RealInnerProductSpace
+open MeasureTheory NormedSpace Set ProbabilityTheory Filter
+open scoped ENNReal NNReal RealInnerProductSpace Topology
 
 /-!
 ## O1 — `glwGaussianProjectiveFamily`
@@ -930,6 +930,145 @@ lemma glwHolderConstantENN_lintegral_le_R20 (T : ℕ) (hT : 1 ≤ T) :
     rw [h_lintegral_eq]
     exact h_kc
 
+/-! ## R22 / T2.1 — explicit chaining-moment constant `Cp_T_explicit`
+
+The R21 lemma `glwHolderConstantENN_lintegral_le_R20` returns the
+chaining-moment bound through `∃ Cp_T < ∞, ...`, which suffices for
+isolated Markov applications but obstructs term-wise summability
+checks `∑_T Cp_T < ∞`. R22 hoists the same candidate constant
+`(M_T : ℝ≥0∞) * constL ↥S c_T 1 2 2 (1/4) Set.univ` (`M_T = 1/(2T³)`,
+`c_T = 6(T+1)`) to a top-level definition `Cp_T_explicit`, and
+re-derives the moment bound and finiteness directly. The R21
+existential lemma is preserved verbatim as a fallback / consumer of
+the same K-C application internals; nothing downstream of R21 needs
+to change. -/
+
+/-- **R22 / T2.1.** Explicit chaining-moment constant for the unit
+block `Set.Ico T (T+1)` at K-C parameters `(p, q, M_T, β, d) = (2, 2,
+1/(2T³), 1/4, 1)` with covering number `c_T = 6(T+1)`. Pointwise
+identical to the candidate produced inside the R21 lemma
+`glwHolderConstantENN_lintegral_le_R20` (line 878). -/
+noncomputable def Cp_T_explicit (T : ℕ) : ℝ≥0∞ :=
+  (Real.toNNReal (1 / (2 * (T : ℝ) ^ 3)) : ℝ≥0∞) *
+    constL ↥(Set.Ico ((T : NNReal)) ((T : NNReal) + 1))
+      (6 * ((T : ℝ≥0∞) + 1)) 1 2 2 (1 / 4 : ℝ≥0) Set.univ
+
+/-- **R22 / T2.1.** `Cp_T_explicit T` is finite for `T ≥ 1`. The
+finiteness uses `constL_lt_top` plus the HBICN of the unit-block
+subtype, exactly as in R21. -/
+lemma Cp_T_explicit_lt_top (T : ℕ) (_hT : 1 ≤ T) : Cp_T_explicit T < ∞ := by
+  unfold Cp_T_explicit
+  set S : Set NNReal := Set.Ico ((T : NNReal)) ((T : NNReal) + 1) with hS_def
+  set c_T : ℝ≥0∞ := 6 * ((T : ℝ≥0∞) + 1) with hc_T_def
+  -- HBICN of `Set.Ico T (T+1)` in NNReal at `(c, d) = (6*(T+1), 1)`,
+  -- via `.subset` from the cumulative `Ico 0 (T+1)` cover (R19).
+  have h_hbicn_block : HasBoundedInternalCoveringNumber S c_T 1 := by
+    have h_full :=
+      isCoverWithBoundedCoveringNumber_Ico_nnreal.hasBoundedCoveringNumber T
+    have h_sub : S ⊆ Set.Ico (0 : NNReal) ((T : ℕ) + 1) := by
+      intro x hx
+      refine ⟨zero_le _, ?_⟩
+      have : (x : NNReal) < (T : NNReal) + 1 := hx.2
+      simpa using this
+    have := h_full.subset h_sub (by norm_num : (0 : ℝ) ≤ 1)
+    have h_simp : (2 : ℝ≥0∞) ^ (1 : ℝ) * (3 * ((T : ℝ≥0∞) + 1)) = c_T := by
+      rw [ENNReal.rpow_one, hc_T_def]; ring
+    rw [h_simp] at this
+    exact this
+  have h_hbicn_sub : HasBoundedInternalCoveringNumber
+      (Set.univ : Set ↥S) c_T 1 := h_hbicn_block.subtype_univ
+  have h_diam_sub : EMetric.diam (Set.univ : Set ↥S) < ∞ :=
+    h_hbicn_sub.diam_lt_top (by norm_num : (0 : ℝ) < 1)
+  have hc_T_ne : c_T ≠ ∞ := by
+    simp [hc_T_def, ENNReal.mul_ne_top]
+  have hβ_lt : ((1 / 4 : ℝ≥0) : ℝ) < (2 - 1) / 2 := by simp; norm_num
+  have h_constL_lt :=
+    constL_lt_top (T := ↥S) (c := c_T) (d := 1) (p := 2) (q := 2)
+      (β := (1 / 4 : ℝ≥0)) (U := (Set.univ : Set ↥S))
+      h_diam_sub hc_T_ne (by norm_num : (0 : ℝ) < 1)
+      (by norm_num : (0 : ℝ) < 2) (by norm_num : (1 : ℝ) < 2) hβ_lt
+  exact ENNReal.mul_lt_top ENNReal.coe_lt_top h_constL_lt
+
+/-- **R22 / T2.1.** Explicit chaining moment bound:
+`∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit ≤ Cp_T_explicit T`.
+This is the constructive form of the R21 existential
+`glwHolderConstantENN_lintegral_le_R20`, with the constant hoisted out
+so summability `∑_T Cp_T_explicit T < ∞` can be checked term-wise. -/
+lemma glwHolderConstantENN_lintegral_le_R22_explicit (T : ℕ) (hT : 1 ≤ T) :
+    ∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit ≤ Cp_T_explicit T := by
+  -- Mirror the R21 proof body, but unfold the explicit constant in the
+  -- conclusion rather than packaging it under `∃`.
+  unfold Cp_T_explicit
+  set S : Set NNReal := Set.Ico ((T : NNReal)) ((T : NNReal) + 1) with hS_def
+  set M_T : ℝ≥0 := Real.toNNReal (1 / (2 * (T : ℝ) ^ 3)) with hM_T_def
+  set c_T : ℝ≥0∞ := 6 * ((T : ℝ≥0∞) + 1) with hc_T_def
+  have h_hbicn_block : HasBoundedInternalCoveringNumber S c_T 1 := by
+    have h_full :=
+      isCoverWithBoundedCoveringNumber_Ico_nnreal.hasBoundedCoveringNumber T
+    have h_sub : S ⊆ Set.Ico (0 : NNReal) ((T : ℕ) + 1) := by
+      intro x hx
+      refine ⟨zero_le _, ?_⟩
+      have : (x : NNReal) < (T : NNReal) + 1 := hx.2
+      simpa using this
+    have := h_full.subset h_sub (by norm_num : (0 : ℝ) ≤ 1)
+    have h_simp : (2 : ℝ≥0∞) ^ (1 : ℝ) * (3 * ((T : ℝ≥0∞) + 1)) = c_T := by
+      rw [ENNReal.rpow_one, hc_T_def]; ring
+    rw [h_simp] at this
+    exact this
+  have h_hbicn_sub : HasBoundedInternalCoveringNumber
+      (Set.univ : Set ↥S) c_T 1 := h_hbicn_block.subtype_univ
+  set T' : Set ↥S := {u : ↥S | u.1 ∈ denseCountable NNReal} with hT'_def
+  have hT'_sub : T' ⊆ (Set.univ : Set ↥S) := fun _ _ => Set.mem_univ _
+  have h_count : (denseCountable NNReal).Countable := countable_denseCountable
+  have hT'_count : T'.Countable :=
+    h_count.preimage (f := (Subtype.val : ↥S → NNReal)) Subtype.val_injective
+  haveI : Countable ↥T' := hT'_count.to_subtype
+  have h_K := (glwGaussianLimit_isKolmogorovProcess_local T hT).IsAEKolmogorovProcess
+  have hd_pos : (0 : ℝ) < 1 := by norm_num
+  have hdq_lt : (1 : ℝ) < 2 := by norm_num
+  have hβ_pos : (0 : ℝ≥0) < (1 / 4 : ℝ≥0) := by norm_num
+  have h_kc := countable_kolmogorov_chentsov
+    (T := ↥S) (Ω := NNReal → ℝ) (E := ℝ)
+    (X := fun (u : ↥S) ω => ω u.1)
+    (P := glwGaussianLimit) (p := 2) (q := 2) (M := M_T)
+    (c := c_T) (d := 1) (β := (1 / 4 : ℝ≥0))
+    (U := Set.univ) h_hbicn_sub h_K hd_pos hdq_lt hβ_pos T' hT'_sub
+  have h_eq_pt : ∀ ω : NNReal → ℝ,
+      glwHolderConstantENN T ω =
+        ⨆ (s : ↥T') (t : ↥T'),
+          edist (ω s.1.1) (ω t.1.1) ^ (2 : ℝ) /
+            edist (s.1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ) := by
+    intro ω
+    let e : ↥(denseCountable NNReal ∩ S) ≃ ↥T' :=
+      { toFun := fun x => ⟨⟨x.1, x.2.2⟩, x.2.1⟩
+        invFun := fun y => ⟨y.1.1, y.2, y.1.2⟩
+        left_inv := fun _ => rfl
+        right_inv := fun _ => rfl }
+    unfold glwHolderConstantENN
+    rw [show ((1 / 2 : ℝ)) = ((1 / 4 : ℝ≥0) * 2 : ℝ) by push_cast; ring]
+    rw [← e.iSup_comp (g := fun s => ⨆ (t : ↥T'),
+          edist (ω s.1.1) (ω t.1.1) ^ (2 : ℝ) /
+            edist (s.1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ))]
+    refine iSup_congr fun s => ?_
+    rw [← e.iSup_comp (g := fun t =>
+          edist (ω (e s).1.1) (ω t.1.1) ^ (2 : ℝ) /
+            edist ((e s).1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ))]
+    refine iSup_congr fun t => ?_
+    rfl
+  have h_lintegral_eq :
+      ∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit =
+        ∫⁻ ω, ⨆ (s : ↥T') (t : ↥T'),
+          edist (ω s.1.1) (ω t.1.1) ^ (2 : ℝ) /
+            edist (s.1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ)
+          ∂glwGaussianLimit := by
+    apply lintegral_congr
+    intro ω; exact h_eq_pt ω
+  rw [h_lintegral_eq]
+  -- h_kc : ∫⁻ ... ≤ M_T * constL ↥S c_T 1 2 2 (1/4) Set.univ
+  -- Goal: ≤ (Real.toNNReal _ : ℝ≥0∞) * constL ↥S c_T 1 2 2 (1/4) Set.univ
+  -- where the `Real.toNNReal _` is exactly `M_T` by `hM_T_def`. Defeq.
+  exact h_kc
+
 /-! ## R20 / T3.1 — marginal sup-tail bound on `[T, T+1]` (Stub)
 
 Combining T2.2 (chaining moment bound) with the R19 marginal Chernoff
@@ -1102,6 +1241,491 @@ lemma BC_integer_ladder_R20 {ε : ℝ} (hε : 0 < ε) :
       have := (summable_marginal_tail hε).comp_injective Nat.succ_injective
       convert this using 1
     rw [ENNReal.ofReal_tsum_of_nonneg (fun T => by positivity) h_sum]
+
+/-! ## R22 / T3.1 — dense grid-point existence
+
+For Blocker A, the modification sup-tail bound needs an anchor grid
+point `u_T ∈ denseCountable NNReal ∩ Set.Ico T (T+1)` so that the
+marginal Chernoff at `u_T` and the K-C chaining bound on the unit
+block can be combined via the triangle decomposition `|ω u| ≤
+|ω u_T| + |ω u - ω u_T|`. -/
+
+/-- **R22 / T3.1.** Existence of a grid point inside the half-open
+unit block `Set.Ico (T : NNReal) (T+1)`. By density of
+`denseCountable NNReal` in NNReal and openness of
+`Set.Ioo (T : NNReal) (T+1) ⊆ Set.Ico (T : NNReal) (T+1)`. -/
+lemma dense_grid_point_in_block (T : ℕ) :
+    (denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)).Nonempty := by
+  have h_lt : (T : NNReal) < (T : NNReal) + 1 := lt_add_one _
+  have h_Ioo_open : IsOpen (Set.Ioo ((T : NNReal)) ((T : NNReal) + 1)) := isOpen_Ioo
+  have h_Ioo_nonempty : (Set.Ioo ((T : NNReal)) ((T : NNReal) + 1)).Nonempty :=
+    Set.nonempty_Ioo.mpr h_lt
+  obtain ⟨x, hx_Ioo, hx_dense⟩ :=
+    dense_iff_inter_open.mp dense_denseCountable _ h_Ioo_open h_Ioo_nonempty
+  exact ⟨x, hx_dense, Set.Ioo_subset_Ico_self hx_Ioo⟩
+
+/-! ## R22 / T3.2 — Blocker A: composed sup-tail bound on the unit block
+
+The load-bearing R22 result. For each integer `T ≥ 1` and `ε > 0`,
+combines:
+* R19 marginal Chernoff at the grid anchor `u_T` (T3.1):
+  `P(|ω u_T| ≥ ε/2) ≤ 2 · exp(-ε² T / 4)` (since `u_T ≥ T`).
+* R22 / T2.1 explicit chaining bound (Markov on the K-C iSup):
+  `P((ε/2)² ≤ glwHolderConstantENN T ω) ≤ Cp_T_explicit T / (ε/2)²`.
+
+The decomposition `|ω u| ≤ |ω u_T| + |ω u - ω u_T|` plus the diameter
+bound `(edist u u_T)^(1/2) ≤ 1` on the unit block reduces the bad
+event to the union of these two pieces. -/
+
+set_option maxHeartbeats 800000 in
+/-- **R22 / T3.2 (Blocker A composed).** For each integer `T ≥ 1` and
+`ε > 0`, a quantitative bound on the probability that the projection's
+countable iSup over `denseCountable ∩ Set.Ico T (T+1)` exceeds `ε`.
+
+Both terms on the RHS are summable in `T` (Chernoff: geometric;
+Markov: bounded by a constant times `1/T²` since `Cp_T_explicit =
+O(1/T²)`). This is the load-bearing input to the R22 conjunct-9 proof.
+-/
+lemma block_sup_tail_le_R22 (T : ℕ) (hT : 1 ≤ T) {ε : ℝ} (hε : 0 < ε) :
+    glwGaussianLimit
+      {ω : NNReal → ℝ | ε ≤ ⨆ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+                              |ω u.1|}
+      ≤ ENNReal.ofReal (2 * Real.exp (-ε^2 * T / 4))
+        + 4 * Cp_T_explicit T / ENNReal.ofReal (ε^2) := by
+  -- Setup: anchor point + names + basic positivity facts.
+  set G : Set NNReal := denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)
+    with hG_def
+  obtain ⟨u_T, hu_T_mem⟩ := dense_grid_point_in_block T
+  obtain ⟨hu_T_dense, hu_T_block⟩ := hu_T_mem
+  have hT_real : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
+  have hu_T_ge_T : (T : NNReal) ≤ u_T := hu_T_block.1
+  have hu_T_real_ge_T : (T : ℝ) ≤ (u_T : ℝ) := by exact_mod_cast hu_T_ge_T
+  have hu_T_real_ge_one : (1 : ℝ) ≤ (u_T : ℝ) := le_trans hT_real hu_T_real_ge_T
+  have hε_half_pos : (0 : ℝ) < ε / 2 := by linarith
+  have hε_half_sq_pos : (0 : ℝ) < (ε / 2) ^ 2 := by positivity
+  have hε_sq_pos : (0 : ℝ) < ε ^ 2 := by positivity
+  -- The two events.
+  set A : Set (NNReal → ℝ) := {ω | ε / 2 ≤ |ω u_T|} with hA_def
+  set B : Set (NNReal → ℝ) :=
+    {ω | ENNReal.ofReal ((ε / 2) ^ 2) ≤ glwHolderConstantENN T ω} with hB_def
+  -- ## Lemma A: diameter bound on the unit block.
+  have h_diam_le_one : ∀ s t : ↥G,
+      edist (s.1 : NNReal) (t.1 : NNReal) ≤ 1 := by
+    intro s t
+    have hs := s.2.2
+    have ht := t.2.2
+    -- Real-valued |s.1 - t.1| ≤ 1; transport to edist via Real.
+    have h_real_le : |((s.1 : NNReal) : ℝ) - ((t.1 : NNReal) : ℝ)| ≤ 1 := by
+      have hsR_lo : (T : ℝ) ≤ ((s.1 : NNReal) : ℝ) := by exact_mod_cast hs.1
+      have hsR_hi : ((s.1 : NNReal) : ℝ) < (T : ℝ) + 1 := by exact_mod_cast hs.2
+      have htR_lo : (T : ℝ) ≤ ((t.1 : NNReal) : ℝ) := by exact_mod_cast ht.1
+      have htR_hi : ((t.1 : NNReal) : ℝ) < (T : ℝ) + 1 := by exact_mod_cast ht.2
+      rw [abs_le]
+      refine ⟨by linarith, by linarith⟩
+    have h_dist_eq : dist (s.1 : NNReal) (t.1 : NNReal)
+        = |((s.1 : NNReal) : ℝ) - ((t.1 : NNReal) : ℝ)| := NNReal.dist_eq _ _
+    have h_dist_le : dist (s.1 : NNReal) (t.1 : NNReal) ≤ 1 := h_dist_eq ▸ h_real_le
+    rw [edist_dist]
+    exact_mod_cast (ENNReal.ofReal_le_one.mpr h_dist_le)
+  have h_diam_pow_le_one : ∀ s t : ↥G,
+      edist (s.1 : NNReal) (t.1 : NNReal) ^ ((1 / 2 : ℝ)) ≤ 1 := by
+    intro s t
+    calc edist (s.1 : NNReal) (t.1 : NNReal) ^ ((1 / 2 : ℝ))
+        ≤ (1 : ℝ≥0∞) ^ ((1 / 2 : ℝ)) :=
+          ENNReal.rpow_le_rpow (h_diam_le_one s t) (by norm_num : (0 : ℝ) ≤ 1/2)
+      _ = 1 := ENNReal.one_rpow _
+  -- ## Lemma B: K-C iSup pointwise bound.
+  have h_kc_pair : ∀ (ω : NNReal → ℝ) (s t : ↥G),
+      edist (ω s.1) (ω t.1) ^ (2 : ℝ) /
+        edist (s.1 : NNReal) (t.1 : NNReal) ^ ((1 / 2 : ℝ))
+        ≤ glwHolderConstantENN T ω := by
+    intro ω s t
+    -- Convert subtype indices `↥G` ↔ `↥(denseCountable ∩ Ico T (T+1))`.
+    let s' : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)) :=
+      ⟨s.1, s.2⟩
+    let t' : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)) :=
+      ⟨t.1, t.2⟩
+    show edist (ω s'.1) (ω t'.1) ^ (2 : ℝ) /
+        edist (s'.1 : NNReal) (t'.1 : NNReal) ^ ((1 / 2 : ℝ))
+        ≤ glwHolderConstantENN T ω
+    unfold glwHolderConstantENN
+    exact le_iSup_of_le s' (le_iSup_of_le t' le_rfl)
+  -- ## Lemma C: edist on ℝ is ENNReal.ofReal of abs.
+  have h_edist_real : ∀ (a b : ℝ), edist a b = ENNReal.ofReal |a - b| := by
+    intro a b
+    rw [edist_dist, Real.dist_eq]
+  -- Nonempty G (for ciSup_le).
+  haveI hG_nonempty : Nonempty ↥G := ⟨⟨u_T, hu_T_dense, hu_T_block⟩⟩
+  -- ## Step 1: Set inclusion `bad ⊆ A ∪ B`.
+  have h_inclusion :
+      {ω : NNReal → ℝ | ε ≤ ⨆ u : ↥G, |ω u.1|} ⊆ A ∪ B := by
+    intro ω h_bad
+    by_contra h_neither
+    rw [Set.mem_union] at h_neither
+    push_neg at h_neither
+    obtain ⟨h_notA, h_notB⟩ := h_neither
+    rw [hA_def, Set.mem_setOf_eq, not_le] at h_notA
+    rw [hB_def, Set.mem_setOf_eq, not_le] at h_notB
+    -- Strategy: produce uniform bound `|ω u.1| ≤ |ω u_T| + c < ε` for u in G,
+    -- where c := ((glwHolderConstantENN T ω)^(1/2)).toReal < ε/2.
+    have h_holder_lt_top : glwHolderConstantENN T ω < ∞ :=
+      lt_of_lt_of_le h_notB ENNReal.ofReal_lt_top.le
+    set c_ENN : ℝ≥0∞ := (glwHolderConstantENN T ω) ^ ((1 / 2 : ℝ)) with hc_ENN_def
+    have h_cENN_lt_top : c_ENN < ∞ :=
+      ENNReal.rpow_lt_top_of_nonneg (by norm_num) h_holder_lt_top.ne
+    set c : ℝ := c_ENN.toReal with hc_def
+    have h_c_nn : 0 ≤ c := ENNReal.toReal_nonneg
+    have h_cENN_ofReal_eq : c_ENN = ENNReal.ofReal c :=
+      (ENNReal.ofReal_toReal h_cENN_lt_top.ne).symm
+    -- c² ≤ glwHolderConstantENN T ω < (ε/2)² (in ENNReal), so c < ε/2.
+    have h_c_lt : c < ε / 2 := by
+      -- c_ENN ^ 2 = glwHolderConstantENN T ω.
+      have h_cENN_sq : c_ENN ^ (2 : ℝ) = glwHolderConstantENN T ω := by
+        rw [hc_ENN_def, ← ENNReal.rpow_mul]
+        norm_num
+      -- c_ENN ^ 2 = ENNReal.ofReal (c^2).
+      have h_cENN_sq_eq : c_ENN ^ (2 : ℝ) = ENNReal.ofReal (c^2) := by
+        rw [h_cENN_ofReal_eq, ENNReal.ofReal_rpow_of_nonneg h_c_nn (by norm_num : (0 : ℝ) ≤ 2)]
+        rw [Real.rpow_two]
+      -- Combine: ENNReal.ofReal (c^2) < ENNReal.ofReal ((ε/2)^2).
+      have h_lt_ofReal : ENNReal.ofReal (c^2) < ENNReal.ofReal ((ε/2)^2) := by
+        rw [← h_cENN_sq_eq, h_cENN_sq]; exact h_notB
+      have h_real_lt : c^2 < (ε/2)^2 :=
+        (ENNReal.ofReal_lt_ofReal_iff hε_half_sq_pos).mp h_lt_ofReal
+      exact lt_of_pow_lt_pow_left₀ 2 hε_half_pos.le h_real_lt
+    -- Uniform bound: ∀ u ∈ ↥G, |ω u.1 - ω u_T| ≤ c.
+    have h_diff_le : ∀ u : ↥G, |ω u.1 - ω u_T| ≤ c := by
+      intro u
+      let uT_sub : ↥G := ⟨u_T, hu_T_dense, hu_T_block⟩
+      have h_pair := h_kc_pair ω u uT_sub
+      -- (edist (ω u.1) (ω u_T))^2 ≤ glwHolderConstantENN T ω.
+      have h_pair_clean :
+          edist (ω u.1) (ω u_T) ^ (2 : ℝ) ≤ glwHolderConstantENN T ω := by
+        by_cases h_eq : edist (u.1 : NNReal) (u_T : NNReal) ^ ((1 / 2 : ℝ)) = 0
+        · -- s.1 = u_T case ⟹ edist (ω s.1) (ω u_T) = 0.
+          have h_e_eq_zero : edist (u.1 : NNReal) (u_T : NNReal) = 0 := by
+            by_contra h_ne
+            have h_e_pos : (0 : ℝ≥0∞) < edist (u.1 : NNReal) (u_T : NNReal) :=
+              pos_iff_ne_zero.mpr h_ne
+            have h_pow_pos : (0 : ℝ≥0∞) <
+                edist (u.1 : NNReal) (u_T : NNReal) ^ ((1 / 2 : ℝ)) :=
+              ENNReal.rpow_pos h_e_pos (by finiteness)
+            exact (ne_of_gt h_pow_pos) h_eq
+          have h_uT_eq : (u.1 : NNReal) = u_T := edist_eq_zero.mp h_e_eq_zero
+          rw [h_uT_eq, edist_self, ENNReal.zero_rpow_of_pos (by norm_num : (0 : ℝ) < 2)]
+          exact zero_le _
+        · -- Generic: convert div-form to mul-form, then use diameter.
+          have h_pow_top : edist (u.1 : NNReal) (u_T : NNReal) ^ ((1 / 2 : ℝ)) ≠ ∞ := by
+            apply ne_of_lt
+            have h_e_top : edist (u.1 : NNReal) (u_T : NNReal) ≠ ∞ := by
+              rw [edist_dist]; exact ENNReal.ofReal_ne_top
+            exact ENNReal.rpow_lt_top_of_nonneg (by norm_num) h_e_top
+          have h_mul := (ENNReal.div_le_iff h_eq h_pow_top).mp h_pair
+          -- h_mul : edist (ω u.1) (ω u_T) ^ 2 ≤ glwHolderConstantENN T ω * edist u.1 u_T ^ (1/2)
+          have h_uT_subtype_diam :
+              edist ((u : ↥G) : NNReal).1 ((uT_sub : ↥G) : NNReal).1 ^ ((1 / 2 : ℝ)) ≤ 1 := by
+            exact_mod_cast h_diam_pow_le_one u uT_sub
+          calc edist (ω u.1) (ω u_T) ^ (2 : ℝ)
+              ≤ glwHolderConstantENN T ω *
+                  edist (u.1 : NNReal) (u_T : NNReal) ^ ((1 / 2 : ℝ)) := h_mul
+            _ ≤ glwHolderConstantENN T ω * 1 := by
+                gcongr
+                exact h_uT_subtype_diam
+            _ = glwHolderConstantENN T ω := mul_one _
+      -- Take square root: edist (ω u.1) (ω u_T) ≤ c_ENN.
+      have h_e_ω_le : edist (ω u.1) (ω u_T) ≤ c_ENN := by
+        have h_take_sqrt :
+            (edist (ω u.1) (ω u_T) ^ (2 : ℝ)) ^ ((1/2 : ℝ)) ≤ c_ENN := by
+          rw [hc_ENN_def]
+          exact ENNReal.rpow_le_rpow h_pair_clean (by norm_num : (0 : ℝ) ≤ 1/2)
+        rwa [← ENNReal.rpow_mul, show (2 : ℝ) * (1/2) = 1 from by norm_num,
+             ENNReal.rpow_one] at h_take_sqrt
+      -- Convert: |ω u.1 - ω u_T| ≤ c.
+      rw [h_edist_real, h_cENN_ofReal_eq] at h_e_ω_le
+      exact (ENNReal.ofReal_le_ofReal_iff h_c_nn).mp h_e_ω_le
+    -- Use h_diff_le + h_notA: ⨆_u |ω u.1| ≤ |ω u_T| + c < ε.
+    have h_uniform_bound : ∀ u : ↥G, |ω u.1| ≤ |ω u_T| + c := by
+      intro u
+      have h_tri : |ω u.1| - |ω u_T| ≤ |ω u.1 - ω u_T| := abs_sub_abs_le_abs_sub _ _
+      linarith [h_diff_le u]
+    have h_sup_le : ⨆ u : ↥G, |ω u.1| ≤ |ω u_T| + c := ciSup_le h_uniform_bound
+    linarith [le_trans h_bad h_sup_le]
+  -- ## Step 2: Bound P(A) by Chernoff.
+  have h_PA : glwGaussianLimit A ≤ ENNReal.ofReal (2 * Real.exp (-ε^2 * T / 4)) := by
+    have h_chernoff :=
+      eval_glwGaussianLimit_real_abs_ge_le_of_pos hu_T_real_ge_one hε_half_pos.le
+    have h_uT_eq : ((u_T : ℝ).toNNReal : NNReal) = u_T := Real.toNNReal_coe
+    have h_set_eq : {ω : NNReal → ℝ | ε / 2 ≤ |ω (u_T : ℝ).toNNReal|}
+                   = {ω : NNReal → ℝ | ε / 2 ≤ |ω u_T|} := by
+      ext ω; rw [h_uT_eq]
+    rw [h_set_eq] at h_chernoff
+    have h_pA_finite : glwGaussianLimit A ≠ ∞ := measure_ne_top _ _
+    have h_pA_real_eq : glwGaussianLimit.real A = (glwGaussianLimit A).toReal := rfl
+    have h_PA_step1 : glwGaussianLimit A ≤
+        ENNReal.ofReal (2 * Real.exp (-(ε / 2) ^ 2 * (u_T : ℝ))) := by
+      rw [show (glwGaussianLimit A) = ENNReal.ofReal ((glwGaussianLimit A).toReal)
+          from (ENNReal.ofReal_toReal h_pA_finite).symm]
+      apply ENNReal.ofReal_le_ofReal
+      rw [← h_pA_real_eq]
+      exact h_chernoff
+    have h_exp_bound : Real.exp (-(ε / 2) ^ 2 * (u_T : ℝ)) ≤ Real.exp (-ε^2 * T / 4) := by
+      apply Real.exp_le_exp.mpr
+      have h1 : -(ε / 2) ^ 2 * (u_T : ℝ) = -(ε^2 / 4) * (u_T : ℝ) := by ring
+      rw [h1]
+      have h_neg : -(ε^2 / 4) ≤ 0 := by nlinarith [sq_nonneg ε]
+      have h_le : -(ε^2 / 4) * (u_T : ℝ) ≤ -(ε^2 / 4) * (T : ℝ) :=
+        mul_le_mul_of_nonpos_left hu_T_real_ge_T h_neg
+      linarith
+    have h_step2 : ENNReal.ofReal (2 * Real.exp (-(ε / 2) ^ 2 * (u_T : ℝ)))
+                  ≤ ENNReal.ofReal (2 * Real.exp (-ε^2 * T / 4)) := by
+      apply ENNReal.ofReal_le_ofReal
+      linarith [Real.exp_pos (-(ε / 2) ^ 2 * (u_T : ℝ)),
+                Real.exp_pos (-ε^2 * T / 4)]
+    exact le_trans h_PA_step1 h_step2
+  -- ## Step 3: Bound P(B) by Markov on `glwHolderConstantENN`.
+  have h_PB : glwGaussianLimit B ≤ 4 * Cp_T_explicit T / ENNReal.ofReal (ε^2) := by
+    have h_δ_pos : ENNReal.ofReal ((ε / 2) ^ 2) ≠ 0 := by
+      rw [Ne, ENNReal.ofReal_eq_zero, not_le]
+      exact hε_half_sq_pos
+    have h_δ_top : ENNReal.ofReal ((ε / 2) ^ 2) ≠ ∞ := ENNReal.ofReal_ne_top
+    have h_markov : glwGaussianLimit
+          {ω | ENNReal.ofReal ((ε / 2) ^ 2) ≤ glwHolderConstantENN T ω}
+          ≤ (∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit) /
+              ENNReal.ofReal ((ε / 2) ^ 2) :=
+      meas_ge_le_lintegral_div (measurable_glwHolderConstantENN T).aemeasurable
+        h_δ_pos h_δ_top
+    have h_chaining := glwHolderConstantENN_lintegral_le_R22_explicit T hT
+    have h_PB_step1 : glwGaussianLimit B ≤ Cp_T_explicit T / ENNReal.ofReal ((ε / 2) ^ 2) := by
+      calc glwGaussianLimit B
+          ≤ (∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit) /
+              ENNReal.ofReal ((ε / 2) ^ 2) := h_markov
+        _ ≤ Cp_T_explicit T / ENNReal.ofReal ((ε / 2) ^ 2) :=
+            ENNReal.div_le_div_right h_chaining _
+    -- Algebra: ofReal ((ε/2)^2) = ofReal (ε^2) / 4, so RHS = 4 * Cp / ofReal(ε²).
+    have h_eq_div : ENNReal.ofReal ((ε / 2) ^ 2) = ENNReal.ofReal (ε ^ 2) / 4 := by
+      rw [show ((ε / 2) ^ 2) = ε ^ 2 / 4 from by ring]
+      rw [ENNReal.ofReal_div_of_pos (by norm_num : (0 : ℝ) < 4)]
+      congr 1
+      rw [show (4 : ℝ) = ((4 : ℕ) : ℝ) from by norm_num]
+      simp [ENNReal.ofReal_natCast]
+    rw [h_eq_div] at h_PB_step1
+    -- Cp / (E / 4) = 4 * Cp / E. Algebraic chain via mul_div_assoc'.
+    have h_alg : Cp_T_explicit T / (ENNReal.ofReal (ε^2) / 4)
+                = 4 * Cp_T_explicit T / ENNReal.ofReal (ε^2) := by
+      have h_inv : (ENNReal.ofReal (ε^2) / 4)⁻¹ = 4 / ENNReal.ofReal (ε^2) :=
+        ENNReal.inv_div (Or.inl (by finiteness : (4 : ℝ≥0∞) ≠ ∞))
+          (Or.inl (by norm_num : (4 : ℝ≥0∞) ≠ 0))
+      calc Cp_T_explicit T / (ENNReal.ofReal (ε^2) / 4)
+          = Cp_T_explicit T * (ENNReal.ofReal (ε^2) / 4)⁻¹ := div_eq_mul_inv _ _
+        _ = Cp_T_explicit T * (4 / ENNReal.ofReal (ε^2)) := by rw [h_inv]
+        _ = (Cp_T_explicit T * 4) / ENNReal.ofReal (ε^2) := mul_div_assoc' _ _ _
+        _ = (4 * Cp_T_explicit T) / ENNReal.ofReal (ε^2) := by
+            rw [mul_comm (Cp_T_explicit T) 4]
+    rw [h_alg] at h_PB_step1
+    exact h_PB_step1
+  -- ## Step 4: combine via union bound.
+  calc glwGaussianLimit {ω | ε ≤ ⨆ u : ↥G, |ω u.1|}
+      ≤ glwGaussianLimit (A ∪ B) := measure_mono h_inclusion
+    _ ≤ glwGaussianLimit A + glwGaussianLimit B := measure_union_le _ _
+    _ ≤ ENNReal.ofReal (2 * Real.exp (-ε^2 * T / 4)) + 4 * Cp_T_explicit T / ENNReal.ofReal (ε^2) :=
+        add_le_add h_PA h_PB
+
+/-! ## R22 / T4.1 — modification ↔ projection a.s.-bridge
+
+For any modification `Y'` of the projection process satisfying
+`Y' t =ᵐ (· t)` pointwise in `t`, the iSup of `|Y' u.1 ω|` over the
+countable index `denseCountable ∩ Set.Ico T (T+1)` equals the iSup of
+`|ω u.1|` over the same index, almost-surely. The R21 modification's
+ae-equality is pointwise in `t`; the countable iSup combined with
+`ae_all_iff` yields the equality on a common a.s.-set. -/
+
+/-- **R22 / T4.1.** A.s.-equality of the dense-iSup form for the
+modification and the projection. -/
+lemma modification_sup_eq_projection_iSup_ae (T : ℕ)
+    {Y' : NNReal → (NNReal → ℝ) → ℝ}
+    (hY'_ae_eq : ∀ t, Y' t =ᵐ[glwGaussianLimit] (fun ω => ω t)) :
+    ∀ᵐ ω ∂glwGaussianLimit,
+      (⨆ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+          |Y' u.1 ω|)
+        =
+      (⨆ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+          |ω u.1|) := by
+  have h_count : (denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)).Countable :=
+    countable_denseCountable.mono Set.inter_subset_left
+  haveI : Countable ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)) :=
+    h_count.to_subtype
+  have h_pt : ∀ᵐ ω ∂glwGaussianLimit,
+      ∀ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+        Y' u.1 ω = ω u.1 := by
+    rw [ae_all_iff]; exact fun u => hY'_ae_eq u.1
+  filter_upwards [h_pt] with ω hω
+  refine iSup_congr fun u => ?_
+  rw [hω u]
+
+/-! ## R22 / T4.2 — continuous block-pointwise ≤ countable-dense bound
+
+For `f : NNReal → ℝ` continuous, if `|f v| ≤ ε` for every `v` in the
+dense countable subset `denseCountable ∩ Set.Ico T (T+1)`, then
+`|f u| ≤ ε` for every `u` in `Set.Ico T (T+1)`. The idea: the set
+`{v | |f v| ≤ ε}` is closed; the dense countable subset is dense in
+`Set.Ioo T (T+1)`, whose closure is `Set.Icc T (T+1) ⊇ Set.Ico T (T+1)`.
+The closed set contains the dense subset, hence its closure, hence
+the entire `Set.Ico T (T+1)`. -/
+
+/-- **R22 / T4.2.** For continuous `f`, a uniform bound on `|f|` over
+the dense-countable subset of the unit block lifts to a uniform bound
+over the full block. -/
+lemma continuous_block_pt_le (T : ℕ)
+    {f : NNReal → ℝ} (hf : Continuous f) {ε : ℝ}
+    (h_dense : ∀ v : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+                 |f v.1| ≤ ε)
+    {u : NNReal} (hu : u ∈ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)) :
+    |f u| ≤ ε := by
+  -- The set `S := {v | |f v| ≤ ε}` is closed.
+  have h_closed : IsClosed {v : NNReal | |f v| ≤ ε} :=
+    isClosed_le hf.abs continuous_const
+  -- The dense countable subset is contained in S (by hypothesis).
+  have h_subset : (denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1))
+                 ⊆ {v : NNReal | |f v| ≤ ε} := fun v hv => h_dense ⟨v, hv⟩
+  -- u ∈ closure (denseCountable ∩ Ico T (T+1)).
+  have h_T_lt : (T : NNReal) < (T : NNReal) + 1 := lt_add_one _
+  have h_closure_Ioo : closure (Set.Ioo ((T : NNReal)) ((T : NNReal) + 1)) =
+                       Set.Icc ((T : NNReal)) ((T : NNReal) + 1) :=
+    closure_Ioo h_T_lt.ne
+  -- denseCountable ∩ Ioo T (T+1) is dense in Ioo T (T+1):
+  -- for x ∈ Ioo T (T+1) and any V ∈ 𝓝 x, V ∩ Ioo is open nbhd of x;
+  -- by density of denseCountable, denseCountable hits V ∩ Ioo.
+  have h_Ioo_subset_closure :
+      Set.Ioo ((T : NNReal)) ((T : NNReal) + 1) ⊆
+      closure (denseCountable NNReal ∩ Set.Ioo ((T : NNReal)) ((T : NNReal) + 1)) := by
+    intro x hx
+    rw [mem_closure_iff_nhds]
+    intro V hV
+    have h_Ioo_nhd : Set.Ioo ((T : NNReal)) ((T : NNReal) + 1) ∈ 𝓝 x :=
+      isOpen_Ioo.mem_nhds hx
+    have h_inter_nhd : V ∩ Set.Ioo ((T : NNReal)) ((T : NNReal) + 1) ∈ 𝓝 x :=
+      Filter.inter_mem hV h_Ioo_nhd
+    rcases mem_nhds_iff.mp h_inter_nhd with ⟨W, hW_subset, hW_open, hW_x⟩
+    obtain ⟨y, hy_W, hy_dense⟩ :=
+      dense_iff_inter_open.mp dense_denseCountable W hW_open ⟨x, hW_x⟩
+    refine ⟨y, ?_, hy_dense, (hW_subset hy_W).2⟩
+    exact (hW_subset hy_W).1
+  -- closure (Ioo) = Icc ⊇ Ico, so u ∈ closure (denseCountable ∩ Ioo).
+  have h_u_in_Icc : u ∈ Set.Icc ((T : NNReal)) ((T : NNReal) + 1) := ⟨hu.1, le_of_lt hu.2⟩
+  have h_closure_Ioo_subset :
+      Set.Icc ((T : NNReal)) ((T : NNReal) + 1) ⊆
+      closure (denseCountable NNReal ∩ Set.Ioo ((T : NNReal)) ((T : NNReal) + 1)) := by
+    rw [← h_closure_Ioo]
+    exact (closure_mono h_Ioo_subset_closure).trans closure_closure.le
+  have h_dense_subset :
+      closure (denseCountable NNReal ∩ Set.Ioo ((T : NNReal)) ((T : NNReal) + 1)) ⊆
+      closure (denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)) :=
+    closure_mono (Set.inter_subset_inter_right _ Set.Ioo_subset_Ico_self)
+  have h_u_closure : u ∈ closure (denseCountable NNReal ∩
+                                  Set.Ico ((T : NNReal)) ((T : NNReal) + 1)) :=
+    h_dense_subset (h_closure_Ioo_subset h_u_in_Icc)
+  -- Closed set containing a subset contains its closure.
+  exact (h_closed.closure_subset_iff.mpr h_subset) h_u_closure
+
+/-! ## R22 / T4.3 — summability of the explicit chaining-moment constants
+
+The sum-tail bound from `block_sup_tail_le_R22` has two parts: a
+Chernoff-type geometric `2 · exp(-ε² T / 4)` (summable by
+`summable_marginal_tail`) and a chaining/Markov term `4 · Cp_T_explicit T / ε²`,
+whose summability requires `∑_T Cp_T_explicit T < ∞`.
+
+Per `R22APIScoping.md` Commitment C (Grok-validated), `Cp_T_explicit T = O(1/T²)`
+since `constL = Θ(T (log T)²)` (linear in `c_T = 6(T+1)` with a
+bounded-by-dyadic-series log² factor) and `M_T = 1/(2T³)`. Hence the
+tsum is bounded by a `1/T²`-style p-series. The Lean proof requires
+unfolding `constL`'s tsum and bounding the log-factor times the
+dyadic-series sum — ~150 LOC of `ENNReal.tsum_le` arithmetic that
+deserves its own engineering pass. R22 isolates this as a single
+named `sorry` and routes the conjunct-9 closure through it; R23
+discharges it. -/
+
+/-- **R22 / T4.3 (Stub — explicit asymptotic bound).** Summability of
+the chaining moment constants `Cp_T_explicit T`. Per Commitment C,
+`Cp_T_explicit T = O(1/T²)`, hence summable. The Lean proof requires
+unfolding `constL` and bounding the dyadic-tsum + log² factor; this is
+the **single isolated sorry remaining in `GLWGaussianProjectiveLimit.lean`
+after R22**, deferred to R23. -/
+private theorem tsum_Cp_T_explicit_lt_top_R22 :
+    (∑' T : ℕ, Cp_T_explicit T) < ∞ := by
+  sorry  -- TAG[R22-Cp-summability]: Cp_T_explicit T = O(1/T²); see R22APIScoping.md (Commitment C).
+
+/-! ## R22 / T4.3 — block-event summability and Borel-Cantelli
+
+For each `ε > 0`, the per-T probability bound from
+`block_sup_tail_le_R22` is summable, so Borel-Cantelli closes the
+"a.s. eventually no block has dense-iSup ≥ ε" statement. -/
+
+/-- **R22 / T4.3.** Borel-Cantelli closure of the block-sup events.
+For each `ε > 0`, almost-surely the dense-countable iSup of `|ω u.1|`
+over `denseCountable ∩ Set.Ico T (T+1)` is eventually `< ε` as
+`T → ∞`. -/
+private lemma BC_block_sup_R22 {ε : ℝ} (hε : 0 < ε) :
+    ∀ᵐ ω ∂glwGaussianLimit,
+      ∀ᶠ T : ℕ in Filter.atTop,
+        ¬(ε ≤ ⨆ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+                 |ω u.1|) := by
+  set s : ℕ → Set (NNReal → ℝ) := fun T =>
+    {ω | ε ≤ ⨆ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+           |ω u.1|} with hs_def
+  suffices h_sum : (∑' T : ℕ, glwGaussianLimit (s T)) ≠ ∞ by
+    have h_bc := ae_eventually_notMem (μ := glwGaussianLimit) h_sum
+    filter_upwards [h_bc] with ω hω
+    exact hω
+  -- Strategy: split T = 0 + T ≥ 1, use block_sup_tail_le_R22 on T ≥ 1.
+  have h_eps_sq_pos : (0 : ℝ) < ε^2 := by positivity
+  have h_eps_ne_zero : ENNReal.ofReal (ε^2) ≠ 0 := by
+    rw [Ne, ENNReal.ofReal_eq_zero, not_le]; exact h_eps_sq_pos
+  -- Bound for T ≥ 1.
+  have h_le_block : ∀ T : ℕ, 1 ≤ T → glwGaussianLimit (s T) ≤
+        ENNReal.ofReal (2 * Real.exp (-ε^2 * T / 4))
+          + 4 * Cp_T_explicit T / ENNReal.ofReal (ε^2) := by
+    intro T hT
+    exact block_sup_tail_le_R22 T hT hε
+  -- ∑' T, glwGaussianLimit (s T) = glwGaussianLimit (s 0) + ∑' T, glwGaussianLimit (s (T+1)).
+  rw [tsum_eq_zero_add' (f := fun T => glwGaussianLimit (s T)) ENNReal.summable]
+  apply (ENNReal.add_lt_top.mpr ⟨?_, ?_⟩).ne
+  · exact measure_lt_top _ _
+  -- ∑' T, glwGaussianLimit (s (T+1)) ≤ ∑' T, [chernoff + markov] (T+1).
+  apply lt_of_le_of_lt (ENNReal.tsum_le_tsum (fun T =>
+    h_le_block (T+1) (Nat.succ_le_succ (Nat.zero_le T))))
+  rw [ENNReal.tsum_add]
+  apply ENNReal.add_lt_top.mpr
+  refine ⟨?_, ?_⟩
+  · -- Chernoff: ∑' T, ENNReal.ofReal (2 * exp(-ε² (T+1)/4)) < ∞.
+    have h_summable :
+        Summable (fun T : ℕ => 2 * Real.exp (-ε^2 * ((T+1 : ℕ) : ℝ) / 4)) := by
+      have h := summable_marginal_tail (ε := ε/2) (by linarith)
+      have h_shift := h.comp_injective Nat.succ_injective
+      refine h_shift.congr ?_
+      intro T
+      simp only [Function.comp_apply]
+      congr 1
+      push_cast
+      ring
+    rw [show (∑' T : ℕ, ENNReal.ofReal (2 * Real.exp (-ε^2 * ((T+1 : ℕ) : ℝ) / 4)))
+          = ENNReal.ofReal (∑' T : ℕ, 2 * Real.exp (-ε^2 * ((T+1 : ℕ) : ℝ) / 4)) from
+        (ENNReal.ofReal_tsum_of_nonneg (fun T => by positivity) h_summable).symm]
+    exact ENNReal.ofReal_lt_top
+  · -- Markov: ∑' T, 4 * Cp_T_explicit (T+1) / ENNReal.ofReal (ε²) < ∞.
+    have h_factored : (fun T : ℕ => 4 * Cp_T_explicit (T+1) / ENNReal.ofReal (ε^2))
+                    = (fun T : ℕ => (4 / ENNReal.ofReal (ε^2)) * Cp_T_explicit (T+1)) := by
+      funext T; exact ENNReal.mul_div_right_comm
+    rw [h_factored]
+    rw [ENNReal.tsum_mul_left]
+    apply ENNReal.mul_lt_top
+    · exact ENNReal.div_lt_top (by finiteness) h_eps_ne_zero
+    · -- ∑' T, Cp_T_explicit (T+1) ≤ ∑' T, Cp_T_explicit T < ∞.
+      have h_split : ∑' T : ℕ, Cp_T_explicit T
+                    = Cp_T_explicit 0 + ∑' T : ℕ, Cp_T_explicit (T+1) :=
+        tsum_eq_zero_add' (f := Cp_T_explicit) ENNReal.summable
+      have h_le : ∑' T : ℕ, Cp_T_explicit (T+1) ≤ ∑' T : ℕ, Cp_T_explicit T := by
+        rw [h_split]; exact le_add_self
+      exact lt_of_le_of_lt h_le tsum_Cp_T_explicit_lt_top_R22
 
 /-!
 ## O5 — Process-existence witness in the 9-conjunct form
@@ -1389,6 +2013,76 @@ theorem glwGaussianLimit_Y_GLW_existence :
     -- (T2.2 Full) is the load-bearing prerequisite; route (i)'s
     -- summability is the next major sub-task.
     intro ε hε
-    sorry  -- TAG[R21-T4.1]: modification sup-tail / Cp_T summability
+    -- **R22 closure.** BC on dense-iSup block events + T4.1 a.s.-bridge +
+    -- T4.2 continuity transfer + floor argument.
+    have h_BC := BC_block_sup_R22 hε
+    have h_eq_T : ∀ᵐ ω ∂glwGaussianLimit, ∀ T : ℕ,
+        (⨆ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+            |Y' u.1 ω|) =
+        (⨆ u : ↥(denseCountable NNReal ∩ Set.Ico ((T : NNReal)) ((T : NNReal) + 1)),
+            |ω u.1|) := by
+      rw [ae_all_iff]
+      intro T
+      exact modification_sup_eq_projection_iSup_ae T hY'_ae_eq
+    filter_upwards [h_BC, h_eq_T] with ω h_evt h_eq
+    rw [Filter.eventually_atTop] at h_evt
+    obtain ⟨T₀_nat, hT₀⟩ := h_evt
+    refine ⟨(T₀_nat : ℝ), ?_⟩
+    intro u_real hu_real
+    -- Setup: u_real ≥ T₀_nat ≥ 0; T := ⌊u_real⌋₊; T ≥ T₀_nat; u.toNNReal ∈ Ico T (T+1).
+    have h_u_nn : (0 : ℝ) ≤ u_real :=
+      le_trans (Nat.cast_nonneg T₀_nat) hu_real
+    set T : ℕ := ⌊u_real⌋₊ with hT_def
+    have hT_ge : T₀_nat ≤ T := by
+      rw [hT_def]
+      have h_floor_T₀ : ⌊(T₀_nat : ℝ)⌋₊ = T₀_nat := Nat.floor_natCast _
+      rw [← h_floor_T₀]
+      exact Nat.floor_le_floor hu_real
+    have h_T_le_u : (T : ℝ) ≤ u_real := Nat.floor_le h_u_nn
+    have h_u_lt_T1 : u_real < (T : ℝ) + 1 := Nat.lt_floor_add_one u_real
+    have h_uN_ge_T : (T : NNReal) ≤ u_real.toNNReal := by
+      rw [← Real.toNNReal_coe_nat T]
+      exact Real.toNNReal_mono h_T_le_u
+    have h_uN_lt_T1 : u_real.toNNReal < (T : NNReal) + 1 := by
+      have h_real : u_real < ((T : ℕ) + 1 : ℝ) := by push_cast; exact h_u_lt_T1
+      have h_pos : (0 : ℝ) < ((T : ℕ) + 1 : ℝ) := by push_cast; positivity
+      have h_lt_NNReal : u_real.toNNReal < ((T : ℕ) + 1 : ℝ).toNNReal :=
+        (Real.toNNReal_lt_toNNReal_iff h_pos).mpr h_real
+      have h_eq_NNReal : ((T : ℕ) + 1 : ℝ).toNNReal = (T : NNReal) + 1 := by
+        push_cast
+        rw [Real.toNNReal_add (by exact_mod_cast Nat.zero_le T) (by norm_num : (0 : ℝ) ≤ 1),
+            Real.toNNReal_coe_nat, Real.toNNReal_one]
+      rw [← h_eq_NNReal]; exact h_lt_NNReal
+    have h_uN_block : u_real.toNNReal ∈
+        Set.Ico ((T : NNReal)) ((T : NNReal) + 1) := ⟨h_uN_ge_T, h_uN_lt_T1⟩
+    -- BC at T: dense_iSup_T |ω u.1| < ε.
+    have h_T_bound : ¬ (ε ≤ ⨆ u : ↥(denseCountable NNReal ∩
+                          Set.Ico ((T : NNReal)) ((T : NNReal) + 1)), |ω u.1|) := hT₀ T hT_ge
+    push_neg at h_T_bound
+    -- T4.1 transfer: dense_iSup_T |Y' u.1 ω| = dense_iSup_T |ω u.1| < ε.
+    have h_T_bound_Y : ⨆ u : ↥(denseCountable NNReal ∩
+                       Set.Ico ((T : NNReal)) ((T : NNReal) + 1)), |Y' u.1 ω| < ε := by
+      rw [h_eq T]; exact h_T_bound
+    -- BddAbove of the dense family for |Y' · ω| (via continuity on compact Icc).
+    have h_cont_abs : Continuous (fun u : NNReal => |Y' u ω|) := (hY'_cont ω).abs
+    have h_icc_compact : IsCompact (Set.Icc ((T : NNReal)) ((T : NNReal) + 1)) := isCompact_Icc
+    have h_bdd : BddAbove (Set.range (fun v : ↥(denseCountable NNReal ∩
+                  Set.Ico ((T : NNReal)) ((T : NNReal) + 1)) => |Y' v.1 ω|)) := by
+      have h_image_bdd : BddAbove ((fun u : NNReal => |Y' u ω|) ''
+                Set.Icc ((T : NNReal)) ((T : NNReal) + 1)) :=
+        (h_icc_compact.image h_cont_abs).bddAbove
+      apply BddAbove.mono ?_ h_image_bdd
+      rintro x ⟨v, rfl⟩
+      exact ⟨v.1, ⟨v.2.2.1, le_of_lt v.2.2.2⟩, rfl⟩
+    -- Pointwise |Y' v.1 ω| ≤ dense_iSup < ε for all v in the dense subset.
+    have h_dense_bound : ∀ v : ↥(denseCountable NNReal ∩
+                      Set.Ico ((T : NNReal)) ((T : NNReal) + 1)), |Y' v.1 ω| ≤ ε := by
+      intro v
+      have h_le_iSup : |Y' v.1 ω| ≤ ⨆ u : ↥(denseCountable NNReal ∩
+                       Set.Ico ((T : NNReal)) ((T : NNReal) + 1)), |Y' u.1 ω| :=
+        le_ciSup h_bdd v
+      linarith
+    -- T4.2: continuous Y' · ω on block, dense bound transfers to all u in Ico.
+    exact continuous_block_pt_le T (hY'_cont ω) h_dense_bound h_uN_block
 
 end Erdos524.Helpers
