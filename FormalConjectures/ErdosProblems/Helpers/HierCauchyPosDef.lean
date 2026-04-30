@@ -762,4 +762,14 @@ theorem cauchyMatrix_diag {n : Type*} [Fintype n]
   simp only [cauchyMatrix, Matrix.of_apply]
   ring
 
+/-- Explicit entrywise formula for the abstract Cauchy matrix. -/
+theorem cauchyMatrix_apply {n : Type*} [Fintype n] (g : n → ℝ) (i j : n) :
+    cauchyMatrix g i j = 1 / (g i + g j) := rfl
+
+/-- The abstract Cauchy matrix is symmetric (transpose-equal-to-self over ℝ). -/
+theorem cauchyMatrix_transpose {n : Type*} [Fintype n] (g : n → ℝ) :
+    (cauchyMatrix g)ᵀ = cauchyMatrix g := by
+  ext i j
+  simp only [Matrix.transpose_apply, cauchyMatrix_apply, add_comm]
+
 end Erdos524.Helpers
