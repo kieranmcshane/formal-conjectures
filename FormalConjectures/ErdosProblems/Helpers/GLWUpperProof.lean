@@ -213,11 +213,13 @@ variable {Ω : Type*} [MeasurableSpace Ω]
 def glwUpperBoxEvent (Y : ℝ → Ω → ℝ) (T ε : ℝ) : Set Ω :=
   {ω | ∀ u ∈ Set.Icc (0 : ℝ) T, |Y u ω| ≤ ε}
 
+omit [MeasurableSpace Ω] in
 /-- The box event is always a subset of the universe. -/
 theorem glwUpperBoxEvent_subset_univ (Y : ℝ → Ω → ℝ) (T ε : ℝ) :
     glwUpperBoxEvent Y T ε ⊆ Set.univ :=
   fun _ _ => Set.mem_univ _
 
+omit [MeasurableSpace Ω] in
 /-- Box event monotone in `ε`: larger tolerance gives a larger event. -/
 theorem glwUpperBoxEvent_mono_eps (Y : ℝ → Ω → ℝ) (T : ℝ) {ε₁ ε₂ : ℝ}
     (h_le : ε₁ ≤ ε₂) :
@@ -225,6 +227,7 @@ theorem glwUpperBoxEvent_mono_eps (Y : ℝ → Ω → ℝ) (T : ℝ) {ε₁ ε�
   intro ω hω u hu
   exact (hω u hu).trans h_le
 
+omit [MeasurableSpace Ω] in
 /-- Box event anti-monotone in `T`: larger truncation gives a smaller
 event (more constraints to satisfy). -/
 theorem glwUpperBoxEvent_anti_mono_T (Y : ℝ → Ω → ℝ) {T₁ T₂ : ℝ}
