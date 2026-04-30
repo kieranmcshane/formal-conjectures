@@ -772,4 +772,31 @@ theorem cauchyMatrix_transpose {n : Type*} [Fintype n] (g : n → ℝ) :
   ext i j
   simp only [Matrix.transpose_apply, cauchyMatrix_apply, add_comm]
 
+/- ## §10. Round 10 milestone summary
+
+Round 10 closed the central PosDef status of the hierarchical Cauchy
+matrix. The full chain:
+
+  Round 9:  mvGaussian_box_density_at_mode_bound (PosDef-conditional
+            Anderson upper bound)
+  Round 10: hierCauchyG_PosDef (this round)
+            ⤷ glwBoxProb_anderson_upper_unconditional (Stretch A)
+            ⤷ glwBoxProb_anderson_upper_field
+              (Stretch B, V1-instance shape)
+            ⤷ gaussianHierCauchy_box_anderson_upper
+              (direct gaussianHierCauchy form)
+            ⤷ glwBoxProb_anderson_upper_via_sqrt
+              (realMatrixSqrt form)
+
+Mathlib-PR-quality lemmas extracted:
+
+  * `PosDef_of_PosSemidef_of_det_pos` — over ℝ, PSD + det>0 ⇒ PosDef.
+  * `cauchyMatrix_PosSemidef` — for any positive `g`, the Cauchy matrix
+    is PSD.
+  * `cauchyMatrix_PosDef` — adding `det>0`, the Cauchy matrix is PosDef.
+  * `integral_exp_neg_mul_Ioi_zero` — `∫_(0,∞) exp(-c·t) dt = 1/c`.
+
+Axiom count remains at 2 (`two_dim_KMT_coupling`, `Y_GLW_exists`).
+No new sorries. -/
+
 end Erdos524.Helpers
