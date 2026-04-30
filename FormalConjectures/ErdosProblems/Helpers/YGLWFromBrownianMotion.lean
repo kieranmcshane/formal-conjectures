@@ -929,6 +929,46 @@ theorem glwCovMatrix_trace_le_recip_sum {n : ℕ} (us : Fin n → ℝ)
   intros i _
   exact glwCovMatrix_diag_le_recip us h_us i
 
+/-! ## 4.19. Pairwise Hölder bound — the Kolmogorov–Chentsov precondition
+
+Round 12 additions. The matrix-level form of `K_GLW_diff_quadratic_le_sq`
+is the precondition for the Kolmogorov–Chentsov continuous-paths
+theorem (BLOCKER B4): for any pair of grid indices `(i, j)`, the
+"variance-of-difference" `Mᵢᵢ + Mⱼⱼ - 2 Mᵢⱼ` is bounded by
+`(uᵢ - uⱼ)²`. Once a Gaussian process realisation `Y` exists, this
+deterministic kernel-side fact upgrades to the L²(Ω)-Hölder bound
+`E[(Y(uᵢ) - Y(uⱼ))²] ≤ (uᵢ - uⱼ)²` via the Wiener isometry. -/
+
+/-- Matrix-level pairwise Hölder bound: `Mᵢᵢ + Mⱼⱼ - 2 Mᵢⱼ ≤ (uᵢ - uⱼ)²`
+for any nonneg grid. Direct lift of `K_GLW_diff_quadratic_le_sq`. -/
+theorem glwCovMatrix_pairwise_diff_quadratic_le_sq {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) (i j : Fin n) :
+    glwCovMatrix us i i + glwCovMatrix us j j - 2 * glwCovMatrix us i j ≤
+      (us i - us j)^2 := by
+  rw [glwCovMatrix_diag_eq, glwCovMatrix_diag_eq, glwCovMatrix_apply]
+  have := K_GLW_diff_quadratic_le_sq (h_us i) (h_us j)
+  linarith
+
+/-- Symmetric form of the pairwise Hölder bound: `2 Mᵢⱼ ≥
+Mᵢᵢ + Mⱼⱼ - (uᵢ - uⱼ)²` — useful when the off-diagonal entry is
+the unknown to be bounded *from below*. -/
+theorem glwCovMatrix_offdiag_lower_bound {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) (i j : Fin n) :
+    glwCovMatrix us i i + glwCovMatrix us j j - (us i - us j)^2 ≤
+      2 * glwCovMatrix us i j := by
+  linarith [glwCovMatrix_pairwise_diff_quadratic_le_sq us h_us i j]
+
+/-- Symmetric "L²-distance" bound: the distance-of-difference matrix
+form, `Mᵢᵢ + Mⱼⱼ - 2 Mᵢⱼ ≥ 0`, packages the standard fact that
+`L²-distance squared` is non-negative. This follows from the PSD
+property applied to the test vector that places `+1` at index `i` and
+`-1` at index `j`. -/
+theorem glwCovMatrix_pairwise_diff_quadratic_nonneg {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) (i j : Fin n) :
+    0 ≤ glwCovMatrix us i i + glwCovMatrix us j j - 2 * glwCovMatrix us i j := by
+  rw [glwCovMatrix_diag_eq, glwCovMatrix_diag_eq, glwCovMatrix_apply]
+  linarith [K_GLW_diff_quadratic_nonneg (h_us i) (h_us j)]
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
