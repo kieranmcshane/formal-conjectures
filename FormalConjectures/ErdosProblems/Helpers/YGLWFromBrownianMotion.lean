@@ -3091,8 +3091,8 @@ for the full diagnostic and updated R14 procedure recommendations.
 
 ### R13 Tier 4 deliverables — final tally
 
-R13 (combining initial Tier 4 + post-retry Tier 4) produced **eleven**
-new sub-sections (~620 lines of new theorems, all sorry-free):
+R13 (combining initial Tier 4 + post-retry Tier 4) produced **twenty-one**
+new sub-sections (~1100 lines of new theorems, all sorry-free):
 
 * §4.25 — Extended `ProcessKernel` Hölder corollaries
 * §4.26 — Extended `K_GLW_processKernel` corollaries
@@ -3105,6 +3105,14 @@ new sub-sections (~620 lines of new theorems, all sorry-free):
 * §4.33-4.34 — General K(s,t) formula + integral/Mercer representation
 * §4.35-4.36 — Pair-PSD corollaries + GLW pair-increment bounds
 * §4.37 — Endpoint membership (Ioc/Icc) + diagonal asymptotic-decay
+* §4.38 — Scalar/norm bounds (sq_le_self, prod_le_one, abs-diff in [-1,1])
+* §4.39 — kernelMatrix swap-symmetry + diag/offDiag sum bounds
+* §4.40-4.41 — `ProcessKernel` transpose-equality + Frobenius lifts
+* §4.42 — Sum-kernel quadratic-form lifts (PSD nonneg + L1-norm sq bound)
+* §4.43 — Empty/singleton/pair/triple specialisations + GLW singleton
+  trace bounds
+* §4.44 — Sum-of-K and trace bounds aggregating across Finset
+* §4.45 — Partial-application continuity (left/right/diag)
 
 ### Net axiom count (post-R13)
 
