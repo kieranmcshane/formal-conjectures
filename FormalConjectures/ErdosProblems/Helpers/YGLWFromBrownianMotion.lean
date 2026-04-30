@@ -12,11 +12,10 @@ limitations under the License.
 -/
 
 import FormalConjectures.ErdosProblems.Helpers.YGLWConstruction
-import Mathlib.LinearAlgebra.Matrix.PosDef
 import Mathlib.Analysis.Matrix.PosDef
 
 /-!
-# Phase 2 / Round 11 — Bridge to the `brownian-motion` project
+# Phase 2 / R14 — Bridge to the `brownian-motion` project
 
 This file provides the **Tier-2 bridge** to retire the `Y_GLW_exists`
 axiom via the [Degenne–Pfaffelhuber 2025 `brownian-motion` Lean
@@ -34,18 +33,16 @@ has a fully formalised Brownian motion via the
 The construction is **kernel-generic**: replacing `min(s, t)` with
 `K_GLW(u, v)` gives the GLW process directly. The bridge below packages
 the *kernel-side* content needed for that substitution (PSD,
-finite-grid positivity), and documents the BM-side calls as BLOCKERs
-parameterised over the (not-yet-imported) `brownian-motion` API.
+finite-grid positivity, sub-Finset consistency, Hölder increment, and
+joint kernel continuity), and assembles them into the unified
+`K_GLW_processKernel_R14_capstone` (§4.49) consumed by the BM-side
+constructor.
 
-## Why a bridge file
-
-The `brownian-motion` project uses Lean 4.30.0-rc1 (master) or 4.27.0-rc1
-(historical, commit `91267abd`), neither of which exactly matches our
-project's pinned `leanprover/lean4:v4.27.0` toolchain. A direct
-`require brownian-motion from git` clause is therefore not currently
-possible without a coordinated toolchain bump. This bridge file is the
-explicit specification of how the retirement *would* proceed, with all
-the kernel-side arguments proved in full.
+As of R14 the BM-side API is in scope (`brownian-motion` and
+`kolmogorov_extension4` are actual Lake deps). The remaining barrier
+to retiring `Y_GLW_exists` is engineering: a kernel-generic
+specialisation of `gaussianProjectiveFamily`, since the BM repo
+currently hardcodes `brownianCovMatrix`.
 
 ## What this file contributes
 
@@ -111,8 +108,10 @@ Only B3 (the abstract projective-limit theorem) requires the
 `brownian-motion` project's API. All four other preconditions have
 explicit Lean witnesses proved across this file and `YGLWConstruction.lean`.
 
-When the toolchain alignment lands, the bridge becomes a 5-step proof
-with no sorries.
+With the R14 pin, the bridge is now reduced to a kernel-generic
+specialisation of B3 (BM repo currently hardcodes `brownianCovMatrix`);
+once that specialisation is written, the retirement is a 5-step proof
+with no sorries via the §4.49 `K_GLW_processKernel_R14_capstone`.
 -/
 
 namespace Erdos524.Helpers
