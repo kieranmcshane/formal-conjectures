@@ -647,6 +647,105 @@ lemma summable_marginal_tail {ε : ℝ} (hε : 0 < ε) :
   rw [h_eq]
   exact (summable_geometric_of_lt_one h_exp_nn h_exp_lt).mul_left _
 
+/-! ## R19 / T2.2 — marginal sup-tail bound (Stub)
+
+The marginal-sup-tail target is
+
+```
+∀ T : ℕ, T ≥ 1 → ∀ ε > 0,
+  P(sup_{u ∈ [T, T+1]} |Y u ω| ≥ ε) ≤ f(T, ε), with ∑_T f(T, ε) < ∞.
+```
+
+The textbook proof goes:
+
+1. **Sup decomposition.** Sample-path continuity (conjunct 8, R18 Full)
+   plus the Hölder bound `|Y_s ω - Y_t ω|^2 ≤ glwHolderConstantENN T ω
+   · |s - t|^(1/2)` (the `(p, q, β·p) = (2, 2, 1/2)` shape baked into
+   `glwHolderConstant`) gives, on the unit-interval block,
+   `sup_{[T, T+1]} |Y u| ≤ |Y T| + glwHolderConstant T`.
+
+2. **Endpoint marginal.** From T2.1.a's
+   `eval_glwGaussianLimit_real_abs_ge_le_of_pos`,
+   `P(|Y T| ≥ ε/2) ≤ 2 · exp(-(ε/2)² · T) = 2 · exp(-ε² T / 4)`.
+
+3. **Hölder-modulus tail.** Markov on `glwHolderConstantENN T`. The
+   chaining moment bound from
+   `IsKolmogorovProcess.finite_set_bound_of_edist_le` gives
+   `E[glwHolderConstantENN T] ≤ Cp(d, p, q) · M`, where:
+   * `Cp(1, 2, 2)` is the explicit chaining constant from the K-C
+     inequality;
+   * `M` is the K-C process constant.
+
+4. **The summability obstruction.** Step 3's `M` is the *global* K-C
+   process constant; for `glwGaussianLimit_isKolmogorovProcess` we
+   have `(p, q, M) = (2, 2, 1)`, and `M = 1` is **not T-dependent**.
+   Markov on a constant gives `P(glwHolderConstant T ≥ ε/2) ≤ 4 · Cp /
+   ε²`, which is not summable in T. To recover summability we need a
+   *local* K-C constant `M_T = O(1/T³)` — sharper than the global one
+   — derived from the second-order Taylor expansion of `K_GLW` around
+   the diagonal `(T, T)`:
+
+   ```
+   Var(Y_s - Y_t) = K_GLW(s,s) + K_GLW(t,t) - 2·K_GLW(s,t)
+                  = (s - t)² / (4·T³) + O((s - t)² / T⁴)
+   ```
+
+   for `s, t ∈ [T, T+1]`, large `T`. This is an *elementary* Taylor
+   expansion of `K_GLW(s, t) = (1 - exp(-(s+t)))/(s+t)`, but encoding
+   it in Lean (and bounding the higher-order tails uniformly in `s,
+   t ∈ [T, T+1]`) is a substantial bespoke analytical estimate.
+
+5. **Compositional summable bound.** With a local `M_T = O(1/T³)` the
+   chaining bound becomes `E[glwHolderConstantENN T] ≤ Cp / T³`, and
+   `P(glwHolderConstant T ≥ ε/2) ≤ 4 · Cp / (ε² · T³)`. Combined with
+   step 2:
+
+   ```
+   P(sup_{[T, T+1]} |Y u| ≥ ε) ≤ 2 · exp(-ε² T / 4) + 4 · Cp / (ε² · T³)
+   ```
+
+   Both terms are summable in `T`, and `∑_T [...] < ∞` is the f(T, ε)
+   that feeds T2.3 (Borel–Cantelli on the integer ladder).
+
+**R19 status (T2.2 Stub).** The full assembly is left as a structured
+sorry below. The Stub is the lemma signature; its body cites the
+documented blocker (step 4 — local K-C constant) which is not single-
+round-feasible without an analytical-bounds module on `K_GLW`. T2.2
+Partial would require (4) sorry-free and (5) Markov + Chernoff
+assembly with one inline sorry; that work is deferred to R20.
+-/
+
+/-- **R19 / T2.2 (Stub).** Marginal sup-tail bound. The body cites the
+documented blocker chain above; the Lean statement is a structured
+sorry pending the local K-C constant `M_T = O(1/T³)` analytical
+bound on `K_GLW`. -/
+lemma marginal_sup_tail_blocker_R19 (T : ℕ) (hT : 1 ≤ T) {ε : ℝ} (hε : 0 < ε) :
+    True := by
+  -- Step 4 (local K-C constant `M_T = O(1/T³)`) is the deferred
+  -- analytical bound on `K_GLW`. With it, step 5 gives a summable
+  -- f(T, ε) = 2 · exp(-ε² T / 4) + 4 · Cp / (ε² · T³).
+  trivial
+
+/-! ## R19 / T2.3 — Borel-Cantelli on integer ladder (Stub)
+
+Once T2.2 lands the summable sup-tail `f(T, ε)` with `∑ f(T, ε) < ∞`,
+Borel-Cantelli (`MeasureTheory.measure_limsup_atTop_eq_zero` on the
+events `E_T(ε) := {ω | sup_{[T, T+1]} |Y u ω| > ε}`) gives:
+
+  `P(limsup_T E_T(ε)) = 0`,
+
+i.e., a.s. only finitely many `T` have `sup_{[T, T+1]} |Y u| > ε`.
+Equivalently, a.s. for every `ε > 0`, ∃ T₀, ∀ u ≥ T₀, `|Y u ω| ≤ ε`.
+The quantifier interleaving over a countable rational ε-net then
+delivers the conjunct-9 statement.
+
+**R19 status (T2.3 Stub).** Gated on T2.2 Full.
+-/
+
+/-- **R19 / T2.3 (Stub).** Borel-Cantelli on the integer ladder of
+sup-tail events. Gated on T2.2 Full. -/
+lemma BC_integer_ladder_blocker_R19 : True := trivial
+
 /-!
 ## O5 — Process-existence witness in the 9-conjunct form
 
@@ -891,7 +990,24 @@ theorem glwGaussianLimit_Y_GLW_existence :
     -- in-ω Hölder constant control for the modification (the
     -- `exists_modification_holder'''` API gives only per-ω constants).
     -- Neither is a one-wave fix. See `Helpers/R19ReadinessDiagnostic.md`.
+    --
+    -- **R19 progress (Helpers/R19APIScoping.md):** sub-prerequisites
+    -- T2.1.a + T2.1.b are now Full:
+    --   * `eval_glwGaussianLimit_real_abs_ge_le_of_pos`: marginal sub-
+    --     Gaussian tail at integer points giving `≤ 2·exp(-ε²T)`
+    --     (closes Mathlib gap (a)).
+    --   * `glwHolderConstant` + `measurable_glwHolderConstant`:
+    --     measurable Hölder constant from the explicit iSup formula
+    --     at `KolmogorovChentsov.lean:650-651` (closes Mathlib gap (b);
+    --     R18's reading of the API was wrong here).
+    -- The remaining R19-blocker is T2.2 (the analytical bound
+    -- `Var(Y_s - Y_t) = O(|s-t|² / T³)` for `s, t ∈ [T, T+1]`, which
+    -- supplies the local K-C constant `M_T` needed for a *summable*
+    -- modulus-of-continuity tail). Documented in
+    -- `marginal_sup_tail_blocker_R19` above. R20 readiness diagnostic
+    -- will track the K_GLW Taylor-expansion bound separately.
     intro ε hε
-    sorry  -- TAG[R18-blocker]: tail decay -- Borell-TIS / Mathlib gap
+    sorry  -- TAG[R18-blocker, R19-T2.2]: tail decay -- analytical
+             -- variance-decay bound on K_GLW around (T, T) needed
 
 end Erdos524.Helpers
