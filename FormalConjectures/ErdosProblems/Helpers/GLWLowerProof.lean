@@ -45,8 +45,12 @@ The complete lower bound is the multi-month dual of the upper bound:
 
 1. Use `IsGLWProcess Y` to obtain joint Gaussianity, K_GLW covariance.
 2. Anderson's inequality MULTIVARIATE (PosDef covariance case) — this
-   is the Round 6 `mvGaussian_box_density_at_mode_bound` documented
-   sorry, which if retired closes 90% of the lower-bound difficulty.
+   was the Round 6 `mvGaussian_box_density_at_mode_bound` sorry, which
+   was a Mathlib-level gap. **Closed in Round 9** (commit chain
+   `kmc-erdos-glw-lower`, see `MVGaussianDensityBound.lean`); the
+   density-at-mode bound is now available, leaving the
+   Karhunen–Loève + Talagrand-chaining gap as the dominant remaining
+   blocker for the full lower bound.
 3. Karhunen–Loève expansion of K_GLW with eigenvalues `λ_k ~ k^{-2}`
    (so `Σ λ_k = K_GLW(0,0) = 1` and `Σ √λ_k < ∞`).
 4. Talagrand-style entropy lower bound on Gaussian processes — the
