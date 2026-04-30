@@ -1681,6 +1681,20 @@ theorem glwCovMatrixNN_entry_le_integral_one (I : Finset NNReal)
   calc K_GLW (s.1 : ℝ) (t.1 : ℝ) ≤ 1 := this
     _ = ∫ _x in (0 : ℝ)..1, (1 : ℝ) := by simp
 
+/-! ### Empty-Finset and singleton degenerate cases -/
+
+/-- For the empty Finset, every sum over `↑∅` is `0`, so the trace is `0`. -/
+theorem glwCovMatrixNN_empty_trace :
+    (glwCovMatrixNN ∅).trace = 0 := by
+  rw [Matrix.trace]
+  exact Finset.sum_empty
+
+/-- For the empty Finset, the matrix is the trivial empty matrix
+(no entries). -/
+theorem glwCovMatrixNN_empty_det :
+    (glwCovMatrixNN ∅).det = 1 := by
+  rw [Matrix.det_isEmpty]
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
