@@ -470,29 +470,76 @@ theorem glwGaussianLimit_Y_GLW_existence :
     fun u ω => ω u.toNNReal, inferInstance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   · -- measurable: each marginal is a Pi-projection
     intro u; exact measurable_pi_apply _
-  · -- Conjunct 3 (Integrable (Y u) glwGaussianLimit): needs port of
-    -- `hasLaw_eval_gaussianProjectiveFamily` to GLW
-    -- (`hasLaw_eval_glwGaussianProjectiveFamily`), composed with
-    -- `hasLaw_restrict_glwGaussianLimit` and `IsGaussian.integrable_id`.
+  · -- Conjunct 3 (Integrable (Y u) glwGaussianLimit). The marginal at
+    -- `u.toNNReal` is centred Gaussian with variance `K_GLW(u, u)`
+    -- (cf. `hasLaw_eval_glwGaussianLimit`); integrability of the
+    -- identity then transfers along the law.
     intro u
-    sorry  -- TAG[R16-port-hasLawEval]: needs hasLaw_eval_glwGaussianLimit
-  · -- Conjunct 4 (Integrable (Y u · Y v) glwGaussianLimit): bivariate
-    -- Gaussian product integrability via Cauchy-Schwarz on the joint
-    -- multivariate Gaussian on `{u, v}.toNNReal`.
+    have hL := hasLaw_eval_glwGaussianLimit (t := u.toNNReal)
+    have h_int_id : Integrable (id : ℝ → ℝ)
+        (Measure.map (fun ω : NNReal → ℝ ↦ ω u.toNNReal) glwGaussianLimit) := by
+      rw [hL.map_eq]; exact IsGaussian.integrable_id
+    exact h_int_id.comp_aemeasurable hL.aemeasurable
+  · -- Conjunct 4 (bivariate integrability of `Y u * Y v`). Both
+    -- marginals are `MemLp 2`, so `Y u * Y v` is integrable
+    -- (Cauchy-Schwarz: `MemLp.integrable_mul`).
     intro u v
-    sorry  -- TAG[R16-port-bivariate-integrable]
-  · -- Conjunct 5 (centered): port of `integral_id_gaussianProjectiveFamily`
-    -- composed with `hasLaw_restrict_glwGaussianLimit` on `{u.toNNReal}`.
+    have hLu := hasLaw_eval_glwGaussianLimit (t := u.toNNReal)
+    have hLv := hasLaw_eval_glwGaussianLimit (t := v.toNNReal)
+    have hMu : MemLp (fun ω : NNReal → ℝ ↦ ω u.toNNReal) 2 glwGaussianLimit := by
+      have h_id : MemLp (id : ℝ → ℝ) 2
+          (Measure.map (fun ω : NNReal → ℝ ↦ ω u.toNNReal) glwGaussianLimit) := by
+        rw [hLu.map_eq]; exact IsGaussian.memLp_two_id
+      exact h_id.comp_of_map hLu.aemeasurable
+    have hMv : MemLp (fun ω : NNReal → ℝ ↦ ω v.toNNReal) 2 glwGaussianLimit := by
+      have h_id : MemLp (id : ℝ → ℝ) 2
+          (Measure.map (fun ω : NNReal → ℝ ↦ ω v.toNNReal) glwGaussianLimit) := by
+        rw [hLv.map_eq]; exact IsGaussian.memLp_two_id
+      exact h_id.comp_of_map hLv.aemeasurable
+    exact hMu.integrable_mul hMv
+  · -- Conjunct 5 (centered): the marginal at `u.toNNReal` has centred
+    -- Gaussian law, so its integral is `0` (via `integral_id_gaussianReal`).
     intro u
-    sorry  -- TAG[R16-port-integralId]: needs integral_id_glwGaussianProjectiveFamily
-  · -- Conjunct 6 (covariance fit, THE main one): port of
-    -- `covariance_eval_gaussianProjectiveFamily`. Uses
-    -- `covarianceBilin_multivariateGaussian (glwCovMatrixNN_PosSemidef I)`
-    -- and `glwCovMatrixNN_apply`. Hypotheses `0 ≤ u, 0 ≤ v` enter
-    -- through `Real.toNNReal_eq_self.mpr` to identify
-    -- `(u.toNNReal : ℝ) = u`.
+    exact (hasLaw_eval_glwGaussianLimit (t := u.toNNReal)).integral_eq.trans
+      integral_id_gaussianReal
+  · -- Conjunct 6 (covariance fit). Combine `covariance_eval_glwGaussianLimit`
+    -- (giving `cov[ω u.toNNReal, ω v.toNNReal] = K_GLW (↑u.toNNReal) (↑v.toNNReal)`)
+    -- with `covariance_eq_sub` and centeredness to obtain `∫ XY = K_GLW u v`.
     intro u v hu hv
-    sorry  -- TAG[R16-port-covarianceEval]: needs covariance_eval_glwGaussianLimit
+    have hu_eq : (u.toNNReal : ℝ) = u := Real.coe_toNNReal _ hu
+    have hv_eq : (v.toNNReal : ℝ) = v := Real.coe_toNNReal _ hv
+    -- MemLp 2 for both coordinates, transferred from `gaussianReal`'s
+    -- second-moment finiteness via the marginal law.
+    have hLu := hasLaw_eval_glwGaussianLimit (t := u.toNNReal)
+    have hLv := hasLaw_eval_glwGaussianLimit (t := v.toNNReal)
+    have hMu : MemLp (fun ω : NNReal → ℝ ↦ ω u.toNNReal) 2 glwGaussianLimit := by
+      have h_id : MemLp (id : ℝ → ℝ) 2
+          (Measure.map (fun ω : NNReal → ℝ ↦ ω u.toNNReal) glwGaussianLimit) := by
+        rw [hLu.map_eq]; exact IsGaussian.memLp_two_id
+      exact h_id.comp_of_map hLu.aemeasurable
+    have hMv : MemLp (fun ω : NNReal → ℝ ↦ ω v.toNNReal) 2 glwGaussianLimit := by
+      have h_id : MemLp (id : ℝ → ℝ) 2
+          (Measure.map (fun ω : NNReal → ℝ ↦ ω v.toNNReal) glwGaussianLimit) := by
+        rw [hLv.map_eq]; exact IsGaussian.memLp_two_id
+      exact h_id.comp_of_map hLv.aemeasurable
+    -- Centered moments
+    have hEu : ∫ ω, ω u.toNNReal ∂glwGaussianLimit = 0 :=
+      hLu.integral_eq.trans integral_id_gaussianReal
+    have hEv : ∫ ω, ω v.toNNReal ∂glwGaussianLimit = 0 :=
+      hLv.integral_eq.trans integral_id_gaussianReal
+    -- Covariance evaluation, with `↑u.toNNReal = u` etc.
+    have hcov := covariance_eval_glwGaussianLimit (s := u.toNNReal) (t := v.toNNReal)
+    rw [hu_eq, hv_eq] at hcov
+    -- Combine via `covariance_eq_sub`:
+    have h_eq := covariance_eq_sub hMu hMv
+    -- h_eq : cov[X, Y; μ] = μ[X * Y] - μ[X] * μ[Y]
+    rw [hcov, hEu, hEv] at h_eq
+    -- h_eq : K_GLW u v = μ[X * Y] - 0 * 0 = μ[X * Y]
+    simp only [zero_mul, sub_zero] at h_eq
+    -- h_eq : K_GLW u v = ∫ ω, X ω * Y ω ∂μ
+    -- Goal: ∫ ω, ω u.toNNReal * ω v.toNNReal ∂glwGaussianLimit = K_GLW u v
+    -- Note: μ[X * Y] = ∫ ω, (X * Y) ω ∂μ = ∫ ω, X ω * Y ω ∂μ
+    exact h_eq.symm
   · -- Conjunct 7 (joint Gaussianity): linearity of multivariateGaussian.
     -- Use `IsGaussian.map_continuousLinearMap` on the linear functional
     -- `(ω : (Finset.image (fun i => (us i).toNNReal) Finset.univ → ℝ)) ↦
