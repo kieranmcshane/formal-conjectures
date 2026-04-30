@@ -1786,6 +1786,19 @@ theorem K_GLW_processKernel_diag_antitone {s t : NNReal} (hst : s ≤ t) :
   exact K_GLW_var_antitone (NNReal.coe_nonneg s)
           (NNReal.coe_le_coe.mpr hst)
 
+/-- For positive `s : NNReal`, the diagonal `K(s, s)` is bounded by
+`1 / (2 (s : ℝ))`. -/
+theorem K_GLW_processKernel_diag_le_recip {s : NNReal} (h_s : 0 < (s : ℝ)) :
+    K_GLW_processKernel.K s s ≤ 1 / (2 * (s : ℝ)) := by
+  rw [K_GLW_processKernel_K]
+  exact K_GLW_var_le_recip h_s
+
+/-- For positive `s : NNReal`, the diagonal is strictly less than `1`. -/
+theorem K_GLW_processKernel_diag_lt_one {s : NNReal} (h_s : 0 < (s : ℝ)) :
+    K_GLW_processKernel.K s s < 1 := by
+  rw [K_GLW_processKernel_K]
+  exact K_GLW_var_lt_one h_s
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
