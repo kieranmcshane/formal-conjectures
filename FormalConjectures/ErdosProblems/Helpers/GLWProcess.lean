@@ -11,10 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -/
 
-import FormalConjectures.ErdosProblems.Helpers.GLWKernel
 import FormalConjectures.ErdosProblems.Helpers.GLWGaussianProjectiveLimit
-import Mathlib.MeasureTheory.Integral.Bochner.Basic
-import Mathlib.Probability.Distributions.Gaussian.Basic
 
 /-!
 # Phase 2 / Node 1B — GLW process existence axiom (stepping-stone)
