@@ -1421,6 +1421,26 @@ theorem glwCovMatrixNN_diag_eq_normSq (I : Finset NNReal)
   funext x
   ring
 
+/-! ### NNReal-grid variance decay corollaries -/
+
+/-- For positive grid points `s.1 > 0`, the diagonal of
+`glwCovMatrixNN` is bounded by `1 / (2 (s : ℝ))`. -/
+theorem glwCovMatrixNN_diag_le_recip (I : Finset NNReal)
+    (s : {x : NNReal // x ∈ I}) (h_s : 0 < (s.1 : ℝ)) :
+    glwCovMatrixNN I s s ≤ 1 / (2 * (s.1 : ℝ)) := by
+  rw [glwCovMatrixNN_apply]
+  have : K_GLW (s.1 : ℝ) (s.1 : ℝ) ≤ 1 / (2 * (s.1 : ℝ)) :=
+    K_GLW_var_le_recip h_s
+  exact this
+
+/-- For positive grid points `s.1 > 0`, the diagonal of
+`glwCovMatrixNN` is strictly less than `1`. -/
+theorem glwCovMatrixNN_diag_lt_one (I : Finset NNReal)
+    (s : {x : NNReal // x ∈ I}) (h_s : 0 < (s.1 : ℝ)) :
+    glwCovMatrixNN I s s < 1 := by
+  rw [glwCovMatrixNN_apply]
+  exact K_GLW_var_lt_one h_s
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
