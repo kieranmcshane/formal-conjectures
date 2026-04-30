@@ -114,4 +114,19 @@ theorem gaussianHierCauchy_box_anderson_upper {m : ℕ} (hm : 1 ≤ m)
   show glwBoxProb m ε ≤ _
   exact glwBoxProb_anderson_upper_v1 hm hε
 
+/-- Sanity-check examples for the m = 1 case. -/
+example {ε : ℝ} (hε : 0 < ε) :
+    glwBoxProb 1 ε ≤
+      (2 * ε) ^ (1 * 1) *
+        (2 * Real.pi) ^ (-((1 * 1 : ℕ) : ℝ) / 2) *
+        (Real.sqrt (hierCauchyG 1).det)⁻¹ :=
+  glwBoxProb_anderson_upper_v1 (by norm_num) hε
+
+example {ε : ℝ} (hε : 0 < ε) :
+    (gaussianHierCauchy 1 {x : Fin 1 × Fin 1 → ℝ | ∀ ij, |x ij| ≤ ε}).toReal ≤
+      (2 * ε) ^ (1 * 1) *
+        (2 * Real.pi) ^ (-((1 * 1 : ℕ) : ℝ) / 2) *
+        (Real.sqrt (hierCauchyG 1).det)⁻¹ :=
+  gaussianHierCauchy_box_anderson_upper (by norm_num) hε
+
 end Erdos524.Helpers
