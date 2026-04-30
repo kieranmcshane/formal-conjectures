@@ -368,27 +368,49 @@ theorem glwGaussianLimit_isKolmogorovProcess :
     rw [← BorelSpace.measurable_eq]
     fun_prop
   kolmogorovCondition := by
-    -- Hölder-constant fit. Mirrors `isKolmogorovProcess_preBrownian` from
-    -- `brownian-motion`:`Gaussian/BrownianMotion.lean` line 704, but
-    -- specialized to `(p, q, M) = (2, 2, 1)` via the **L²-Hölder-1**
-    -- bound `glwCovMatrixNN_pairwise_diff_quadratic_le_sq` rather than
-    -- the brownian's `(2n, n, ...)` family from
-    -- `centralMoment_fun_two_mul_gaussianReal`.
-    --
-    -- Reduction chain (R16 structured sorry):
-    --   ∫⁻ ω, edist (ω s) (ω t)² ∂glwGaussianLimit
-    --     = ∫⁻ ω, ENNReal.ofReal ((ω s - ω t)²) ∂glwGaussianLimit   -- edist_dist
-    --     = ENNReal.ofReal (∫ ω, (ω s - ω t)² ∂glwGaussianLimit)    -- ofReal_integral_eq_lintegral_ofReal
-    --     = ENNReal.ofReal (Var(ω s - ω t))                          -- centered + integrability
-    --     = ENNReal.ofReal (K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t)) -- covariance_eval_multivariateGaussian + hasLaw_restrict_glwGaussianLimit (on {s, t})
-    --     ≤ ENNReal.ofReal ((s : ℝ) - (t : ℝ))²                      -- glwCovMatrixNN_pairwise_diff_quadratic_le_sq
-    --     = 1 * edist s t ^ 2.                                       -- NNReal/edist bookkeeping
-    --
-    -- Open dependency: need a `hasLaw_eval_sub_eval_glwGaussianLimit`
-    -- analog of `hasLaw_eval_sub_eval_gaussianProjectiveFamily`
-    -- (brownian-motion `Gaussian/ProjectiveLimit.lean` line 130) — a
-    -- mechanical 1-line port using `glwCovMatrixNN` covariance identity.
-    sorry
+    intro s t
+    -- Convert real-pow exponent `(2 : ℝ)` to nat-pow `(2 : ℕ)` so subsequent
+    -- ENNReal manipulations are in `Monoid.npow` form.
+    have h2cast : (2 : ℝ) = ((2 : ℕ) : ℝ) := by norm_num
+    simp_rw [h2cast, ENNReal.rpow_natCast]
+    set σ := K_GLW (s : ℝ) (s : ℝ) + K_GLW (t : ℝ) (t : ℝ) - 2 * K_GLW (s : ℝ) (t : ℝ) with hσ_def
+    have hσ_nn : 0 ≤ σ := by
+      have := K_GLW_diff_quadratic_nonneg (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
+      simp only [hσ_def]; linarith
+    have hσ_le : σ ≤ ((s : ℝ) - (t : ℝ)) ^ 2 := by
+      have := K_GLW_diff_quadratic_le_sq (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
+      simp only [hσ_def]; linarith
+    have h_integrable : Integrable (fun x : ℝ ↦ x ^ 2)
+        (gaussianReal (0 : ℝ) σ.toNNReal) := by
+      have hmem := IsGaussian.memLp_id (μ := gaussianReal (0 : ℝ) σ.toNNReal)
+        2 (by exact ENNReal.natCast_ne_top 2)
+      have := hmem.integrable_norm_pow' (p := 2)
+      refine this.congr ?_
+      filter_upwards with x using by simp [Real.norm_eq_abs, sq_abs]
+    have h_var : ∫ x, x ^ 2 ∂(gaussianReal (0 : ℝ) σ.toNNReal) = σ := by
+      have hint_zero : ∫ ω, id ω ∂(gaussianReal (0 : ℝ) σ.toNNReal) = 0 := by
+        show ∫ ω, ω ∂(gaussianReal (0 : ℝ) σ.toNNReal) = 0
+        exact integral_id_gaussianReal
+      have h := variance_of_integral_eq_zero (μ := gaussianReal (0 : ℝ) σ.toNNReal)
+        (X := (id : ℝ → ℝ)) measurable_id'.aemeasurable hint_zero
+      rw [variance_id_gaussianReal] at h
+      simp only [id_eq] at h
+      rw [← h, Real.coe_toNNReal _ hσ_nn]
+    have h_lhs : ∫⁻ ω, edist (ω s) (ω t) ^ 2 ∂glwGaussianLimit = ENNReal.ofReal σ := by
+      have h_pt : ∀ ω : NNReal → ℝ,
+          edist (ω s) (ω t) ^ 2 = ENNReal.ofReal ((ω s - ω t) ^ 2) := fun ω => by
+        rw [edist_dist, Real.dist_eq, ← ENNReal.ofReal_pow (abs_nonneg _), sq_abs]
+      simp_rw [h_pt]
+      rw [(hasLaw_eval_sub_eval_glwGaussianLimit s t).lintegral_comp
+        (f := fun x : ℝ ↦ ENNReal.ofReal (x ^ 2)) (by fun_prop)]
+      rw [← ofReal_integral_eq_lintegral_ofReal h_integrable
+        (ae_of_all _ fun _ ↦ sq_nonneg _), h_var]
+    calc ∫⁻ ω, edist (ω s) (ω t) ^ 2 ∂glwGaussianLimit
+        = ENNReal.ofReal σ := h_lhs
+      _ ≤ ENNReal.ofReal (((s : ℝ) - (t : ℝ)) ^ 2) := ENNReal.ofReal_le_ofReal hσ_le
+      _ = (1 : ℝ≥0) * edist s t ^ 2 := by
+          rw [ENNReal.coe_one, one_mul, edist_dist, NNReal.dist_eq,
+            ← ENNReal.ofReal_pow (abs_nonneg _), sq_abs]
   p_pos := by norm_num
   q_pos := by norm_num
 
