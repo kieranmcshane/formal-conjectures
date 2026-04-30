@@ -658,4 +658,36 @@ theorem mvGaussian_box_density_at_mode_bound_one [DecidableEq n]
   rw [mvGaussianFromPosDef_one_eq]
   exact standardMVGaussian_anisotropic_box_density_at_mode_bound ε hε
 
+/-! ## Round 9 — Consumer-facing API summary
+
+Round 9 delivers the following consumer entry points (all sorry-free):
+
+| Form                                                            | Theorem                                            |
+| --------------------------------------------------------------- | -------------------------------------------------- |
+| anisotropic, `(√(2π))⁻¹^n` form (headline)                      | `mvGaussian_box_density_at_mode_bound`             |
+| anisotropic, `(2π)^(-n/2)` form                                 | `mvGaussian_box_density_at_mode_bound_rpow`        |
+| isotropic ε, `(√(2π))⁻¹^n` form                                 | `mvGaussian_isotropic_box_density_at_mode_bound`   |
+| isotropic ε, `(2π)^(-n/2)` form (V1 instance shape)             | `mvGaussian_isotropic_box_density_at_mode_bound_rpow` |
+| identity covariance specialisation                              | `mvGaussian_box_density_at_mode_bound_one`         |
+
+PosDef constructors:
+
+| Statement                                                       | Theorem               |
+| --------------------------------------------------------------- | --------------------- |
+| `(c • (1 : Matrix n n ℝ)).PosDef` for `c > 0`                   | `smul_one_PosDef`     |
+
+Mathlib-PR-ready Tonelli / pi-density lemmas:
+
+| Statement                                                       | Theorem                                       |
+| --------------------------------------------------------------- | --------------------------------------------- |
+| `∫⁻ ∏ f_i (x_i) ∂ Measure.pi μ = ∏ ∫⁻ f_i ∂ μ_i` (Fin n)        | `lintegral_fin_nat_prod_eq_prod_aux`          |
+| Same, Fintype version                                           | `lintegral_fintype_prod_eq_prod`              |
+| Rectangle-restricted form                                       | `setLIntegral_fintype_prod_pi_eq_prod`        |
+| `Measure.pi (μ.withDensity f) = (Measure.pi μ).withDensity (∏ f)` | `pi_withDensity_eq_withDensity_pi`        |
+
+The Round 9 closure used the last four to reduce the Round 6 sorry on
+`mvGaussian_box_density_at_mode_bound` from Mathlib-gap status to a fully
+proven theorem.
+-/
+
 end Erdos524.Helpers
