@@ -363,5 +363,56 @@ R14 should pursue one of:
   `v4.27.0`, no brownian-motion / kolmogorov_extension4 deps).
 * Build: green (8009 jobs).
 * Axiom count: 2 (`Y_GLW_exists`, `two_dim_KMT_coupling`).
-* Bridge file deliverables from R13 Tier 4: ~520 lines, 51 new
-  theorems, all committed.
+* Bridge file deliverables from R13 Tier 4: ~1260 lines added, 25
+  sub-sections, all committed and pushed to fork.
+
+### Critical R14 finding: StronglyAdapted is just a rename
+
+Investigation of `Mathlib/Probability/Process/Adapted.lean` in current
+v4.27.0 reveals (line 57 comment):
+
+> "The definition known as `Adapted` before 2026-01-13 is now
+>  `StronglyAdapted`."
+
+So in v4.27.0 (current):
+- `Adapted` := `∀ i, Measurable[f i] (u i)` (uses `Measurable`)
+- `StronglyAdapted` := `∀ i, StronglyMeasurable[f i] (u i)` (uses `StronglyMeasurable`)
+
+In v4.27.0-rc1 (the brownian-motion target, pre-2026-01-13):
+- `Adapted` := the old definition (StronglyMeasurable-based)
+- `StronglyAdapted` did not yet exist
+
+**This means the R13-blocker `StronglyAdapted` in `524.lean:662` is a
+mechanical rename**, NOT the deep refactor we feared:
+
+```diff
+- have hadapted : StronglyAdapted ℱ f := by
++ have hadapted : Adapted ℱ f := by
+```
+
+Plus any associated method calls
+(`StronglyAdapted.mul`, `StronglyAdapted.add`, etc.) need the same
+rename. Probably 5-15 occurrences in `524.lean`.
+
+### Updated R14 procedure (revised again, with new finding)
+
+R14 effort estimate revised DOWN to **30-45 min** total:
+
+1. Patches 1-3 (typeclass strengthening + rename): 5 min.
+2. Patch 4 (CauchyDetLowerBound offDiag bullet removal): 2 min.
+3. **Patch 5 (StronglyAdapted → Adapted)**: 5-10 min mechanical
+   sed-style refactor. May need to also revisit any
+   `StronglyMeasurable[ℱ k]` references that depended on the old
+   typing.
+4. Possibly **further unknown errors** beneath StronglyAdapted (we
+   didn't see past it in R13).
+5. If clean: retire `Y_GLW_exists` via brownian-motion API (15-20
+   min).
+
+**The R13 hypothesis ("4 errors are surgical") was effectively
+correct**, just incomplete (5th error existed). The discipline rule
+firing at T+15 was still right; the StronglyAdapted finding only
+becomes apparent post-revert via mathlib source inspection.
+
+R14 should attempt the pin again with a higher T+25 cap and the
+explicit fix list above.
