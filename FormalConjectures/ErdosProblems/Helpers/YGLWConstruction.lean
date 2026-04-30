@@ -479,6 +479,91 @@ theorem K_GLW_cauchy_schwarz {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
     nonneg_of_mul_nonneg_right h_qf h_var_v_pos
   linarith [h_inner]
 
+/-! ## 6.5. L²([0,1]) distance — Kolmogorov–Chentsov ground floor
+
+The eventual continuous-paths conjunct of `Y_GLW_exists` is proven via
+Kolmogorov–Chentsov, which requires the L²(Ω)-Hölder bound on
+`Y(u) - Y(v)`. By the (would-be) Itô isometry,
+`E[(Y(u) - Y(v))²] = ‖glwIntegrand u - glwIntegrand v‖²_{L²([0,1])}`,
+a deterministic quantity. Here we package this L²-distance and reduce
+its computation to the kernel.
+
+`‖glwIntegrand u - glwIntegrand v‖²_{L²([0,1])} =
+   K_GLW(u, u) - 2 K_GLW(u, v) + K_GLW(v, v)`
+which the eventual KC application bounds to deduce continuous paths. -/
+
+/-- Interval-integrability of `(glwIntegrand u s - glwIntegrand v s)²`
+on `[0, 1]`. Continuous on the compact interval. -/
+theorem intervalIntegrable_glwIntegrand_diff_sq (u v : ℝ) :
+    IntervalIntegrable
+      (fun s : ℝ => (glwIntegrand u s - glwIntegrand v s)^2)
+      MeasureTheory.volume 0 1 := by
+  have h_cont : Continuous (fun s : ℝ => (glwIntegrand u s - glwIntegrand v s)^2) := by
+    have h1 : Continuous (glwIntegrand u) := glwIntegrand_continuous u
+    have h2 : Continuous (glwIntegrand v) := glwIntegrand_continuous v
+    exact (h1.sub h2).pow 2
+  exact h_cont.intervalIntegrable 0 1
+
+/-- The integrand product `glwIntegrand u s * glwIntegrand v s` is
+interval-integrable on `[0, 1]`. -/
+theorem intervalIntegrable_glwIntegrand_mul (u v : ℝ) :
+    IntervalIntegrable
+      (fun s : ℝ => glwIntegrand u s * glwIntegrand v s)
+      MeasureTheory.volume 0 1 := by
+  have h_cont : Continuous (fun s : ℝ => glwIntegrand u s * glwIntegrand v s) :=
+    (glwIntegrand_continuous u).mul (glwIntegrand_continuous v)
+  exact h_cont.intervalIntegrable 0 1
+
+/-- Interval-integrability of `(glwIntegrand u s)²` on `[0, 1]`. -/
+theorem intervalIntegrable_glwIntegrand_sq (u : ℝ) :
+    IntervalIntegrable
+      (fun s : ℝ => (glwIntegrand u s)^2) MeasureTheory.volume 0 1 := by
+  have : (fun s : ℝ => (glwIntegrand u s)^2) =
+         (fun s : ℝ => glwIntegrand u s * glwIntegrand u s) := by
+    funext s; ring
+  rw [this]
+  exact intervalIntegrable_glwIntegrand_mul u u
+
+/-- **The L²([0,1]) distance identity**:
+`∫₀¹ (glwIntegrand u s - glwIntegrand v s)² ds =
+ K_GLW(u, u) - 2 K_GLW(u, v) + K_GLW(v, v)`.
+The deterministic shadow of `E[(Y(u) - Y(v))²]`. -/
+theorem L2_distance_glwIntegrand_eq {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    ∫ s in (0 : ℝ)..1, (glwIntegrand u s - glwIntegrand v s)^2 =
+      K_GLW u u - 2 * K_GLW u v + K_GLW v v := by
+  -- Expand the square: (a - b)² = a² - 2 a b + b².
+  have h_expand : (fun s : ℝ => (glwIntegrand u s - glwIntegrand v s)^2) =
+      fun s : ℝ => (glwIntegrand u s)^2 -
+        2 * (glwIntegrand u s * glwIntegrand v s) + (glwIntegrand v s)^2 := by
+    funext s; ring
+  rw [h_expand]
+  -- ∫ (a² - 2 a b + b²) = ∫ a² - 2 ∫ a b + ∫ b².
+  have h_uu_int : IntervalIntegrable (fun s : ℝ => (glwIntegrand u s)^2)
+      MeasureTheory.volume 0 1 := intervalIntegrable_glwIntegrand_sq u
+  have h_vv_int : IntervalIntegrable (fun s : ℝ => (glwIntegrand v s)^2)
+      MeasureTheory.volume 0 1 := intervalIntegrable_glwIntegrand_sq v
+  have h_uv_int : IntervalIntegrable
+      (fun s : ℝ => glwIntegrand u s * glwIntegrand v s)
+      MeasureTheory.volume 0 1 := intervalIntegrable_glwIntegrand_mul u v
+  have h_2uv_int : IntervalIntegrable
+      (fun s : ℝ => 2 * (glwIntegrand u s * glwIntegrand v s))
+      MeasureTheory.volume 0 1 := h_uv_int.const_mul 2
+  rw [intervalIntegral.integral_add (h_uu_int.sub h_2uv_int) h_vv_int,
+      intervalIntegral.integral_sub h_uu_int h_2uv_int,
+      intervalIntegral.integral_const_mul]
+  -- Identify each piece via the Mercer representation.
+  rw [← glwIntegrand_L2_norm_sq hu, ← glwIntegrand_L2_norm_sq hv,
+      ← K_GLW_eq_integral_glwIntegrand_mul hu hv]
+
+/-- **L²([0,1]) distance non-negativity**:
+`0 ≤ K_GLW(u, u) - 2 K_GLW(u, v) + K_GLW(v, v)`. The deterministic form
+of `0 ≤ E[(Y(u) - Y(v))²]`. -/
+theorem K_GLW_diff_quadratic_nonneg {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    0 ≤ K_GLW u u - 2 * K_GLW u v + K_GLW v v := by
+  rw [← L2_distance_glwIntegrand_eq hu hv]
+  exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
+    (fun _ => sq_nonneg _)
+
 /-! ## 7. Variance decay roadmap
 
 For the eventual sample-path tail-decay conjunct of `Y_GLW_exists`, the
