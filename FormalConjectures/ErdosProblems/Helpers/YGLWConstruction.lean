@@ -881,6 +881,321 @@ theorem K_GLW_var_tendsto_zero :
     linarith
   linarith
 
+/-! ## 7.5. Local K-C constant on `[T, T+1]` (R20)
+
+For `s, t ∈ [T, T+1]` with `T ≥ 1`, we prove the **local** Kolmogorov–
+Chentsov bound
+
+```
+K_GLW(s, s) + K_GLW(t, t) - 2 K_GLW(s, t) ≤ (s - t)² / (2 T³).
+```
+
+The decay `M_T = 1/(2T³)` is the load-bearing analytical fact for the
+chaining moment bound on `glwHolderConstantENN T` to be **summable**
+in `T`, which in turn powers the Borel–Cantelli sup-tail control on
+the unit blocks `[T, T+1]`. Without the cubic decay, only a global
+constant `M = 1` is available (cf. `K_GLW_diff_quadratic_le_sq`),
+which gives non-summable per-block tails.
+
+The proof goes through the L²([0,1]) representation:
+`K_GLW(s, s) + K_GLW(t, t) - 2 K_GLW(s, t) = ∫₀¹ (exp(-sx) - exp(-tx))² dx`
+(`L2_distance_glwIntegrand_eq` from Section 6.5). We then bound the
+integrand pointwise by `(s - t)² · x² · exp(-2 T x)` and apply the
+explicit primitive of `x² exp(-cx)` to bound the integral. -/
+
+/-- Pointwise sharpening of `exp_neg_diff_le_asym`: the L¹-Lipschitz
+factor `(s - t)` is now multiplied by `x · exp(-T·x)` rather than just
+the bare `1`, since the slopes `s, t` are bounded below by `T`. -/
+private lemma exp_neg_diff_local_abs_le
+    {T s t x : ℝ} (hT : 0 ≤ T) (hs : T ≤ s) (ht : T ≤ t)
+    (hx : 0 ≤ x) :
+    |Real.exp (-s * x) - Real.exp (-t * x)| ≤
+      |s - t| * x * Real.exp (-T * x) := by
+  -- WLOG `t ≤ s` (the symmetric case follows from `|·|` and abs).
+  rcases le_total t s with hts | hst
+  · -- Case `t ≤ s`. Then `exp(-sx) ≤ exp(-tx)`.
+    have h_mono : Real.exp (-s * x) ≤ Real.exp (-t * x) := by
+      apply Real.exp_le_exp.mpr
+      exact mul_le_mul_of_nonneg_right (by linarith) hx
+    have h_abs : |Real.exp (-s * x) - Real.exp (-t * x)|
+        = Real.exp (-t * x) - Real.exp (-s * x) := by
+      rw [abs_of_nonpos (by linarith)]; ring
+    rw [h_abs]
+    -- Factor `exp(-tx) - exp(-sx) = exp(-tx) · (1 - exp(-(s-t)x))`.
+    have h_factor : Real.exp (-t * x) - Real.exp (-s * x)
+        = Real.exp (-t * x) * (1 - Real.exp (-(s - t) * x)) := by
+      have h_split : Real.exp (-s * x)
+          = Real.exp (-t * x) * Real.exp (-(s - t) * x) := by
+        rw [← Real.exp_add]; congr 1; ring
+      rw [h_split]; ring
+    rw [h_factor]
+    -- Bound `1 - exp(-(s-t)x) ≤ (s-t)x`.
+    have h_one_sub : 1 - Real.exp (-(s - t) * x) ≤ (s - t) * x := by
+      have h_aux := Real.one_sub_le_exp_neg ((s - t) * x)
+      have h_eq : -(s - t) * x = -((s - t) * x) := by ring
+      rw [h_eq]; linarith
+    -- Bound `0 ≤ 1 - exp(-(s-t)x)`.
+    have h_st_nn : 0 ≤ (s - t) * x := mul_nonneg (by linarith) hx
+    have h_nonneg : 0 ≤ 1 - Real.exp (-(s - t) * x) := by
+      have h_le_one : Real.exp (-(s - t) * x) ≤ 1 := by
+        apply Real.exp_le_one_iff.mpr
+        have h_eq : -(s - t) * x = -((s - t) * x) := by ring
+        rw [h_eq]; linarith
+      linarith
+    -- Bound `exp(-tx) ≤ exp(-Tx)`.
+    have h_exp_mono : Real.exp (-t * x) ≤ Real.exp (-T * x) := by
+      apply Real.exp_le_exp.mpr
+      exact mul_le_mul_of_nonneg_right (by linarith) hx
+    -- `|s - t| = s - t`.
+    have h_abs_diff : |s - t| = s - t := abs_of_nonneg (by linarith)
+    rw [h_abs_diff]
+    -- Combine: `exp(-tx) · (1 - exp(...)) ≤ exp(-Tx) · (s-t)·x`.
+    calc Real.exp (-t * x) * (1 - Real.exp (-(s - t) * x))
+        ≤ Real.exp (-T * x) * (1 - Real.exp (-(s - t) * x)) := by
+          exact mul_le_mul_of_nonneg_right h_exp_mono h_nonneg
+      _ ≤ Real.exp (-T * x) * ((s - t) * x) := by
+          exact mul_le_mul_of_nonneg_left h_one_sub (Real.exp_pos _).le
+      _ = (s - t) * x * Real.exp (-T * x) := by ring
+  · -- Case `s ≤ t`. Symmetric argument.
+    have h_mono : Real.exp (-t * x) ≤ Real.exp (-s * x) := by
+      apply Real.exp_le_exp.mpr
+      exact mul_le_mul_of_nonneg_right (by linarith) hx
+    have h_abs : |Real.exp (-s * x) - Real.exp (-t * x)|
+        = Real.exp (-s * x) - Real.exp (-t * x) :=
+      abs_of_nonneg (by linarith)
+    rw [h_abs]
+    have h_factor : Real.exp (-s * x) - Real.exp (-t * x)
+        = Real.exp (-s * x) * (1 - Real.exp (-(t - s) * x)) := by
+      have h_split : Real.exp (-t * x)
+          = Real.exp (-s * x) * Real.exp (-(t - s) * x) := by
+        rw [← Real.exp_add]; congr 1; ring
+      rw [h_split]; ring
+    rw [h_factor]
+    have h_one_sub : 1 - Real.exp (-(t - s) * x) ≤ (t - s) * x := by
+      have h_aux := Real.one_sub_le_exp_neg ((t - s) * x)
+      have h_eq : -(t - s) * x = -((t - s) * x) := by ring
+      rw [h_eq]; linarith
+    have h_ts_nn : 0 ≤ (t - s) * x := mul_nonneg (by linarith) hx
+    have h_nonneg : 0 ≤ 1 - Real.exp (-(t - s) * x) := by
+      have h_le_one : Real.exp (-(t - s) * x) ≤ 1 := by
+        apply Real.exp_le_one_iff.mpr
+        have h_eq : -(t - s) * x = -((t - s) * x) := by ring
+        rw [h_eq]; linarith
+      linarith
+    have h_exp_mono : Real.exp (-s * x) ≤ Real.exp (-T * x) := by
+      apply Real.exp_le_exp.mpr
+      exact mul_le_mul_of_nonneg_right (by linarith) hx
+    have h_abs_diff : |s - t| = t - s := by
+      rw [abs_sub_comm]; exact abs_of_nonneg (by linarith)
+    rw [h_abs_diff]
+    calc Real.exp (-s * x) * (1 - Real.exp (-(t - s) * x))
+        ≤ Real.exp (-T * x) * (1 - Real.exp (-(t - s) * x)) :=
+          mul_le_mul_of_nonneg_right h_exp_mono h_nonneg
+      _ ≤ Real.exp (-T * x) * ((t - s) * x) :=
+          mul_le_mul_of_nonneg_left h_one_sub (Real.exp_pos _).le
+      _ = (t - s) * x * Real.exp (-T * x) := by ring
+
+/-- **R20 / Section 7.5 — pointwise local L²-Lipschitz bound.**
+For `s, t ≥ T ≥ 0` and `x ∈ [0, 1]`,
+`(exp(-sx) - exp(-tx))² ≤ (s - t)² · x² · exp(-2 T x)`. -/
+theorem glwIntegrand_diff_sq_le_local
+    {T s t x : ℝ} (hT : 0 ≤ T) (hs : T ≤ s) (ht : T ≤ t)
+    (hx : 0 ≤ x) :
+    (glwIntegrand s x - glwIntegrand t x) ^ 2
+      ≤ (s - t) ^ 2 * x ^ 2 * Real.exp (-(2 * T) * x) := by
+  unfold glwIntegrand
+  have h_abs := exp_neg_diff_local_abs_le hT hs ht hx
+  -- Square both sides of the abs bound.
+  have h_sq : (Real.exp (-s * x) - Real.exp (-t * x)) ^ 2
+      ≤ (|s - t| * x * Real.exp (-T * x)) ^ 2 := by
+    rw [show (Real.exp (-s * x) - Real.exp (-t * x)) ^ 2
+        = |Real.exp (-s * x) - Real.exp (-t * x)| ^ 2 from (sq_abs _).symm,
+      sq, sq]
+    exact mul_self_le_mul_self (abs_nonneg _) h_abs
+  -- Expand the RHS square.
+  have h_rhs_eq : (|s - t| * x * Real.exp (-T * x)) ^ 2
+      = (s - t) ^ 2 * x ^ 2 * Real.exp (-(2 * T) * x) := by
+    have h_abs_sq : |s - t| ^ 2 = (s - t) ^ 2 := sq_abs _
+    have h_exp_sq : Real.exp (-T * x) ^ 2 = Real.exp (-(2 * T) * x) := by
+      rw [sq, ← Real.exp_add]; congr 1; ring
+    calc (|s - t| * x * Real.exp (-T * x)) ^ 2
+        = |s - t| ^ 2 * x ^ 2 * (Real.exp (-T * x)) ^ 2 := by ring
+      _ = (s - t) ^ 2 * x ^ 2 * Real.exp (-(2 * T) * x) := by
+          rw [h_abs_sq, h_exp_sq]
+  linarith
+
+/-- The explicit primitive `F(x) = -((c²x² + 2cx + 2)/c³) · exp(-cx)`
+has derivative `x² · exp(-cx)`. Direct calculation: with
+`P(y) := -(c²y² + 2cy + 2)/c³`, the derivative
+`P'(y) - c·P(y) = y²` follows from `c·c²y² + 2c²y·c + 2c - 2c²y - 2c
+= c³y²`, divided by `c³`. -/
+private lemma hasDerivAt_xsq_exp_primitive {c : ℝ} (hc : c ≠ 0) (x : ℝ) :
+    HasDerivAt
+      (fun y : ℝ => -((c ^ 2 * y ^ 2 + 2 * c * y + 2) / c ^ 3)
+        * Real.exp (-c * y))
+      (x ^ 2 * Real.exp (-c * x)) x := by
+  -- Differentiate the polynomial `P(y) = c²y² + 2cy + 2`.
+  have h_y2 : HasDerivAt (fun y : ℝ => y ^ 2) (2 * x ^ 1) x := hasDerivAt_pow 2 x
+  have h_c2y2 : HasDerivAt (fun y : ℝ => c ^ 2 * y ^ 2) (c ^ 2 * (2 * x ^ 1)) x :=
+    h_y2.const_mul (c ^ 2)
+  have h_y : HasDerivAt (fun y : ℝ => y) (1 : ℝ) x := hasDerivAt_id x
+  have h_2cy : HasDerivAt (fun y : ℝ => 2 * c * y) (2 * c * 1) x :=
+    h_y.const_mul (2 * c)
+  have h_const : HasDerivAt (fun _ : ℝ => (2 : ℝ)) 0 x := hasDerivAt_const x 2
+  have hP_num : HasDerivAt (fun y : ℝ => c ^ 2 * y ^ 2 + 2 * c * y + 2)
+      (c ^ 2 * (2 * x ^ 1) + 2 * c * 1 + 0) x :=
+    (h_c2y2.add h_2cy).add h_const
+  have hP_div : HasDerivAt (fun y : ℝ => (c ^ 2 * y ^ 2 + 2 * c * y + 2) / c ^ 3)
+      ((c ^ 2 * (2 * x ^ 1) + 2 * c * 1 + 0) / c ^ 3) x :=
+    hP_num.div_const (c ^ 3)
+  have hP_neg : HasDerivAt (fun y : ℝ => -((c ^ 2 * y ^ 2 + 2 * c * y + 2) / c ^ 3))
+      (-((c ^ 2 * (2 * x ^ 1) + 2 * c * 1 + 0) / c ^ 3)) x := hP_div.neg
+  -- Differentiate `q(y) = exp(-c·y)`: chain rule.
+  have h_inner : HasDerivAt (fun y : ℝ => -c * y) (-c) x := by
+    have h := (hasDerivAt_id x).const_mul (-c)
+    simpa using h
+  have hq : HasDerivAt (fun y : ℝ => Real.exp (-c * y))
+      (Real.exp (-c * x) * (-c)) x := h_inner.exp
+  -- Apply product rule to F = (-(P/c³)) · q.
+  have h_prod := hP_neg.mul hq
+  -- The derivative we need is `x² · exp(-c x)`. The product rule gave a
+  -- sum which simplifies to `x² · exp(-c x)`.
+  convert h_prod using 1
+  -- Goal:
+  -- x² · exp(-c x) =
+  --   -((c²·(2x) + 2c)/c³) · exp(-c x) +
+  --   -((c²·x² + 2c·x + 2)/c³) · (exp(-c x) · (-c))
+  have hc3 : c ^ 3 ≠ 0 := pow_ne_zero 3 hc
+  field_simp
+  ring
+
+/-- **R20 / Section 7.5 — integral bound `∫₀¹ x²·exp(-2T x) dx ≤ 1/(4T³)`.**
+The integrand has primitive `F(x) = -((c²x² + 2cx + 2)/c³)·exp(-cx)`
+with `c := 2T`, so by FTC the integral is `F(1) - F(0) = 2/c³ -
+(c² + 2c + 2)·exp(-c)/c³ ≤ 2/c³ = 1/(4T³)`. -/
+theorem integral_xsq_exp_neg_two_T_le {T : ℝ} (hT : 0 < T) :
+    ∫ x in (0 : ℝ)..1, x ^ 2 * Real.exp (-(2 * T) * x) ≤ 1 / (4 * T ^ 3) := by
+  set c : ℝ := 2 * T with hc_def
+  have hc_pos : 0 < c := by simp [hc_def]; linarith
+  have hc_ne : c ≠ 0 := hc_pos.ne'
+  have hc3_pos : 0 < c ^ 3 := by positivity
+  have hT3_pos : 0 < T ^ 3 := by positivity
+  have h_c3 : c ^ 3 = 8 * T ^ 3 := by simp [hc_def]; ring
+  -- IntervalIntegrable hypothesis for FTC.
+  have h_cont : Continuous (fun x : ℝ => x ^ 2 * Real.exp (-c * x)) := by
+    have h1 : Continuous (fun x : ℝ => x ^ 2) := continuous_pow 2
+    have h_inner : Continuous (fun x : ℝ => -c * x) := by fun_prop
+    have h2 : Continuous (fun x : ℝ => Real.exp (-c * x)) :=
+      Real.continuous_exp.comp h_inner
+    exact h1.mul h2
+  have h_int : IntervalIntegrable (fun x : ℝ => x ^ 2 * Real.exp (-c * x))
+      MeasureTheory.volume 0 1 := h_cont.intervalIntegrable 0 1
+  -- FTC: ∫₀¹ x² exp(-cx) = F(1) - F(0).
+  have h_ftc :
+      ∫ x in (0 : ℝ)..1, x ^ 2 * Real.exp (-c * x)
+        = (-((c ^ 2 * 1 ^ 2 + 2 * c * 1 + 2) / c ^ 3) * Real.exp (-c * 1))
+            - (-((c ^ 2 * 0 ^ 2 + 2 * c * 0 + 2) / c ^ 3) * Real.exp (-c * 0)) := by
+    apply intervalIntegral.integral_eq_sub_of_hasDerivAt
+      (fun x _ => hasDerivAt_xsq_exp_primitive hc_ne x) h_int
+  -- Rewrite the original integral in terms of `c`.
+  have h_eq : (-(2 * T) : ℝ) = -c := by simp [hc_def]
+  rw [show (fun x : ℝ => x ^ 2 * Real.exp (-(2 * T) * x))
+        = (fun x : ℝ => x ^ 2 * Real.exp (-c * x)) by
+      funext x; rw [h_eq]]
+  rw [h_ftc]
+  -- Simplify F(0) and F(1).
+  rw [show (-c : ℝ) * 0 = 0 from by ring, Real.exp_zero,
+      show (-c : ℝ) * 1 = -c from by ring]
+  -- LHS = -(c² + 2c + 2)/c³ · exp(-c) + 2/c³ = (2 - (c²+2c+2)·exp(-c))/c³.
+  have h_simp :
+      (-((c ^ 2 * 1 ^ 2 + 2 * c * 1 + 2) / c ^ 3) * Real.exp (-c)
+        - -((c ^ 2 * 0 ^ 2 + 2 * c * 0 + 2) / c ^ 3) * 1)
+        = (2 - (c ^ 2 + 2 * c + 2) * Real.exp (-c)) / c ^ 3 := by
+    field_simp
+    ring
+  rw [h_simp]
+  -- Bound: numerator ≤ 2.
+  have h_pos_term : 0 ≤ (c ^ 2 + 2 * c + 2) * Real.exp (-c) := by
+    apply mul_nonneg
+    · positivity
+    · exact (Real.exp_pos _).le
+  have h_num_le : (2 - (c ^ 2 + 2 * c + 2) * Real.exp (-c)) ≤ 2 := by linarith
+  -- (numerator) / c³ ≤ 2 / c³ = 2/(8T³) = 1/(4T³).
+  calc (2 - (c ^ 2 + 2 * c + 2) * Real.exp (-c)) / c ^ 3
+      ≤ 2 / c ^ 3 := by
+        apply div_le_div_of_nonneg_right h_num_le hc3_pos.le
+    _ = 1 / (4 * T ^ 3) := by
+        rw [h_c3]; field_simp; ring
+
+/-- **R20 / Section 7.5 — local Kolmogorov–Chentsov bound.**
+For `T ≥ 1` and `s, t ≥ T`,
+`K_GLW(s, s) + K_GLW(t, t) - 2 K_GLW(s, t) ≤ (s - t)² / (2 T³)`.
+
+This is the local K-C constant `M_T = 1/(2T³)` decay, sharper than
+the global Lipschitz-1 bound `K_GLW_diff_quadratic_le_sq` in the
+regime `s, t ≥ T ≥ 1`. The cubic decay is what makes the sup-tail
+chaining bound summable on the integer ladder. -/
+theorem K_GLW_increment_var_le_T_cube
+    {T : ℝ} (hT : 1 ≤ T) {s t : ℝ}
+    (hs : T ≤ s) (ht : T ≤ t) :
+    K_GLW s s + K_GLW t t - 2 * K_GLW s t ≤ (s - t) ^ 2 / (2 * T ^ 3) := by
+  have hT_pos : 0 < T := by linarith
+  have hT_nn : 0 ≤ T := hT_pos.le
+  have hs_nn : 0 ≤ s := le_trans hT_nn hs
+  have ht_nn : 0 ≤ t := le_trans hT_nn ht
+  -- Step 1: Express the LHS via the L²([0,1]) representation.
+  have h_l2 : K_GLW s s + K_GLW t t - 2 * K_GLW s t
+      = ∫ x in (0 : ℝ)..1, (glwIntegrand s x - glwIntegrand t x) ^ 2 := by
+    have h := L2_distance_glwIntegrand_eq hs_nn ht_nn
+    linarith
+  rw [h_l2]
+  -- Step 2: Bound the integrand pointwise.
+  have h_pointwise : ∀ x, 0 ≤ x → x ≤ 1 →
+      (glwIntegrand s x - glwIntegrand t x) ^ 2
+        ≤ (s - t) ^ 2 * x ^ 2 * Real.exp (-(2 * T) * x) := fun x hx0 _ =>
+    glwIntegrand_diff_sq_le_local hT_nn hs ht hx0
+  -- Step 3: Integrate the pointwise bound.
+  have h_st_sq_nn : 0 ≤ (s - t) ^ 2 := sq_nonneg _
+  have h_int_lhs_int : IntervalIntegrable
+      (fun x => (glwIntegrand s x - glwIntegrand t x) ^ 2)
+      MeasureTheory.volume 0 1 := intervalIntegrable_glwIntegrand_diff_sq s t
+  have h_xsq_cont : Continuous (fun x : ℝ => x ^ 2 * Real.exp (-(2 * T) * x)) := by
+    have h1 : Continuous (fun x : ℝ => x ^ 2) := continuous_pow 2
+    have h_inner : Continuous (fun x : ℝ => -(2 * T) * x) := by fun_prop
+    have h2 : Continuous (fun x : ℝ => Real.exp (-(2 * T) * x)) :=
+      Real.continuous_exp.comp h_inner
+    exact h1.mul h2
+  have h_xsq_int : IntervalIntegrable
+      (fun x => x ^ 2 * Real.exp (-(2 * T) * x))
+      MeasureTheory.volume 0 1 := h_xsq_cont.intervalIntegrable 0 1
+  have h_rhs_int : IntervalIntegrable
+      (fun x => (s - t) ^ 2 * (x ^ 2 * Real.exp (-(2 * T) * x)))
+      MeasureTheory.volume 0 1 := h_xsq_int.const_mul ((s - t) ^ 2)
+  have h_int_le :
+      ∫ x in (0 : ℝ)..1, (glwIntegrand s x - glwIntegrand t x) ^ 2
+        ≤ ∫ x in (0 : ℝ)..1, (s - t) ^ 2 * (x ^ 2 * Real.exp (-(2 * T) * x)) := by
+    apply intervalIntegral.integral_mono_on (by norm_num : (0 : ℝ) ≤ 1)
+      h_int_lhs_int h_rhs_int
+    intro x hx
+    have h_pt := h_pointwise x hx.1 hx.2
+    nlinarith [h_pt]
+  -- Step 4: Pull out the constant `(s - t)²` and apply the integral bound.
+  rw [intervalIntegral.integral_const_mul] at h_int_le
+  have h_xsq_le : ∫ x in (0 : ℝ)..1, x ^ 2 * Real.exp (-(2 * T) * x)
+      ≤ 1 / (4 * T ^ 3) := integral_xsq_exp_neg_two_T_le hT_pos
+  have h_T3_pos : 0 < T ^ 3 := by positivity
+  -- Combine: ∫ ≤ (s-t)² · 1/(4T³) ≤ (s-t)² / (2T³).
+  calc ∫ x in (0 : ℝ)..1, (glwIntegrand s x - glwIntegrand t x) ^ 2
+      ≤ (s - t) ^ 2 * ∫ x in (0 : ℝ)..1, x ^ 2 * Real.exp (-(2 * T) * x) := h_int_le
+    _ ≤ (s - t) ^ 2 * (1 / (4 * T ^ 3)) := by
+        apply mul_le_mul_of_nonneg_left h_xsq_le h_st_sq_nn
+    _ ≤ (s - t) ^ 2 / (2 * T ^ 3) := by
+        rw [show (s - t) ^ 2 / (2 * T ^ 3) = (s - t) ^ 2 * (1 / (2 * T ^ 3)) from by ring]
+        apply mul_le_mul_of_nonneg_left _ h_st_sq_nn
+        have h_2T3_pos : 0 < 2 * T ^ 3 := by linarith
+        have h_two_le_four : 2 * T ^ 3 ≤ 4 * T ^ 3 := by linarith
+        exact one_div_le_one_div_of_le h_2T3_pos h_two_le_four
+
 /-! ## 8. Construction blockers — see `YGLWFromBrownianMotion.lean`
 
 The full retirement of `Y_GLW_exists` is blocked on the unavailability,

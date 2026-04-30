@@ -417,6 +417,111 @@ theorem glwGaussianLimit_isKolmogorovProcess :
   q_pos := by norm_num
 
 /-!
+## O4-local — Local Kolmogorov–Chentsov on `[T, T+1]` (R20)
+
+The **R20 sharpening** of `glwGaussianLimit_isKolmogorovProcess`: on
+the unit block `Set.Ico (T : NNReal) (T + 1)` for `T : ℕ` with `T ≥ 1`,
+the projection process satisfies the K-C condition with the **local
+constant** `M_T = 1/(2T³)`, derived from `K_GLW_increment_var_le_T_cube`.
+
+This sharper bound is what makes the chaining moment bound
+`E[glwHolderConstantENN T] ≤ Cp · M_T` summable in `T` — a global
+constant `M = 1` (as in `glwGaussianLimit_isKolmogorovProcess`) gives
+non-summable per-block tails.
+-/
+
+/-- **R20 / T2.1 — local Kolmogorov–Chentsov on the unit block `[T, T+1]`.**
+The projection process on the subtype `↥(Set.Ico T (T+1)) : Set NNReal`
+satisfies the K-C condition with `(p, q, M_T) = (2, 2, 1/(2T³))`. -/
+theorem glwGaussianLimit_isKolmogorovProcess_local (T : ℕ) (hT : 1 ≤ T) :
+    IsKolmogorovProcess
+      (T := ↥(Set.Ico ((T : NNReal)) ((T : NNReal) + 1)))
+      (Ω := NNReal → ℝ) (E := ℝ)
+      (fun u ω => ω u.1) glwGaussianLimit
+      2 2 (Real.toNNReal (1 / (2 * (T : ℝ) ^ 3))) where
+  measurablePair := by
+    intro s t
+    rw [← BorelSpace.measurable_eq]
+    fun_prop
+  kolmogorovCondition := by
+    intro s t
+    set σ := K_GLW (s.1 : ℝ) (s.1 : ℝ) + K_GLW (t.1 : ℝ) (t.1 : ℝ)
+        - 2 * K_GLW (s.1 : ℝ) (t.1 : ℝ) with hσ_def
+    have hT_real : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
+    have hT_pos : (0 : ℝ) < (T : ℝ) := by linarith
+    have hT3_pos : (0 : ℝ) < 2 * (T : ℝ) ^ 3 := by positivity
+    have hM_T_nn : (0 : ℝ) ≤ 1 / (2 * (T : ℝ) ^ 3) := by positivity
+    -- The subtype lower bound `T ≤ s.1` (as NNReal, hence as ℝ).
+    have hs_T : (T : ℝ) ≤ (s.1 : ℝ) := by
+      have h : ((T : NNReal) : ℝ) ≤ ((s.1 : NNReal) : ℝ) := by
+        exact_mod_cast s.2.1
+      simpa using h
+    have ht_T : (T : ℝ) ≤ (t.1 : ℝ) := by
+      have h : ((T : NNReal) : ℝ) ≤ ((t.1 : NNReal) : ℝ) := by
+        exact_mod_cast t.2.1
+      simpa using h
+    have hσ_nn : 0 ≤ σ := by
+      have := K_GLW_diff_quadratic_nonneg
+        (NNReal.coe_nonneg s.1) (NNReal.coe_nonneg t.1)
+      simp only [hσ_def]; linarith
+    have hσ_le : σ ≤ ((s.1 : ℝ) - (t.1 : ℝ)) ^ 2 / (2 * (T : ℝ) ^ 3) := by
+      have := K_GLW_increment_var_le_T_cube hT_real hs_T ht_T
+      simp only [hσ_def]; linarith
+    -- Variance computation (mirror of the global proof).
+    have h_integrable : Integrable (fun x : ℝ ↦ x ^ 2)
+        (gaussianReal (0 : ℝ) σ.toNNReal) := by
+      have hmem := IsGaussian.memLp_id (μ := gaussianReal (0 : ℝ) σ.toNNReal)
+        2 (by exact ENNReal.natCast_ne_top 2)
+      have := hmem.integrable_norm_pow' (p := 2)
+      refine this.congr ?_
+      filter_upwards with x using by simp [Real.norm_eq_abs, sq_abs]
+    have h_var : ∫ x, x ^ 2 ∂(gaussianReal (0 : ℝ) σ.toNNReal) = σ := by
+      have hint_zero : ∫ ω, id ω ∂(gaussianReal (0 : ℝ) σ.toNNReal) = 0 := by
+        show ∫ ω, ω ∂(gaussianReal (0 : ℝ) σ.toNNReal) = 0
+        exact integral_id_gaussianReal
+      have h := variance_of_integral_eq_zero (μ := gaussianReal (0 : ℝ) σ.toNNReal)
+        (X := (id : ℝ → ℝ)) measurable_id'.aemeasurable hint_zero
+      rw [variance_id_gaussianReal] at h
+      simp only [id_eq] at h
+      rw [← h, Real.coe_toNNReal _ hσ_nn]
+    -- Pointwise rpow → real square reduction (no simp_rw on `2 : ℝ`!).
+    have h_pt : ∀ ω : NNReal → ℝ,
+        edist (ω s.1) (ω t.1) ^ (2 : ℝ) = ENNReal.ofReal ((ω s.1 - ω t.1) ^ 2) := fun ω => by
+      rw [show (2 : ℝ) = ((2 : ℕ) : ℝ) from by norm_num, ENNReal.rpow_natCast,
+        edist_dist, Real.dist_eq, ← ENNReal.ofReal_pow (abs_nonneg _), sq_abs]
+    have h_lhs : ∫⁻ ω, edist (ω s.1) (ω t.1) ^ (2 : ℝ) ∂glwGaussianLimit
+        = ENNReal.ofReal σ := by
+      simp_rw [h_pt]
+      rw [(hasLaw_eval_sub_eval_glwGaussianLimit s.1 t.1).lintegral_comp
+        (f := fun x : ℝ ↦ ENNReal.ofReal (x ^ 2)) (by fun_prop)]
+      rw [← ofReal_integral_eq_lintegral_ofReal h_integrable
+        (ae_of_all _ fun _ ↦ sq_nonneg _), h_var]
+    -- The edist on the subtype reduces to edist on NNReal.
+    have h_edist_sq : edist s t ^ (2 : ℝ)
+        = ENNReal.ofReal (((s.1 : ℝ) - (t.1 : ℝ)) ^ 2) := by
+      rw [show (edist s t : ℝ≥0∞) = edist s.1 t.1 from rfl,
+        show (2 : ℝ) = ((2 : ℕ) : ℝ) from by norm_num, ENNReal.rpow_natCast,
+        edist_dist, NNReal.dist_eq,
+        ← ENNReal.ofReal_pow (abs_nonneg _), sq_abs]
+    -- Final calc.
+    -- `(Real.toNNReal x : ℝ≥0∞) = ENNReal.ofReal x` is rfl
+    -- (ENNReal.ofReal is defined as `↑(Real.toNNReal ·)`).
+    calc ∫⁻ ω, edist (ω s.1) (ω t.1) ^ (2 : ℝ) ∂glwGaussianLimit
+        = ENNReal.ofReal σ := h_lhs
+      _ ≤ ENNReal.ofReal (((s.1 : ℝ) - (t.1 : ℝ)) ^ 2 / (2 * (T : ℝ) ^ 3)) :=
+          ENNReal.ofReal_le_ofReal hσ_le
+      _ = ENNReal.ofReal (1 / (2 * (T : ℝ) ^ 3))
+            * ENNReal.ofReal (((s.1 : ℝ) - (t.1 : ℝ)) ^ 2) := by
+          rw [← ENNReal.ofReal_mul hM_T_nn]
+          congr 1
+          field_simp
+      _ = ((Real.toNNReal (1 / (2 * (T : ℝ) ^ 3))) : ℝ≥0∞) * edist s t ^ (2 : ℝ) := by
+          rw [h_edist_sq]
+          rfl
+  p_pos := by norm_num
+  q_pos := by norm_num
+
+/-!
 ## O4½ — Continuous-path modification (R18)
 
 The Kolmogorov-Chentsov continuous-modification theorem applied to
@@ -647,104 +752,145 @@ lemma summable_marginal_tail {ε : ℝ} (hε : 0 < ε) :
   rw [h_eq]
   exact (summable_geometric_of_lt_one h_exp_nn h_exp_lt).mul_left _
 
-/-! ## R19 / T2.2 — marginal sup-tail bound (Stub)
+/-! ## R20 / T2.2 — chaining moment bound on `glwHolderConstantENN T` (Stub)
 
-The marginal-sup-tail target is
+With `glwGaussianLimit_isKolmogorovProcess_local T hT` (R20 / T2.1
+Full) supplying the local K-C with `(p, q, M_T) = (2, 2, 1/(2T³))`,
+the chaining moment bound from the brownian-motion library
 
 ```
-∀ T : ℕ, T ≥ 1 → ∀ ε > 0,
-  P(sup_{u ∈ [T, T+1]} |Y u ω| ≥ ε) ≤ f(T, ε), with ∑_T f(T, ε) < ∞.
+countable_kolmogorov_chentsov (hT : HasBoundedInternalCoveringNumber U c d)
+  (hX : IsAEKolmogorovProcess X P p q M)
+  ...
+  (T' : Set T) [hT' : Countable T'] (hT'U : T' ⊆ U) :
+  ∫⁻ ω, ⨆ (s : T') (t : T'), edist (X s ω) (X t ω) ^ p / edist s t ^ (β * p) ∂P
+    ≤ M * constL T c d p q β U
 ```
 
-The textbook proof goes:
+(in `BrownianMotion/Continuity/KolmogorovChentsovInequality.lean:326`)
+applied with `T = ↥(Set.Ico T_n (T_n + 1))`, the local IsKolmogorovProcess,
+`U = univ`, `T' = the countable subtype matching `glwHolderConstantENN`,
+gives
 
-1. **Sup decomposition.** Sample-path continuity (conjunct 8, R18 Full)
-   plus the Hölder bound `|Y_s ω - Y_t ω|^2 ≤ glwHolderConstantENN T ω
-   · |s - t|^(1/2)` (the `(p, q, β·p) = (2, 2, 1/2)` shape baked into
-   `glwHolderConstant`) gives, on the unit-interval block,
-   `sup_{[T, T+1]} |Y u| ≤ |Y T| + glwHolderConstant T`.
+```
+E[glwHolderConstantENN T_n] ≤ M_T_n · constL = O(1/T_n³)
+```
 
-2. **Endpoint marginal.** From T2.1.a's
-   `eval_glwGaussianLimit_real_abs_ge_le_of_pos`,
-   `P(|Y T| ≥ ε/2) ≤ 2 · exp(-(ε/2)² · T) = 2 · exp(-ε² T / 4)`.
+— **the load-bearing summability bound**.
 
-3. **Hölder-modulus tail.** Markov on `glwHolderConstantENN T`. The
-   chaining moment bound from
-   `IsKolmogorovProcess.finite_set_bound_of_edist_le` gives
-   `E[glwHolderConstantENN T] ≤ Cp(d, p, q) · M`, where:
-   * `Cp(1, 2, 2)` is the explicit chaining constant from the K-C
-     inequality;
-   * `M` is the K-C process constant.
+**R20 status (T2.2 Stub).** The chaining lemma `countable_kolmogorov_chentsov`
+needs three companion facts to apply on the unit block:
 
-4. **The summability obstruction.** Step 3's `M` is the *global* K-C
-   process constant; for `glwGaussianLimit_isKolmogorovProcess` we
-   have `(p, q, M) = (2, 2, 1)`, and `M = 1` is **not T-dependent**.
-   Markov on a constant gives `P(glwHolderConstant T ≥ ε/2) ≤ 4 · Cp /
-   ε²`, which is not summable in T. To recover summability we need a
-   *local* K-C constant `M_T = O(1/T³)` — sharper than the global one
-   — derived from the second-order Taylor expansion of `K_GLW` around
-   the diagonal `(T, T)`:
+* `HasBoundedInternalCoveringNumber Set.univ` for the subtype
+  `↥(Set.Ico T (T+1))`. The cumulative cover
+  `isCoverWithBoundedCoveringNumber_Ico_nnreal` (R19 used) gives
+  bounded covering numbers for `[0, n+1)` blocks of NNReal but not
+  directly for the standalone subtype block. Constructing the block-
+  local version via `HasBoundedInternalCoveringNumber.subset` is
+  ~30 LOC.
+* The countable index `T' = denseCountable NNReal ∩ Set.Ico T (T+1)`
+  matching the inner iSup of `glwHolderConstantENN`.
+* The `constL` constant evaluation (the explicit chaining constant
+  `Cp(d, p, q)` from the K-C inequality; `Cp(1, 2, 2)` instantiation).
 
-   ```
-   Var(Y_s - Y_t) = K_GLW(s,s) + K_GLW(t,t) - 2·K_GLW(s,t)
-                  = (s - t)² / (4·T³) + O((s - t)² / T⁴)
-   ```
-
-   for `s, t ∈ [T, T+1]`, large `T`. This is an *elementary* Taylor
-   expansion of `K_GLW(s, t) = (1 - exp(-(s+t)))/(s+t)`, but encoding
-   it in Lean (and bounding the higher-order tails uniformly in `s,
-   t ∈ [T, T+1]`) is a substantial bespoke analytical estimate.
-
-5. **Compositional summable bound.** With a local `M_T = O(1/T³)` the
-   chaining bound becomes `E[glwHolderConstantENN T] ≤ Cp / T³`, and
-   `P(glwHolderConstant T ≥ ε/2) ≤ 4 · Cp / (ε² · T³)`. Combined with
-   step 2:
-
-   ```
-   P(sup_{[T, T+1]} |Y u| ≥ ε) ≤ 2 · exp(-ε² T / 4) + 4 · Cp / (ε² · T³)
-   ```
-
-   Both terms are summable in `T`, and `∑_T [...] < ∞` is the f(T, ε)
-   that feeds T2.3 (Borel–Cantelli on the integer ladder).
-
-**R19 status (T2.2 Stub).** The full assembly is left as a structured
-sorry below. The Stub is the lemma signature; its body cites the
-documented blocker (step 4 — local K-C constant) which is not single-
-round-feasible without an analytical-bounds module on `K_GLW`. T2.2
-Partial would require (4) sorry-free and (5) Markov + Chernoff
-assembly with one inline sorry; that work is deferred to R20.
+These are well-defined Mathlib API hooks; the assembly is mechanical
+but each step has potential for sub-lemma name mismatches and is
+estimated at ~80-120 LOC total.
 -/
 
-/-- **R19 / T2.2 (Stub).** Marginal sup-tail bound. The body cites the
-documented blocker chain above; the Lean statement is a structured
-sorry pending the local K-C constant `M_T = O(1/T³)` analytical
-bound on `K_GLW`. -/
-lemma marginal_sup_tail_blocker_R19 (T : ℕ) (hT : 1 ≤ T) {ε : ℝ} (hε : 0 < ε) :
-    True := by
-  -- Step 4 (local K-C constant `M_T = O(1/T³)`) is the deferred
-  -- analytical bound on `K_GLW`. With it, step 5 gives a summable
-  -- f(T, ε) = 2 · exp(-ε² T / 4) + 4 · Cp / (ε² · T³).
-  trivial
+/-- **R20 / T2.2 (Stub).** Chaining moment bound:
+`E[glwHolderConstantENN T] ≤ Cp · M_T = O(1/T³)`. Apply
+`countable_kolmogorov_chentsov` from the brownian-motion library to
+`glwGaussianLimit_isKolmogorovProcess_local T hT` with the countable
+subtype `denseCountable NNReal ∩ Set.Ico T (T+1)`. -/
+lemma glwHolderConstantENN_lintegral_le_R20 (T : ℕ) (hT : 1 ≤ T) :
+    ∃ Cp_T : ℝ≥0∞,
+      Cp_T < ∞ ∧
+      ∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit ≤ Cp_T := by
+  -- Stub: the chaining moment bound from
+  -- `BrownianMotion/Continuity/KolmogorovChentsovInequality.lean:326`
+  -- (`countable_kolmogorov_chentsov`) applied to `T2.1`'s local
+  -- IsKolmogorovProcess. Each ingredient is documented above.
+  refine ⟨∞, ?_, ?_⟩
+  · sorry  -- Cp_T < ∞: needs an explicit `constL · M_T` evaluation.
+  · sorry  -- the chaining bound application.
 
-/-! ## R19 / T2.3 — Borel-Cantelli on integer ladder (Stub)
+/-! ## R20 / T3.1 — marginal sup-tail bound on `[T, T+1]` (Stub)
 
-Once T2.2 lands the summable sup-tail `f(T, ε)` with `∑ f(T, ε) < ∞`,
-Borel-Cantelli (`MeasureTheory.measure_limsup_atTop_eq_zero` on the
-events `E_T(ε) := {ω | sup_{[T, T+1]} |Y u ω| > ε}`) gives:
+Combining T2.2 (chaining moment bound) with the R19 marginal Chernoff
+tail (`eval_glwGaussianLimit_real_abs_ge_le_of_pos`):
 
-  `P(limsup_T E_T(ε)) = 0`,
+For each integer `T ≥ 1` and `ε > 0`,
 
-i.e., a.s. only finitely many `T` have `sup_{[T, T+1]} |Y u| > ε`.
-Equivalently, a.s. for every `ε > 0`, ∃ T₀, ∀ u ≥ T₀, `|Y u ω| ≤ ε`.
-The quantifier interleaving over a countable rational ε-net then
-delivers the conjunct-9 statement.
+```
+P(sup_{u ∈ [T, T+1]} |Y u ω| ≥ ε) ≤
+  2 · exp(-ε² T / 4) + 4 · Cp_T / ε²
+```
 
-**R19 status (T2.3 Stub).** Gated on T2.2 Full.
+where `Cp_T = O(1/T³)` from T2.2. Both terms are summable in `T`.
+
+**Sup decomposition.** For `ω` in the a.s. set where the
+`exists_glwBrownianModification`-witness `Y'` is sample-path continuous
+and Hölder on each block (R18 conjunct 8 Full),
+
+```
+sup_{[T, T+1]} |Y u ω| ≤ |Y T ω| + glwHolderConstant T ω
+```
+
+(diameter of `[T, T+1]` is 1; Hölder exponent `β = 1/4` so
+`|s-t|^β ≤ 1` on the unit block).
+
+**R20 status (T3.1 Stub).** Gated on T2.2 Full + the explicit Hölder
+relation from `holderOnWith_holderModification`. The connection
+between `Y' = exists_glwBrownianModification`'s witness and the
+explicit iSup-formula `glwHolderConstantENN T` requires re-establishing
+the `holderOnWith` bound after the R18 routing through
+`exists_modification_holder'''`. ~60-80 LOC.
 -/
 
-/-- **R19 / T2.3 (Stub).** Borel-Cantelli on the integer ladder of
-sup-tail events. Gated on T2.2 Full. -/
-lemma BC_integer_ladder_blocker_R19 : True := trivial
+/-- **R20 / T3.1 (Stub).** Marginal sup-tail bound on the unit block
+`[T, T+1]`. Gated on T2.2 Full + sup-decomposition via Hölder. -/
+lemma marginal_sup_tail_le_R20 (T : ℕ) (_hT : 1 ≤ T) {ε : ℝ} (_hε : 0 < ε) :
+    ∃ f_T_ε : ℝ,
+      0 ≤ f_T_ε ∧
+      glwGaussianLimit.real
+        {ω : NNReal → ℝ |
+          ε ≤ ⨆ u : ↥(Set.Ico (T : NNReal) (T + 1)), |ω u.1|}
+          ≤ f_T_ε := by
+  -- Stub: combine `eval_glwGaussianLimit_real_abs_ge_le_of_pos` (R19
+  -- marginal Chernoff at u = T) with Markov on `glwHolderConstant T`
+  -- via T2.2's moment bound. Each step has structural alignment work
+  -- with the brownian-motion library; ~60-80 LOC.
+  refine ⟨1, by norm_num, ?_⟩
+  sorry
+
+/-! ## R20 / T3.2 — Borel–Cantelli on the integer ladder (Stub)
+
+Once T3.1 lands the summable sup-tail `f(T, ε)` with `∑_T f(T, ε) < ∞`,
+`MeasureTheory.measure_limsup_atTop_eq_zero` (or
+`MeasureTheory.ae_eventually_notMem` / `Filter.eventually_atTop`)
+applied to the events `E_T(ε) := {ω | sup_{[T, T+1]} |Y u ω| ≥ ε}`
+gives `P(limsup_T E_T(ε)) = 0`. Equivalently, a.s. for every `ε > 0`,
+∃ `T₀ : ℕ`, ∀ `T ≥ T₀`, `sup_{[T, T+1]} |Y u| < ε`.
+
+The quantifier interleaving over a countable rational `ε`-net then
+delivers the conjunct-9 statement (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀,
+|Y u ω| ≤ ε).
+
+**R20 status (T3.2 Stub).** Gated on T3.1 Full. The Borel–Cantelli
+step is a direct API call to Mathlib's `measure_limsup_atTop_eq_zero`
+followed by the `Filter.eventually_atTop` unfolding; ~30-40 LOC.
+-/
+
+/-- **R20 / T3.2 (Stub).** Borel–Cantelli on the integer ladder. Gated
+on T3.1 Full. -/
+lemma BC_integer_ladder_R20 {ε : ℝ} (_hε : 0 < ε) :
+    ∀ᵐ ω ∂glwGaussianLimit,
+      ∃ N : ℕ, ∀ T : ℕ, N ≤ T →
+        ¬(ε ≤ ⨆ u : ↥(Set.Ico (T : NNReal) (T + 1)), |ω u.1|) := by
+  -- Stub: apply MeasureTheory.measure_limsup_atTop_eq_zero with the
+  -- summable sup-tail f(T, ε) from T3.1; ~30-40 LOC.
+  sorry
 
 /-!
 ## O5 — Process-existence witness in the 9-conjunct form
