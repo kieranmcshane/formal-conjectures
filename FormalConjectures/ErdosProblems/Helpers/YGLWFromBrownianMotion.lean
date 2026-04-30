@@ -1716,6 +1716,29 @@ theorem K_GLW_processKernel_PSD (I : Finset NNReal) :
        K_GLW_processKernel.K s.1 t.1).PosSemidef :=
   K_GLW_processKernel.PSD I
 
+/-- The hoelder field of `K_GLW_processKernel` is the Hölder-1 bound. -/
+theorem K_GLW_processKernel_hoelder (s t : NNReal) :
+    K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+      2 * K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
+  K_GLW_processKernel.hoelder s t
+
+/-- Specific value: at `(0, 0)`, the kernel equals `1`. -/
+theorem K_GLW_processKernel_at_zero :
+    K_GLW_processKernel.K 0 0 = 1 := by
+  simp [K_GLW_processKernel_K, K_GLW_zero]
+
+/-- Specific value: the kernel is positive on any pair `(s, t)`. -/
+theorem K_GLW_processKernel_pos (s t : NNReal) :
+    0 < K_GLW_processKernel.K s t := by
+  rw [K_GLW_processKernel_K]
+  exact K_GLW_pos _ _ (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
+
+/-- Specific bound: the kernel is bounded above by `1`. -/
+theorem K_GLW_processKernel_le_one (s t : NNReal) :
+    K_GLW_processKernel.K s t ≤ 1 := by
+  rw [K_GLW_processKernel_K]
+  exact K_GLW_le_one _ _ (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
