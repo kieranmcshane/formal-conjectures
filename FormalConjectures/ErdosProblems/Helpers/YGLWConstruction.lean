@@ -510,6 +510,36 @@ theorem K_GLW_bounded_on_nonneg {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
   rw [abs_of_pos (K_GLW_pos u v hu hv)]
   exact K_GLW_le_one u v hu hv
 
+/-- The variance `K_GLW(u, u)` is strictly less than `1` for `u > 0`
+(strict inequality, from `1 - exp(-2u) < 2u` for `u > 0`). -/
+theorem K_GLW_var_lt_one {u : ℝ} (hu : 0 < u) :
+    K_GLW u u < 1 := by
+  rw [K_GLW_var_eq hu]
+  rw [div_lt_one (by linarith : (0 : ℝ) < 2 * u)]
+  -- Goal: 1 - exp(-2u) < 2u.  From `Real.add_one_lt_exp` applied to
+  -- `2u`: `1 + 2u < exp(2u)` (for `2u > 0`), so `1 < exp(2u) - 2u`,
+  -- and via `exp(-2u) > 0` and `(exp 2u)·(exp -2u) = 1` ... messy.
+  -- Direct: from `Real.one_sub_le_exp_neg (2 * u)` we have
+  -- `1 - 2u ≤ exp(-2u)`, but we want strictness in the other direction.
+  -- Use `Real.add_one_lt_exp` (strict on `2u > 0`): `1 + 2u < exp(2u)`.
+  -- Multiply by exp(-2u) > 0: `(1 + 2u)·exp(-2u) < 1`,
+  -- which expands to `exp(-2u) + 2u·exp(-2u) < 1`,
+  -- so `1 - exp(-2u) > 2u·exp(-2u) > 0`. Hmm not quite.
+  -- Cleaner: from `Real.add_one_lt_exp (h : 2u ≠ 0)`: `1 + 2u < exp(2u)`.
+  -- Take inverse: `1/(exp(2u)) < 1/(1 + 2u)`, i.e., `exp(-2u) < 1/(1 + 2u)`.
+  -- Then `1 - exp(-2u) > 1 - 1/(1 + 2u) = 2u/(1 + 2u)` — not directly < 2u.
+  -- Direct attempt: `1 - exp(-2u) ≤ 2u` (from one_sub_le_exp_neg).
+  -- We need strictness: at u > 0, `1 - exp(-2u) < 2u` iff
+  -- `1 - 2u < exp(-2u)`. The latter holds STRICTLY for `2u > 0` because
+  -- `Real.one_sub_lt_exp_neg` would require it... let me use
+  -- `Real.add_one_lt_exp` on `-2u` (which is < 0):
+  -- `1 + (-2u) < exp(-2u)` requires `-2u ≠ 0`, i.e., `u ≠ 0`.
+  have h2u_ne : -(2 * u) ≠ 0 := by linarith
+  have h_strict : -(2 * u) + 1 < Real.exp (-(2 * u)) :=
+    Real.add_one_lt_exp h2u_ne
+  -- -2u + 1 < exp(-2u), so 1 - exp(-2u) < 2u.
+  linarith
+
 /-! ## 6.5. L²([0,1]) distance — Kolmogorov–Chentsov ground floor
 
 The eventual continuous-paths conjunct of `Y_GLW_exists` is proven via
