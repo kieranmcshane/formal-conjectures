@@ -1886,6 +1886,161 @@ private lemma am_qm_three_term_ENN (L : ℝ) (k : ℕ) :
     norm_num
   rw [h_two]
 
+/-! ### R26 / T2.* — sub-sorries for the constL-unfolding and final closure
+
+The R26 plan unfolds `constL T_block (6(T+1)) 1 2 2 (1/4) Set.univ` for the
+unit-block subtype, applies `am_qm_three_term_ENN` pointwise inside the
+inner tsum, linearises via `ENNReal.tsum_le_tsum + ENNReal.tsum_add +
+ENNReal.tsum_mul_left`, multiplies by `M_T`, applies `absorb_ENN` to get
+`(T+1)·M_T ≤ 4/(T+1)²`, then chains through `logb_change_base_sq` and
+`log_sq_le_sqrt` to land `Cp_T_explicit T ≤ K/(T+1)^(3/2)`.
+
+Each named sub-lemma below corresponds to one entry in the R26
+sub-sorry budget table. -/
+
+/-- **R26 / step-1-S0-finiteness-ENN.** ENNReal version of
+`summable_S_zero_real`: the geometric series `∑ k, 2^(-k/2)` is finite
+in ℝ≥0∞. -/
+private lemma S_zero_ENN_lt_top :
+    (∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ)))) < ∞ := by
+  -- Rewrite `2 ^ (k * (-1/2)) = (2 ^ (-1/2))^k` (rpow_mul) then use
+  -- the geometric-series sum at ratio `r = 2^(-1/2) < 1`.
+  have h_eq : ∀ k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ)))
+      = ((2 : ℝ≥0∞) ^ (-(1/2 : ℝ))) ^ k := by
+    intro k
+    rw [mul_comm, ENNReal.rpow_mul, ENNReal.rpow_natCast]
+  simp_rw [h_eq]
+  rw [ENNReal.tsum_geometric]
+  -- Goal: (1 - (2 : ℝ≥0∞)^(-(1/2:ℝ)))⁻¹ < ∞.
+  have h_lt_one : (2 : ℝ≥0∞) ^ (-(1 / 2 : ℝ)) < 1 := rho_lt_one_ENN
+  have h_ne_top : (2 : ℝ≥0∞) ^ (-(1 / 2 : ℝ)) ≠ ⊤ := by
+    intro h
+    rw [h] at h_lt_one
+    exact absurd h_lt_one (not_lt.mpr le_top)
+  exact ENNReal.inv_lt_top.mpr (tsub_pos_of_lt h_lt_one)
+
+/-- **R26 / step-1-Sk2-lift.** ENNReal version of `summable_S_ksq_real`:
+`∑ k, ofReal(k²) * 2^(-k/2)` is finite in ℝ≥0∞. -/
+private lemma S_ksq_ENN_lt_top :
+    (∑' k : ℕ, ENNReal.ofReal ((k : ℝ) ^ 2) *
+        (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ)))) < ∞ := by
+  -- Lift the real summability via `ENNReal.tsum_ofReal_le_tsum_iff`-style
+  -- coercion. Use that `ofReal(k²) * ofReal(r^k) = ofReal(k² · r^k)` and
+  -- the real series is summable.
+  have h_real : Summable (fun k : ℕ => (k : ℝ) ^ 2 * ((2 : ℝ) ^ (-(1/2 : ℝ))) ^ k) :=
+    summable_S_ksq_real
+  -- Show the ENNReal series equals `ofReal` of the real series, hence finite.
+  have h_term_eq : ∀ k : ℕ,
+      ENNReal.ofReal ((k : ℝ) ^ 2) * (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ)))
+      = ENNReal.ofReal ((k : ℝ) ^ 2 * ((2 : ℝ) ^ (-(1/2 : ℝ))) ^ k) := by
+    intro k
+    have h_pow_eq : (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ)))
+        = ENNReal.ofReal (((2 : ℝ) ^ (-(1/2 : ℝ))) ^ k) := by
+      rw [mul_comm, ENNReal.rpow_mul, ENNReal.rpow_natCast]
+      have h_two_eq : (2 : ℝ≥0∞) ^ (-(1 / 2 : ℝ))
+          = ENNReal.ofReal ((2 : ℝ) ^ (-(1 / 2 : ℝ))) := by
+        rw [show (2 : ℝ≥0∞) = ENNReal.ofReal 2 by
+              rw [show (2 : ℝ) = ((2 : ℕ) : ℝ) from by norm_num,
+                  ENNReal.ofReal_natCast]; norm_num,
+            ← ENNReal.ofReal_rpow_of_pos (by norm_num : (0:ℝ) < 2)]
+      rw [h_two_eq, ← ENNReal.ofReal_pow rho_nn]
+    rw [h_pow_eq, ← ENNReal.ofReal_mul (by positivity)]
+  simp_rw [h_term_eq]
+  rw [← ENNReal.ofReal_tsum_of_nonneg (fun k => by positivity) h_real]
+  exact ENNReal.ofReal_lt_top
+
+/-- **R26 / step-2-prefactor.** Constant prefactor in the constL unfold,
+combining `2^15` (from `2*p + 5*q + 1` at p = q = 2), the `c = 6(T+1)`,
+and the `(diam + 1) ≤ 2` bound. The product `2^15 · 6 · 2 = 2^15 · 12`,
+which we round up to `2^19`. -/
+private lemma constL_prefactor_le (T : ℕ) :
+    (2 : ℝ≥0∞) ^ (15 : ℝ) * (6 * ((T : ℝ≥0∞) + 1)) * (2 : ℝ≥0∞) ≤
+      (2 : ℝ≥0∞) ^ (19 : ℝ) * ((T : ℝ≥0∞) + 1) := by
+  -- 2^15 · 6 · 2 = 12 · 2^15 ≤ 16 · 2^15 = 2^19; the (T+1) factor is shared.
+  have h_const : (2 : ℝ≥0∞) ^ (15 : ℝ) * 6 * 2 ≤ (2 : ℝ≥0∞) ^ (19 : ℝ) := by
+    have h1 : (2 : ℝ≥0∞) ^ (15 : ℝ) = (2 : ℝ≥0∞) ^ (15 : ℕ) := by
+      rw [← ENNReal.rpow_natCast]; norm_num
+    have h2 : (2 : ℝ≥0∞) ^ (19 : ℝ) = (2 : ℝ≥0∞) ^ (19 : ℕ) := by
+      rw [← ENNReal.rpow_natCast]; norm_num
+    rw [h1, h2]
+    -- 2^15 * 6 * 2 = 2^15 * 12 ≤ 2^15 * 16 = 2^19.
+    have h_lhs : (2 : ℝ≥0∞) ^ (15 : ℕ) * 6 * 2 = (2 : ℝ≥0∞) ^ (15 : ℕ) * 12 := by ring
+    have h_rhs : (2 : ℝ≥0∞) ^ (19 : ℕ) = (2 : ℝ≥0∞) ^ (15 : ℕ) * 16 := by
+      have h_pow : (2 : ℝ≥0∞) ^ (19 : ℕ) = (2 : ℝ≥0∞) ^ (15 : ℕ) * (2 : ℝ≥0∞) ^ (4 : ℕ) := by
+        rw [← pow_add]
+      rw [h_pow]
+      norm_num
+    rw [h_lhs, h_rhs]
+    exact mul_le_mul_left' (by norm_num : (12 : ℝ≥0∞) ≤ 16) _
+  calc (2 : ℝ≥0∞) ^ (15 : ℝ) * (6 * ((T : ℝ≥0∞) + 1)) * (2 : ℝ≥0∞)
+      = ((2 : ℝ≥0∞) ^ (15 : ℝ) * 6 * 2) * ((T : ℝ≥0∞) + 1) := by ring
+    _ ≤ (2 : ℝ≥0∞) ^ (19 : ℝ) * ((T : ℝ≥0∞) + 1) := by
+        exact mul_le_mul_of_nonneg_right h_const (zero_le _)
+
+/-- **R26 / step-2a-constL-unfold (PARTIAL — placeholder for full unfolding).**
+Direct upper bound on `constL ↥(Set.Ico T (T+1)) (6(T+1)) 1 2 2 (1/4) Set.univ`
+in terms of the dyadic sum at our parameters. Specifically:
+`constL_block T ≤ 2^15 · 6(T+1) · 2 · ∑ k, 2^(-k/2) · (4 · ofReal((L+k+2)²) + Cp 1 2 2)`
+where `L = logb 2 (6(T+1))`. This collapses the brownian-motion `constL`
+definition with `(p,q,d,β) = (2,2,1,1/4)`, `(diam+1) ≤ 2`, and absorbs the
+exponent simplification `k * (β·p - (q-d)) = -k/2`. -/
+private lemma constL_unit_block_le (T : ℕ) (hT : 1 ≤ T) :
+    constL ↥(Set.Ico ((T : NNReal)) ((T : NNReal) + 1))
+      (6 * ((T : ℝ≥0∞) + 1)) 1 2 2 (1 / 4 : ℝ≥0) Set.univ ≤
+    (2 : ℝ≥0∞) ^ (19 : ℝ) * ((T : ℝ≥0∞) + 1) *
+      ∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))) *
+        (4 * ENNReal.ofReal ((Real.logb 2 (6 * ((T : ℝ) + 1))
+                               + (k : ℝ) + 2) ^ 2)
+          + Cp 1 2 2) := by
+  -- Full unfolding of brownian-motion `constL` at our specific
+  -- parameters with the exponent simplification `k * (1/4 * 2 - (2-1)) =
+  -- -k/2` and `(diam + 1) ≤ 2` from `diam_unit_block_le_one`. This is the
+  -- load-bearing R26 sub-sorry — ~30-60 LOC of dense brownian-motion-API
+  -- glue. Captured as a structured sorry pending the constL-unfold pass.
+  sorry  -- TAG[R26-step-2a-constL-unfold]: unfold constL + dyadic exp simp + diam reduction
+
+/-- **R26 / step-1-final-bound.** Pointwise AM-QM bound for the inner sum:
+`∑ k, 2^(-k/2) · (4 ofReal((L+k+2)²) + Cp 1 2 2) ≤
+  8 ofReal((L+2)²) · S₀ + 8 · S_k² + Cp 1 2 2 · S₀`
+where `S₀ = ∑ k, 2^(-k/2)` and `S_k² = ∑ k, ofReal(k²) · 2^(-k/2)`. -/
+private lemma inner_tsum_AMQM_bound (L : ℝ) :
+    (∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))) *
+        (4 * ENNReal.ofReal ((L + (k : ℝ) + 2) ^ 2) + Cp 1 2 2)) ≤
+      8 * ENNReal.ofReal ((L + 2) ^ 2) *
+        (∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))))
+      + 8 * (∑' k : ℕ, ENNReal.ofReal ((k : ℝ) ^ 2) *
+              (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))))
+      + Cp 1 2 2 * (∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ)))) := by
+  -- Apply `am_qm_three_term_ENN` pointwise then linearize via
+  -- ENNReal.tsum_le_tsum + ENNReal.tsum_add + ENNReal.tsum_mul_left.
+  -- LOC budget 25 (from R26 budget table); zero-cap 50.
+  sorry  -- TAG[R26-step-1-final-bound]: AM-QM pointwise + tsum linearity
+
+/-- **R26 / step-3b-MT-mult.** Multiplying the constL bound by `M_T` and
+applying `absorb_ENN` gives:
+`Cp_T_explicit T = M_T · constL ≤ K_full · ofReal((L+2)²) / (T+1)² + K_const / (T+1)²`
+where `K_full = 4 · 2^19 · 8 · S₀_real` and `K_const` collects the rest. -/
+private lemma Cp_T_explicit_le_log_sq_div_succ_sq (T : ℕ) (hT : 1 ≤ T) :
+    ∃ K_full K_const : ℝ≥0∞, K_full < ∞ ∧ K_const < ∞ ∧
+      Cp_T_explicit T ≤
+        K_full * ENNReal.ofReal ((Real.logb 2 (6 * ((T : ℝ) + 1)) + 2) ^ 2) /
+          ((T : ℝ≥0∞) + 1) ^ 2
+        + K_const / ((T : ℝ≥0∞) + 1) ^ 2 := by
+  -- Wires constL_unit_block_le + inner_tsum_AMQM_bound + absorb_ENN.
+  -- LOC budget 30; zero-cap 60.
+  sorry  -- TAG[R26-step-3b-step-5-compose]: M_T · constL + absorb chain
+
+/-- **R26 / step-5-final.** Chains `logb_change_base_sq` + `log_sq_le_sqrt`
+to convert `(L+2)² / (T+1)²` to `K / (T+1)^(3/2)` form, retiring the
+residual `R23-bound-pointwise`. -/
+private lemma Cp_T_explicit_le_K_div_three_halves_R26 (T : ℕ) (hT : 1 ≤ T) :
+    ∃ K : ℝ, 0 ≤ K ∧
+      Cp_T_explicit T ≤ ENNReal.ofReal (K / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) := by
+  -- Combines `Cp_T_explicit_le_log_sq_div_succ_sq` with `logb_change_base_sq`
+  -- and `log_sq_le_sqrt` to produce the headline bound.
+  -- LOC budget 25; zero-cap 50.
+  sorry  -- TAG[R26-step-5-final]: log² → √(T+1) chain + K_outer assembly
+
 
 /-- **R23 / T2.1 (Partial → R24 Full).** Summability of the chaining moment
 constants `Cp_T_explicit T`. Per Commitment C (Grok-validated),
