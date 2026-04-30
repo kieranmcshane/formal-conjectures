@@ -575,6 +575,47 @@ theorem glwCovMatrix_frobenius_sq_nonneg {n : ℕ} (us : Fin n → ℝ) :
   intros j _
   exact sq_nonneg _
 
+/-! ## 4.10. Cauchy-Schwarz consequences and small-dim determinants
+
+Round 12 additions. The kernel-side Cauchy-Schwarz inequality
+`K_GLW(u, v)² ≤ K_GLW(u, u) · K_GLW(v, v)` (proven in
+`YGLWConstruction.lean` as `K_GLW_cauchy_schwarz`) lifts directly to
+the Gram matrix as the off-diagonal-vs-diagonal control. The 1×1
+determinant identity gives the simplest non-trivial PSD witness; this
+serves as the base case for the inductive Sylvester argument that
+underpins the projective-family marginal consistency. -/
+
+/-- Off-diagonal Cauchy-Schwarz: each squared entry is bounded by the
+product of the two diagonal entries on the same row/column. Direct
+lift of `K_GLW_cauchy_schwarz`. -/
+theorem glwCovMatrix_entry_sq_le_diag_prod {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) (i j : Fin n) :
+    (glwCovMatrix us i j)^2 ≤ glwCovMatrix us i i * glwCovMatrix us j j := by
+  rw [glwCovMatrix_apply, glwCovMatrix_diag_eq, glwCovMatrix_diag_eq]
+  exact K_GLW_cauchy_schwarz (h_us i) (h_us j)
+
+/-- 1-dim determinant: for `n = 1`, the determinant of `glwCovMatrix`
+is exactly the single entry `K_GLW(u₀, u₀)`. -/
+theorem glwCovMatrix_one_dim_det (us : Fin 1 → ℝ) :
+    (glwCovMatrix us).det = K_GLW (us 0) (us 0) := by
+  rw [Matrix.det_unique]
+  simp [glwCovMatrix_apply]
+
+/-- 1-dim determinant non-negativity (refining
+`glwCovMatrix_det_nonneg` to give the explicit value). -/
+theorem glwCovMatrix_one_dim_det_nonneg (us : Fin 1 → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    0 ≤ (glwCovMatrix us).det := by
+  rw [glwCovMatrix_one_dim_det]
+  exact le_of_lt (K_GLW_pos _ _ (h_us 0) (h_us 0))
+
+/-- 1-dim determinant upper bound: `det glwCovMatrix ≤ 1`. -/
+theorem glwCovMatrix_one_dim_det_le_one (us : Fin 1 → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) :
+    (glwCovMatrix us).det ≤ 1 := by
+  rw [glwCovMatrix_one_dim_det]
+  exact K_GLW_le_one _ _ (h_us 0) (h_us 0)
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
