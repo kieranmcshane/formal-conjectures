@@ -1835,6 +1835,39 @@ private lemma logb_change_base_sq {T : ℝ} (hT : 1 ≤ T) :
   rw [h_eq]
   nlinarith [sq_nonneg (a - (b + 2)), sq_nonneg (a + (b + 2))]
 
+/-- **R25 / step-3a (ENNReal lift).** ENNReal-valued absorption lemma.
+For `T ≥ 1`, `M_T · (T+1) ≤ 4 / (T+1)²` in ℝ≥0∞. -/
+private lemma absorb_ENN {T : ℕ} (hT : 1 ≤ T) :
+    (Real.toNNReal (1 / (2 * (T : ℝ) ^ 3)) : ℝ≥0∞) * ((T : ℝ≥0∞) + 1)
+      ≤ (4 : ℝ≥0∞) / ((T : ℝ≥0∞) + 1) ^ 2 := by
+  have hT_real : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
+  have hT_pos : (0 : ℝ) < (T : ℝ) := by linarith
+  have hT1_pos : (0 : ℝ) < (T : ℝ) + 1 := by linarith
+  have hT1_sq_pos : (0 : ℝ) < ((T : ℝ) + 1) ^ 2 := by positivity
+  have h2T3_pos : (0 : ℝ) < 2 * (T : ℝ) ^ 3 := by positivity
+  have h_real := absorb_real hT_real
+  -- Real bound: ((T:ℝ)+1) / (2 * (T:ℝ)^3) ≤ 4 / ((T:ℝ)+1)^2.
+  -- Rewrite both sides via ENNReal.ofReal.
+  have h_M_eq : (Real.toNNReal (1 / (2 * (T : ℝ) ^ 3)) : ℝ≥0∞)
+      = ENNReal.ofReal (1 / (2 * (T : ℝ) ^ 3)) := rfl
+  have h_T1_eq : ((T : ℝ≥0∞) + 1) = ENNReal.ofReal ((T : ℝ) + 1) := by
+    rw [ENNReal.ofReal_add (by exact_mod_cast Nat.zero_le T) (by norm_num : (0:ℝ) ≤ 1),
+        ENNReal.ofReal_natCast, ENNReal.ofReal_one]
+  have h_T1_sq_eq : ((T : ℝ≥0∞) + 1) ^ 2 = ENNReal.ofReal (((T : ℝ) + 1) ^ 2) := by
+    rw [h_T1_eq, ← ENNReal.ofReal_pow (by linarith : (0:ℝ) ≤ (T:ℝ)+1)]
+  have h_4_eq : (4 : ℝ≥0∞) = ENNReal.ofReal 4 := by
+    rw [show (4 : ℝ) = ((4 : ℕ) : ℝ) from by norm_num]
+    rw [ENNReal.ofReal_natCast]
+    norm_num
+  rw [h_M_eq, h_T1_sq_eq, h_T1_eq, h_4_eq]
+  rw [← ENNReal.ofReal_mul (by positivity : (0:ℝ) ≤ 1 / (2 * (T:ℝ)^3))]
+  rw [← ENNReal.ofReal_div_of_pos hT1_sq_pos]
+  apply ENNReal.ofReal_le_ofReal
+  have h_LHS_eq : 1 / (2 * (T : ℝ) ^ 3) * ((T : ℝ) + 1) = ((T : ℝ) + 1) / (2 * (T : ℝ) ^ 3) := by
+    field_simp
+  rw [h_LHS_eq]
+  exact h_real
+
 
 /-- **R23 / T2.1 (Partial → R24 Full).** Summability of the chaining moment
 constants `Cp_T_explicit T`. Per Commitment C (Grok-validated),
