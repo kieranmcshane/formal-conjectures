@@ -1888,6 +1888,128 @@ theorem Y_GLW_kernel_data_NN_full :
               (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
     linarith
 
+/-! ## 4.25. Extended `ProcessKernel` corollaries — generic structural facts
+
+Generic facts derivable from the four `ProcessKernel` axioms. These
+are reusable for any kernel data witnessing a Gaussian process on
+`NNReal` — once `Y_GLW_exists` is retired (R14+), these will continue
+to be load-bearing for downstream upper/lower bound arguments. -/
+
+namespace ProcessKernel
+
+variable (P : ProcessKernel)
+
+/-- Hölder-1 yields a *lower* bound on `2 K(s, t)`:
+`2 K(s, t) ≥ K(s, s) + K(t, t) − ((s - t) : ℝ)²`. -/
+theorem K_two_ge_diag_minus_sq_diff (s t : NNReal) :
+    P.K s s + P.K t t - ((s : ℝ) - (t : ℝ))^2 ≤ 2 * P.K s t := by
+  have := P.hoelder s t
+  linarith
+
+/-- The Hölder-1 bound, expressed as a *lower* bound on the off-diagonal
+in terms of the diagonal: `K(s, t) ≥ (K(s, s) + K(t, t))/2 − (s - t)²/2`. -/
+theorem K_off_diag_ge_diag_avg_minus_sq (s t : NNReal) :
+    (P.K s s + P.K t t) / 2 - ((s : ℝ) - (t : ℝ))^2 / 2 ≤ P.K s t := by
+  have := P.hoelder s t
+  linarith
+
+/-- The averaged Hölder-1 bound. -/
+theorem K_avg_le_off_diag_plus_sq_half (s t : NNReal) :
+    (P.K s s + P.K t t) / 2 - P.K s t ≤ ((s : ℝ) - (t : ℝ))^2 / 2 := by
+  have := P.hoelder s t
+  linarith
+
+/-- Scaled Hölder-1 bound: any non-negative multiple. -/
+theorem K_hoelder_scaled (s t : NNReal) (c : ℝ) (hc : 0 ≤ c) :
+    c * (P.K s s + P.K t t - 2 * P.K s t) ≤ c * ((s : ℝ) - (t : ℝ))^2 :=
+  mul_le_mul_of_nonneg_left (P.hoelder s t) hc
+
+/-- The triangle-style three-point Hölder inequality:
+sum of pairwise increment-squares is bounded by sum of squared distances. -/
+theorem K_three_point_hoelder (s t u : NNReal) :
+    (P.K s s + P.K t t - 2 * P.K s t) +
+      (P.K t t + P.K u u - 2 * P.K t u) ≤
+        ((s : ℝ) - (t : ℝ))^2 + ((t : ℝ) - (u : ℝ))^2 := by
+  have h1 := P.hoelder s t
+  have h2 := P.hoelder t u
+  linarith
+
+/-- Reflexive Hölder bound: at `(s, s)`, the increment is zero. -/
+theorem K_hoelder_refl (s : NNReal) :
+    P.K s s + P.K s s - 2 * P.K s s = 0 := by ring
+
+/-- Non-negativity of the squared-difference Hölder right-hand side. -/
+theorem K_hoelder_rhs_nonneg (s t : NNReal) :
+    0 ≤ ((s : ℝ) - (t : ℝ))^2 := sq_nonneg _
+
+end ProcessKernel
+
+/-! ## 4.26. Extended `K_GLW_processKernel` corollaries — instantiation
+on the GLW kernel of `ProcessKernel` generic facts. -/
+
+/-- The averaged Hölder bound for the GLW process kernel. -/
+theorem K_GLW_processKernel_avg_le (s t : NNReal) :
+    (K_GLW_processKernel.K s s + K_GLW_processKernel.K t t) / 2 -
+      K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 / 2 :=
+  K_GLW_processKernel.K_avg_le_off_diag_plus_sq_half s t
+
+/-- The Hölder lower bound on the off-diagonal of the GLW process kernel. -/
+theorem K_GLW_processKernel_off_diag_ge_diag_avg_minus_sq (s t : NNReal) :
+    (K_GLW_processKernel.K s s + K_GLW_processKernel.K t t) / 2 -
+        ((s : ℝ) - (t : ℝ))^2 / 2 ≤
+      K_GLW_processKernel.K s t :=
+  K_GLW_processKernel.K_off_diag_ge_diag_avg_minus_sq s t
+
+/-- Three-point Hölder for the GLW process kernel. -/
+theorem K_GLW_processKernel_three_point_hoelder (s t u : NNReal) :
+    (K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
+        2 * K_GLW_processKernel.K s t) +
+      (K_GLW_processKernel.K t t + K_GLW_processKernel.K u u -
+        2 * K_GLW_processKernel.K t u) ≤
+        ((s : ℝ) - (t : ℝ))^2 + ((t : ℝ) - (u : ℝ))^2 :=
+  K_GLW_processKernel.K_three_point_hoelder s t u
+
+/-- Empty-Finset PSD for the GLW process kernel — trivially true. -/
+theorem K_GLW_processKernel_empty_PSD :
+    (Matrix.of fun s t : {x : NNReal // x ∈ (∅ : Finset NNReal)} =>
+       K_GLW_processKernel.K s.1 t.1).PosSemidef :=
+  K_GLW_processKernel.PSD ∅
+
+/-- Singleton-Finset PSD for the GLW process kernel — the 1×1 case. -/
+theorem K_GLW_processKernel_singleton_PSD (a : NNReal) :
+    (Matrix.of fun s t : {x : NNReal // x ∈ ({a} : Finset NNReal)} =>
+       K_GLW_processKernel.K s.1 t.1).PosSemidef :=
+  K_GLW_processKernel.PSD {a}
+
+/-- Pair-Finset PSD for the GLW process kernel — the 2×2 case. -/
+theorem K_GLW_processKernel_pair_PSD (a b : NNReal) :
+    (Matrix.of fun s t : {x : NNReal // x ∈ ({a, b} : Finset NNReal)} =>
+       K_GLW_processKernel.K s.1 t.1).PosSemidef :=
+  K_GLW_processKernel.PSD {a, b}
+
+/-- Sum of two diagonal GLW kernel values is bounded above by `2`. -/
+theorem K_GLW_processKernel_diag_sum_le_two (s t : NNReal) :
+    K_GLW_processKernel.K s s + K_GLW_processKernel.K t t ≤ 2 := by
+  have h1 := K_GLW_processKernel_le_one s s
+  have h2 := K_GLW_processKernel_le_one t t
+  linarith
+
+/-- Sum of two diagonal GLW kernel values is non-negative. -/
+theorem K_GLW_processKernel_diag_sum_nonneg (s t : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s + K_GLW_processKernel.K t t := by
+  have h1 := K_GLW_processKernel_diag_nonneg s
+  have h2 := K_GLW_processKernel_diag_nonneg t
+  linarith
+
+/-- Sum of three pairwise off-diagonal kernel values bound. -/
+theorem K_GLW_processKernel_three_pair_sum_le (s t u : NNReal) :
+    K_GLW_processKernel.K s t + K_GLW_processKernel.K t u +
+      K_GLW_processKernel.K s u ≤ 3 := by
+  have h1 := K_GLW_processKernel_le_one s t
+  have h2 := K_GLW_processKernel_le_one t u
+  have h3 := K_GLW_processKernel_le_one s u
+  linarith
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
