@@ -1773,6 +1773,69 @@ private lemma diam_unit_block_le_one (T : ℕ) :
   rw [abs_le]
   exact ⟨by linarith, by linarith⟩
 
+/-! ### R25 / T2.1–T2.8 — discharge of the residual `R23-bound-pointwise`
+
+R25 provides an intermediate bound `Cp_T_explicit T ≤ O((log T)² / (T+1)²)`
+that, combined with `log_sq_le_sqrt` (R23 Full), closes the existing
+`R23-bound-pointwise` sorry. The chain proceeds in 8 sub-steps following
+the Cowork-authored skeleton in the R25 manifest. -/
+
+/-- **R25 / step-0a.** `(2 : ℝ≥0∞) ^ (-(1/2 : ℝ)) < 1`. -/
+private lemma rho_lt_one_ENN : (2 : ℝ≥0∞) ^ (-(1/2 : ℝ)) < 1 :=
+  ENNReal.rpow_lt_one_of_one_lt_of_neg
+    (by norm_num : (1 : ℝ≥0∞) < 2) (by norm_num : -(1/2 : ℝ) < 0)
+
+/-- **R25 / step-0b.** For `T ≥ 1`, `0 < L_T + 2` where `L_T = logb 2 (6(T+1))`. -/
+private lemma L_T_plus_two_pos {T : ℕ} (hT : 1 ≤ T) :
+    (0 : ℝ) < Real.logb 2 (6 * ((T : ℝ) + 1)) + 2 := by
+  have hT_real : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
+  have h6T_ge : (12 : ℝ) ≤ 6 * ((T : ℝ) + 1) := by linarith
+  have h6T_pos : (0 : ℝ) < 6 * ((T : ℝ) + 1) := by linarith
+  have h_log_nn : (0 : ℝ) ≤ Real.logb 2 (6 * ((T : ℝ) + 1)) := by
+    apply Real.logb_nonneg (by norm_num : (1 : ℝ) < 2)
+    linarith
+  linarith
+
+/-- **R25 / step-3a (real form).** For `T ≥ 1`, `(T+1) / (2 T³) ≤ 4 / (T+1)²`.
+Equivalent to `(T+1)³ ≤ 8 T³` after cross-multiplying, which follows from
+`T+1 ≤ 2T` (i.e., `T ≥ 1`). -/
+private lemma absorb_real {T : ℝ} (hT : 1 ≤ T) :
+    (T + 1) / (2 * T ^ 3) ≤ 4 / (T + 1) ^ 2 := by
+  have hT_pos : (0 : ℝ) < T := by linarith
+  have hT3_pos : (0 : ℝ) < T ^ 3 := by positivity
+  have hT1_pos : (0 : ℝ) < T + 1 := by linarith
+  have hT1_sq_pos : (0 : ℝ) < (T + 1) ^ 2 := by positivity
+  rw [div_le_div_iff₀ (by positivity) hT1_sq_pos]
+  -- Goal: (T+1) * (T+1)^2 ≤ 4 * (2 * T^3) = 8 T^3
+  nlinarith [sq_nonneg T, sq_nonneg (T + 1), sq_nonneg (T - 1)]
+
+/-- **R25 / step-4 (logb change of base).** For `T ≥ 1`,
+`(logb 2 (6(T+1)) + 2)² ≤ 2(log(T+1)/log 2)² + 2(log 6/log 2 + 2)²`. -/
+private lemma logb_change_base_sq {T : ℝ} (hT : 1 ≤ T) :
+    (Real.logb 2 (6 * (T + 1)) + 2) ^ 2 ≤
+      2 * (Real.log (T + 1) / Real.log 2) ^ 2
+      + 2 * (Real.log 6 / Real.log 2 + 2) ^ 2 := by
+  have hT_pos : (0 : ℝ) < T := by linarith
+  have hT1_pos : (0 : ℝ) < T + 1 := by linarith
+  have h6_pos : (0 : ℝ) < (6 : ℝ) := by norm_num
+  have h6T1_pos : (0 : ℝ) < 6 * (T + 1) := by linarith
+  -- logb 2 (6(T+1)) = log(6(T+1))/log 2 = (log 6 + log(T+1))/log 2.
+  have h_logb_eq : Real.logb 2 (6 * (T + 1)) =
+      Real.log (T + 1) / Real.log 2 + Real.log 6 / Real.log 2 := by
+    rw [Real.logb, Real.log_mul (by norm_num : (6 : ℝ) ≠ 0) (by linarith : T + 1 ≠ 0),
+        add_div]
+    ring
+  rw [h_logb_eq]
+  -- Goal: (a + b + 2)² ≤ 2 a² + 2 (b + 2)² where a = log(T+1)/log 2, b = log 6/log 2.
+  set a : ℝ := Real.log (T + 1) / Real.log 2
+  set b : ℝ := Real.log 6 / Real.log 2
+  -- Rewrite RHS: (b + 2)². Goal then is (a + b + 2)² ≤ 2 a² + 2 (b + 2)².
+  -- Reshape LHS as (a + (b + 2))²; AM-QM gives the result.
+  have h_eq : (a + b + 2) = a + (b + 2) := by ring
+  rw [h_eq]
+  nlinarith [sq_nonneg (a - (b + 2)), sq_nonneg (a + (b + 2))]
+
+
 /-- **R23 / T2.1 (Partial → R24 Full).** Summability of the chaining moment
 constants `Cp_T_explicit T`. Per Commitment C (Grok-validated),
 `Cp_T_explicit T = O((log T)²/T²) = O(1/T^(3/2))`. -/
