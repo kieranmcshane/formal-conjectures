@@ -744,6 +744,43 @@ theorem gramMatrixL2_two_dim_det_symm (φ : Fin 2 → ℝ → ℝ) :
   rw [show gramMatrixL2 φ 1 0 = gramMatrixL2 φ 0 1 from gramMatrixL2_symm _ _ _]
   ring
 
+/-! ## 4.14. Quadratic-form identities
+
+Round 12 additions. The quadratic form `x ⬝ M ⬝ x = Σᵢⱼ xᵢ xⱼ Mᵢⱼ`
+expansion is the algebraic core of every PSD-via-test-vector proof.
+Extracting it as a standalone identity (rather than re-proving inside
+each `PosSemidef` argument) is what makes downstream variance / sup
+calculations one-line. -/
+
+/-- Standard quadratic-form expansion for `glwCovMatrix`:
+`x ⬝ M ⬝ x = Σᵢⱼ xᵢ xⱼ K_GLW(uᵢ, uⱼ)`. -/
+theorem glwCovMatrix_quadratic_form_eq_sum {n : ℕ} (us : Fin n → ℝ)
+    (x : Fin n → ℝ) :
+    ∑ i, x i * ((glwCovMatrix us *ᵥ x) i) =
+      ∑ i, ∑ j, x i * x j * K_GLW (us i) (us j) := by
+  refine Finset.sum_congr rfl fun i _ => ?_
+  rw [Matrix.mulVec, dotProduct, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun j _ => ?_
+  simp [glwCovMatrix_apply]
+  ring
+
+/-- The K_GLW quadratic form is non-negative on nonneg grids — direct
+restatement of `K_GLW_quadratic_form_nonneg` via the Gram-matrix
+quadratic-form identity. -/
+theorem glwCovMatrix_quadratic_form_nonneg {n : ℕ} (us : Fin n → ℝ)
+    (x : Fin n → ℝ) (h_us : ∀ i, 0 ≤ us i) :
+    0 ≤ ∑ i, x i * ((glwCovMatrix us *ᵥ x) i) := by
+  rw [glwCovMatrix_quadratic_form_eq_sum]
+  exact K_GLW_quadratic_form_nonneg us x h_us
+
+/-- For the all-ones test vector, the K_GLW quadratic form equals the
+sum of all entries. -/
+theorem glwCovMatrix_quadratic_form_at_one {n : ℕ} (us : Fin n → ℝ) :
+    ∑ i, (1 : ℝ) * ((glwCovMatrix us *ᵥ (fun _ => 1)) i) =
+      ∑ i, ∑ j, K_GLW (us i) (us j) := by
+  rw [glwCovMatrix_quadratic_form_eq_sum]
+  simp
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
