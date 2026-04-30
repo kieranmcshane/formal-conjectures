@@ -1298,6 +1298,48 @@ theorem glwCovMatrixNN_entry_sq_le_diag_prod
   rw [glwCovMatrixNN_apply, glwCovMatrixNN_apply, glwCovMatrixNN_apply]
   exact K_GLW_cauchy_schwarz (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
 
+/-! ### NNReal-grid trace and sum bounds -/
+
+/-- The trace of `glwCovMatrixNN I` is non-negative. -/
+theorem glwCovMatrixNN_trace_nonneg (I : Finset NNReal) :
+    0 ≤ (glwCovMatrixNN I).trace := by
+  rw [Matrix.trace]
+  apply Finset.sum_nonneg
+  intros s _
+  exact glwCovMatrixNN_diag_nonneg I s
+
+/-- The trace of `glwCovMatrixNN I` is bounded above by `I.card`. -/
+theorem glwCovMatrixNN_trace_le_card (I : Finset NNReal) :
+    (glwCovMatrixNN I).trace ≤ (I.card : ℝ) := by
+  rw [Matrix.trace]
+  calc ∑ s, (glwCovMatrixNN I).diag s
+      ≤ ∑ _s, (1 : ℝ) := by
+        apply Finset.sum_le_sum
+        intros s _
+        exact glwCovMatrixNN_diag_le_one I s
+    _ = (I.card : ℝ) := by simp [Finset.sum_const]
+
+/-- Sum of all entries of `glwCovMatrixNN I` is non-negative. -/
+theorem glwCovMatrixNN_sum_entries_nonneg (I : Finset NNReal) :
+    0 ≤ ∑ s, ∑ t, glwCovMatrixNN I s t := by
+  apply Finset.sum_nonneg
+  intros s _
+  apply Finset.sum_nonneg
+  intros t _
+  exact le_of_lt (glwCovMatrixNN_entry_pos I s t)
+
+/-- Sum of all entries of `glwCovMatrixNN I` is bounded above by `I.card²`. -/
+theorem glwCovMatrixNN_sum_entries_le (I : Finset NNReal) :
+    ∑ s, ∑ t, glwCovMatrixNN I s t ≤ (I.card : ℝ) * I.card := by
+  calc ∑ s, ∑ t, glwCovMatrixNN I s t
+      ≤ ∑ _s, ∑ _t, (1 : ℝ) := by
+        apply Finset.sum_le_sum
+        intros s _
+        apply Finset.sum_le_sum
+        intros t _
+        exact glwCovMatrixNN_entry_le_one I s t
+    _ = (I.card : ℝ) * I.card := by simp [Finset.sum_const]
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
