@@ -87,36 +87,45 @@ exponential family `s ↦ exp(-u s)`.
 
 We start with the single-variable form `∫₀¹ exp(-c·s) ds` for `c ≠ 0`. -/
 
+/-- The primitive `F_c(s) := exp(-c·s) / (-c)` has derivative `exp(-c·s)`
+at every point, for `c ≠ 0`. -/
+private theorem hasDerivAt_exp_neg_primitive {c : ℝ} (hc : c ≠ 0) (s : ℝ) :
+    HasDerivAt (fun y : ℝ => Real.exp (-c * y) / (-c)) (Real.exp (-c * s)) s := by
+  have h1 : HasDerivAt (fun y : ℝ => -c * y) (-c) s := by
+    simpa using (hasDerivAt_id s).const_mul (-c)
+  have h2 : HasDerivAt (fun y : ℝ => Real.exp (-c * y))
+      (Real.exp (-c * s) * (-c)) s := h1.exp
+  have h3 : HasDerivAt (fun y : ℝ => Real.exp (-c * y) / (-c))
+      ((Real.exp (-c * s) * (-c)) / (-c)) s := h2.div_const (-c)
+  have hsimp : (Real.exp (-c * s) * (-c)) / (-c) = Real.exp (-c * s) := by
+    have : (-c : ℝ) ≠ 0 := neg_ne_zero.mpr hc
+    field_simp
+  rw [hsimp] at h3
+  exact h3
+
 /-- For `c ≠ 0`, the interval integral `∫₀¹ exp(-c·s) ds` equals
-`(1 - exp(-c))/c`. Direct corollary of Mathlib's
-`integral_exp_mul_complex` after specialising to the real axis. -/
+`(1 - exp(-c))/c`. Application of FTC-2 with the primitive
+`F_c(s) := exp(-c·s)/(-c)`. -/
 theorem intervalIntegral_exp_neg_mul (c : ℝ) (hc : c ≠ 0) :
     ∫ s in (0 : ℝ)..1, Real.exp (-c * s) = (1 - Real.exp (-c)) / c := by
-  -- Use the primitive `s ↦ -exp(-c·s)/c`.
-  have hcc : (-c : ℝ) ≠ 0 := neg_ne_zero.mpr hc
-  have D : ∀ s : ℝ,
-      HasDerivAt (fun y : ℝ => Real.exp (-c * y) / (-c)) (Real.exp (-c * s)) s := by
-    intro s
-    have h1 : HasDerivAt (fun y : ℝ => -c * y) (-c) s := by
-      simpa using (hasDerivAt_id s).const_mul (-c)
-    have h2 : HasDerivAt (fun y : ℝ => Real.exp (-c * y))
-        (Real.exp (-c * s) * (-c)) s := h1.exp
-    have h3 : HasDerivAt (fun y : ℝ => Real.exp (-c * y) / (-c))
-        ((Real.exp (-c * s) * (-c)) / (-c)) s := h2.div_const (-c)
-    have hsimp : (Real.exp (-c * s) * (-c)) / (-c) = Real.exp (-c * s) := by
-      field_simp
-    rw [hsimp] at h3
-    exact h3
-  rw [integral_deriv_eq_sub' (f := fun y => Real.exp (-c * y) / (-c))
-        rfl (fun s _ => (D s).differentiableAt) ?_]
-  · -- Goal: exp(-c·1)/(-c) - exp(-c·0)/(-c) = (1 - exp(-c))/c.
-    rw [show (-c : ℝ) * (1 : ℝ) = -c from by ring,
-        show (-c : ℝ) * (0 : ℝ) = 0 from by ring, Real.exp_zero]
-    field_simp
-    ring
-  · -- Continuity of `s ↦ exp(-c·s)`.
+  have h_cont : Continuous (fun s : ℝ => Real.exp (-c * s)) := by
     have h_inner : Continuous fun s : ℝ => -c * s := by fun_prop
-    exact (Real.continuous_exp.comp h_inner).continuousOn
+    exact Real.continuous_exp.comp h_inner
+  have h_int : IntervalIntegrable (fun s : ℝ => Real.exp (-c * s))
+      MeasureTheory.volume 0 1 :=
+    h_cont.intervalIntegrable 0 1
+  have h_eq := intervalIntegral.integral_eq_sub_of_hasDerivAt
+    (f := fun y : ℝ => Real.exp (-c * y) / (-c))
+    (f' := fun s : ℝ => Real.exp (-c * s))
+    (a := 0) (b := 1)
+    (fun s _ => hasDerivAt_exp_neg_primitive hc s) h_int
+  rw [h_eq]
+  -- Goal (after beta-reduction): exp(-c·1)/(-c) - exp(-c·0)/(-c) = (1 - exp(-c))/c.
+  simp only
+  rw [show (-c : ℝ) * (1 : ℝ) = -c from by ring,
+      show (-c : ℝ) * (0 : ℝ) = 0 from by ring, Real.exp_zero]
+  field_simp
+  ring
 
 /-- The covariance integral identity at `u + v > 0`:
 `K_GLW(u, v) = ∫₀¹ exp(-(u + v)·s) ds`. -/
@@ -249,14 +258,21 @@ theorem intervalIntegrable_pair_term {n : ℕ} (us cs : Fin n → ℝ)
       MeasureTheory.volume 0 1 :=
   (intervalIntegrable_exp_neg_mul (us i + us j)).const_mul (cs i * cs j)
 
-/-- Sum-of-pair-terms is interval-integrable on `[0, 1]` (closure of the
-integrable functions under finite sums). -/
+/-- Sum-of-pair-terms is interval-integrable on `[0, 1]`. The sum-of-finitely-
+many continuous functions is continuous, hence integrable on the compact
+interval. -/
 theorem intervalIntegrable_sum_pair_terms {n : ℕ} (us cs : Fin n → ℝ)
     (i : Fin n) :
     IntervalIntegrable
       (fun s : ℝ => ∑ j : Fin n, cs i * cs j * Real.exp (-(us i + us j) * s))
-      MeasureTheory.volume 0 1 :=
-  IntervalIntegrable.sum _ (fun j _ => intervalIntegrable_pair_term us cs i j)
+      MeasureTheory.volume 0 1 := by
+  have h_cont : Continuous
+      (fun s : ℝ => ∑ j : Fin n, cs i * cs j * Real.exp (-(us i + us j) * s)) := by
+    apply continuous_finset_sum
+    intro j _
+    have h_inner : Continuous fun s : ℝ => -(us i + us j) * s := by fun_prop
+    exact continuous_const.mul (Real.continuous_exp.comp h_inner)
+  exact h_cont.intervalIntegrable 0 1
 
 /-- The integral form of the quadratic form: for any nonnegative grid
 `us : Fin n → [0, ∞)` and any coefficients `cs`, the quadratic form
@@ -288,20 +304,25 @@ theorem glwQuadraticForm_eq_integral_sq {n : ℕ} (us cs : Fin n → ℝ)
         ∫ s in (0 : ℝ)..1,
           ∑ j : Fin n, cs i * cs j * Real.exp (-(us i + us j) * s) := by
     refine Finset.sum_congr rfl fun i _ => ?_
-    rw [intervalIntegral.integral_finset_sum]
-    intro j _
-    exact intervalIntegrable_pair_term us cs i j
+    symm
+    exact intervalIntegral.integral_finset_sum (s := Finset.univ)
+      (f := fun j s => cs i * cs j * Real.exp (-(us i + us j) * s))
+      (fun j _ => intervalIntegrable_pair_term us cs i j)
   rw [h_exchange_inner]
   -- Step 4: exchange the outer ∑ᵢ with ∫.
-  rw [intervalIntegral.integral_finset_sum
-        (fun i _ => intervalIntegrable_sum_pair_terms us cs i)]
+  rw [show (∑ i : Fin n,
+      ∫ s in (0 : ℝ)..1,
+        ∑ j : Fin n, cs i * cs j * Real.exp (-(us i + us j) * s)) =
+      ∫ s in (0 : ℝ)..1,
+        ∑ i : Fin n, ∑ j : Fin n,
+          cs i * cs j * Real.exp (-(us i + us j) * s) from
+    (intervalIntegral.integral_finset_sum (s := Finset.univ)
+      (f := fun i s => ∑ j : Fin n, cs i * cs j * Real.exp (-(us i + us j) * s))
+      (fun i _ => intervalIntegrable_sum_pair_terms us cs i)).symm]
   -- Step 5: identify the integrand with `(glwExpProfile us cs s)²`.
   congr 1
   funext s
   rw [glwExpProfile_sq_eq]
-  -- Goal: ∑ᵢⱼ cᵢ cⱼ exp(-(uᵢ + uⱼ)·s) = ∑ᵢ ∑ⱼ cᵢ cⱼ exp(-(uᵢ + uⱼ)·s).
-  -- These are the same iterated sum.
-  rfl
 
 /-- **Positive semi-definiteness of K_GLW**: for any nonnegative grid
 `us : Fin n → [0, ∞)` and any coefficients `cs`, the quadratic form
@@ -311,10 +332,9 @@ theorem K_GLW_quadratic_form_nonneg {n : ℕ} (us cs : Fin n → ℝ)
     (h_us : ∀ i, 0 ≤ us i) :
     0 ≤ ∑ i : Fin n, ∑ j : Fin n, cs i * cs j * K_GLW (us i) (us j) := by
   rw [glwQuadraticForm_eq_integral_sq us cs h_us]
-  -- ∫₀¹ f² ≥ 0 since (0 : ℝ) < (1 : ℝ).
-  apply intervalIntegral.integral_nonneg (le_refl _) ?_
-  intro s _
-  exact sq_nonneg _
+  -- ∫₀¹ f² ≥ 0 since `(0 : ℝ) ≤ (1 : ℝ)` and `f² ≥ 0` pointwise.
+  exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
+    (fun _ => sq_nonneg _)
 
 /-! ## 4. Construction blockers (BLOCKER / TRIED / NEEDS)
 
