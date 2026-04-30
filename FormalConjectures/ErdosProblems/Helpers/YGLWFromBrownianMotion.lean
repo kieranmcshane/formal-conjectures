@@ -366,6 +366,38 @@ theorem glwCovMatrix_eq_integral {n : ℕ} (us : Fin n → ℝ)
   rw [glwCovMatrix_apply]
   exact K_GLW_eq_integral_glwIntegrand_mul (h_us i) (h_us j)
 
+/-! ## 4.7. Submatrix / sub-grid restriction
+
+For the projective-family consistency hypothesis (BLOCKER B2 below):
+restriction of the K_GLW Gram matrix to a sub-grid yields the K_GLW
+Gram of the sub-grid. Generic version for `gramMatrixL2`. -/
+
+/-- Restricting `gramMatrixL2` to a sub-index `f : Fin m → Fin n` is
+the Gram matrix of the restricted family `φ ∘ f`. -/
+theorem gramMatrixL2_submatrix {m n : ℕ} (φ : Fin n → ℝ → ℝ)
+    (f : Fin m → Fin n) :
+    (gramMatrixL2 φ).submatrix f f = gramMatrixL2 (φ ∘ f) := by
+  ext i j
+  rfl
+
+/-- Restricting `glwCovMatrix` to a sub-grid `f : Fin m → Fin n` is the
+K_GLW Gram of the sub-grid. -/
+theorem glwCovMatrix_submatrix {m n : ℕ} (us : Fin n → ℝ)
+    (f : Fin m → Fin n) :
+    (glwCovMatrix us).submatrix f f = glwCovMatrix (us ∘ f) := by
+  ext i j
+  rfl
+
+/-- The PSD property is preserved under sub-grid restriction. (This
+matches the projective-family marginalisation hypothesis B2: the
+K_GLW Gaussian projective family on a finite index set restricts to
+the K_GLW Gaussian projective family on any subset.) -/
+theorem glwCovMatrix_submatrix_PosSemidef {m n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) (f : Fin m → Fin n) :
+    ((glwCovMatrix us).submatrix f f).PosSemidef := by
+  rw [glwCovMatrix_submatrix]
+  exact glwCovMatrix_PosSemidef (us ∘ f) (fun i => h_us (f i))
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
