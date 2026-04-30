@@ -579,6 +579,29 @@ theorem mvGaussian_isotropic_box_density_at_mode_bound [DecidableEq n]
   have h := mvGaussian_box_density_at_mode_bound hM (fun _ : n => ε) h_eps_nn
   simpa [Finset.prod_const, Finset.card_univ] using h
 
+/-- Equivalent reformulation of `mvGaussian_isotropic_box_density_at_mode_bound`
+in the `(2π)^(-n/2)` form, matching the `anderson_upper` field shape of
+`GaussianBoxProb` exactly. -/
+theorem mvGaussian_isotropic_box_density_at_mode_bound_rpow [DecidableEq n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) {ε : ℝ} (hε : 0 ≤ ε) :
+    ((mvGaussianFromPosDef M) {x : n → ℝ | ∀ i, |x i| ≤ ε}).toReal ≤
+      (2 * ε) ^ Fintype.card n *
+        (2 * Real.pi) ^ (-(Fintype.card n : ℝ) / 2) *
+        (Real.sqrt M.det)⁻¹ := by
+  have h_two_pi_nn : (0 : ℝ) ≤ 2 * Real.pi := by positivity
+  have h := mvGaussian_isotropic_box_density_at_mode_bound hM hε
+  -- Rewrite the `(√(2π))⁻¹ ^ n` form into `(2π)^(-n/2)` form via `sqrt_eq_rpow`.
+  have h_pow_eq : (Real.sqrt (2 * Real.pi))⁻¹ ^ Fintype.card n =
+      (2 * Real.pi) ^ (-(Fintype.card n : ℝ) / 2) := by
+    rw [Real.sqrt_eq_rpow, ← Real.rpow_neg h_two_pi_nn,
+        ← Real.rpow_natCast ((2 * Real.pi) ^ (-(1 / (2 : ℝ)))) (Fintype.card n),
+        ← Real.rpow_mul h_two_pi_nn]
+    congr 1
+    ring
+  rw [h_pow_eq] at h
+  rw [div_eq_mul_inv] at h
+  exact h
+
 /-! ## Identity-covariance specialisation (provable from the standard MV bound) -/
 
 /-- Specialisation of the PosDef bound to `M = 1`, where `det 1 = 1`. -/
