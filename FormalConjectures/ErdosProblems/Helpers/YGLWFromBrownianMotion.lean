@@ -818,6 +818,47 @@ theorem gramMatrixL2_const_family_PosSemidef {n : ℕ} (c : ℝ) :
     (gramMatrixL2 (fun _ : Fin n => fun _ : ℝ => c)).PosSemidef :=
   gramMatrixL2_PosSemidef _ (fun _ => continuous_const)
 
+/-! ## 4.16. Grid translation and dilation
+
+Round 12 additions. The K_GLW kernel only depends on `u + v`, so any
+grid transformation that changes `(uᵢ + uⱼ)` in a tractable way gives
+explicit identities for `glwCovMatrix`. The two basic transformations
+are *translation* `us ↦ us + c` (each entry's argument shifts by `2c`)
+and *dilation* `us ↦ λ · us` (each entry's argument scales by `λ`). -/
+
+/-- Under translation of the grid by a constant `c`, each entry of
+`glwCovMatrix` shifts: `Mᵢⱼ(us + c) = K_GLW_aux((uᵢ + uⱼ) + 2c)`. -/
+theorem glwCovMatrix_translate_apply {n : ℕ} (us : Fin n → ℝ) (c : ℝ)
+    (i j : Fin n) :
+    glwCovMatrix (fun i => us i + c) i j = K_GLW_aux ((us i + us j) + 2 * c) := by
+  rw [glwCovMatrix_apply, K_GLW_def]
+  congr 1
+  ring
+
+/-- Under dilation of the grid by a constant `λ`, each entry of
+`glwCovMatrix` scales: `Mᵢⱼ(λ · us) = K_GLW_aux(λ · (uᵢ + uⱼ))`. -/
+theorem glwCovMatrix_dilate_apply {n : ℕ} (us : Fin n → ℝ) (lam : ℝ)
+    (i j : Fin n) :
+    glwCovMatrix (fun i => lam * us i) i j =
+      K_GLW_aux (lam * (us i + us j)) := by
+  rw [glwCovMatrix_apply, K_GLW_def]
+  congr 1
+  ring
+
+/-- Translation of a nonneg grid by a non-negative constant remains
+nonneg, so the translated `glwCovMatrix` is PSD. -/
+theorem glwCovMatrix_translate_PosSemidef {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) {c : ℝ} (hc : 0 ≤ c) :
+    (glwCovMatrix (fun i => us i + c)).PosSemidef :=
+  glwCovMatrix_PosSemidef _ (fun i => add_nonneg (h_us i) hc)
+
+/-- Dilation of a nonneg grid by a non-negative scalar remains nonneg,
+so the dilated `glwCovMatrix` is PSD. -/
+theorem glwCovMatrix_dilate_PosSemidef {n : ℕ} (us : Fin n → ℝ)
+    (h_us : ∀ i, 0 ≤ us i) {lam : ℝ} (h_lam : 0 ≤ lam) :
+    (glwCovMatrix (fun i => lam * us i)).PosSemidef :=
+  glwCovMatrix_PosSemidef _ (fun i => mul_nonneg h_lam (h_us i))
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
