@@ -963,21 +963,26 @@ the `holderOnWith` bound after the R18 routing through
 `exists_modification_holder'''`. ~60-80 LOC.
 -/
 
-/-- **R20 / T3.1 (Stub).** Marginal sup-tail bound on the unit block
-`[T, T+1]`. Gated on T2.2 Full + sup-decomposition via Hölder. -/
-lemma marginal_sup_tail_le_R20 (T : ℕ) (_hT : 1 ≤ T) {ε : ℝ} (_hε : 0 < ε) :
-    ∃ f_T_ε : ℝ,
-      0 ≤ f_T_ε ∧
-      glwGaussianLimit.real
-        {ω : NNReal → ℝ |
-          ε ≤ ⨆ u : ↥(Set.Ico (T : NNReal) (T + 1)), |ω u.1|}
-          ≤ f_T_ε := by
-  -- Stub: combine `eval_glwGaussianLimit_real_abs_ge_le_of_pos` (R19
-  -- marginal Chernoff at u = T) with Markov on `glwHolderConstant T`
-  -- via T2.2's moment bound. Each step has structural alignment work
-  -- with the brownian-motion library; ~60-80 LOC.
-  refine ⟨1, by norm_num, ?_⟩
-  sorry
+/-- **R21 / T3.1 (Markov form).** Markov bound on the Hölder-constant
+event. For each integer `T ≥ 1` and `δ > 0`, the probability of the
+event `{ω | δ ≤ glwHolderConstantENN T ω}` is bounded by `Cp_T / δ`,
+where `Cp_T` is the moment bound from T2.2.
+
+Reformulated from the R20 spec: instead of bounding the sup over
+`Set.Ico T (T+1)` (uncountable, projection iSup not Borel-measurable),
+we bound the measurable Hölder-constant event. The conjunct-9 proof
+combines this with the marginal Chernoff bound at integer points and
+the modification's Hölder regularity. -/
+lemma marginal_sup_tail_le_R20 (T : ℕ) (hT : 1 ≤ T) {δ : ℝ≥0∞} (hδ_pos : δ ≠ 0)
+    (hδ_top : δ ≠ ∞) :
+    glwGaussianLimit {ω : NNReal → ℝ | δ ≤ glwHolderConstantENN T ω}
+      ≤ (Classical.choose (glwHolderConstantENN_lintegral_le_R20 T hT)) / δ := by
+  -- Markov inequality applied to the measurable function
+  -- `glwHolderConstantENN T : (NNReal → ℝ) → ℝ≥0∞`.
+  have hCp := Classical.choose_spec (glwHolderConstantENN_lintegral_le_R20 T hT)
+  refine le_trans (meas_ge_le_lintegral_div
+    (measurable_glwHolderConstantENN T).aemeasurable hδ_pos hδ_top) ?_
+  exact ENNReal.div_le_div_right hCp.2 _
 
 /-! ## R20 / T3.2 — Borel–Cantelli on the integer ladder (Stub)
 
@@ -997,15 +1002,106 @@ step is a direct API call to Mathlib's `measure_limsup_atTop_eq_zero`
 followed by the `Filter.eventually_atTop` unfolding; ~30-40 LOC.
 -/
 
-/-- **R20 / T3.2 (Stub).** Borel–Cantelli on the integer ladder. Gated
-on T3.1 Full. -/
-lemma BC_integer_ladder_R20 {ε : ℝ} (_hε : 0 < ε) :
+/-- **R21 / T3.2 (BC on integer marginals).** Borel–Cantelli on the
+integer ladder applied to the marginal events `{ω | ε ≤ |ω T|}`.
+For every `ε > 0`, almost-surely the marginal `|ω (T : NNReal)|` is
+eventually less than `ε` as `T → ∞`. -/
+lemma BC_integer_ladder_R20 {ε : ℝ} (hε : 0 < ε) :
     ∀ᵐ ω ∂glwGaussianLimit,
-      ∃ N : ℕ, ∀ T : ℕ, N ≤ T →
-        ¬(ε ≤ ⨆ u : ↥(Set.Ico (T : NNReal) (T + 1)), |ω u.1|) := by
-  -- Stub: apply MeasureTheory.measure_limsup_atTop_eq_zero with the
-  -- summable sup-tail f(T, ε) from T3.1; ~30-40 LOC.
-  sorry
+      ∀ᶠ T : ℕ in Filter.atTop, ¬(ε ≤ |ω (T : NNReal)|) := by
+  -- Goal: apply `ae_eventually_notMem` to the events
+  --   `s T := {ω | ε ≤ |ω (T : NNReal)|}`.
+  -- We need `∑' T, glwGaussianLimit (s T) ≠ ∞`.
+  -- For T ≥ 1, R19's `eval_glwGaussianLimit_real_abs_ge_le_of_pos`
+  -- gives `(s T : ℝ).measure ≤ 2 · exp(-ε² T)`, summable in T.
+  set s : ℕ → Set (NNReal → ℝ) := fun T =>
+    {ω : NNReal → ℝ | ε ≤ |ω (T : NNReal)|} with hs_def
+  -- It suffices to show `∑' T, glwGaussianLimit (s T) ≠ ∞`.
+  -- Strategy: bound each measure by `ENNReal.ofReal (2 * exp(-ε² * max 1 T))`,
+  -- which is summable.
+  suffices h_sum : (∑' T : ℕ, glwGaussianLimit (s T)) ≠ ∞ by
+    have h_bc := ae_eventually_notMem (μ := glwGaussianLimit) h_sum
+    filter_upwards [h_bc] with ω hω
+    exact hω
+  -- Bound each term using R19's marginal Chernoff (for T ≥ 1).
+  -- For T = 0 (a single term), use `glwGaussianLimit (s 0) ≤ 1`
+  -- (probability measure).
+  have h_bound : ∀ T : ℕ, 1 ≤ T →
+      glwGaussianLimit (s T) ≤ ENNReal.ofReal (2 * Real.exp (-ε ^ 2 * (T : ℝ))) := by
+    intro T hT
+    have hT_real : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT
+    have h_marg :=
+      eval_glwGaussianLimit_real_abs_ge_le_of_pos hT_real hε.le
+    -- h_marg : glwGaussianLimit.real {ω | ε ≤ |ω T.toNNReal|} ≤ 2 · exp(-ε²·T)
+    -- We need: glwGaussianLimit {ω | ε ≤ |ω (T : NNReal)|} ≤ ENNReal.ofReal (...)
+    -- First, identify (T : NNReal) with (T : ℝ).toNNReal.
+    have hT_nn : (0 : ℝ) ≤ (T : ℝ) := by exact_mod_cast Nat.zero_le T
+    have h_eq : ((T : ℝ).toNNReal : NNReal) = (T : NNReal) := by
+      ext
+      push_cast
+      exact Real.coe_toNNReal _ hT_nn
+    have h_set_eq : s T = {ω : NNReal → ℝ | ε ≤ |ω (T : ℝ).toNNReal|} := by
+      simp only [hs_def]
+      congr 1
+      ext ω
+      rw [h_eq]
+    rw [h_set_eq]
+    -- Now use h_marg via the relation between Measure.real and the original measure.
+    have h_meas_set : MeasurableSet {ω : NNReal → ℝ | ε ≤ |ω (T : ℝ).toNNReal|} := by
+      refine measurableSet_le measurable_const ?_
+      exact (measurable_pi_apply _).abs
+    have h_finite : glwGaussianLimit {ω : NNReal → ℝ | ε ≤ |ω (T : ℝ).toNNReal|} ≠ ∞ :=
+      measure_ne_top _ _
+    have h_real_eq : glwGaussianLimit.real {ω : NNReal → ℝ | ε ≤ |ω (T : ℝ).toNNReal|}
+        = (glwGaussianLimit {ω : NNReal → ℝ | ε ≤ |ω (T : ℝ).toNNReal|}).toReal :=
+      rfl
+    rw [h_real_eq] at h_marg
+    have h_nn : 0 ≤ 2 * Real.exp (-ε ^ 2 * (T : ℝ)) := by
+      positivity
+    -- Convert: a ≤ b.toReal where a is ENNReal: equivalent to a ≤ ENNReal.ofReal b when
+    -- b ≥ 0 (and a ≠ ∞).
+    rw [show (glwGaussianLimit {ω : NNReal → ℝ | ε ≤ |ω (T : ℝ).toNNReal|}) =
+          ENNReal.ofReal (glwGaussianLimit {ω : NNReal → ℝ | ε ≤ |ω (T : ℝ).toNNReal|}).toReal
+        from (ENNReal.ofReal_toReal h_finite).symm]
+    exact ENNReal.ofReal_le_ofReal h_marg
+  -- Summability: bound each term by an indicator-summable sequence.
+  -- For T = 0: glwGaussianLimit (s 0) ≤ 1 (it's a probability measure).
+  -- For T ≥ 1: glwGaussianLimit (s T) ≤ ENNReal.ofReal (2·exp(-ε²·T)).
+  -- Define `b T := if T = 0 then 1 else ENNReal.ofReal (2·exp(-ε²·T))`.
+  -- Then `glwGaussianLimit (s T) ≤ b T` and `∑ b T < ∞`.
+  set b : ℕ → ℝ≥0∞ := fun T =>
+    if T = 0 then 1 else ENNReal.ofReal (2 * Real.exp (-ε ^ 2 * (T : ℝ))) with hb_def
+  have h_le_b : ∀ T : ℕ, glwGaussianLimit (s T) ≤ b T := by
+    intro T
+    simp only [hb_def]
+    by_cases hT0 : T = 0
+    · simp [hT0]; exact prob_le_one
+    · simp [hT0]
+      have h_bnd := h_bound T (Nat.one_le_iff_ne_zero.mpr hT0)
+      -- h_bnd : ... ≤ ENNReal.ofReal (2 * Real.exp (-ε ^ 2 * ↑T))
+      -- Goal:  ... ≤ 2 * ENNReal.ofReal (Real.exp (-(ε ^ 2 * ↑T)))
+      -- Convert: ofReal (2 * x) = 2 * ofReal x for x ≥ 0; -ε^2 * T = -(ε^2 * T).
+      have h_pos : 0 ≤ Real.exp (-ε ^ 2 * (T : ℝ)) := (Real.exp_pos _).le
+      rw [show (-ε ^ 2 * (T : ℝ)) = -(ε ^ 2 * (T : ℝ)) by ring,
+          ENNReal.ofReal_mul (by norm_num : (0 : ℝ) ≤ 2)] at h_bnd
+      rw [show (2 : ℝ≥0∞) = ENNReal.ofReal 2 from (ENNReal.ofReal_ofNat 2).symm]
+      exact h_bnd
+  refine ne_of_lt (lt_of_le_of_lt (ENNReal.tsum_le_tsum h_le_b) ?_)
+  -- Use tsum_eq_zero_add' : ∑' n : ℕ, f n = f 0 + ∑' n, f (n+1).
+  rw [tsum_eq_zero_add' (f := b) ENNReal.summable]
+  refine ENNReal.add_lt_top.mpr ⟨by simp [hb_def], ?_⟩
+  -- ∑' T, b (T+1) = ∑' T, ENNReal.ofReal (2·exp(-ε²·(T+1))) < ∞.
+  have h_eq : ∀ T : ℕ, b (T + 1) = ENNReal.ofReal (2 * Real.exp (-ε ^ 2 * ((T + 1 : ℕ) : ℝ))) := by
+    intro T
+    simp [hb_def]
+  simp_rw [h_eq]
+  rw [show (∑' T : ℕ, ENNReal.ofReal (2 * Real.exp (-ε ^ 2 * ((T + 1 : ℕ) : ℝ)))) =
+        ENNReal.ofReal (∑' T : ℕ, 2 * Real.exp (-ε ^ 2 * ((T + 1 : ℕ) : ℝ))) from ?_]
+  · exact ENNReal.ofReal_lt_top
+  · have h_sum : Summable (fun T : ℕ => 2 * Real.exp (-ε ^ 2 * ((T + 1 : ℕ) : ℝ))) := by
+      have := (summable_marginal_tail hε).comp_injective Nat.succ_injective
+      convert this using 1
+    rw [ENNReal.ofReal_tsum_of_nonneg (fun T => by positivity) h_sum]
 
 /-!
 ## O5 — Process-existence witness in the 9-conjunct form
@@ -1267,8 +1363,32 @@ theorem glwGaussianLimit_Y_GLW_existence :
     -- modulus-of-continuity tail). Documented in
     -- `marginal_sup_tail_blocker_R19` above. R20 readiness diagnostic
     -- will track the K_GLW Taylor-expansion bound separately.
+    -- **R21 status (T4.1 partial):** T3.1 (Markov on glwHolderConstantENN T)
+    -- and T3.2 (BC on integer marginals via summable_marginal_tail) are
+    -- now sorry-free.
+    --
+    -- The remaining gap is the **modification's local oscillation**: BC
+    -- on integer marginals gives a.s. eventually `|ω T| < ε` (for
+    -- T : ℕ), but the conjunct asserts `|Y u ω| = |Y' u.toNNReal ω| ≤ ε`
+    -- for all real `u ≥ T₀`. For non-integer `u` with `u.toNNReal ∈
+    -- (T, T+1)`, the bound on `|Y' u.toNNReal ω|` requires either
+    --
+    --   (i) a sup-over-block bound on the modification, which would
+    --       follow from BC on `{(ε/2)² ≤ glwHolderConstantENN T}` events
+    --       — but proving summability of the Markov bound `Cp_T / (ε/2)²`
+    --       requires extracting the explicit form `Cp_T = M_T · constL`
+    --       and showing `∑ Cp_T < ∞` (where `M_T = 1/(2T³)` from R20
+    --       T2.1 and `constL` is polynomial in `c_T = 6(T+1)`); or
+    --
+    --   (ii) a per-ω modulus-of-continuity argument from
+    --       `exists_modification_holder'''`'s local Hölder data, which
+    --       is per-(ω, t) and not directly summable in T.
+    --
+    -- Both routes are several hundred LOC of additional brownian-motion
+    -- API alignment. The R21 bound `glwHolderConstantENN_lintegral_le_R20`
+    -- (T2.2 Full) is the load-bearing prerequisite; route (i)'s
+    -- summability is the next major sub-task.
     intro ε hε
-    sorry  -- TAG[R18-blocker, R19-T2.2]: tail decay -- analytical
-             -- variance-decay bound on K_GLW around (T, T) needed
+    sorry  -- TAG[R21-T4.1]: modification sup-tail / Cp_T summability
 
 end Erdos524.Helpers
