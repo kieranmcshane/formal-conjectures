@@ -1719,12 +1719,63 @@ logarithmic asymptotic** as Full (`log_sq_le_sqrt`); the *pointwise*
 bound `Cp_T_explicit T ≤ ENNReal.ofReal (K / (T+1)^(3/2))` remains
 the residual sorry, gated on the constL-unfolding plumbing. -/
 
-/-- **R23 / T2.1 (Partial).** Summability of the chaining moment
+/-! ### R24 / T2.1 auxiliary lemmas — AM-QM + dyadic summability -/
+
+/-- **R24 / T2.1.a (AM-QM).** `(L + k + 2)² ≤ 2(L+2)² + 2k²`. -/
+private lemma am_qm_three_term (L : ℝ) (k : ℕ) :
+    (L + (k : ℝ) + 2) ^ 2 ≤ 2 * (L + 2) ^ 2 + 2 * (k : ℝ) ^ 2 := by
+  have hk_nn : (0 : ℝ) ≤ (k : ℝ) := by exact_mod_cast Nat.zero_le k
+  nlinarith [sq_nonneg (L + 2 - (k : ℝ)), sq_nonneg (L + 2 + (k : ℝ))]
+
+/-- **R24 / T2.1.b (dyadic ratio).** `0 ≤ 2^(-1/2 : ℝ) < 1`. -/
+private lemma rho_nn : (0 : ℝ) ≤ (2 : ℝ) ^ (-(1/2 : ℝ)) :=
+  Real.rpow_nonneg (by norm_num : (0 : ℝ) ≤ 2) _
+
+private lemma rho_lt_one : (2 : ℝ) ^ (-(1/2 : ℝ)) < 1 := by
+  rw [show (1 : ℝ) = (2 : ℝ) ^ (0 : ℝ) by simp]
+  exact Real.rpow_lt_rpow_of_exponent_lt (by norm_num) (by norm_num)
+
+/-- **R24 / T2.1.b (S₀ real summability).** -/
+private lemma summable_S_zero_real :
+    Summable (fun k : ℕ => ((2 : ℝ) ^ (-(1/2 : ℝ))) ^ k) :=
+  summable_geometric_of_lt_one rho_nn rho_lt_one
+
+/-- **R24 / T2.1.b (S_k² real summability).** -/
+private lemma summable_S_ksq_real :
+    Summable (fun k : ℕ => (k : ℝ) ^ 2 * ((2 : ℝ) ^ (-(1/2 : ℝ))) ^ k) := by
+  have h_norm_lt : ‖(2 : ℝ) ^ (-(1/2 : ℝ))‖ < 1 := by
+    rw [Real.norm_eq_abs, abs_of_nonneg rho_nn]; exact rho_lt_one
+  exact summable_pow_mul_geometric_of_norm_lt_one 2 h_norm_lt
+
+/-- **R24 / T2.1.c (diam of unit-block subtype).** The EMetric diameter
+of `Set.univ : Set ↥(Set.Ico T (T+1))` is at most 1. -/
+private lemma diam_unit_block_le_one (T : ℕ) :
+    EMetric.diam
+        (Set.univ : Set ↥(Set.Ico ((T : NNReal)) ((T : NNReal) + 1))) ≤ 1 := by
+  set S : Set NNReal := Set.Ico ((T : NNReal)) ((T : NNReal) + 1) with hS_def
+  have h_iso : Isometry ((↑) : S → NNReal) := isometry_subtype_coe
+  have h_image : ((↑) : S → NNReal) '' (Set.univ : Set ↥S) = S := by ext x; simp
+  have h_diam_eq : EMetric.diam (Set.univ : Set ↥S) = EMetric.diam S := by
+    rw [← h_iso.ediam_image, h_image]
+  rw [h_diam_eq]
+  rw [EMetric.diam_le_iff]
+  intro x hx y hy
+  have hx_lo : (T : NNReal) ≤ x := hx.1
+  have hx_hi : x < (T : NNReal) + 1 := hx.2
+  have hy_lo : (T : NNReal) ≤ y := hy.1
+  have hy_hi : y < (T : NNReal) + 1 := hy.2
+  rw [edist_dist, NNReal.dist_eq]
+  refine (ENNReal.ofReal_le_one).mpr ?_
+  have hx_lo_R : (T : ℝ) ≤ (x : ℝ) := by exact_mod_cast hx_lo
+  have hx_hi_R : (x : ℝ) < (T : ℝ) + 1 := by exact_mod_cast hx_hi
+  have hy_lo_R : (T : ℝ) ≤ (y : ℝ) := by exact_mod_cast hy_lo
+  have hy_hi_R : (y : ℝ) < (T : ℝ) + 1 := by exact_mod_cast hy_hi
+  rw [abs_le]
+  exact ⟨by linarith, by linarith⟩
+
+/-- **R23 / T2.1 (Partial → R24 Full).** Summability of the chaining moment
 constants `Cp_T_explicit T`. Per Commitment C (Grok-validated),
-`Cp_T_explicit T = O((log T)²/T²) = O(1/T^(3/2))`. The summability of
-the bound side is Full (via `Real.summable_one_div_nat_rpow` at
-p = 3/2). The residual sorry is the **per-T pointwise bound**, which
-needs the `constL` unfolding + Cauchy-Schwarz inner-dyadic split. -/
+`Cp_T_explicit T = O((log T)²/T²) = O(1/T^(3/2))`. -/
 private theorem tsum_Cp_T_explicit_lt_top_R22 :
     (∑' T : ℕ, Cp_T_explicit T) < ∞ := by
   -- Plan: Cp_T_explicit T ≤ ENNReal.ofReal (K_total / (T+1)^(3/2)) for an absolute K_total.
