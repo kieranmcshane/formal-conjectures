@@ -72,4 +72,28 @@ theorem glwBoxProb_anderson_upper_field {m : ℕ} (hm : 1 ≤ m) :
   rw [h_cov_eq]
   exact glwBoxProb_anderson_upper_v1 hm hε
 
+/-! ## Round 10 — Stretch D: realMatrixSqrt corollaries
+
+Round 9 set up the `realMatrixSqrt` API for general PosDef matrices.
+With Round 10's `hierCauchyG_PosDef` we can specialise to the
+hierarchical Cauchy matrix. -/
+
+/-- `(realMatrixSqrt (hierCauchyG m)).det = Real.sqrt (hierCauchyG m).det`. -/
+theorem hierCauchyG_realMatrixSqrt_det (m : ℕ) (hm : 1 ≤ m) :
+    (realMatrixSqrt (hierCauchyG m)).det = Real.sqrt (hierCauchyG m).det := by
+  classical
+  exact realMatrixSqrt_det (hierCauchyG_PosSemidef m)
+
+/-- The symmetric square root of `hierCauchyG m` has strictly positive determinant. -/
+theorem hierCauchyG_realMatrixSqrt_det_pos (m : ℕ) (hm : 1 ≤ m) :
+    0 < (realMatrixSqrt (hierCauchyG m)).det := by
+  classical
+  exact realMatrixSqrt_det_pos (hierCauchyG_PosDef m hm)
+
+/-- The symmetric square root of `hierCauchyG m` is invertible. -/
+theorem hierCauchyG_realMatrixSqrt_isUnit (m : ℕ) (hm : 1 ≤ m) :
+    IsUnit (realMatrixSqrt (hierCauchyG m)) := by
+  classical
+  exact realMatrixSqrt_isUnit (hierCauchyG_PosDef m hm)
+
 end Erdos524.Helpers
