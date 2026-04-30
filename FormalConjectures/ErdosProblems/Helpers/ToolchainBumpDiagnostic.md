@@ -1,3 +1,34 @@
+# Round 12+13 toolchain bump diagnostic + R14 runbook
+
+> **R14 Quick-Start Runbook** (jump to relevant section below for details)
+>
+> 1. Branch from `kmc-erdos-glw-lower` HEAD.
+> 2. Update `lean-toolchain` → `leanprover/lean4:v4.27.0-rc1`.
+> 3. Update `lakefile.toml`: mathlib pin → `25ce63313608`; add
+>    `brownian-motion` rev `91267abd71bd32e9ef6c10c9359938f24a3e1f38`;
+>    add `kolmogorov_extension4` rev `2c2b44e55251`.
+> 4. `lake update` (~30s) + `lake exe cache get` (~1 min).
+> 5. Apply the five mechanical fixes:
+>    - `Set.self_mem_Ici → Set.left_mem_Ici` ×2 in
+>      `EndpointReparametrization.lean:259, 265` and
+>      `CentralBinomLower.lean:660`.
+>    - `[CommMonoidWithZero] [IsCancelMulZero] → [CancelCommMonoidWithZero]`
+>      in `Powerfree.lean:81` and `GCDMonoid/Finset.lean:27`.
+>    - Remove redundant `· -- offDiag piece` bullet in
+>      `CauchyDetLowerBound.lean:1907-1918`.
+>    - `StronglyAdapted → Adapted` and `Filtration.stronglyAdapted_natural →
+>      Filtration.adapted_natural` in `524.lean:662, 667`.
+> 6. `lake build FormalConjectures.ErdosProblems.«524»` should be green.
+> 7. Retire `axiom Y_GLW_exists` in `Helpers/GLWProcess.lean:122` using
+>    `K_GLW_processKernel_R14_capstone` from
+>    `Helpers/YGLWFromBrownianMotion.lean §4.49` and the
+>    `brownian-motion` API (`gaussianProjectiveFamily`,
+>    `projectiveLimit`, `KolmogorovChentsov`).
+> 8. Cascade through 5 consumers in `524.lean` and 4 helper files.
+> 9. Commit + push.
+
+---
+
 # Round 12 toolchain bump diagnostic
 
 **Date**: 2026-04-30
