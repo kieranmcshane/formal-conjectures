@@ -569,16 +569,82 @@ theorem glwGaussianLimit_Y_GLW_existence :
         (Measure.map_map hmφ hmf).symm]
     rw [hasLaw_restrict_glwGaussianLimit.map_eq]
     exact isGaussian_map _
-  · -- Conjunct 8 (continuous paths): pending O1 Full. Once O1's
-    -- `kolmogorovCondition` is sorry-free, apply `IsAEKolmogorovProcess.mk`
-    -- + brownian-motion's `IsKolmogorovProcess.continuousModification`
-    -- to get the a.e. continuous modification, which replaces `Y` here.
-    sorry  -- TAG[R16-await-O1]: continuous modification via K-C
-  · -- Conjunct 9 (tail decay): independent. Borell on
-    -- `sup_{u ∈ [T, T+1]} |Y u|` (Ledoux *Concentration of Measure*
-    -- §1.3 eq. (1.7)) + Borel-Cantelli on `T = 1, 2, 3, …`. Uses
-    -- `K_GLW_var_tendsto_zero` from `Helpers/YGLWConstruction.lean`.
+  · -- Conjunct 8 (continuous paths). The current witness
+    -- `Y u ω = ω u.toNNReal` is *not* a.s. continuous in `u` —
+    -- a path drawn from `glwGaussianLimit` is a-priori only Borel,
+    -- not continuous.
+    --
+    -- **R17 status: structured sorry; documented blocker.**
+    --
+    -- The standard Kolmogorov-Chentsov route (now unblocked since
+    -- T1.1 is sorry-free):
+    --
+    -- 1. `glwGaussianLimit_isKolmogorovProcess` gives a strict
+    --    K-C process at `(p, q, M) = (2, 2, 1)`.
+    -- 2. Apply `BrownianMotion/Continuity/KolmogorovChentsov.lean`:
+    --    `exists_modification_holder''' isCoverWithBoundedCoveringNumber_Ico_nnreal
+    --      glwGaussianLimit_isKolmogorovProcess
+    --      (fun n => by finiteness) zero_lt_one (by norm_num : (1 : ℝ) < 2)`.
+    --    This yields `Y' : NNReal → (NNReal → ℝ) → ℝ` such that
+    --    (a) each `Y' t` is `Measurable` (b) `Y' t =ᵐ[μ] (· t)`
+    --    (c) `Y' · ω` is locally Hölder (hence continuous) at every
+    --    `t ∈ NNReal`, hence continuous on NNReal.
+    -- 3. **Witness refactor.** Replace the current witness
+    --    `fun u ω => ω u.toNNReal` with `fun u ω => Y' u.toNNReal ω`.
+    --    Composition with `Real.toNNReal` (continuous on ℝ) gives
+    --    continuity in `u : ℝ`.
+    -- 4. **Re-derive conjuncts 3-7.** Each integral identity follows
+    --    from `Y' t =ᵐ (· t)` via `Integrable.congr`,
+    --    `integral_congr_ae`, `Measure.map_congr_ae`.
+    --
+    -- **Cost:** ~150 LOC for the witness refactor + re-derivations.
+    -- Deferred to R18 because the existential-witness change cascades
+    -- into all other conjuncts and is invasive. See
+    -- `R18ReadinessDiagnostic.md` Blocker 1 for the full plan.
+    sorry  -- TAG[R17-blocker-1]: witness refactor to Y'
+  · -- Conjunct 9 (tail decay). For every `ε > 0`, `Y u ω → 0` as
+    -- `u → ∞`, almost-surely under `glwGaussianLimit`.
+    --
+    -- **R17 status: structured sorry; documented blocker.**
+    --
+    -- Proof outline (Borell-TIS + Borel-Cantelli):
+    --
+    -- 1. **Pointwise variance decay.** From `K_GLW_var_le_recip` in
+    --    `Helpers/YGLWConstruction.lean`: `K_GLW(u, u) ≤ 1/(2u)` for
+    --    `u > 0`. So `Var[Y u]` decays like `1/u`.
+    --
+    -- 2. **Block-supremum tail bound.** For each integer `T ∈ ℕ`,
+    --    consider `M_T := sup_{u ∈ [T, T+1]} |Y u|` (a.s. finite by
+    --    sample-path continuity from the K-C modification, conjunct 8).
+    --    By Borell-TIS for centred Gaussian processes:
+    --      `P(M_T ≥ ε) ≤ 2 * exp(-ε²/(2σ_T²))`
+    --    where `σ_T² = sup_{u ∈ [T, T+1]} Var[Y u] ≤ 1/(2T)`.
+    --    Hence:
+    --      `P(M_T ≥ ε) ≤ 2 * exp(-ε² T)`.
+    --
+    -- 3. **Borel-Cantelli on the integer ladder.**
+    --      `∑_T P(M_T ≥ ε) ≤ 2 * ∑_T exp(-ε² T) < ∞` (geometric series).
+    --    By BC: `P(limsup_T {M_T ≥ ε}) = 0`. Hence almost-surely,
+    --    only finitely many `T` have `M_T ≥ ε`, i.e., for all
+    --    sufficiently large `u`, `|Y u| < ε`.
+    --
+    -- 4. **Convert to ε-existence form.** Almost-surely, for every
+    --    `ε > 0`, ∃ T₀, ∀ u ≥ T₀, |Y u| ≤ ε. Quantifier interleaving
+    --    via a countable rational `ε`-net.
+    --
+    -- **Mathlib gap (Blocker 2 of R18ReadinessDiagnostic.md):** the
+    -- Borell-TIS inequality is not in Mathlib at HEAD. An elementary
+    -- alternative for the GLW-specific case is a finite ε-net union
+    -- bound on `[T, T+1]` (since the process is uniformly Hölder),
+    -- combined with the marginal Gaussian-tail bound from
+    -- `Mathlib.Probability.Distributions.Gaussian.Real`. This route
+    -- avoids the abstract Borell-TIS theorem at the cost of ~200 LOC
+    -- of computation.
+    --
+    -- **Also depends on conjunct 8** (continuous paths, T1.7), since
+    -- the supremum-of-absolute-value over `[T, T+1]` is a.s. finite
+    -- only if the paths are continuous on each compact block.
     intro ε hε
-    sorry  -- TAG[R16-tailDecay-Borell]
+    sorry  -- TAG[R17-blocker-2]: Borell-TIS + BC on integer ladder
 
 end Erdos524.Helpers

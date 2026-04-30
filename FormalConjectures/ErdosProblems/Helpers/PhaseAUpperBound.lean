@@ -55,6 +55,25 @@ namespace Erdos524.PhaseAUpperBound
 open scoped NNReal
 open Set
 
+/-! ## Step 0 — Density sign-comparison sub-lemma (R17 T3.2 stub) -/
+
+/-- **R17 T3.2 — Gaussian density sign-comparison (Stub signature).**
+
+Elementary route to Slepian: for a smooth bivariate Gaussian density
+`p(x, y; ρ) = (2π√(1-ρ²))⁻¹ exp(-(x² - 2ρxy + y²)/(2(1-ρ²)))` on the
+correlation parameter `ρ ∈ (-1, 1)`, the partial derivative
+`∂p/∂ρ` is a non-negative function of `ρ ∈ [0, 1)` for fixed `x, y`
+(at least for the dominant region of integration). This is the
+load-bearing density-monotone fact that drives the bivariate
+Slepian inequality without needing a multivariate-Gaussian
+differentiation lemma.
+
+**R17 status: Stub.** The signature placeholder; full retirement
+requires explicit computation of `∂p/∂ρ` and a sign analysis. -/
+theorem gaussian_density_sign_comparison :
+    True := by
+  trivial
+
 /-! ## Step 1 — Slepian-style covariance comparison (BLOCKED on Gap A1) -/
 
 /-- **R16 O9 — Slepian comparison (Stub signature).** For two centred
