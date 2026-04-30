@@ -260,6 +260,22 @@ the function whose integrated square equals the quadratic form. -/
 noncomputable def expProfile (m : ℕ) (x : Fin m × Fin m → ℝ) (t : ℝ) : ℝ :=
   ∑ i : Fin m × Fin m, x i * Real.exp (-(hierGrid m i) * t)
 
+/-- `expProfile` evaluated at `t = 0` equals `∑ i, x i`. -/
+theorem expProfile_at_zero (m : ℕ) (x : Fin m × Fin m → ℝ) :
+    expProfile m x 0 = ∑ i : Fin m × Fin m, x i := by
+  unfold expProfile
+  simp [Real.exp_zero]
+
+/-- `expProfile` is continuous in `t`. -/
+theorem expProfile_continuous (m : ℕ) (x : Fin m × Fin m → ℝ) :
+    Continuous (expProfile m x) := by
+  unfold expProfile
+  apply continuous_finset_sum
+  intro i _
+  have h_inner : Continuous fun t : ℝ => -(hierGrid m i) * t :=
+    continuous_const.mul continuous_id'
+  exact continuous_const.mul (Real.continuous_exp.comp h_inner)
+
 /-- Integrability of each summand `t ↦ exp(-(g_i + g_j) t)` on `Ioi 0`. -/
 theorem integrableOn_exp_neg_sum_Ioi_zero (m : ℕ) (i j : Fin m × Fin m) :
     IntegrableOn (fun t : ℝ => Real.exp (-(hierGrid m i + hierGrid m j) * t)) (Ioi 0) :=
