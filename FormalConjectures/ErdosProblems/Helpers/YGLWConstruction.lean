@@ -613,6 +613,139 @@ theorem K_GLW_var_antitone {u v : ℝ} (hu : 0 ≤ u) (huv : u ≤ v) :
   · linarith [sq_nonneg (Real.exp (-u * s)), h_exp_pos_v, h_exp_pos_u]
   · exact h_le
 
+/-! ## 6.7. L²-Lipschitz / Hölder bound — quantitative KC ground floor
+
+The pointwise bound `|exp(-us) - exp(-vs)| ≤ |u - v|` for `u, v ≥ 0` and
+`s ∈ [0, 1]` (`exp` is 1-Lipschitz on `(-∞, 0]`) yields, by squaring and
+integrating,
+
+  `‖glwIntegrand u - glwIntegrand v‖²_{L²([0,1])} ≤ |u - v|²`
+
+— the deterministic shadow of `E[(Y_GLW(u) - Y_GLW(v))²] ≤ |u - v|²`,
+which is the **Hölder-with-exponent-1** bound that powers
+Kolmogorov–Chentsov for continuous paths. -/
+
+/-- **Asymmetric pointwise Lipschitz bound on the exponential family**:
+for `0 ≤ v ≤ u` and `s ∈ [0, 1]`, `0 ≤ exp(-vs) - exp(-us) ≤ (u - v)`. -/
+private theorem exp_neg_diff_le_asym {u v s : ℝ} (hv : 0 ≤ v) (hvu : v ≤ u)
+    (hs0 : 0 ≤ s) (hs1 : s ≤ 1) :
+    0 ≤ Real.exp (-v * s) - Real.exp (-u * s) ∧
+    Real.exp (-v * s) - Real.exp (-u * s) ≤ u - v := by
+  have hvs : 0 ≤ v * s := mul_nonneg hv hs0
+  have huvs : 0 ≤ (u - v) * s := mul_nonneg (by linarith) hs0
+  -- Step 1: monotonicity of exp ⇒ exp(-us) ≤ exp(-vs).
+  have h_mono : Real.exp (-u * s) ≤ Real.exp (-v * s) := by
+    apply Real.exp_le_exp.mpr
+    have : -u * s ≤ -v * s :=
+      mul_le_mul_of_nonneg_right (by linarith : -u ≤ -v) hs0
+    exact this
+  -- Step 2: factor `exp(-vs) - exp(-us) = exp(-vs)·(1 - exp(-(u-v)s))`.
+  have h_factor : Real.exp (-v * s) - Real.exp (-u * s) =
+      Real.exp (-v * s) * (1 - Real.exp (-(u - v) * s)) := by
+    have h_exp_split : Real.exp (-u * s) =
+        Real.exp (-v * s) * Real.exp (-(u - v) * s) := by
+      rw [← Real.exp_add]
+      congr 1
+      ring
+    rw [h_exp_split]
+    ring
+  refine ⟨by linarith, ?_⟩
+  rw [h_factor]
+  -- Step 3: `1 - exp(-(u-v)s) ≤ (u-v)s` via `one_sub_le_exp_neg`.
+  have h_one_sub : 1 - Real.exp (-(u - v) * s) ≤ (u - v) * s := by
+    have h := Real.one_sub_le_exp_neg ((u - v) * s)
+    have h_eq : -(u - v) * s = -((u - v) * s) := by ring
+    rw [h_eq]
+    linarith
+  -- Step 4: `1 - exp(-(u-v)s) ≥ 0` (since (u-v)s ≥ 0).
+  have h_nonneg : 0 ≤ 1 - Real.exp (-(u - v) * s) := by
+    have h : Real.exp (-((u - v) * s)) ≤ 1 := by
+      apply Real.exp_le_one_iff.mpr
+      linarith
+    have h_eq : -(u - v) * s = -((u - v) * s) := by ring
+    rw [h_eq]
+    linarith
+  -- Step 5: `exp(-vs) ≤ 1` and combine: prod ≤ 1 · (u-v)·s ≤ u - v.
+  have h_exp_le_one : Real.exp (-v * s) ≤ 1 := by
+    apply Real.exp_le_one_iff.mpr
+    have : -v * s = -(v * s) := by ring
+    rw [this]
+    linarith
+  have h_exp_pos : 0 < Real.exp (-v * s) := Real.exp_pos _
+  -- Combine: exp(-vs) · (1 - exp(...)) ≤ 1 · (u-v)·s = (u-v)·s ≤ u - v.
+  calc Real.exp (-v * s) * (1 - Real.exp (-(u - v) * s))
+      ≤ 1 * (1 - Real.exp (-(u - v) * s)) := by
+        apply mul_le_mul_of_nonneg_right h_exp_le_one h_nonneg
+    _ ≤ 1 * ((u - v) * s) := by
+        apply mul_le_mul_of_nonneg_left h_one_sub (by norm_num : (0 : ℝ) ≤ 1)
+    _ ≤ 1 * (u - v) := by
+        apply mul_le_mul_of_nonneg_left ?_ (by norm_num : (0 : ℝ) ≤ 1)
+        rw [show (u - v) * s = (u - v) * s from rfl]
+        nlinarith [show (0 : ℝ) ≤ u - v from by linarith]
+    _ = u - v := by ring
+
+/-- **Symmetric pointwise Lipschitz bound on the exponential family**:
+for `u, v ≥ 0` and `s ∈ [0, 1]`,
+`(glwIntegrand u s - glwIntegrand v s)² ≤ (u - v)²`. -/
+theorem glwIntegrand_diff_sq_le {u v s : ℝ}
+    (hu : 0 ≤ u) (hv : 0 ≤ v) (hs0 : 0 ≤ s) (hs1 : s ≤ 1) :
+    (glwIntegrand u s - glwIntegrand v s)^2 ≤ (u - v)^2 := by
+  rcases le_total u v with huv | hvu
+  · -- u ≤ v: apply the asymmetric bound with roles swapped.
+    have ⟨hge, hle⟩ := exp_neg_diff_le_asym hu huv hs0 hs1
+    -- glwIntegrand u s - glwIntegrand v s = exp(-us) - exp(-vs); the diff
+    -- equals -(exp(-vs) - exp(-us)) which is in [-(v-u), 0].
+    unfold glwIntegrand
+    -- (a - b)² = (b - a)² ≤ (v - u)² = (u - v)².
+    have h_swap : (Real.exp (-u * s) - Real.exp (-v * s))^2 =
+                  (Real.exp (-v * s) - Real.exp (-u * s))^2 := by ring
+    rw [h_swap]
+    have h_uv : (u - v)^2 = (v - u)^2 := by ring
+    rw [h_uv]
+    -- Now bound (exp(-us) - exp(-vs))² ≤ (v - u)².
+    -- Wait, h_swap moved us to (exp(-vs) - exp(-us))², and we want ≤ (v-u)².
+    have h_bound : Real.exp (-u * s) - Real.exp (-v * s) ≤ v - u := hle
+    have h_nn : 0 ≤ Real.exp (-u * s) - Real.exp (-v * s) := hge
+    -- (exp(-vs) - exp(-us))² should be ≤ (v - u)² since both are nonneg.
+    -- Wait — we have `h_swap` already applied. Goal is now:
+    -- (exp(-vs) - exp(-us))^2 ≤ (v - u)^2.
+    -- But h_swap rewrote exp(-us) - exp(-vs) → exp(-vs) - exp(-us) — we need
+    -- to be careful. Let's restart cleanly.
+    -- From hle: exp(-us) - exp(-vs) ≤ v - u (since u ≤ v).
+    -- From hge: 0 ≤ exp(-us) - exp(-vs).
+    -- So |exp(-us) - exp(-vs)| ≤ v - u, hence (...)² ≤ (v - u)².
+    nlinarith [sq_nonneg (Real.exp (-v * s) - Real.exp (-u * s))]
+  · -- v ≤ u: direct application.
+    have ⟨hge, hle⟩ := exp_neg_diff_le_asym hv hvu hs0 hs1
+    unfold glwIntegrand
+    -- |exp(-us) - exp(-vs)| = exp(-vs) - exp(-us) ≤ u - v.
+    nlinarith [sq_nonneg (Real.exp (-v * s) - Real.exp (-u * s))]
+
+/-- **L²([0,1]) Hölder-1 bound on the exponential family**:
+`∫₀¹ (glwIntegrand u s - glwIntegrand v s)² ds ≤ (u - v)²` for
+`u, v ≥ 0`. The deterministic content of
+`E[(Y_GLW(u) - Y_GLW(v))²] ≤ |u - v|²`, which by Kolmogorov–Chentsov
+yields continuous sample paths. -/
+theorem L2_diff_le_sq {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    ∫ s in (0 : ℝ)..1, (glwIntegrand u s - glwIntegrand v s)^2 ≤ (u - v)^2 := by
+  -- Pointwise: integrand ≤ (u - v)² for s ∈ [0, 1].
+  -- Integrating constant `(u - v)²` over `[0, 1]` gives `(u - v)²`.
+  have h_const : ∫ s in (0 : ℝ)..1, (u - v)^2 = (u - v)^2 := by
+    simp
+  rw [← h_const]
+  apply intervalIntegral.integral_mono_on (by norm_num : (0 : ℝ) ≤ 1)
+  · exact intervalIntegrable_glwIntegrand_diff_sq u v
+  · exact intervalIntegral.intervalIntegrable_const
+  intro s hs
+  exact glwIntegrand_diff_sq_le hu hv hs.1 hs.2
+
+/-- **Quantitative form of `K_GLW_diff_quadratic_nonneg`**:
+`K_GLW(u, u) - 2 K_GLW(u, v) + K_GLW(v, v) ≤ (u - v)²` for `u, v ≥ 0`. -/
+theorem K_GLW_diff_quadratic_le_sq {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
+    K_GLW u u - 2 * K_GLW u v + K_GLW v v ≤ (u - v)^2 := by
+  rw [← L2_distance_glwIntegrand_eq hu hv]
+  exact L2_diff_le_sq hu hv
+
 /-! ## 7. Variance decay roadmap
 
 For the eventual sample-path tail-decay conjunct of `Y_GLW_exists`, the
