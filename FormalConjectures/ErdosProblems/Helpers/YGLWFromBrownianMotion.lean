@@ -1208,6 +1208,39 @@ theorem glwCovMatrixNN_PosSemidef (I : Finset NNReal) :
   rw [h_eq]
   exact h_fin.submatrix e
 
+/-- **Submatrix-PSD on the NNReal grid**: combining
+`glwCovMatrixNN_submatrix` (sub-Finset restriction is the K_GLW Gram
+of the sub-Finset) with `glwCovMatrixNN_PosSemidef` (PSD on any
+Finset) gives that the submatrix on `J ⊆ I` is PSD as a Matrix on
+`↑J`. This is the B2 precondition (consistency under restriction)
+expressed in brownian-motion's preferred signature. -/
+theorem glwCovMatrixNN_submatrix_PosSemidef
+    {I J : Finset NNReal} (hJI : J ⊆ I) :
+    ((glwCovMatrixNN I).submatrix
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef := by
+  rw [glwCovMatrixNN_submatrix hJI]
+  exact glwCovMatrixNN_PosSemidef J
+
+/-- **Packaged kernel-data witness on NNReal grids**: combines the
+NNReal-grid PSD and submatrix-consistency into a single existential.
+This is the brownian-motion-aligned analogue of `Y_GLW_kernel_data`
+(§4.21) and represents the complete kernel-side specification
+consumed by the projective-limit construction (BLOCKERs B1+B2). -/
+theorem Y_GLW_kernel_data_NN :
+    ∃ K : NNReal → NNReal → ℝ,
+      (∀ s t : NNReal, K s t = K t s) ∧
+      (∀ I : Finset NNReal,
+        (Matrix.of fun s t : {x : NNReal // x ∈ I} => K s.1 t.1).PosSemidef) ∧
+      (∀ {I J : Finset NNReal} (hJI : J ⊆ I),
+        ((Matrix.of fun s t : {x : NNReal // x ∈ I} => K s.1 t.1).submatrix
+            (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+            (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef) := by
+  refine ⟨fun s t => K_GLW (s : ℝ) (t : ℝ), ?_, ?_, ?_⟩
+  · intros s t; exact K_GLW_symm _ _
+  · intro I; exact glwCovMatrixNN_PosSemidef I
+  · intros I J hJI; exact glwCovMatrixNN_submatrix_PosSemidef hJI
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
