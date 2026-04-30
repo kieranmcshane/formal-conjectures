@@ -1660,6 +1660,27 @@ theorem K_off_diag_le (s t : NNReal) :
 
 end ProcessKernel
 
+/-! ### Mercer/integral connection on the NNReal grid - additional facts -/
+
+/-- The off-diagonal `Mₛₜ` is expressible via the explicit
+exp-product integrand. -/
+theorem glwCovMatrixNN_offdiag_eq_integral (I : Finset NNReal)
+    (s t : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s t = ∫ x in (0 : ℝ)..1,
+      Real.exp (-(s.1 : ℝ) * x) * Real.exp (-(t.1 : ℝ) * x) := by
+  rw [glwCovMatrixNN_eq_integral]
+  simp [glwIntegrand_def]
+
+/-- The matrix entries are bounded by `1`, expressible as a unit
+interval integral. -/
+theorem glwCovMatrixNN_entry_le_integral_one (I : Finset NNReal)
+    (s t : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s t ≤ ∫ _x in (0 : ℝ)..1, (1 : ℝ) := by
+  rw [glwCovMatrixNN_apply]
+  have := K_GLW_le_one _ _ (NNReal.coe_nonneg s.1) (NNReal.coe_nonneg t.1)
+  calc K_GLW (s.1 : ℝ) (t.1 : ℝ) ≤ 1 := this
+    _ = ∫ _x in (0 : ℝ)..1, (1 : ℝ) := by simp
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
