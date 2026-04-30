@@ -1749,6 +1749,23 @@ theorem K_GLW_processKernel_continuous :
                        (NNReal.continuous_coe.comp continuous_snd)
   exact K_GLW_continuous.comp h_pair
 
+/-- The diagonal of `K_GLW_processKernel` factors through `K_GLW_aux`. -/
+theorem K_GLW_processKernel_diag (s : NNReal) :
+    K_GLW_processKernel.K s s = K_GLW_aux (2 * (s : ℝ)) := by
+  rw [K_GLW_processKernel_K, K_GLW_def]
+  congr 1
+  ring
+
+/-- The diagonal is non-negative. -/
+theorem K_GLW_processKernel_diag_nonneg (s : NNReal) :
+    0 ≤ K_GLW_processKernel.K s s :=
+  le_of_lt (K_GLW_processKernel_pos s s)
+
+/-- The diagonal is bounded above by `1`. -/
+theorem K_GLW_processKernel_diag_le_one (s : NNReal) :
+    K_GLW_processKernel.K s s ≤ 1 :=
+  K_GLW_processKernel_le_one s s
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
