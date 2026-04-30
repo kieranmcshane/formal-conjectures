@@ -729,6 +729,16 @@ example : hierCauchyG 1 (0, 0) (0, 0) = 1 / 16 := by
   unfold hierGrid
   norm_num
 
+/-- Sanity-check: `cauchyMatrix` at `m = 2` with `g = ![1, 2]` gives a
+specific 2x2 matrix. Tests that the abstract API works on small explicit
+parameter families. -/
+example : (cauchyMatrix (![1, 2] : Fin 2 → ℝ)).PosSemidef :=
+  cauchyMatrix_PosSemidef (by intro i; fin_cases i <;> norm_num)
+
+/-- Sanity-check: `cauchyMatrix` at `m = 3` with positive integer parameters. -/
+example : (cauchyMatrix (![1, 2, 3] : Fin 3 → ℝ)).PosSemidef :=
+  cauchyMatrix_PosSemidef (by intro i; fin_cases i <;> norm_num)
+
 /- ## §9. Abstract entry-level integral representation -/
 
 /-- The abstract Cauchy matrix entry equals the Cauchy integral
