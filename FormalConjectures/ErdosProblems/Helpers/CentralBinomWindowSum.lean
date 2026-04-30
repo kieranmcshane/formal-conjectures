@@ -485,7 +485,7 @@ private lemma window_lil_k_star_bounds (δ : ℝ) (hδ : 0 < δ) (hδ1 : δ < 1)
 set_option maxHeartbeats 400000 in
 /-- **Lemma 3.** For every `k` in the window, `2·k - n ≥ (1-δ)·√(2n·log log n)`. -/
 private lemma window_lil_k_above_t (δ : ℝ) (hδ : 0 < δ) (hδ1 : δ < 1)
-    (n : ℕ) (hn : M_of δ ≤ n) :
+    (n : ℕ) (_hn : M_of δ ≤ n) :
     ∀ k ∈ Finset.Ico (kStar_of δ n) (kStar_of δ n + W_of n),
       (1 - δ) * Real.sqrt (2 * (n : ℝ) * Real.log (Real.log n)) ≤
         2 * (k : ℝ) - (n : ℝ) := by
