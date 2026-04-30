@@ -2212,6 +2212,96 @@ theorem K_GLW_processKernel_kernelMatrix_trace_le_card (I : Finset NNReal) :
   rw [K_GLW_processKernel_kernelMatrix_trace_eq]
   exact glwCovMatrixNN_trace_le_card I
 
+/-! ## 4.30. K_GLW_processKernel.kernelMatrix — entry/sum/Frobenius lifts
+
+Structural bounds on `K_GLW_processKernel.kernelMatrix` lifted directly
+from the corresponding `glwCovMatrixNN` lemmas via the equality
+`K_GLW_processKernel.kernelMatrix I = glwCovMatrixNN I`. -/
+
+/-- Each entry of `K_GLW_processKernel.kernelMatrix I` is positive. -/
+theorem K_GLW_processKernel_kernelMatrix_entry_pos
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    0 < K_GLW_processKernel.kernelMatrix I s t := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_entry_pos I s t
+
+/-- Each entry of `K_GLW_processKernel.kernelMatrix I` is at most `1`. -/
+theorem K_GLW_processKernel_kernelMatrix_entry_le_one
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    K_GLW_processKernel.kernelMatrix I s t ≤ 1 := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_entry_le_one I s t
+
+/-- Each diagonal entry of `K_GLW_processKernel.kernelMatrix I` is non-negative. -/
+theorem K_GLW_processKernel_kernelMatrix_diag_nonneg
+    (I : Finset NNReal) (s : {x : NNReal // x ∈ I}) :
+    0 ≤ K_GLW_processKernel.kernelMatrix I s s := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_diag_nonneg I s
+
+/-- Each diagonal entry of `K_GLW_processKernel.kernelMatrix I` is at most `1`. -/
+theorem K_GLW_processKernel_kernelMatrix_diag_le_one
+    (I : Finset NNReal) (s : {x : NNReal // x ∈ I}) :
+    K_GLW_processKernel.kernelMatrix I s s ≤ 1 := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_diag_le_one I s
+
+/-- Trace of `K_GLW_processKernel.kernelMatrix I` is non-negative. -/
+theorem K_GLW_processKernel_kernelMatrix_trace_nonneg (I : Finset NNReal) :
+    0 ≤ (K_GLW_processKernel.kernelMatrix I).trace := by
+  rw [K_GLW_processKernel_kernelMatrix_trace_eq]
+  exact glwCovMatrixNN_trace_nonneg I
+
+/-- Sum of entries of `K_GLW_processKernel.kernelMatrix I` is non-negative. -/
+theorem K_GLW_processKernel_kernelMatrix_sum_entries_nonneg
+    (I : Finset NNReal) :
+    0 ≤ ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+          K_GLW_processKernel.kernelMatrix I s t := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_sum_entries_nonneg I
+
+/-- Sum of entries of `K_GLW_processKernel.kernelMatrix I` is bounded
+above by `(card I)²`. -/
+theorem K_GLW_processKernel_kernelMatrix_sum_entries_le
+    (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+          K_GLW_processKernel.kernelMatrix I s t ≤
+            (I.card : ℝ) * (I.card : ℝ) := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_sum_entries_le I
+
+/-- Pair-level Cauchy-Schwarz for `K_GLW_processKernel.kernelMatrix I`. -/
+theorem K_GLW_processKernel_kernelMatrix_entry_sq_le_diag_prod
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    (K_GLW_processKernel.kernelMatrix I s t)^2 ≤
+      K_GLW_processKernel.kernelMatrix I s s *
+        K_GLW_processKernel.kernelMatrix I t t := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_entry_sq_le_diag_prod I s t
+
+/-- The kernel matrix submatrix consistency: restricting
+`kernelMatrix I` to a sub-Finset `J ⊆ I` gives `kernelMatrix J`. -/
+theorem K_GLW_processKernel_kernelMatrix_submatrix
+    {I J : Finset NNReal} (hJI : J ⊆ I) :
+    (K_GLW_processKernel.kernelMatrix I).submatrix
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+        (fun j : {x : NNReal // x ∈ J} =>
+          (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I})) =
+      K_GLW_processKernel.kernelMatrix J := by
+  rw [K_GLW_processKernel_kernelMatrix_eq, K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_submatrix hJI
+
+/-- The kernel matrix submatrix is itself PSD (sub-Finset PSD). -/
+theorem K_GLW_processKernel_kernelMatrix_submatrix_PSD
+    {I J : Finset NNReal} (hJI : J ⊆ I) :
+    ((K_GLW_processKernel.kernelMatrix I).submatrix
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+        (fun j : {x : NNReal // x ∈ J} =>
+          (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef := by
+  rw [K_GLW_processKernel_kernelMatrix_submatrix hJI]
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+  exact glwCovMatrixNN_PosSemidef J
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
