@@ -1660,6 +1660,35 @@ theorem K_off_diag_le (s t : NNReal) :
 
 end ProcessKernel
 
+/-! ### NNReal-grid quadratic-form bound on a positive Finset -/
+
+/-- The NNReal-grid quadratic form is bounded above by the squared
+L¹-norm of the test vector. -/
+theorem glwCovMatrixNN_quadratic_form_le_l1_sq (I : Finset NNReal)
+    (x : {y : NNReal // y ∈ I} → ℝ) :
+    ∑ s, x s * ((glwCovMatrixNN I *ᵥ x) s) ≤
+      (∑ s : {y : NNReal // y ∈ I}, |x s|)^2 := by
+  rw [glwCovMatrixNN_quadratic_form_eq_sum]
+  calc ∑ s, ∑ t, x s * x t * K_GLW (s.1 : ℝ) (t.1 : ℝ)
+      ≤ ∑ s, ∑ t, |x s| * |x t| := by
+        apply Finset.sum_le_sum
+        intros s _
+        apply Finset.sum_le_sum
+        intros t _
+        have h_pos : 0 ≤ K_GLW (s.1 : ℝ) (t.1 : ℝ) :=
+          le_of_lt (K_GLW_pos _ _ (NNReal.coe_nonneg _) (NNReal.coe_nonneg _))
+        have h_le : K_GLW (s.1 : ℝ) (t.1 : ℝ) ≤ 1 :=
+          K_GLW_le_one _ _ (NNReal.coe_nonneg _) (NNReal.coe_nonneg _)
+        calc x s * x t * K_GLW (s.1 : ℝ) (t.1 : ℝ)
+            ≤ |x s * x t| * K_GLW (s.1 : ℝ) (t.1 : ℝ) := by
+              gcongr
+              exact le_abs_self _
+          _ ≤ |x s * x t| * 1 := by
+              gcongr
+          _ = |x s| * |x t| := by rw [mul_one, abs_mul]
+    _ = (∑ s : {y : NNReal // y ∈ I}, |x s|)^2 := by
+        rw [sq, Finset.sum_mul_sum]
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
