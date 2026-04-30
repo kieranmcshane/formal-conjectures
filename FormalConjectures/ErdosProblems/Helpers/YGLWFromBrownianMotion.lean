@@ -2109,6 +2109,109 @@ theorem K_GLW_processKernel_diag_prod_nonneg (s t : NNReal) :
   mul_nonneg (K_GLW_processKernel.K_diag_nonneg s)
              (K_GLW_processKernel.K_diag_nonneg t)
 
+/-! ## 4.29. `ProcessKernel.kernelMatrix` — packaged matrix abstraction
+
+The Finset-indexed Gram matrix view of a process kernel. Wrapping
+`Matrix.of (fun s t => K s.1 t.1)` once gives downstream code a
+single named handle to refer to the kernel's finite-dim restriction. -/
+
+namespace ProcessKernel
+
+variable (P : ProcessKernel)
+
+/-- The kernel matrix on a Finset `I`: a packaged view of
+`Matrix.of (fun s t : I => K s.1 t.1)`. -/
+noncomputable def kernelMatrix (I : Finset NNReal) :
+    Matrix {x : NNReal // x ∈ I} {x : NNReal // x ∈ I} ℝ :=
+  Matrix.of fun s t : {x : NNReal // x ∈ I} => P.K s.1 t.1
+
+@[simp]
+theorem kernelMatrix_apply (I : Finset NNReal)
+    (s t : {x : NNReal // x ∈ I}) :
+    P.kernelMatrix I s t = P.K s.1 t.1 := rfl
+
+theorem kernelMatrix_PSD (I : Finset NNReal) :
+    (P.kernelMatrix I).PosSemidef := P.PSD I
+
+theorem kernelMatrix_isHermitian (I : Finset NNReal) :
+    (P.kernelMatrix I).IsHermitian := (P.PSD I).1
+
+theorem kernelMatrix_symm (I : Finset NNReal)
+    (s t : {x : NNReal // x ∈ I}) :
+    P.kernelMatrix I s t = P.kernelMatrix I t s := by
+  simp [kernelMatrix_apply, P.symm]
+
+theorem kernelMatrix_diag_nonneg
+    (I : Finset NNReal) (s : {x : NNReal // x ∈ I}) :
+    0 ≤ P.kernelMatrix I s s :=
+  (P.PSD I).diag_nonneg
+
+/-- Trace expansion as a sum of diagonal kernel evaluations. -/
+theorem kernelMatrix_trace_eq (I : Finset NNReal) :
+    (P.kernelMatrix I).trace = ∑ s : {x : NNReal // x ∈ I}, P.K s.1 s.1 := by
+  rfl
+
+theorem kernelMatrix_trace_nonneg (I : Finset NNReal) :
+    0 ≤ (P.kernelMatrix I).trace := by
+  rw [kernelMatrix_trace_eq]
+  exact Finset.sum_nonneg fun s _ => P.K_diag_nonneg s.1
+
+/-- The quadratic form `xᵀ M x` on the kernel matrix is non-negative. -/
+theorem kernelMatrix_quadratic_form_nonneg
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    0 ≤ ∑ s, x s * (P.kernelMatrix I *ᵥ x) s := by
+  have h := (P.PSD I).dotProduct_mulVec_nonneg x
+  have h_star : star x = x := rfl
+  rw [h_star, dotProduct] at h
+  exact h
+
+/-- Bilinear-form expansion: `xᵀ M x = ∑ₛ ∑ₜ xₛ xₜ K(s, t)`. -/
+theorem kernelMatrix_quadratic_form_eq_sum
+    (I : Finset NNReal) (x : {y : NNReal // y ∈ I} → ℝ) :
+    ∑ s, x s * (P.kernelMatrix I *ᵥ x) s =
+      ∑ s, ∑ t, x s * x t * P.K s.1 t.1 := by
+  refine Finset.sum_congr rfl fun s _ => ?_
+  rw [Matrix.mulVec, dotProduct, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  simp [kernelMatrix_apply]
+  ring
+
+/-- Sum-of-entries of the kernel matrix. -/
+theorem kernelMatrix_sum_entries_eq (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+        P.kernelMatrix I s t =
+      ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+        P.K s.1 t.1 := rfl
+
+/-- The kernel matrix on `I` and on a subset `J ⊆ I` are related by
+restriction. -/
+theorem kernelMatrix_consistent {I J : Finset NNReal} (hJI : J ⊆ I) :
+    ((P.kernelMatrix I).submatrix
+        (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+        (fun j : {x : NNReal // x ∈ J} =>
+          (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef :=
+  P.consistent hJI
+
+end ProcessKernel
+
+/-- The K_GLW process kernel matrix on `I` agrees with `glwCovMatrixNN I`. -/
+theorem K_GLW_processKernel_kernelMatrix_eq (I : Finset NNReal) :
+    K_GLW_processKernel.kernelMatrix I = glwCovMatrixNN I := by
+  funext s t
+  rfl
+
+/-- Trace of `K_GLW_processKernel.kernelMatrix I` matches the GLW
+trace formula. -/
+theorem K_GLW_processKernel_kernelMatrix_trace_eq (I : Finset NNReal) :
+    (K_GLW_processKernel.kernelMatrix I).trace = (glwCovMatrixNN I).trace := by
+  rw [K_GLW_processKernel_kernelMatrix_eq]
+
+/-- Trace of `K_GLW_processKernel.kernelMatrix I` is bounded by `card I`. -/
+theorem K_GLW_processKernel_kernelMatrix_trace_le_card (I : Finset NNReal) :
+    (K_GLW_processKernel.kernelMatrix I).trace ≤ (I.card : ℝ) := by
+  rw [K_GLW_processKernel_kernelMatrix_trace_eq]
+  exact glwCovMatrixNN_trace_le_card I
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
