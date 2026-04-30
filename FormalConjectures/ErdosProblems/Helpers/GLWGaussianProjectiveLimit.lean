@@ -289,6 +289,34 @@ theorem glwGaussianLimit_Y_GLW_existence :
         IsGaussian (Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) μ)) ∧
       (∀ᵐ ω ∂μ, Continuous (fun u => Y u ω)) ∧
       (∀ ε > 0, ∀ᵐ ω ∂μ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε) := by
-  sorry
+  -- Pin witness: probability space `(NNReal → ℝ, glwGaussianLimit)`,
+  -- process `Y u ω = ω u.toNNReal` (extends GLW to all of ℝ via
+  -- `toNNReal`-clamping; the negative-u branch is harmless because
+  -- the load-bearing conjuncts (cov, centered, integrable_prod) are
+  -- guarded by `0 ≤ u, 0 ≤ v`).
+  refine ⟨NNReal → ℝ, inferInstance, glwGaussianLimit,
+    fun u ω => ω u.toNNReal, inferInstance, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · -- measurable: each marginal is a Pi-projection
+    intro u; exact measurable_pi_apply _
+  · -- integrable: needs Gaussian ⇒ integrable id of the projection
+    intro u
+    sorry  -- needs O5: Gaussian projection integrable
+  · -- integrable_prod: bivariate Gaussian moment integrability
+    intro u v
+    sorry  -- needs O5: bivariate Gaussian moment integrability
+  · -- centered: ∫ ω u.toNNReal = 0 via hasLaw_restrict + integral_id
+    intro u
+    sorry  -- needs O5: centered marginal via integral_id_multivariateGaussian
+  · -- covariance fit (THE main one)
+    intro u v hu hv
+    sorry  -- needs O5: covariance fit via covariance_eval_multivariateGaussian
+  · -- joint Gaussianity: linearity of multivariateGaussian
+    intro n us cs
+    sorry  -- needs O5: joint Gaussianity via multivariateGaussian linearity
+  · -- continuous paths: depends on O4 K-C threshold lift (q > p)
+    sorry  -- needs O4: continuous modification via IsAEKolmogorovProcess.mk
+  · -- tail decay: Borell + Borel-Cantelli on the integer grid
+    intro ε hε
+    sorry  -- needs O5: tail decay via Borell + Borel-Cantelli
 
 end Erdos524.Helpers
