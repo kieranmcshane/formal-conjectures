@@ -1266,6 +1266,32 @@ theorem glwCovMatrixNN_pairwise_diff_quadratic_nonneg
               (NNReal.coe_nonneg s.1) (NNReal.coe_nonneg t.1)
   linarith
 
+/-- **Full packaged kernel-data witness on NNReal grids** including
+the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
+for the brownian-motion projective-limit + Kolmogorov-Chentsov
+construction. All four conjuncts are sorry-free. -/
+theorem Y_GLW_kernel_data_NN_full :
+    ∃ K : NNReal → NNReal → ℝ,
+      (∀ s t : NNReal, K s t = K t s) ∧
+      (∀ I : Finset NNReal,
+        (Matrix.of fun s t : {x : NNReal // x ∈ I} => K s.1 t.1).PosSemidef) ∧
+      (∀ {I J : Finset NNReal} (hJI : J ⊆ I),
+        ((Matrix.of fun s t : {x : NNReal // x ∈ I} => K s.1 t.1).submatrix
+            (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
+            (fun j : {x : NNReal // x ∈ J} => (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef) ∧
+      (∀ s t : NNReal,
+        K s s + K t t - 2 * K s t ≤ ((s : ℝ) - (t : ℝ))^2) := by
+  refine ⟨fun s t => K_GLW (s : ℝ) (t : ℝ), ?_, ?_, ?_, ?_⟩
+  · intros s t; exact K_GLW_symm _ _
+  · intro I; exact glwCovMatrixNN_PosSemidef I
+  · intros I J hJI; exact glwCovMatrixNN_submatrix_PosSemidef hJI
+  · intros s t
+    show K_GLW (s : ℝ) (s : ℝ) + K_GLW (t : ℝ) (t : ℝ) - 2 * K_GLW (s : ℝ) (t : ℝ) ≤
+      ((s : ℝ) - (t : ℝ))^2
+    have := K_GLW_diff_quadratic_le_sq
+              (NNReal.coe_nonneg s) (NNReal.coe_nonneg t)
+    linarith
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
