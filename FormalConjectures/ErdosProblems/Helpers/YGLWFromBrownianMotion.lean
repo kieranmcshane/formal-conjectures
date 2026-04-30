@@ -707,6 +707,43 @@ theorem glwCovMatrix_zero_grid_PosSemidef {n : ℕ} :
     (glwCovMatrix (fun _ : Fin n => (0 : ℝ))).PosSemidef :=
   glwCovMatrix_const_grid_PosSemidef le_rfl
 
+/-! ## 4.13. Generic Gram-matrix small-dim identities (Mathlib-PR-shaped)
+
+Round 12 additions. Lifts the small-dim determinant identities from
+`glwCovMatrix` to the generic `gramMatrixL2` abstraction. These are
+direct Mathlib-PR candidates: the proofs use only standard matrix /
+integration API. -/
+
+/-- 1-dim determinant for `gramMatrixL2`: equals the L²-norm-squared
+of the single function. -/
+theorem gramMatrixL2_one_dim_det (φ : Fin 1 → ℝ → ℝ) :
+    (gramMatrixL2 φ).det = ∫ s in (0 : ℝ)..1, (φ 0 s)^2 := by
+  rw [Matrix.det_unique]
+  simp [gramMatrixL2_apply, sq]
+
+/-- 1-dim determinant non-negativity for `gramMatrixL2`. -/
+theorem gramMatrixL2_one_dim_det_nonneg (φ : Fin 1 → ℝ → ℝ) :
+    0 ≤ (gramMatrixL2 φ).det := by
+  rw [gramMatrixL2_one_dim_det]
+  exact intervalIntegral.integral_nonneg_of_forall (by norm_num)
+    (fun _ => sq_nonneg _)
+
+/-- 2-dim determinant for `gramMatrixL2`: explicit formula. -/
+theorem gramMatrixL2_two_dim_det (φ : Fin 2 → ℝ → ℝ) :
+    (gramMatrixL2 φ).det =
+      gramMatrixL2 φ 0 0 * gramMatrixL2 φ 1 1 -
+      gramMatrixL2 φ 0 1 * gramMatrixL2 φ 1 0 := by
+  rw [Matrix.det_fin_two]
+
+/-- 2-dim determinant for `gramMatrixL2`, simplified using symmetry. -/
+theorem gramMatrixL2_two_dim_det_symm (φ : Fin 2 → ℝ → ℝ) :
+    (gramMatrixL2 φ).det =
+      gramMatrixL2 φ 0 0 * gramMatrixL2 φ 1 1 -
+      (gramMatrixL2 φ 0 1)^2 := by
+  rw [gramMatrixL2_two_dim_det]
+  rw [show gramMatrixL2 φ 1 0 = gramMatrixL2 φ 0 1 from gramMatrixL2_symm _ _ _]
+  ring
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
