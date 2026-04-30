@@ -2836,6 +2836,43 @@ theorem K_GLW_processKernel_kernelMatrix_trace_mem_Icc (I : Finset NNReal) :
   ⟨K_GLW_processKernel_kernelMatrix_trace_nonneg I,
    K_GLW_processKernel_kernelMatrix_trace_le_card I⟩
 
+/-! ## 4.45. K_GLW_processKernel — partial-application continuity
+
+Continuity of `K(·, t)` and `K(s, ·)` extracted from joint continuity. -/
+
+/-- For fixed `t`, the function `s ↦ K(s, t)` is continuous on `NNReal`. -/
+theorem K_GLW_processKernel_K_continuous_left (t : NNReal) :
+    Continuous (fun s : NNReal => K_GLW_processKernel.K s t) := by
+  have h_joint : Continuous (Function.uncurry K_GLW_processKernel.K) :=
+    K_GLW_processKernel_continuous
+  exact h_joint.comp (continuous_id.prodMk continuous_const)
+
+/-- For fixed `s`, the function `t ↦ K(s, t)` is continuous on `NNReal`. -/
+theorem K_GLW_processKernel_K_continuous_right (s : NNReal) :
+    Continuous (fun t : NNReal => K_GLW_processKernel.K s t) := by
+  have h_joint : Continuous (Function.uncurry K_GLW_processKernel.K) :=
+    K_GLW_processKernel_continuous
+  exact h_joint.comp (continuous_const.prodMk continuous_id)
+
+/-- The diagonal `K(s, s)` is continuous in `s`. -/
+theorem K_GLW_processKernel_K_diag_continuous :
+    Continuous (fun s : NNReal => K_GLW_processKernel.K s s) := by
+  have h_joint : Continuous (Function.uncurry K_GLW_processKernel.K) :=
+    K_GLW_processKernel_continuous
+  exact h_joint.comp (continuous_id.prodMk continuous_id)
+
+/-- The kernel value `K(s, t)` is continuous in `s` for any fixed `t`,
+expressed as continuity at every point. -/
+theorem K_GLW_processKernel_K_continuousAt_left (s t : NNReal) :
+    ContinuousAt (fun s' : NNReal => K_GLW_processKernel.K s' t) s :=
+  (K_GLW_processKernel_K_continuous_left t).continuousAt
+
+/-- The kernel value `K(s, t)` is continuous in `t` for any fixed `s`,
+expressed as continuity at every point. -/
+theorem K_GLW_processKernel_K_continuousAt_right (s t : NNReal) :
+    ContinuousAt (fun t' : NNReal => K_GLW_processKernel.K s t') t :=
+  (K_GLW_processKernel_K_continuous_right s).continuousAt
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
