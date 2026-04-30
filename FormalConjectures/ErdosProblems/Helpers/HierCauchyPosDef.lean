@@ -748,4 +748,18 @@ theorem cauchyMatrix_apply_eq_exp_product_integral {n : Type*} [Fintype n]
   ext t
   rw [exp_neg_sum_factor]
 
+/-- Entrywise positivity of the abstract Cauchy matrix for positive `g`. -/
+theorem cauchyMatrix_pos {n : Type*} [Fintype n]
+    {g : n → ℝ} (hg : ∀ i, 0 < g i) (i j : n) :
+    0 < cauchyMatrix g i j := by
+  simp only [cauchyMatrix, Matrix.of_apply]
+  exact div_pos one_pos (add_pos (hg i) (hg j))
+
+/-- The diagonal entries of the abstract Cauchy matrix are `1/(2·g i)`. -/
+theorem cauchyMatrix_diag {n : Type*} [Fintype n]
+    (g : n → ℝ) (i : n) :
+    cauchyMatrix g i i = 1 / (2 * g i) := by
+  simp only [cauchyMatrix, Matrix.of_apply]
+  ring
+
 end Erdos524.Helpers
