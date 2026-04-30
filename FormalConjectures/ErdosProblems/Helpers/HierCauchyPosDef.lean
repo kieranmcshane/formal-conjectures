@@ -571,6 +571,26 @@ theorem expProfile_sq_integral_pos_of_ne_zero (m : ℕ) (hm : 1 ≤ m)
   rw [h_quad, hierCauchyG_quadForm_eq_integral_sq m x] at hdot
   exact hdot
 
+/-- For `m ≥ 1` and `x ≠ 0`, the exponential profile `expProfile m x` is
+non-zero at some point in `Ioi 0`. Equivalently, `{t > 0 | expProfile m x t = 0}`
+is not all of `Ioi 0`. Direct corollary of strict positivity of the
+quadratic-form integral: if the integrand were zero everywhere on
+`Ioi 0`, the integral would be 0, contradicting strict positivity. -/
+theorem expProfile_ne_zero_of_ne_zero (m : ℕ) (hm : 1 ≤ m)
+    {x : Fin m × Fin m → ℝ} (hx : x ≠ 0) :
+    ∃ t : ℝ, t ∈ Ioi (0 : ℝ) ∧ expProfile m x t ≠ 0 := by
+  by_contra h_zero_everywhere
+  push_neg at h_zero_everywhere
+  -- Then the squared integrand is identically 0 on Ioi 0.
+  have h_int_zero : ∫ t : ℝ in Ioi 0, (expProfile m x t)^2 = 0 := by
+    apply MeasureTheory.setIntegral_eq_zero_of_forall_eq_zero
+    intro t ht
+    rw [pow_two, mul_self_eq_zero]
+    exact h_zero_everywhere t ht
+  have hpos := expProfile_sq_integral_pos_of_ne_zero m hm hx
+  rw [h_int_zero] at hpos
+  exact lt_irrefl 0 hpos
+
 /-- Sanity-check example: the `m = 1` case of `hierCauchyG_PosDef`. The
 matrix is the `1 × 1` matrix with single entry `1 / (2·hierGrid 1 (0,0))`,
 which is strictly positive. -/
