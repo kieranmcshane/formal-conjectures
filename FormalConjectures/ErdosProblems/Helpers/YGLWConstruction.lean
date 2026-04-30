@@ -479,6 +479,24 @@ theorem K_GLW_cauchy_schwarz {u v : ℝ} (hu : 0 ≤ u) (hv : 0 ≤ v) :
     nonneg_of_mul_nonneg_right h_qf h_var_v_pos
   linarith [h_inner]
 
+/-! ## 6.45. Closed-form K_GLW boundary values -/
+
+/-- `K_GLW(u, 0) = (1 - exp(-u))/u` for `u > 0`. The cross-covariance
+of `Y_GLW(u)` with the boundary marginal `Y_GLW(0)`. -/
+theorem K_GLW_at_zero {u : ℝ} (hu : 0 < u) :
+    K_GLW u 0 = (1 - Real.exp (-u)) / u := by
+  have hu_ne : u + 0 ≠ 0 := by linarith
+  rw [K_GLW_def, K_GLW_aux_of_ne _ hu_ne]
+  congr <;> ring
+
+/-- `K_GLW(u, 0) ≤ 1` for `u > 0`. -/
+theorem K_GLW_at_zero_le_one {u : ℝ} (hu : 0 < u) :
+    K_GLW u 0 ≤ 1 := K_GLW_le_one u 0 (le_of_lt hu) (le_refl _)
+
+/-- `K_GLW(u, 0) > 0` for `u > 0`. -/
+theorem K_GLW_at_zero_pos {u : ℝ} (hu : 0 < u) :
+    0 < K_GLW u 0 := K_GLW_pos u 0 (le_of_lt hu) (le_refl _)
+
 /-! ## 6.5. L²([0,1]) distance — Kolmogorov–Chentsov ground floor
 
 The eventual continuous-paths conjunct of `Y_GLW_exists` is proven via
