@@ -1241,6 +1241,31 @@ theorem Y_GLW_kernel_data_NN :
   · intro I; exact glwCovMatrixNN_PosSemidef I
   · intros I J hJI; exact glwCovMatrixNN_submatrix_PosSemidef hJI
 
+/-- Pairwise Hölder-1 bound for the NNReal-grid Gram matrix:
+`Mss + Mtt - 2 Mst ≤ ((s : ℝ) - (t : ℝ))²` for any pair `s t : ↑I`.
+Direct lift of `glwCovMatrix_pairwise_diff_quadratic_le_sq` via the
+NNReal-coercion non-negativity. This is the matrix-level form of
+the B4 Kolmogorov-Chentsov precondition in brownian-motion's
+preferred signature. -/
+theorem glwCovMatrixNN_pairwise_diff_quadratic_le_sq
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    glwCovMatrixNN I s s + glwCovMatrixNN I t t - 2 * glwCovMatrixNN I s t ≤
+      ((s.1 : ℝ) - (t.1 : ℝ))^2 := by
+  simp only [glwCovMatrixNN_apply]
+  have h := K_GLW_diff_quadratic_le_sq
+              (NNReal.coe_nonneg s.1) (NNReal.coe_nonneg t.1)
+  linarith
+
+/-- Symmetric L²-distance non-negativity on the NNReal-grid:
+`0 ≤ Mss + Mtt - 2 Mst` for any `s t : ↑I`. -/
+theorem glwCovMatrixNN_pairwise_diff_quadratic_nonneg
+    (I : Finset NNReal) (s t : {x : NNReal // x ∈ I}) :
+    0 ≤ glwCovMatrixNN I s s + glwCovMatrixNN I t t - 2 * glwCovMatrixNN I s t := by
+  simp only [glwCovMatrixNN_apply]
+  have h := K_GLW_diff_quadratic_nonneg
+              (NNReal.coe_nonneg s.1) (NNReal.coe_nonneg t.1)
+  linarith
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
