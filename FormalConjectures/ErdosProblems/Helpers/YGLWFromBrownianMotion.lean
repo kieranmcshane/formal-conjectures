@@ -1340,6 +1340,34 @@ theorem glwCovMatrixNN_sum_entries_le (I : Finset NNReal) :
         exact glwCovMatrixNN_entry_le_one I s t
     _ = (I.card : ℝ) * I.card := by simp [Finset.sum_const]
 
+/-- Frobenius-squared bound for `glwCovMatrixNN I`: `Σₛₜ Mₛₜ² ≤ I.card²`. -/
+theorem glwCovMatrixNN_frobenius_sq_le (I : Finset NNReal) :
+    ∑ s, ∑ t, (glwCovMatrixNN I s t)^2 ≤ (I.card : ℝ) * I.card := by
+  calc ∑ s, ∑ t, (glwCovMatrixNN I s t)^2
+      ≤ ∑ _s, ∑ _t, (1 : ℝ) := by
+        apply Finset.sum_le_sum
+        intros s _
+        apply Finset.sum_le_sum
+        intros t _
+        have hpos : 0 ≤ glwCovMatrixNN I s t :=
+          le_of_lt (glwCovMatrixNN_entry_pos I s t)
+        have hle : glwCovMatrixNN I s t ≤ 1 :=
+          glwCovMatrixNN_entry_le_one I s t
+        calc (glwCovMatrixNN I s t)^2
+            = glwCovMatrixNN I s t * glwCovMatrixNN I s t := sq _
+          _ ≤ 1 * 1 := mul_le_mul hle hle hpos (by norm_num)
+          _ = 1 := by norm_num
+    _ = (I.card : ℝ) * I.card := by simp [Finset.sum_const]
+
+/-- Frobenius-squared lower bound. -/
+theorem glwCovMatrixNN_frobenius_sq_nonneg (I : Finset NNReal) :
+    0 ≤ ∑ s, ∑ t, (glwCovMatrixNN I s t)^2 := by
+  apply Finset.sum_nonneg
+  intros s _
+  apply Finset.sum_nonneg
+  intros t _
+  exact sq_nonneg _
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
