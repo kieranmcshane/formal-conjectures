@@ -3068,6 +3068,20 @@ theorem K_GLW_processKernel_R14_capstone_witness :
       (∀ s t : NNReal, P.K s t = K_GLW (s : ℝ) (t : ℝ)) :=
   K_GLW_processKernel_R14_capstone.imp (fun _ h => h.1)
 
+/-- R14-capstone PSD-only projection: a single ProcessKernel exists with
+PSD on every Finset. -/
+theorem K_GLW_processKernel_R14_capstone_PSD_witness :
+    ∃ P : ProcessKernel,
+      ∀ I : Finset NNReal, (P.kernelMatrix I).PosSemidef :=
+  ⟨K_GLW_processKernel, K_GLW_processKernel.PSD⟩
+
+/-- R14-capstone Hölder-only projection: a ProcessKernel exists with
+the Hölder-1 increment bound. -/
+theorem K_GLW_processKernel_R14_capstone_hoelder_witness :
+    ∃ P : ProcessKernel,
+      ∀ s t : NNReal, P.K s s + P.K t t - 2 * P.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
+  ⟨K_GLW_processKernel, K_GLW_processKernel.hoelder⟩
+
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
 The Degenne–Pfaffelhuber `brownian-motion` project's construction
