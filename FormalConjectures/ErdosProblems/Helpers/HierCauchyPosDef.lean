@@ -507,4 +507,105 @@ example : (hierCauchyG 2).PosDef := hierCauchyG_PosDef 2 (by norm_num)
 /-- Sanity-check example: the inverse is also PosDef. -/
 example : ((hierCauchyG 1)⁻¹).PosDef := hierCauchyG_inv_PosDef 1 (by norm_num)
 
+/- ## §8. Abstract Cauchy matrix — Mathlib-PR-shaped
+
+Generalises the entire Round 10 chain to an arbitrary index type and
+parameter family `g : n → ℝ` with `g i > 0`. The proof structure is
+identical: integral identity → Gram representation → PosSemidef. -/
+
+/-- The abstract Cauchy matrix `C i j := 1 / (g i + g j)` for any
+parameter family `g : n → ℝ`. -/
+noncomputable def cauchyMatrix {n : Type*} [Fintype n] (g : n → ℝ) : Matrix n n ℝ :=
+  Matrix.of fun i j => 1 / (g i + g j)
+
+/-- The hierarchical Cauchy matrix is a special case of `cauchyMatrix`
+applied to `hierGrid m`. -/
+theorem hierCauchyG_eq_cauchyMatrix (m : ℕ) :
+    hierCauchyG m = cauchyMatrix (hierGrid m) := rfl
+
+/-- The abstract Cauchy matrix is symmetric (Hermitian over ℝ) — every
+entry `1/(g_i + g_j)` is symmetric in `(i, j)`. -/
+theorem cauchyMatrix_isHermitian {n : Type*} [Fintype n] (g : n → ℝ) :
+    (cauchyMatrix g).IsHermitian := by
+  refine Matrix.IsHermitian.ext ?_
+  intro i j
+  show star (cauchyMatrix g j i) = cauchyMatrix g i j
+  simp only [cauchyMatrix, Matrix.of_apply]
+  rw [show star ((1 : ℝ) / (g j + g i)) = 1 / (g j + g i) from rfl, add_comm]
+
+/-- For positive parameters `g_i > 0`, the abstract Cauchy matrix is
+positive semi-definite. Same proof as `hierCauchyG_PosSemidef`,
+abstracted to general `g`. -/
+theorem cauchyMatrix_PosSemidef {n : Type*} [Fintype n] {g : n → ℝ}
+    (hg : ∀ i, 0 < g i) :
+    (cauchyMatrix g).PosSemidef := by
+  classical
+  refine Matrix.posSemidef_iff_dotProduct_mulVec.mpr ⟨cauchyMatrix_isHermitian g, ?_⟩
+  intro x
+  show 0 ≤ x ⬝ᵥ (cauchyMatrix g) *ᵥ x
+  -- Reduce to ∑ i ∑ j, x i * (1/(g i + g j)) * x j.
+  have h_quad : x ⬝ᵥ (cauchyMatrix g) *ᵥ x =
+      ∑ i, ∑ j, x i * (cauchyMatrix g i j) * x j := by
+    simp only [dotProduct, mulVec, Finset.mul_sum]
+    apply Finset.sum_congr rfl
+    intro i _
+    apply Finset.sum_congr rfl
+    intro j _
+    ring
+  rw [h_quad]
+  -- Integral representation.
+  have h_entry : ∀ i j : n,
+      x i * (cauchyMatrix g i j) * x j =
+        ∫ t : ℝ in Ioi 0,
+          x i * x j * Real.exp (-(g i + g j) * t) := by
+    intro i j
+    have h_pos : 0 < g i + g j := add_pos (hg i) (hg j)
+    simp only [cauchyMatrix, Matrix.of_apply]
+    rw [cauchy_inv_eq_integral_exp_neg (hg i) (hg j),
+        MeasureTheory.integral_const_mul]
+    ring
+  -- Pull integrals out via `integral_finset_sum`.
+  have h_pair_integrable : ∀ i j : n,
+      IntegrableOn (fun t => x i * x j * Real.exp (-(g i + g j) * t)) (Ioi 0) :=
+    fun i j => (integrableOn_exp_neg_mul_Ioi_zero
+      (add_pos (hg i) (hg j))).const_mul _
+  rw [show (∑ i, ∑ j, x i * (cauchyMatrix g i j) * x j) =
+      (∫ t : ℝ in Ioi 0,
+        ∑ i : n, ∑ j : n,
+          x i * x j * Real.exp (-(g i + g j) * t)) from ?_]
+  · -- Now apply integral_nonneg to (∑ x_i exp(-g_i t))^2 ≥ 0.
+    apply MeasureTheory.integral_nonneg
+    intro t
+    have h_factor : ∀ i j : n,
+        x i * x j * Real.exp (-(g i + g j) * t) =
+          (x i * Real.exp (-g i * t)) * (x j * Real.exp (-g j * t)) := by
+      intros
+      rw [exp_neg_sum_factor]; ring
+    simp_rw [h_factor]
+    rw [← Finset.sum_mul_sum]
+    exact mul_self_nonneg _
+  · -- ∑ ∑ ∫ = ∫ ∑ ∑.
+    simp_rw [h_entry]
+    have step1 : ∀ i : n,
+        ∑ j : n, ∫ t : ℝ in Ioi 0,
+          x i * x j * Real.exp (-(g i + g j) * t) =
+        ∫ t : ℝ in Ioi 0,
+          ∑ j : n, x i * x j * Real.exp (-(g i + g j) * t) := by
+      intro i
+      rw [← integral_finset_sum]
+      intros j _; exact h_pair_integrable i j
+    simp_rw [step1]
+    rw [← integral_finset_sum]
+    intros i _
+    apply integrable_finset_sum
+    intros j _; exact h_pair_integrable i j
+
+/-- For positive distinct parameters `g_i > 0` (i.e., `g` injective),
+the abstract Cauchy matrix is positive definite. -/
+theorem cauchyMatrix_PosDef {n : Type*} [Fintype n] [DecidableEq n] [Nonempty n]
+    {g : n → ℝ} (hg : ∀ i, 0 < g i) (hg_inj : Function.Injective g)
+    (hDet : 0 < (cauchyMatrix g).det) :
+    (cauchyMatrix g).PosDef := by
+  exact PosDef_of_PosSemidef_of_det_pos (cauchyMatrix_PosSemidef hg) hDet
+
 end Erdos524.Helpers
