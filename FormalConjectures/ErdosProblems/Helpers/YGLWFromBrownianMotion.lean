@@ -1469,6 +1469,26 @@ theorem glwCovMatrixNN_quadratic_form_nonneg (I : Finset NNReal)
   rw [dotProduct] at h_dp
   exact h_dp
 
+/-! ### NNReal-grid trace expansion -/
+
+/-- Trace expansion for `glwCovMatrixNN I` via diagonal entries. -/
+theorem glwCovMatrixNN_trace_eq_sum (I : Finset NNReal) :
+    (glwCovMatrixNN I).trace =
+      ∑ s : {x : NNReal // x ∈ I}, K_GLW (s.1 : ℝ) (s.1 : ℝ) := by
+  rw [Matrix.trace]
+  refine Finset.sum_congr rfl fun s _ => ?_
+  exact glwCovMatrixNN_apply I s s
+
+/-- Trace expansion for `glwCovMatrixNN I` via `K_GLW_aux`. -/
+theorem glwCovMatrixNN_trace_eq_sum_K_GLW_aux (I : Finset NNReal) :
+    (glwCovMatrixNN I).trace =
+      ∑ s : {x : NNReal // x ∈ I}, K_GLW_aux (2 * (s.1 : ℝ)) := by
+  rw [glwCovMatrixNN_trace_eq_sum]
+  refine Finset.sum_congr rfl fun s _ => ?_
+  rw [K_GLW_def]
+  congr 1
+  ring
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
