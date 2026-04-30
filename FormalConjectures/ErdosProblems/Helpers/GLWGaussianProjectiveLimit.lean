@@ -1745,7 +1745,13 @@ private theorem tsum_Cp_T_explicit_lt_top_R22 :
         simp
       simp only [Cp_T_explicit, h_M0, ENNReal.coe_zero, zero_mul]
       exact zero_le _
-    · -- T ≥ 1: residual sorry on the asymptotic bound.
+    · -- T ≥ 1: bound via constL unfolding + asymptotic.
+      have hT_pos : 1 ≤ T := Nat.one_le_iff_ne_zero.mpr hT0
+      have hT_real : (1 : ℝ) ≤ (T : ℝ) := by exact_mod_cast hT_pos
+      have hT_real_pos : (0 : ℝ) < (T : ℝ) := by linarith
+      -- Strategy: bound Cp_T_explicit T ≤ ofReal(K_total / (T+1)^(3/2)).
+      -- The plumbing through constL is substantive (~150-300 LOC). Captured
+      -- here as a structured sorry pending R24's constL unfolding pass.
       sorry  -- TAG[R23-bound-pointwise]: needs constL unfolding + Cauchy-Schwarz inner-dyadic split.
   have h_summable := summable_K_div_succ_rpow_three_halves K_total
   have h_nonneg := K_div_succ_rpow_nonneg K_total hK_nn
