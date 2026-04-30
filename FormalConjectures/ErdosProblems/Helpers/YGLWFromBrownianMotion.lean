@@ -1499,6 +1499,35 @@ theorem glwCovMatrixNN_quadratic_form_at_one (I : Finset NNReal) :
   rw [glwCovMatrixNN_quadratic_form_eq_sum]
   simp
 
+/-! ### NNReal-grid sum-of-entries via K_GLW expansion -/
+
+/-- The sum of all entries of `glwCovMatrixNN I` equals
+`Σₛₜ K_GLW(s, t)` (over `s, t : ↑I`). -/
+theorem glwCovMatrixNN_sum_entries_eq (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+        glwCovMatrixNN I s t =
+      ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+        K_GLW (s.1 : ℝ) (t.1 : ℝ) := by
+  refine Finset.sum_congr rfl fun s _ => ?_
+  refine Finset.sum_congr rfl fun t _ => ?_
+  exact glwCovMatrixNN_apply I s t
+
+/-- Sum of all entries on a Finset is bounded above by `I.card²` —
+this is `glwCovMatrixNN_sum_entries_le` re-expressed via the
+K_GLW-explicit form. -/
+theorem glwCovMatrixNN_sum_K_GLW_le (I : Finset NNReal) :
+    ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+        K_GLW (s.1 : ℝ) (t.1 : ℝ) ≤ (I.card : ℝ) * I.card := by
+  rw [← glwCovMatrixNN_sum_entries_eq]
+  exact glwCovMatrixNN_sum_entries_le I
+
+/-- Sum of all entries on a Finset is non-negative (entries are positive). -/
+theorem glwCovMatrixNN_sum_K_GLW_nonneg (I : Finset NNReal) :
+    0 ≤ ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
+        K_GLW (s.1 : ℝ) (t.1 : ℝ) := by
+  rw [← glwCovMatrixNN_sum_entries_eq]
+  exact glwCovMatrixNN_sum_entries_nonneg I
+
 /-- **Full packaged kernel-data witness on NNReal grids** including
 the Hölder-1 bound — the *complete* B1+B2+B4 precondition package
 for the brownian-motion projective-limit + Kolmogorov-Chentsov
