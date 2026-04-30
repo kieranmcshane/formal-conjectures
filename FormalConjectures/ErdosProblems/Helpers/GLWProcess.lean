@@ -77,7 +77,11 @@ measures does **not** imply integrability of `Y u` itself (different measure).
 * **variance decay** `K_GLW(u, u) → 0` as `u → ∞` (deterministic ground
   floor for the tail-decay conjunct),
 * **L² Hölder-1 bound** `‖exp(-u·) - exp(-v·)‖²_{L²([0,1])} ≤ |u - v|²`
-  (deterministic ground floor for Kolmogorov–Chentsov continuous paths).
+  (deterministic ground floor for Kolmogorov–Chentsov continuous paths),
+* **K_GLW Lipschitz-1** on the nonneg quadrant
+  `|K_GLW(u, v) - K_GLW(u', v')| ≤ |u - u'| + |v - v'|`
+  (derived from the 3-point Mercer-PSD discriminant + L²-Hölder + variance
+  bound; the deterministic shadow of joint Y_GLW path-modulus).
 
 The companion bridge file `Helpers/YGLWFromBrownianMotion.lean`
 packages the matrix-side preconditions for an eventual retirement via
