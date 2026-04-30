@@ -798,8 +798,30 @@ but each step has potential for sub-lemma name mismatches and is
 estimated at ~80-120 LOC total.
 -/
 
-/-- **R20 / T2.2 (Stub).** Chaining moment bound:
-`E[glwHolderConstantENN T] ≤ Cp · M_T = O(1/T³)`. Apply
+/-- **R21 helper.** Lift `HasBoundedInternalCoveringNumber S c d` on
+the ambient space to the subtype `↥S` with `Set.univ`. The map
+`Subtype.val : ↥S → α` is an isometry (`isometry_subtype_coe`), so the
+internal covering number transports verbatim. -/
+lemma _root_.HasBoundedInternalCoveringNumber.subtype_univ
+    {α : Type*} [PseudoEMetricSpace α] {S : Set α} {c : ℝ≥0∞} {d : ℝ}
+    (h : HasBoundedInternalCoveringNumber S c d) :
+    HasBoundedInternalCoveringNumber (Set.univ : Set ↥S) c d := by
+  intro ε hε_le
+  have h_iso : Isometry ((↑) : S → α) := isometry_subtype_coe
+  have h_image : ((↑) : S → α) '' (Set.univ : Set ↥S) = S := by
+    ext x; simp
+  have h_diam : EMetric.diam (Set.univ : Set ↥S) = EMetric.diam S := by
+    rw [← h_iso.ediam_image, h_image]
+  have h_cn : internalCoveringNumber ε (Set.univ : Set ↥S) =
+      internalCoveringNumber ε S := by
+    conv_rhs => rw [← h_image]
+    rw [h_iso.internalCoveringNumber_image' Subtype.val_injective.injOn]
+  rw [h_cn]
+  rw [h_diam] at hε_le
+  exact h _ hε_le
+
+/-- **R21 / T2.2 (Full).** Chaining moment bound:
+`E[glwHolderConstantENN T] ≤ M_T · constL = O(1/T³)`. Apply
 `countable_kolmogorov_chentsov` from the brownian-motion library to
 `glwGaussianLimit_isKolmogorovProcess_local T hT` with the countable
 subtype `denseCountable NNReal ∩ Set.Ico T (T+1)`. -/
@@ -807,13 +829,106 @@ lemma glwHolderConstantENN_lintegral_le_R20 (T : ℕ) (hT : 1 ≤ T) :
     ∃ Cp_T : ℝ≥0∞,
       Cp_T < ∞ ∧
       ∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit ≤ Cp_T := by
-  -- Stub: the chaining moment bound from
-  -- `BrownianMotion/Continuity/KolmogorovChentsovInequality.lean:326`
-  -- (`countable_kolmogorov_chentsov`) applied to `T2.1`'s local
-  -- IsKolmogorovProcess. Each ingredient is documented above.
-  refine ⟨∞, ?_, ?_⟩
-  · sorry  -- Cp_T < ∞: needs an explicit `constL · M_T` evaluation.
-  · sorry  -- the chaining bound application.
+  -- Setup: short names for the local-K-C parameters.
+  set S : Set NNReal := Set.Ico ((T : NNReal)) ((T : NNReal) + 1) with hS_def
+  set M_T : ℝ≥0 := Real.toNNReal (1 / (2 * (T : ℝ) ^ 3)) with hM_T_def
+  set c_T : ℝ≥0∞ := 6 * ((T : ℝ≥0∞) + 1) with hc_T_def
+  -- HBICN of the unit block `Set.Ico T (T+1)` in NNReal at `(c, d) = (6*(T+1), 1)`.
+  have h_hbicn_block : HasBoundedInternalCoveringNumber S c_T 1 := by
+    have h_full :=
+      isCoverWithBoundedCoveringNumber_Ico_nnreal.hasBoundedCoveringNumber T
+    -- `h_full : HasBoundedInternalCoveringNumber (Set.Ico (0 : ℝ≥0) (T+1)) (3*(T+1)) 1`.
+    have h_sub : S ⊆ Set.Ico (0 : NNReal) ((T : ℕ) + 1) := by
+      intro x hx
+      refine ⟨zero_le _, ?_⟩
+      have : (x : NNReal) < (T : NNReal) + 1 := hx.2
+      simpa using this
+    have := h_full.subset h_sub (by norm_num : (0 : ℝ) ≤ 1)
+    -- this : HasBoundedInternalCoveringNumber S (2 ^ (1 : ℝ) * (3 * (T + 1))) 1
+    have h_simp : (2 : ℝ≥0∞) ^ (1 : ℝ) * (3 * ((T : ℝ≥0∞) + 1)) = c_T := by
+      rw [ENNReal.rpow_one, hc_T_def]; ring
+    rw [h_simp] at this
+    exact this
+  -- HBICN on the subtype universe.
+  have h_hbicn_sub : HasBoundedInternalCoveringNumber
+      (Set.univ : Set ↥S) c_T 1 := h_hbicn_block.subtype_univ
+  -- The countable index set `T'` inside the subtype `↥S`.
+  set T' : Set ↥S := {u : ↥S | u.1 ∈ denseCountable NNReal} with hT'_def
+  have hT'_sub : T' ⊆ (Set.univ : Set ↥S) := fun _ _ => Set.mem_univ _
+  -- Countability: `T' = Subtype.val ⁻¹' denseCountable NNReal`, with
+  -- `Subtype.val` injective; so `T'` is countable.
+  have h_count : (denseCountable NNReal).Countable := countable_denseCountable
+  have hT'_count : T'.Countable :=
+    h_count.preimage (f := (Subtype.val : ↥S → NNReal)) Subtype.val_injective
+  haveI : Countable ↥T' := hT'_count.to_subtype
+  -- IsAEKolmogorovProcess from the local IsKolmogorovProcess.
+  have h_K := (glwGaussianLimit_isKolmogorovProcess_local T hT).IsAEKolmogorovProcess
+  -- K-C parameters: `0 < d = 1`, `d < q = 2`, `0 < β = 1/4`.
+  have hd_pos : (0 : ℝ) < 1 := by norm_num
+  have hdq_lt : (1 : ℝ) < 2 := by norm_num
+  have hβ_pos : (0 : ℝ≥0) < (1 / 4 : ℝ≥0) := by norm_num
+  -- Apply countable_kolmogorov_chentsov.
+  have h_kc := countable_kolmogorov_chentsov
+    (T := ↥S) (Ω := NNReal → ℝ) (E := ℝ)
+    (X := fun (u : ↥S) ω => ω u.1)
+    (P := glwGaussianLimit) (p := 2) (q := 2) (M := M_T)
+    (c := c_T) (d := 1) (β := (1 / 4 : ℝ≥0))
+    (U := Set.univ) h_hbicn_sub h_K hd_pos hdq_lt hβ_pos T' hT'_sub
+  -- Define the candidate Cp_T.
+  refine ⟨(M_T : ℝ≥0∞) * constL ↥S c_T 1 2 2 (1 / 4 : ℝ≥0) Set.univ, ?_, ?_⟩
+  · -- Finiteness via `constL_lt_top`.
+    have h_diam_sub : EMetric.diam (Set.univ : Set ↥S) < ∞ :=
+      h_hbicn_sub.diam_lt_top hd_pos
+    have hc_T_ne : c_T ≠ ∞ := by
+      simp [hc_T_def, ENNReal.mul_ne_top]
+    have hβ_lt : ((1 / 4 : ℝ≥0) : ℝ) < (2 - 1) / 2 := by
+      simp; norm_num
+    have h_constL_lt :=
+      constL_lt_top (T := ↥S) (c := c_T) (d := 1) (p := 2) (q := 2)
+        (β := (1 / 4 : ℝ≥0)) (U := (Set.univ : Set ↥S))
+        h_diam_sub hc_T_ne hd_pos (by norm_num : (0 : ℝ) < 2) hdq_lt hβ_lt
+    exact ENNReal.mul_lt_top ENNReal.coe_lt_top h_constL_lt
+  · -- Bridge the iSup form: `glwHolderConstantENN T ω` equals the
+    -- K-C iSup over `T'` with `(β·p) = 1/2`.
+    -- Use the equivalence `e : ↥(denseCountable NNReal ∩ S) ≃ ↥T'`.
+    have h_eq_pt : ∀ ω : NNReal → ℝ,
+        glwHolderConstantENN T ω =
+          ⨆ (s : ↥T') (t : ↥T'),
+            edist (ω s.1.1) (ω t.1.1) ^ (2 : ℝ) /
+              edist (s.1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ) := by
+      intro ω
+      -- Build the equivalence between the two index types.
+      let e : ↥(denseCountable NNReal ∩ S) ≃ ↥T' :=
+        { toFun := fun x => ⟨⟨x.1, x.2.2⟩, x.2.1⟩
+          invFun := fun y => ⟨y.1.1, y.2, y.1.2⟩
+          left_inv := fun _ => rfl
+          right_inv := fun _ => rfl }
+      unfold glwHolderConstantENN
+      -- Show the two iSup forms agree under `e`.
+      rw [show ((1 / 2 : ℝ)) = ((1 / 4 : ℝ≥0) * 2 : ℝ) by push_cast; ring]
+      -- Reindex the outer iSup via `e`.
+      rw [← e.iSup_comp (g := fun s => ⨆ (t : ↥T'),
+            edist (ω s.1.1) (ω t.1.1) ^ (2 : ℝ) /
+              edist (s.1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ))]
+      refine iSup_congr fun s => ?_
+      rw [← e.iSup_comp (g := fun t =>
+            edist (ω (e s).1.1) (ω t.1.1) ^ (2 : ℝ) /
+              edist ((e s).1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ))]
+      refine iSup_congr fun t => ?_
+      -- Both numerators and denominators reduce by `Subtype.edist_eq` (rfl).
+      -- `(e s).1.1 = s.1` and `(e t).1.1 = t.1` by definition of `e`.
+      rfl
+    -- Now apply h_kc on the rewritten integrand.
+    have h_lintegral_eq :
+        ∫⁻ ω, glwHolderConstantENN T ω ∂glwGaussianLimit =
+          ∫⁻ ω, ⨆ (s : ↥T') (t : ↥T'),
+            edist (ω s.1.1) (ω t.1.1) ^ (2 : ℝ) /
+              edist (s.1 : ↥S) (t.1 : ↥S) ^ ((1 / 4 : ℝ≥0) * 2 : ℝ)
+            ∂glwGaussianLimit := by
+      apply lintegral_congr
+      intro ω; exact h_eq_pt ω
+    rw [h_lintegral_eq]
+    exact h_kc
 
 /-! ## R20 / T3.1 — marginal sup-tail bound on `[T, T+1]` (Stub)
 
