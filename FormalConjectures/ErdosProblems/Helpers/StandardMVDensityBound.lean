@@ -67,7 +67,7 @@ theorem setIntegral_gaussianPDFReal_zero_one_Icc_neg_le (ε : ℝ) (hε : 0 ≤ 
 
 /-! ## ENNReal-toReal preservation for symmetric Icc -/
 
-theorem gaussianReal_zero_one_Icc_eq_integral (ε : ℝ) (hε : 0 ≤ ε) :
+theorem gaussianReal_zero_one_Icc_eq_integral (ε : ℝ) :
     (gaussianReal 0 1 (Set.Icc (-ε) ε)).toReal =
       ∫ x in Set.Icc (-ε) ε, gaussianPDFReal 0 1 x := by
   rw [gaussianReal_apply_eq_integral _ one_ne_zero]
@@ -80,7 +80,7 @@ theorem gaussianReal_zero_one_Icc_eq_integral (ε : ℝ) (hε : 0 ≤ ε) :
 
 theorem gaussianReal_zero_one_Icc_chain_bound (ε : ℝ) (hε : 0 ≤ ε) :
     (gaussianReal 0 1 (Set.Icc (-ε) ε)).toReal ≤ 2 * ε * (Real.sqrt (2 * Real.pi))⁻¹ := by
-  rw [gaussianReal_zero_one_Icc_eq_integral ε hε]
+  rw [gaussianReal_zero_one_Icc_eq_integral ε]
   exact setIntegral_gaussianPDFReal_zero_one_Icc_neg_le ε hε
 
 /-! ## Symmetric box on a Cartesian product

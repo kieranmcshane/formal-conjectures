@@ -64,7 +64,7 @@ theorem mvGaussianFromMatrix_one_box_le (ε : ℝ) (hε : 0 ≤ ε) :
 
 /-! ## Pullback identity for the identity matrix -/
 
-theorem mvGaussianFromMatrix_one_apply (S : Set (n → ℝ)) (hS : MeasurableSet S) :
+theorem mvGaussianFromMatrix_one_apply (S : Set (n → ℝ)) :
     mvGaussianFromMatrix (1 : Matrix n n ℝ) S = standardMVGaussian n S := by
   rw [mvGaussianFromMatrix_one_eq]
 
@@ -73,7 +73,7 @@ theorem mvGaussianFromMatrix_one_apply (S : Set (n → ℝ)) (hS : MeasurableSet
 theorem one_mulVec_preimage (S : Set (n → ℝ)) :
     (1 : Matrix n n ℝ).mulVec ⁻¹' S = S := by
   ext x
-  simp [Set.mem_preimage, one_mulVec_apply]
+  simp [Set.mem_preimage]
 
 /-! ## Connecting glwBoxProb at "covariance = 1"
 
