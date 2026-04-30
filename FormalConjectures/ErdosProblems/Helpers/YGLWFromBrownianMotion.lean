@@ -1814,6 +1814,20 @@ theorem K_GLW_processKernel_hoelder_via_distance (s t : NNReal) :
       2 * K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
   K_GLW_processKernel.hoelder s t
 
+/-- The kernel value `K_GLW_processKernel.K s 0` simplifies to
+`K_GLW_aux(s)` (using the `K_GLW(0, u) = K_GLW_aux(u)` identity). -/
+theorem K_GLW_processKernel_at_zero_right (s : NNReal) :
+    K_GLW_processKernel.K s 0 = K_GLW_aux (s : ℝ) := by
+  rw [K_GLW_processKernel_K]
+  simp [K_GLW_zero_right]
+
+/-- The kernel value `K_GLW_processKernel.K 0 t` simplifies to
+`K_GLW_aux(t)`. -/
+theorem K_GLW_processKernel_at_zero_left (t : NNReal) :
+    K_GLW_processKernel.K 0 t = K_GLW_aux (t : ℝ) := by
+  rw [K_GLW_processKernel_K]
+  simp [K_GLW_zero_left]
+
 /-! ### NNReal-grid quadratic-form bound on a positive Finset -/
 
 /-- The NNReal-grid quadratic form is bounded above by the squared
