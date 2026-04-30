@@ -36,18 +36,22 @@ that depend on Mathlib lemmas not present in this snapshot).
 
 ## Fields NOT yet dischargeable in this snapshot
 
-* `anderson_upper` / `anderson_lower` — require multivariate Anderson's
-  inequality, which is not in Mathlib.
+* `anderson_upper` — requires `(hierCauchyG m).PosDef` (so that
+  `mvGaussian_isotropic_box_density_at_mode_bound` from `MVGaussianDensityBound`
+  applies). The Anderson PosDef bound itself was a Mathlib gap retired in
+  Round 9; only the PosDef status of the specific covariance `hierCauchyG`
+  remains (a Cauchy-matrix spectral analysis).
+* `anderson_lower` — requires the Anderson LOWER bound (not yet in Mathlib).
 * `boxProb_le_sub` / `anderson_upper_sub` — require the Anderson bound on
   sub-grid marginals.
 * `chain_rule_lower` / `relevant_block_bound` /
   `fine_blocks_combined_lower` / `relevant_blocks_combined_lower` —
   require the block-decomposition story for Gaussian box probabilities.
 
-These seven fields are the actual remaining math content of Node 6 and
-will be discharged in a follow-up once Mathlib gains the multivariate
-Anderson lemma (or once a local `FormalConjecturesForMathlib/`-style
-proof of Anderson on PosDef Gaussians lands).
+These fields are the remaining math content of Node 6. After Round 9, the
+Anderson UPPER part is no longer the blocker — it's the
+hierCauchyG-specific spectral analysis (PosDef status) plus the
+Anderson-LOWER and chain-rule machinery.
 -/
 
 namespace Erdos524.Helpers
