@@ -802,6 +802,14 @@ theorem cauchyMatrix_isUnit_iff_det_pos {n : Type*} [Fintype n] [DecidableEq n]
     rw [Matrix.isUnit_iff_isUnit_det]
     exact isUnit_iff_ne_zero.mpr (ne_of_gt h)
 
+/-- For positive `g`, `cauchyMatrix g` is PosDef iff its determinant is
+strictly positive. The PSD direction always holds (`cauchyMatrix_PosSemidef`),
+so PosDef status is fully encoded in the determinant. -/
+theorem cauchyMatrix_PosDef_iff_det_pos {n : Type*} [Fintype n] [DecidableEq n]
+    {g : n → ℝ} (hg : ∀ i, 0 < g i) :
+    (cauchyMatrix g).PosDef ↔ 0 < (cauchyMatrix g).det := by
+  refine ⟨fun h => h.det_pos, fun h => cauchyMatrix_PosDef hg h⟩
+
 /- ## §10. Round 10 milestone summary
 
 Round 10 closed the central PosDef status of the hierarchical Cauchy
