@@ -63,7 +63,7 @@ counterpart here.
 namespace Erdos524.Helpers
 
 open MeasureTheory NormedSpace Set ProbabilityTheory
-open scoped ENNReal NNReal
+open scoped ENNReal NNReal RealInnerProductSpace
 
 /-!
 ## O1 — `glwGaussianProjectiveFamily`
@@ -169,6 +169,146 @@ between `glwGaussianLimit` and `glwGaussianProjectiveFamily I`. -/
 lemma hasLaw_restrict_glwGaussianLimit {I : Finset NNReal} :
     HasLaw I.restrict (glwGaussianProjectiveFamily I) glwGaussianLimit :=
   isProjectiveLimit_glwGaussianLimit.hasLaw_restrict
+
+/-!
+## O3.5 — Single-coordinate evaluation lemmas (R17)
+
+Direct ports of the brownian-motion analogs from
+`brownian-motion/Gaussian/ProjectiveLimit.lean` lines 78–202.
+For the GLW kernel, the variance of `ω s` is `K_GLW(s, s)` (rather
+than `min s s = s` in the Brownian case), and the bivariate-difference
+variance is `K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t)` (rather than the
+brownian-motion's `max (s-t) (t-s)`).
+-/
+
+/-- Pushforward identity for integrals on `glwGaussianProjectiveFamily I`:
+the integral against the projective family is the integral against
+the multivariate Gaussian, after composing with the
+Euclidean-vs-Pi equivalence. Direct port of
+`integral_gaussianProjectiveFamily`. -/
+lemma integral_glwGaussianProjectiveFamily {E : Type*}
+    [NormedAddCommGroup E] [NormedSpace ℝ E]
+    (I : Finset NNReal) (f : (I → ℝ) → E) :
+    ∫ x, f x ∂glwGaussianProjectiveFamily I =
+      ∫ x, f (EuclideanSpace.equiv I ℝ x)
+        ∂multivariateGaussian 0 (glwCovMatrixNN I) := by
+  simp only [glwGaussianProjectiveFamily, integral_map_equiv, MeasurableEquiv.toLp_symm_apply]
+  rfl
+
+/-- Centeredness of the projective family: the identity has integral
+`0`. Direct port of `integral_id_gaussianProjectiveFamily`. -/
+@[simp]
+lemma integral_id_glwGaussianProjectiveFamily (I : Finset NNReal) :
+    ∫ x, x ∂(glwGaussianProjectiveFamily I) = 0 := by
+  rw [integral_glwGaussianProjectiveFamily, ← ContinuousLinearEquiv.coe_coe,
+    ContinuousLinearMap.integral_comp_id_comm IsGaussian.integrable_id,
+    integral_id_multivariateGaussian, map_zero]
+
+/-- The covariance of two coordinate evaluations under the projective
+family equals the kernel value `K_GLW(s, t)`. Direct port of
+`covariance_eval_gaussianProjectiveFamily`, with `min s.1 t.1`
+replaced by `K_GLW (s.1) (t.1)`. -/
+lemma covariance_eval_glwGaussianProjectiveFamily (I : Finset NNReal) (s t : I) :
+    cov[fun x ↦ x s, fun x ↦ x t; glwGaussianProjectiveFamily I] =
+      K_GLW (s.1 : ℝ) (t.1 : ℝ) := by
+  rw [glwGaussianProjectiveFamily, covariance_map_equiv]
+  change cov[fun x : EuclideanSpace ℝ I ↦ x s, fun x ↦ x t; _] = _
+  have (u : I) : (fun x : EuclideanSpace ℝ I ↦ x u) =
+      fun x ↦ ⟪EuclideanSpace.basisFun I ℝ u, x⟫ := by ext; simp [PiLp.inner_apply]
+  rw [this, this, ← covarianceBilin_apply_eq_cov,
+    covarianceBilin_multivariateGaussian (glwCovMatrixNN_PosSemidef I),
+    ContinuousBilinForm.ofMatrix_orthonormalBasis, glwCovMatrixNN_apply]
+  exact IsGaussian.memLp_two_id
+
+/-- Variance specialization of the covariance lemma: the variance of
+a single coordinate is the diagonal of `K_GLW`. -/
+lemma variance_eval_glwGaussianProjectiveFamily {I : Finset NNReal} (s : I) :
+    Var[fun x ↦ x s; glwGaussianProjectiveFamily I] = K_GLW (s.1 : ℝ) (s.1 : ℝ) := by
+  rw [← covariance_self, covariance_eval_glwGaussianProjectiveFamily]
+  exact Measurable.aemeasurable <| by fun_prop
+
+/-- The marginal law of a coordinate evaluation under the projective
+family is a centered real Gaussian with variance `K_GLW(s, s)`.
+Direct port of `hasLaw_eval_gaussianProjectiveFamily`. -/
+lemma hasLaw_eval_glwGaussianProjectiveFamily {I : Finset NNReal} (s : I) :
+    HasLaw (fun x ↦ x s) (gaussianReal 0 (K_GLW (s.1 : ℝ) (s.1 : ℝ)).toNNReal)
+      (glwGaussianProjectiveFamily I) where
+  aemeasurable := Measurable.aemeasurable <| by fun_prop
+  map_eq := by
+    rw [HasGaussianLaw.map_eq_gaussianReal, variance_eval_glwGaussianProjectiveFamily]
+    conv => enter [1, 1, 2]; change fun x ↦ ContinuousLinearMap.proj (R := ℝ) s x
+    rw [ContinuousLinearMap.integral_comp_id_comm, integral_id_glwGaussianProjectiveFamily,
+      map_zero]
+    exact IsGaussian.integrable_id
+
+/-- The marginal law of a coordinate-difference under the projective
+family is a centered real Gaussian with variance the K_GLW
+quadratic-difference. Direct port of
+`hasLaw_eval_sub_eval_gaussianProjectiveFamily`, but with
+`max (s - t) (t - s)` replaced by `K_GLW(s,s) + K_GLW(t,t) - 2 K_GLW(s,t)`. -/
+lemma hasLaw_eval_sub_eval_glwGaussianProjectiveFamily (I : Finset NNReal) (s t : I) :
+    HasLaw ((fun x ↦ x s - x t))
+      (gaussianReal 0 (K_GLW (s.1 : ℝ) (s.1 : ℝ) + K_GLW (t.1 : ℝ) (t.1 : ℝ)
+        - 2 * K_GLW (s.1 : ℝ) (t.1 : ℝ)).toNNReal)
+      (glwGaussianProjectiveFamily I) where
+  map_eq := by
+    rw [HasGaussianLaw.map_eq_gaussianReal, variance_fun_sub,
+      variance_eval_glwGaussianProjectiveFamily, variance_eval_glwGaussianProjectiveFamily,
+      covariance_eval_glwGaussianProjectiveFamily]
+    · conv =>
+        enter [1, 1, 2];
+        change fun x ↦ (ContinuousLinearMap.proj (R := ℝ) (φ := fun i : I ↦ ℝ) s -
+          ContinuousLinearMap.proj (R := ℝ) (φ := fun i : I ↦ ℝ) t) x
+      rw [ContinuousLinearMap.integral_comp_id_comm, integral_id_glwGaussianProjectiveFamily,
+        map_zero]
+      · rw [show K_GLW (s.1 : ℝ) (s.1 : ℝ) - 2 * K_GLW (s.1 : ℝ) (t.1 : ℝ)
+                + K_GLW (t.1 : ℝ) (t.1 : ℝ)
+              = K_GLW (s.1 : ℝ) (s.1 : ℝ) + K_GLW (t.1 : ℝ) (t.1 : ℝ)
+                - 2 * K_GLW (s.1 : ℝ) (t.1 : ℝ) from by ring]
+      · exact IsGaussian.integrable_id
+    any_goals exact HasGaussianLaw.memLp_two
+
+/-- The marginal law of a coordinate evaluation under the projective
+limit is a centered real Gaussian with variance `K_GLW(t, t)`. -/
+lemma hasLaw_eval_glwGaussianLimit {t : NNReal} :
+    HasLaw (fun ω : NNReal → ℝ ↦ ω t) (gaussianReal 0 (K_GLW (t : ℝ) (t : ℝ)).toNNReal)
+      glwGaussianLimit := by
+  have h_eq : (fun ω : NNReal → ℝ ↦ ω t) =
+      (fun x : ({t} : Finset NNReal) → ℝ ↦ x ⟨t, by simp⟩) ∘
+        (({t} : Finset NNReal).restrict) := by
+    funext ω; rfl
+  rw [h_eq]
+  exact (hasLaw_eval_glwGaussianProjectiveFamily ⟨t, by simp⟩).comp
+    hasLaw_restrict_glwGaussianLimit
+
+/-- The marginal law of a coordinate-difference under the projective
+limit is a centered real Gaussian with variance the K_GLW
+quadratic-difference. -/
+lemma hasLaw_eval_sub_eval_glwGaussianLimit (s t : NNReal) :
+    HasLaw (fun ω : NNReal → ℝ ↦ ω s - ω t)
+      (gaussianReal 0 (K_GLW (s : ℝ) (s : ℝ) + K_GLW (t : ℝ) (t : ℝ)
+        - 2 * K_GLW (s : ℝ) (t : ℝ)).toNNReal)
+      glwGaussianLimit := by
+  have hs : s ∈ ({s, t} : Finset NNReal) := by simp
+  have ht : t ∈ ({s, t} : Finset NNReal) := by simp
+  have h_eq : (fun ω : NNReal → ℝ ↦ ω s - ω t) =
+      (fun x : ({s, t} : Finset NNReal) → ℝ ↦ x ⟨s, hs⟩ - x ⟨t, ht⟩) ∘
+        (({s, t} : Finset NNReal).restrict) := by
+    funext ω; rfl
+  rw [h_eq]
+  exact (hasLaw_eval_sub_eval_glwGaussianProjectiveFamily ({s, t} : Finset NNReal)
+    ⟨s, hs⟩ ⟨t, ht⟩).comp hasLaw_restrict_glwGaussianLimit
+
+/-- The covariance of two coordinate evaluations under the projective
+limit equals `K_GLW(s, t)`. Direct port of
+`covariance_eval_gaussianLimit`. -/
+lemma covariance_eval_glwGaussianLimit {s t : NNReal} :
+    cov[fun ω : NNReal → ℝ ↦ ω s, fun ω ↦ ω t; glwGaussianLimit] =
+      K_GLW (s : ℝ) (t : ℝ) := by
+  convert (hasLaw_restrict_glwGaussianLimit (I := {s, t})).covariance_fun_comp
+    (f := Function.eval ⟨s, by simp⟩) (g := Function.eval ⟨t, by simp⟩) ?_ ?_
+  · rw [covariance_eval_glwGaussianProjectiveFamily]
+  all_goals exact Measurable.aemeasurable (by fun_prop)
 
 /-!
 ## O4 — `IsKolmogorovProcess` instance
