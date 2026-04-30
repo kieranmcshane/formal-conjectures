@@ -600,10 +600,11 @@ theorem cauchyMatrix_PosSemidef {n : Type*} [Fintype n] {g : n → ℝ}
     apply integrable_finset_sum
     intros j _; exact h_pair_integrable i j
 
-/-- For positive distinct parameters `g_i > 0` (i.e., `g` injective),
-the abstract Cauchy matrix is positive definite. -/
-theorem cauchyMatrix_PosDef {n : Type*} [Fintype n] [DecidableEq n] [Nonempty n]
-    {g : n → ℝ} (hg : ∀ i, 0 < g i) (hg_inj : Function.Injective g)
+/-- For positive parameters `g_i > 0` and a strictly positive determinant
+(implied by `g` injective via the classical Cauchy determinant formula —
+not formalised here), the abstract Cauchy matrix is positive definite. -/
+theorem cauchyMatrix_PosDef {n : Type*} [Fintype n] [DecidableEq n]
+    {g : n → ℝ} (hg : ∀ i, 0 < g i)
     (hDet : 0 < (cauchyMatrix g).det) :
     (cauchyMatrix g).PosDef := by
   exact PosDef_of_PosSemidef_of_det_pos (cauchyMatrix_PosSemidef hg) hDet
