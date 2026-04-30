@@ -855,7 +855,11 @@ Mathlib-PR-quality lemmas extracted:
   * `cauchyMatrix_PosDef` — adding `det>0`, the Cauchy matrix is PosDef.
   * `integral_exp_neg_mul_Ioi_zero` — `∫_(0,∞) exp(-c·t) dt = 1/c`.
 
-Axiom count remains at 2 (`two_dim_KMT_coupling`, `Y_GLW_exists`).
-No new sorries. -/
+Axiom count (post-Round-10) remains at 2 (`two_dim_KMT_coupling`,
+`Y_GLW_exists`); Round 11 builds the deterministic-analytic skeleton
+for the eventual `Y_GLW_exists` retirement (see
+`Helpers/YGLWConstruction.lean`) but cannot retire the axiom in this
+round due to the absence of Brownian motion + Wiener integral in
+Mathlib. No new sorries. -/
 
 end Erdos524.Helpers

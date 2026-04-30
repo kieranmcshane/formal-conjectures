@@ -64,6 +64,26 @@ measures does **not** imply integrability of `Y u` itself (different measure).
 | Continuous sample paths | unstated | conjuncted |
 | Sample-path tail decay | unstated | conjuncted |
 | Small-ball cubic bound | **claimed** | **not claimed** |
+
+**Retirement roadmap.** The deterministic-analytic content of the
+`Y_GLW(u) = ∫₀¹ exp(-us) dB(s)` Wiener-integral construction lives in
+`Helpers/YGLWConstruction.lean`. That file proves:
+
+* the **covariance integral identity** `K_GLW(u, v) = ∫₀¹ exp(-(u+v)·s) ds`,
+* the **Mercer / L²-inner-product representation** `K_GLW(u, v) =
+  ⟨exp(-u·), exp(-v·)⟩_{L²([0,1])}`,
+* **positive semi-definiteness** of `K_GLW` via the integral-of-squares
+  representation,
+* **variance decay** `K_GLW(u, u) → 0` as `u → ∞` (deterministic ground
+  floor for the tail-decay conjunct),
+* **L² Hölder-1 bound** `‖exp(-u·) - exp(-v·)‖²_{L²([0,1])} ≤ |u - v|²`
+  (deterministic ground floor for Kolmogorov–Chentsov continuous paths).
+
+Until Mathlib gains Brownian motion + Wiener integral (the documented
+BLOCKERs in `YGLWConstruction.lean`), the axiom cannot be discharged
+to a theorem. When those land, the discharge reduces to a one-line
+application of the Itô isometry plus Kolmogorov–Chentsov, with all the
+analytic content already in place.
 -/
 
 namespace Erdos524.Helpers
