@@ -1,0 +1,139 @@
+# Round 12 toolchain bump diagnostic
+
+**Date**: 2026-04-30
+**Round**: R12 (kmc-erdos-glw-lower @ a245c3d, post-R11)
+**Attempted**: bump `lean-toolchain` v4.27.0 → v4.30.0-rc1 + add
+`brownian-motion` (Degenne–Pfaffelhuber) and `kolmogorov_extension4`
+(RemyDegenne) as Lake dependencies.
+**Result**: REVERTED at minute ~7 (well inside the 15-min HARD CAP).
+
+## Procedure
+
+1. Fresh temp branch `r12-toolchain-bump-attempt` from
+   `kmc-erdos-glw-lower`.
+2. Edited `lean-toolchain` to `leanprover/lean4:v4.30.0-rc1`.
+3. Edited `lakefile.toml`:
+   - Bumped `mathlib` rev from `v4.27.0` to
+     `f23306121184717ace04f3ac514be974e3224c8b` (the Mathlib commit
+     transitively pinned by `kolmogorov_extension4` master).
+   - Added `[[require]] brownian-motion git
+     "https://github.com/RemyDegenne/brownian-motion" rev "master"`.
+   - Added `[[require]] kolmogorov_extension4 git
+     "https://github.com/RemyDegenne/kolmogorov_extension4" rev
+     "master"`.
+4. Ran `lake update`.
+   - SUCCESS: 8254 mathlib cache files downloaded; brownian-motion and
+     kolmogorov_extension4 packages resolved cleanly. The transitive
+     dep graph included the expected Mathlib pin and ProofWidgets
+     v0.0.85 inheritance.
+5. Ran `lake build FormalConjectures.ErdosProblems.«524»`.
+
+## Build result
+
+Build progressed to `[8396/8396]` jobs but reported **30+ logged
+target failures** during the elaboration phase. Critical failures
+include:
+
+- `Mathlib.Combinatorics.SimpleGraph.Coloring`
+- `Mathlib.Data.Nat.PartENat`
+- `FormalConjecturesForMathlib.Algebra.Polynomial.Algebra`
+- `FormalConjecturesForMathlib.Computability.TuringMachine.{BusyBeavers,
+  Notation, PostTuringMachine}`
+- `FormalConjecturesForMathlib.Computability.Encoding`
+- `FormalConjectures.Util.ProblemImports` (foundational utility)
+- `FormalConjectures.Util.Linters.{CategoryLinter, AMSLinter}`
+- The whole 524 helper chain:
+  `FormalConjectures.ErdosProblems.Helpers.{PolynomialSupBlock,
+  BlockIndep, LilNormAsymptotics, CubicSubseqAsymptotics,
+  OldBlocksNegligible, CauchyDetLowerBound, GaussianGridSmallBall,
+  HierCauchyFacts, GaussianHierCauchy, GLWBoxProbInstance,
+  GLWHierApprox, GLWDiscretization, GLWUpperProof}`
+- Headline target `FormalConjectures.ErdosProblems.«524»` — failed.
+
+Two `push_neg` deprecation warnings surfaced
+(`CentralBinomWindowSum.lean:45,105`) but those are non-fatal.
+
+## Root cause
+
+Mathlib v4.27.0 → v4.30.0-rc1 is a 3-version jump. API drift across
+the foundational `Mathlib.Combinatorics.SimpleGraph.Coloring` and
+`Mathlib.Data.Nat.PartENat` modules (both *upstream* failures, not
+in our codebase) cascades into our `FormalConjecturesForMathlib`
+shim and then into every downstream import. The
+`FormalConjectures.Util.ProblemImports` failure is particularly
+load-bearing — it is the single import alias used by every
+problem file and every helper — so a single break there propagates
+across hundreds of files.
+
+The `push_neg` deprecation is one symptom of the API drift; in
+v4.30 it has been replaced with `push Not`.
+
+## Path forward (R13 candidates)
+
+Three options to make the bump succeed:
+
+### Option A: wait for upstream alignment
+
+Wait for `brownian-motion` to release a v4.27.0-stable branch. As of
+2026-04-30, the project is master-only and tracks a single upstream
+Mathlib commit. If the Degenne–Pfaffelhuber team backports to v4.27.0
+the integration becomes single-step.
+
+**Likelihood**: low. The project visibly tracks Mathlib master.
+
+### Option B: coordinated `formal-conjectures` Mathlib bump
+
+Bump `formal-conjectures` to v4.30.0-rc1 (or newer stable) **first**
+across multiple rounds, fixing the cascade of API drift breakages
+before adding `brownian-motion` as a dep. The breakages enumerated
+above give a concrete punch list:
+
+1. `Mathlib.Combinatorics.SimpleGraph.Coloring` — the upstream
+   change should be patched by Mathlib team; our wrapper in
+   `FormalConjecturesForMathlib.Combinatorics.SimpleGraph.Coloring`
+   may need re-targeting.
+2. `Mathlib.Data.Nat.PartENat` — likely renamed/removed.
+3. `push_neg` → `push Not` mechanical replacement (1 file, 2 sites).
+4. `FormalConjecturesForMathlib.Computability.TuringMachine.*` —
+   the busy beaver shim chain.
+
+This is realistically 3-5 rounds of work spread out, each owned by a
+narrow scope, with green build at every checkpoint.
+
+**Likelihood**: feasible but expensive (~3-5 rounds = ~7.5 hours of
+formal-conjectures work just for the bump, before any
+`brownian-motion` integration).
+
+### Option C: pin `brownian-motion` to a v4.27.0-compatible commit
+
+Search `brownian-motion` git history for a commit that built against
+Mathlib v4.27.0 (the project's `lean-toolchain` was at
+`leanprover/lean4:v4.27.0-rc1` at commit `91267abd` — historical).
+If the API of `multivariateGaussian` / `gaussianProjectiveFamily` /
+`projectiveLimit` is already present at that commit, pin to it
+instead of master. This avoids the toolchain bump entirely.
+
+**Likelihood**: depends on when the relevant API landed in
+brownian-motion. R13 should `git log --oneline` against the project
+to find out, then test-pin.
+
+## Recommendation
+
+**Option C** is the highest-EV next move: zero formal-conjectures
+churn, zero Mathlib drift work, and only fails-soft if the historical
+brownian-motion commit predates the API we need.
+
+If Option C fails because the API is master-only, fall back to
+**Option B** with the explicit punch list above.
+
+## What R12 still delivers
+
+- Empirical evidence that the bump is non-trivial (30+ cascading
+  failures, 3-version API jump).
+- Concrete punch list of upstream / FormalConjecturesForMathlib files
+  that need attention for B-route.
+- Validated `lake update` mechanics (the fetch + dep resolution
+  works; only elaboration breaks).
+- Continued strengthening of `YGLWFromBrownianMotion.lean`
+  kernel-side content (next commit), which is independent of the
+  bump path.
