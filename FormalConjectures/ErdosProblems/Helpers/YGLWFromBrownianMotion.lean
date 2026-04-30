@@ -2873,63 +2873,6 @@ theorem K_GLW_processKernel_K_continuousAt_right (s t : NNReal) :
     ContinuousAt (fun t' : NNReal => K_GLW_processKernel.K s t') t :=
   (K_GLW_processKernel_K_continuous_right s).continuousAt
 
-/-! ## 4.46. K_GLW_processKernel — combined "all-in-one" downstream bounds
-
-Bundled bound theorems that combine multiple atomic facts into single
-load-bearing statements convenient for downstream brownian-motion-side
-arguments. -/
-
-/-- All-in-one: `K(s, t)` lies in `[0, 1]`, is symmetric, has diagonal
-in `[0, 1]`, and the pair-Hölder bound holds. -/
-theorem K_GLW_processKernel_full_pair_data (s t : NNReal) :
-    0 ≤ K_GLW_processKernel.K s t ∧
-      K_GLW_processKernel.K s t ≤ 1 ∧
-      K_GLW_processKernel.K s t = K_GLW_processKernel.K t s ∧
-      0 ≤ K_GLW_processKernel.K s s ∧
-      K_GLW_processKernel.K s s ≤ 1 ∧
-      0 ≤ K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
-            2 * K_GLW_processKernel.K s t ∧
-      K_GLW_processKernel.K s s + K_GLW_processKernel.K t t -
-            2 * K_GLW_processKernel.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
-  ⟨le_of_lt (K_GLW_processKernel_pos s t),
-   K_GLW_processKernel_le_one s t,
-   K_GLW_processKernel.symm s t,
-   K_GLW_processKernel.K_diag_nonneg s,
-   K_GLW_processKernel_le_one s s,
-   K_GLW_processKernel_pair_increment_nonneg s t,
-   K_GLW_processKernel_pair_increment_le_sq s t⟩
-
-/-- All-in-one: kernel matrix is PSD, has non-negative trace bounded by
-`card I`, with sum-of-entries non-negative bounded by `(card I)²`,
-and the integral representation holds. -/
-theorem K_GLW_processKernel_kernelMatrix_full_finite_data
-    (I : Finset NNReal) :
-    (K_GLW_processKernel.kernelMatrix I).PosSemidef ∧
-      0 ≤ (K_GLW_processKernel.kernelMatrix I).trace ∧
-      (K_GLW_processKernel.kernelMatrix I).trace ≤ (I.card : ℝ) ∧
-      0 ≤ ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
-            K_GLW_processKernel.kernelMatrix I s t ∧
-      ∑ s : {x : NNReal // x ∈ I}, ∑ t : {x : NNReal // x ∈ I},
-            K_GLW_processKernel.kernelMatrix I s t ≤
-        (I.card : ℝ) * (I.card : ℝ) :=
-  ⟨K_GLW_processKernel.PSD I,
-   K_GLW_processKernel_kernelMatrix_trace_nonneg I,
-   K_GLW_processKernel_kernelMatrix_trace_le_card I,
-   K_GLW_processKernel_kernelMatrix_sum_entries_nonneg I,
-   K_GLW_processKernel_kernelMatrix_sum_entries_le I⟩
-
-/-- All-in-one: continuity, monotonicity, and asymptotic facts about
-the diagonal `s ↦ K(s, s)`. -/
-theorem K_GLW_processKernel_K_diag_full_data :
-    Continuous (fun s : NNReal => K_GLW_processKernel.K s s) ∧
-      (∀ {s t : NNReal}, s ≤ t →
-        K_GLW_processKernel.K t t ≤ K_GLW_processKernel.K s s) ∧
-      Filter.Tendsto (fun s : NNReal => K_GLW_processKernel.K s s)
-        Filter.atTop (nhds 0) :=
-  ⟨K_GLW_processKernel_K_diag_continuous,
-   K_GLW_processKernel_diag_antitone,
-   K_GLW_processKernel_K_diag_tendsto_zero⟩
-
 /-! ## 4.47. K_GLW_processKernel.kernelMatrix — determinant non-negativity -/
 
 /-- Determinant of `K_GLW_processKernel.kernelMatrix I` is non-negative
@@ -2938,12 +2881,6 @@ theorem K_GLW_processKernel_kernelMatrix_det_nonneg (I : Finset NNReal) :
     0 ≤ (K_GLW_processKernel.kernelMatrix I).det := by
   rw [K_GLW_processKernel_kernelMatrix_eq]
   exact glwCovMatrixNN_det_nonneg I
-
-/-- Determinant of the empty-Finset kernel matrix equals `1`. -/
-theorem K_GLW_processKernel_kernelMatrix_empty_det :
-    (K_GLW_processKernel.kernelMatrix ∅).det = 1 := by
-  rw [K_GLW_processKernel_kernelMatrix_eq]
-  exact glwCovMatrixNN_empty_det
 
 /-- For abstract `ProcessKernel`, the determinant of the empty kernel
 matrix equals `1`. -/
@@ -2959,13 +2896,6 @@ theorem ProcessKernel.kernelMatrix_singleton_det
   classical
   rw [Matrix.det_unique]
   rfl
-
-/-- Specialised: K_GLW kernel matrix on singleton has det in `[0, 1]`. -/
-theorem K_GLW_processKernel_kernelMatrix_singleton_det_mem_Icc (a : NNReal) :
-    (K_GLW_processKernel.kernelMatrix ({a} : Finset NNReal)).det ∈
-      Set.Icc (0 : ℝ) 1 := by
-  rw [K_GLW_processKernel.kernelMatrix_singleton_det a]
-  exact K_GLW_processKernel_K_diag_mem_Icc a
 
 /-! ## 4.48. K_GLW_processKernel.kernelMatrix — combined entry bounds -/
 
@@ -3067,39 +2997,6 @@ theorem K_GLW_processKernel_R14_capstone_witness :
     ∃ P : ProcessKernel,
       (∀ s t : NNReal, P.K s t = K_GLW (s : ℝ) (t : ℝ)) :=
   K_GLW_processKernel_R14_capstone.imp (fun _ h => h.1)
-
-/-- R14-capstone PSD-only projection: a single ProcessKernel exists with
-PSD on every Finset. -/
-theorem K_GLW_processKernel_R14_capstone_PSD_witness :
-    ∃ P : ProcessKernel,
-      ∀ I : Finset NNReal, (P.kernelMatrix I).PosSemidef :=
-  ⟨K_GLW_processKernel, K_GLW_processKernel.PSD⟩
-
-/-- R14-capstone Hölder-only projection: a ProcessKernel exists with
-the Hölder-1 increment bound. -/
-theorem K_GLW_processKernel_R14_capstone_hoelder_witness :
-    ∃ P : ProcessKernel,
-      ∀ s t : NNReal, P.K s s + P.K t t - 2 * P.K s t ≤ ((s : ℝ) - (t : ℝ))^2 :=
-  ⟨K_GLW_processKernel, K_GLW_processKernel.hoelder⟩
-
-/-- R14-capstone consistency-only projection: a ProcessKernel exists
-with the sub-Finset consistency property (B2 precondition). -/
-theorem K_GLW_processKernel_R14_capstone_consistent_witness :
-    ∃ P : ProcessKernel,
-      ∀ {I J : Finset NNReal} (hJI : J ⊆ I),
-        ((P.kernelMatrix I).submatrix
-            (fun j : {x : NNReal // x ∈ J} =>
-              (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))
-            (fun j : {x : NNReal // x ∈ J} =>
-              (⟨j.1, hJI j.2⟩ : {x : NNReal // x ∈ I}))).PosSemidef :=
-  ⟨K_GLW_processKernel, fun {_ _} hJI => K_GLW_processKernel.consistent hJI⟩
-
-/-- R14-capstone continuity-only projection: a ProcessKernel exists
-with continuous kernel function (B5 precondition). -/
-theorem K_GLW_processKernel_R14_capstone_continuous_witness :
-    ∃ P : ProcessKernel,
-      Continuous (Function.uncurry P.K) :=
-  ⟨K_GLW_processKernel, K_GLW_processKernel_continuous⟩
 
 /-! ## 5. Bridge to the `brownian-motion` project — BLOCKER documentation
 
