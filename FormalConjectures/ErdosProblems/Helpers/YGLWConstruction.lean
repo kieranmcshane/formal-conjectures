@@ -1088,4 +1088,43 @@ theorem K_GLW_lipschitz_second {u v v' : ℝ}
       show K_GLW u v' = K_GLW v' u from K_GLW_symm u v']
   exact K_GLW_lipschitz_first hv hv' hu
 
+/-- **K_GLW Lipschitz-1 in absolute-value form**:
+`|K_GLW(u, v) - K_GLW(u', v)| ≤ |u - u'|` for `u, u', v ≥ 0`.
+
+Direct corollary of `K_GLW_lipschitz_first` via `abs_le_of_sq_le_sq'`. -/
+theorem K_GLW_lipschitz_first_abs {u u' v : ℝ}
+    (hu : 0 ≤ u) (hu' : 0 ≤ u') (hv : 0 ≤ v) :
+    |K_GLW u v - K_GLW u' v| ≤ |u - u'| := by
+  have h_sq : (K_GLW u v - K_GLW u' v)^2 ≤ (u - u')^2 :=
+    K_GLW_lipschitz_first hu hu' hv
+  have h_uu' : (u - u')^2 = |u - u'|^2 := by rw [sq_abs]
+  have h_target : (K_GLW u v - K_GLW u' v)^2 = |K_GLW u v - K_GLW u' v|^2 := by
+    rw [sq_abs]
+  rw [h_target, h_uu'] at h_sq
+  exact (abs_le_of_sq_le_sq' h_sq (abs_nonneg _)).2
+
+/-- **K_GLW Lipschitz-1 in second-arg absolute-value form**:
+`|K_GLW(u, v) - K_GLW(u, v')| ≤ |v - v'|` for `u, v, v' ≥ 0`. -/
+theorem K_GLW_lipschitz_second_abs {u v v' : ℝ}
+    (hu : 0 ≤ u) (hv : 0 ≤ v) (hv' : 0 ≤ v') :
+    |K_GLW u v - K_GLW u v'| ≤ |v - v'| := by
+  rw [show K_GLW u v = K_GLW v u from K_GLW_symm u v,
+      show K_GLW u v' = K_GLW v' u from K_GLW_symm u v']
+  exact K_GLW_lipschitz_first_abs hv hv' hu
+
+/-- **K_GLW Lipschitz-1 jointly** (sum of separate-argument bounds):
+`|K_GLW(u, v) - K_GLW(u', v')| ≤ |u - u'| + |v - v'|` for `u, u', v, v' ≥ 0`. -/
+theorem K_GLW_lipschitz_joint {u u' v v' : ℝ}
+    (hu : 0 ≤ u) (hu' : 0 ≤ u') (hv : 0 ≤ v) (hv' : 0 ≤ v') :
+    |K_GLW u v - K_GLW u' v'| ≤ |u - u'| + |v - v'| := by
+  -- Triangle inequality through the intermediate point K_GLW u' v.
+  calc |K_GLW u v - K_GLW u' v'|
+      = |(K_GLW u v - K_GLW u' v) + (K_GLW u' v - K_GLW u' v')| := by
+        congr 1; ring
+    _ ≤ |K_GLW u v - K_GLW u' v| + |K_GLW u' v - K_GLW u' v'| := abs_add_le _ _
+    _ ≤ |u - u'| + |v - v'| := by
+        apply add_le_add
+        · exact K_GLW_lipschitz_first_abs hu hu' hv
+        · exact K_GLW_lipschitz_second_abs hu' hv hv'
+
 end Erdos524.Helpers
