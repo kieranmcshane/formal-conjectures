@@ -12,7 +12,6 @@ limitations under the License.
 -/
 
 import FormalConjectures.ErdosProblems.Helpers.YGLWFromBrownianMotion
-import FormalConjectures.ErdosProblems.Helpers.GLWProcessPredicate
 import BrownianMotion.Gaussian.MultivariateGaussian
 import BrownianMotion.Gaussian.ProjectiveLimit
 import KolmogorovExtension4.KolmogorovExtension
@@ -224,39 +223,57 @@ theorem glwGaussianLimit_isKolmogorovProcess :
   sorry
 
 /-!
-## O5 — `IsGLWProcess` instance
+## O5 — Process-existence witness in the 9-conjunct form
 
-The continuous modification of the projection process from O4 is the
-load-bearing object: it satisfies the full `IsGLWProcess` predicate
-(GLWProcessPredicate.lean) — measurability, integrability,
-centeredness, K_GLW covariance, joint Gaussianity, continuous paths,
-tail decay.
+The continuous modification of the projection process from O4
+satisfies the same 9-conjunct existence statement that
+`Helpers/GLWProcess.lean`'s `Y_GLW_exists` axiom asserts:
+measurability, integrability, integrable-prod, centeredness, K_GLW
+covariance, joint Gaussianity, continuous paths, tail decay.
+
+The signature below is **stated in the 9-conjunct form (not via
+`IsGLWProcess`)** to break the dependency cycle that would otherwise
+arise: `GLWProcessPredicate` imports `GLWProcess`, so importing
+`GLWProcessPredicate` here would forbid `GLWProcess.lean` from
+importing this file (which is what the O6 axiom-retirement requires).
+The 9-conjunct shape is the canonical Y_GLW existence statement;
+projecting back to `IsGLWProcess` is a downstream `intro/exact`-style
+1-line move that consumers do at use-site.
 -/
 
 /-- **O5 (Stub).** Existence of a probability space carrying a
 continuous modification of the projection process under
-`glwGaussianLimit` that satisfies `IsGLWProcess`.
+`glwGaussianLimit`, in the **9-conjunct shape** that matches the
+existing `Y_GLW_exists` axiom statement (Helpers/GLWProcess.lean:122).
+Once O4 is at Full, the continuous modification is supplied by
+`IsAEKolmogorovProcess.mk` applied to O4. The 9 conjuncts are then:
 
-Once O4 is at Full and the `IsKolmogorovProcess` instance is in scope,
-the continuous modification is given by `IsAEKolmogorovProcess.mk`
-applied to the standard `IsKolmogorovProcess` continuous-modification
-result (Mathlib's `IsKolmogorovProcess.continuousModification` once it
-lands; brownian-motion's `IsKolmogorovProcess.modification`
-intermediately).
+1. `IsProbabilityMeasure μ`     — from `IsProbabilityMeasure_glwGaussianLimit`.
+2. `Measurable (Y u)`           — pointwise eval of measurable continuous mod.
+3. `Integrable (Y u)`           — Gaussian implies integrable (pushforward).
+4. `Integrable (Y u · Y v)`     — bivariate Gaussian: `IsGaussian.integrable_id`.
+5. `∫ Y u = 0`                  — `integral_id_multivariateGaussian` + restrict.
+6. `∫ Y u · Y v = K_GLW u v`    — `covariance_eval_multivariateGaussian`
+                                  + `glwCovMatrixNN_apply`.
+7. `IsGaussian (∑ cs i · Y (us i))` — linearity of multivariateGaussian.
+8. `Continuous (Y · ω) a.e.`    — Kolmogorov-Chentsov continuous modification (O4).
+9. `sup_{u ≥ T₀} |Y u| → 0 a.e.` — Borell + Borel-Cantelli on the
+                                   integer grid.
 
-The remaining structure-fields (`gaussian`, `cov`, `centered`,
-`integrable`, `integrable_prod`) follow from
-`covariance_eval_multivariateGaussian`,
-`integral_id_multivariateGaussian`, and `IsGaussian` lifts via
-`hasLaw_restrict_glwGaussianLimit`. The `tail_decay` field follows
-from Borell's inequality + Borel-Cantelli on the integer grid (the
-standard recipe documented in `Helpers/GLWProcess.lean`'s axiom
-docstring). -/
-theorem glwGaussianLimit_isGLWProcess_witness :
-    ∃ (Ω : Type) (_mΩ : MeasurableSpace Ω) (μ : Measure Ω)
-      (_hμ : IsProbabilityMeasure μ),
-      letI : MeasureSpace Ω := ⟨μ⟩
-      ∃ Y : ℝ → Ω → ℝ, IsGLWProcess Y := by
+R15 records the signature; R16 work fills the proof. -/
+theorem glwGaussianLimit_Y_GLW_existence :
+    ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (Y : ℝ → Ω → ℝ),
+      IsProbabilityMeasure μ ∧
+      (∀ u, Measurable (Y u)) ∧
+      (∀ u, Integrable (Y u) μ) ∧
+      (∀ u v : ℝ, Integrable (fun ω => Y u ω * Y v ω) μ) ∧
+      (∀ u, ∫ ω, Y u ω ∂μ = 0) ∧
+      (∀ u v : ℝ, 0 ≤ u → 0 ≤ v →
+        ∫ ω, Y u ω * Y v ω ∂μ = K_GLW u v) ∧
+      (∀ (n : ℕ) (us : Fin n → ℝ) (cs : Fin n → ℝ),
+        IsGaussian (Measure.map (fun ω => ∑ i, cs i * Y (us i) ω) μ)) ∧
+      (∀ᵐ ω ∂μ, Continuous (fun u => Y u ω)) ∧
+      (∀ ε > 0, ∀ᵐ ω ∂μ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε) := by
   sorry
 
 end Erdos524.Helpers

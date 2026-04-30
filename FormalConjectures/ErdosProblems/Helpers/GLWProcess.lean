@@ -12,6 +12,7 @@ limitations under the License.
 -/
 
 import FormalConjectures.ErdosProblems.Helpers.GLWKernel
+import FormalConjectures.ErdosProblems.Helpers.GLWGaussianProjectiveLimit
 import Mathlib.MeasureTheory.Integral.Bochner.Basic
 import Mathlib.Probability.Distributions.Gaussian.Basic
 
@@ -109,17 +110,27 @@ proved.
 namespace Erdos524.Helpers
 open MeasureTheory ProbabilityTheory
 
-/-- **Stepping-stone axiom (Phase 2 Node 1B, v3).** Existence of a probability
-space `(Ω, μ)` carrying a centered Gaussian process
-`Y_GLW : ℝ → Ω → ℝ` with covariance `K_GLW(u, v) = (1 - exp(-(u+v)))/(u+v)`,
-joint Gaussianity, continuous sample paths, and a.s. tail decay.
+/-- **Stepping-stone (Phase 2 Node 1B, v3 — R15 retired-from-axiom).**
+Existence of a probability space `(Ω, μ)` carrying a centered Gaussian
+process `Y_GLW : ℝ → Ω → ℝ` with covariance
+`K_GLW(u, v) = (1 - exp(-(u+v)))/(u+v)`, joint Gaussianity, continuous
+sample paths, and a.s. tail decay.
+
+**R15 axiom retirement.** Originally an `axiom`, R15 retired this to a
+`theorem` discharged by the kernel-generic projective-limit construction
+in `Helpers/GLWGaussianProjectiveLimit.lean`. The witness is
+`glwGaussianLimit_Y_GLW_existence` (the projective limit of
+`multivariateGaussian 0 (glwCovMatrixNN ·)` on the NNReal grid, plus
+the continuous Kolmogorov-Chentsov modification of the projection
+process). Currently inherits one transitive `sorry` from
+`glwGaussianLimit_Y_GLW_existence` (R15 O5 stub-level).
 
 Consumers extract via
   `obtain ⟨Ω, _mS, μ, Y, hY_prob, hY_meas, hY_int, hY_int_prod, hY_centered,`
   `       hY_cov, hY_gauss, hY_paths, hY_tail⟩ := Y_GLW_exists`
 and then `haveI : IsProbabilityMeasure μ := hY_prob` to bring the
 probability-measure instance into scope. -/
-axiom Y_GLW_exists :
+theorem Y_GLW_exists :
     ∃ (Ω : Type) (_ : MeasurableSpace Ω) (μ : Measure Ω) (Y : ℝ → Ω → ℝ),
       IsProbabilityMeasure μ ∧
       -- measurability
@@ -141,6 +152,7 @@ axiom Y_GLW_exists :
       -- continuous sample paths (Kolmogorov–Chentsov)
       (∀ᵐ ω ∂μ, Continuous (fun u => Y u ω)) ∧
       -- sample-path tail decay (Borell on `sup_{[T,T+1]}` + Borel–Cantelli)
-      (∀ ε > 0, ∀ᵐ ω ∂μ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε)
+      (∀ ε > 0, ∀ᵐ ω ∂μ, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε) :=
+  glwGaussianLimit_Y_GLW_existence
 
 end Erdos524.Helpers
