@@ -383,16 +383,34 @@ In v4.27.0-rc1 (the brownian-motion target, pre-2026-01-13):
 - `StronglyAdapted` did not yet exist
 
 **This means the R13-blocker `StronglyAdapted` in `524.lean:662` is a
-mechanical rename**, NOT the deep refactor we feared:
+mechanical rename**, NOT the deep refactor we feared.
 
-```diff
-- have hadapted : StronglyAdapted ℱ f := by
-+ have hadapted : Adapted ℱ f := by
+A precise grep of `524.lean` reveals only **2 occurrences** of the
+StronglyAdapted naming:
+
+```
+524.lean:662: have hadapted : StronglyAdapted ℱ f := by
+524.lean:667:   (Filtration.stronglyAdapted_natural hm j).mono
 ```
 
-Plus any associated method calls
-(`StronglyAdapted.mul`, `StronglyAdapted.add`, etc.) need the same
-rename. Probably 5-15 occurrences in `524.lean`.
+For R14 (when pinned to v4.27.0-rc1), both need the rename:
+
+```diff
+-   have hadapted : StronglyAdapted ℱ f := by
++   have hadapted : Adapted ℱ f := by
+        ...
+-   (Filtration.stronglyAdapted_natural hm j).mono
++   (Filtration.adapted_natural hm j).mono
+```
+
+(In v4.27.0-rc1, the old name `Filtration.adapted_natural` was used;
+mathlib renamed it to `Filtration.stronglyAdapted_natural` on
+2026-01-13 alongside the `Adapted` → `StronglyAdapted` rename.)
+
+The `StronglyMeasurable[ℱ k]` calls inside the block (e.g. line 664
+`have hwalk_sm : StronglyMeasurable[ℱ k] (walk a k) := by`) **do not
+need to change** — `StronglyMeasurable` is unchanged across the
+rename, since the rename only swapped the *Adapted-level* names.
 
 ### Updated R14 procedure (revised again, with new finding)
 
