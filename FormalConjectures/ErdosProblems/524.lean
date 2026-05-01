@@ -3740,45 +3740,142 @@ Both are consequences of `ito_integral_exp_kernel`'s mathematical content
 intersections over `u ∈ [0, T]` to rational ones (Pi-measurability), and
 (b) upgrade the GLW sup-on-[0, T] event to a sup-over-all-u event
 (reverse containment up to the endpoint reparametrization). -/
-/-- **R30 retirement.**  Previously a public `axiom`; now a `theorem`
-discharged by `Erdos524.Helpers.two_dim_KMT_coupling_via_LS_reduction`,
+/-- **R30 retirement, R33-D Form β.**  Previously a public `axiom`; now a
+`theorem` discharged by `Erdos524.Helpers.two_dim_KMT_coupling_via_LS_reduction`,
 which composes the 1D KMT axiom (`Helpers/OneDimKMT.lean`) with the
 stepping-stone Itô-isometry axiom (`Helpers/StochasticProcessAxiom.lean`)
-via the Letwin–Sawhney reduction.  Net axiom count is unchanged at three
-(`Y_GLW_exists` private + `one_dim_KMT_coupling` + the new
-`kmt_aided_gaussian_process` stepping stone), but the public 2D-KMT
-axiom is gone. -/
+via the Letwin–Sawhney reduction.
+
+**R33-D signature change.** R32 established that the original Ω-only
+full-sum + unconditional-IndepFun signature is mathematically
+contradictory; R33-A/B/C consolidated the helper into paper-faithful
+Form β on `Ω × Ω` with the linear-combo coupling
+`Yplus = Y_e ∘ fst + Y_o ∘ snd`, `Yminus = Y_e ∘ fst − Y_o ∘ snd`,
+where `Y_e, Y_o` are the two `kmt_aided_gaussian_process` outputs at
+`(a_even, kernel_even_plus)` and `(a_odd, kernel_even_plus)`
+respectively.  R33-D propagates that signature change here: the public
+theorem now produces a lifted Rademacher sequence `a' : ℕ → Ω × Ω → ℝ`,
+Gaussian processes on `Ω × Ω`, the linear-combo couplings using the
+`kernel_even_plus = √(1/2) · exp(-u·k/n)` kernel inlined here, the
+factor-of-2-in-Δ bound `2·log(n+1)/√n` (triangle of two per-summand
+couplings), and `IndepFun` on the product measure.
+
+The four downstream consumers (`polynomial_sup_small_ball_upper`,
+`_uniform`, `polynomial_sup_small_ball_lower`, `_uniform`) keep their
+public signatures on the original `(Ω, ℙ)` but now bridge internally
+from this Form β output to the supNorm-on-Ω goal.  The bridge
+(linear-combo coupling on `Ω × Ω` ↔ full-sum coupling on `Ω`, plus
+projection of probability events) is non-trivial and lands in R33-D as
+TAG'd sorry-with-diagnostic citing `Helpers/R33D_T1_MigrationAudit.md`
+§3 "Signature mismatch — five concrete divergences".
+
+Net axiom count is unchanged at three (`Y_GLW_exists` private +
+`one_dim_KMT_coupling` + `kmt_aided_gaussian_process` stepping stone). -/
 theorem two_dim_KMT_coupling :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
       (a : ℕ → Ω → ℝ), IsRademacherSequence a →
-      ∃ (Yplus Yminus : ℝ → Ω → ℝ) (Δ : ℕ → ℝ),
+      ∃ (a' : ℕ → Ω × Ω → ℝ) (_ha' : IsRademacherSequence a')
+        (Yplus Yminus : ℝ → Ω × Ω → ℝ) (Δ : ℕ → ℝ),
         (∀ u, Measurable (Yplus u)) ∧ (∀ u, Measurable (Yminus u)) ∧
-        (∀ n : ℕ, 1 ≤ n →
-          Δ n ≤ Real.log (n + 1) / Real.sqrt n) ∧
-        (∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
+        (∀ ω : Ω × Ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
+        (∀ ω : Ω × Ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
+        (∀ ε > 0, ∀ᵐ ω : Ω × Ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
+        (∀ ε > 0, ∀ᵐ ω : Ω × Ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) ∧
+        (∀ n : ℕ, 1 ≤ n → Δ n ≤ 2 * Real.log (n + 1) / Real.sqrt n) ∧
+        (∀ n : ℕ, 1 ≤ n → ∀ ω : Ω × Ω, ∀ u ≥ (0 : ℝ),
           |((1 : ℝ) / Real.sqrt n) *
-              (∑ k ∈ Finset.Icc 1 n, a k ω * Real.exp (-u * k / n)) -
+              ((∑ k ∈ Finset.Icc 1 n,
+                  a' (2*k) ω *
+                    (Real.sqrt (1/2) * Real.exp (-u * k / n)))
+              + (∑ k ∈ Finset.Icc 1 n,
+                  a' (2*k+1) ω *
+                    (Real.sqrt (1/2) * Real.exp (-u * k / n)))) -
             Yplus u ω| ≤ Δ n) ∧
-        (∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
+        (∀ n : ℕ, 1 ≤ n → ∀ ω : Ω × Ω, ∀ u ≥ (0 : ℝ),
           |((1 : ℝ) / Real.sqrt n) *
-              (∑ k ∈ Finset.Icc 1 n, a k ω * (-Real.exp (-u / n)) ^ k) -
+              ((∑ k ∈ Finset.Icc 1 n,
+                  a' (2*k) ω *
+                    (Real.sqrt (1/2) * Real.exp (-u * k / n)))
+              - (∑ k ∈ Finset.Icc 1 n,
+                  a' (2*k+1) ω *
+                    (Real.sqrt (1/2) * Real.exp (-u * k / n)))) -
             Yminus u ω| ≤ Δ n) ∧
         ProbabilityTheory.IndepFun
-          (fun ω : Ω => fun u : ℝ => Yplus u ω)
-          (fun ω : Ω => fun u : ℝ => Yminus u ω) ℙ ∧
-        (∀ ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
-        (∀ ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
-        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
-        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) := by
-  -- TAG[R33-B-consumer-migration]: R32 audit established that the
-  -- full-sum-on-single-Ω + unconditional-IndepFun signature here is
-  -- mathematically contradictory. R33-A restated the helpers theorem
-  -- (`Helpers.two_dim_KMT_coupling_via_LS_reduction`) in paper-faithful
-  -- Form β (half-sum couplings on `Ω × Ω`). R33-B will rewrite the four
-  -- downstream consumers (lines ~3926, 4081, 4229, 4605) to use Form β
-  -- and the triangle bridge for the lower-bound `2·glw.lower` factor,
-  -- at which point this theorem is removed in favour of direct calls
-  -- to `Helpers.two_dim_KMT_coupling_via_LS_reduction`.
+          (fun ω : Ω × Ω => fun u : ℝ => Yplus u ω)
+          (fun ω : Ω × Ω => fun u : ℝ => Yminus u ω)
+          ((ℙ : Measure Ω).prod (ℙ : Measure Ω)) := by
+  -- Direct delegation to the Form β helper.  The helper's signature uses
+  -- the private `Helpers.kernel_even_plus u k n`; here the public
+  -- signature inlines that as `√(1/2) · exp(-u·k/n)`, and definitional
+  -- equality of the `def` closes the unification.
+  intro Ω _ _ a ha
+  exact Erdos524.Helpers.two_dim_KMT_coupling_via_LS_reduction a ha
+
+/-- **R33-D legacy-Ω bridge for the four `polynomial_sup_small_ball_*`
+consumers.** Restates `two_dim_KMT_coupling`'s R33-D Form β output
+(on `Ω × Ω`, linear-combo coupling with kernel `√(1/2)·exp(-u·k/n)`,
+Δ-bound `2·log(n+1)/√n`) in the legacy Ω-only full-sum form (kernel
+`exp(-u·k/n)`, Δ-bound `log(n+1)/√n`) that the four downstream
+consumers (`polynomial_sup_small_ball_upper`, `_uniform`,
+`polynomial_sup_small_ball_lower`, `_uniform`) were originally written
+against, and which their internal `endpoint_reparametrization` chain
+depends on.
+
+**Bridge gap (TAG'd).** No thin Ω-only adapter exists; see
+`Helpers/R33D_T1_MigrationAudit.md` §3 ("Signature mismatch — five
+concrete divergences") for the structural mismatch:
+
+* S1 — sample-space change Ω → Ω × Ω, with measure ℙ → ℙ.prod ℙ;
+* S2 — Δ-bound factor of 2 (legacy `log(n+1)/√n` is *tighter* than
+  Form β `2·log(n+1)/√n`);
+* S3 — full-sum vs linear-combo coupling on different ω projections;
+* S4 — kernel `exp(-u·k/n)` vs `√(1/2)·exp(-u·k/n)`;
+* S5 — index reparametrisation `j ↦ (2k, 2k+1)`.
+
+A conditional-expectation projection `Ω × Ω → Ω` loses pathwise
+continuity/tail decay; a fixed-slice projection destroys IndepFun.
+Closure of this bridge requires either rewriting the four consumers
+to operate on `Ω × Ω` with Form β couplings (re-deriving
+`endpoint_reparametrization` for the linear-combo form) — a public-API
+propagation past the consumer signatures, deferred to R34+ — or a
+new Mathlib-side joint-Gaussian + uncorrelated-equiv-independent
+result that allows reconstructing an Ω-only IndepFun from Form β.
+
+This bridge invokes `two_dim_KMT_coupling` (Form β) so that the new
+public signature is *consumed* by the legacy consumer chain
+(audit-trail proof of the migration), then leaves the
+form-β-to-full-sum step as a single named sorry. -/
+private theorem two_dim_KMT_coupling_legacy_Ω_form
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) :
+    ∃ (Yplus Yminus : ℝ → Ω → ℝ) (Δ : ℕ → ℝ),
+      (∀ u, Measurable (Yplus u)) ∧ (∀ u, Measurable (Yminus u)) ∧
+      (∀ n : ℕ, 1 ≤ n →
+        Δ n ≤ Real.log (n + 1) / Real.sqrt n) ∧
+      (∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n, a k ω * Real.exp (-u * k / n)) -
+          Yplus u ω| ≤ Δ n) ∧
+      (∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n, a k ω * (-Real.exp (-u / n)) ^ k) -
+          Yminus u ω| ≤ Δ n) ∧
+      ProbabilityTheory.IndepFun
+        (fun ω : Ω => fun u : ℝ => Yplus u ω)
+        (fun ω : Ω => fun u : ℝ => Yminus u ω) ℙ ∧
+      (∀ ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
+      (∀ ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
+      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
+      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) := by
+  -- Audit trail: invoke the new public R33-D Form β theorem.
+  have _formβ := two_dim_KMT_coupling a ha
+  -- TAG[R33-D-T2.2-formβ-to-fullsum-bridge]: see docstring above and
+  -- `Helpers/R33D_T1_MigrationAudit.md` §3.  Closure requires either
+  -- (i) consumer rewrite to Form β on Ω × Ω, re-deriving
+  -- `endpoint_reparametrization` for the linear-combo coupling, or
+  -- (ii) joint-Gaussian + uncorrelated-equiv-independent Mathlib API
+  -- enabling a pathwise Ω-only reconstruction from the Form β output.
+  -- Both are out of round-budget; deferred to R34+.
   sorry
 
 /-- **Sub-axiom 6 (now a theorem): endpoint reparametrization.** The calculus
@@ -3940,9 +4037,17 @@ theorem polynomial_sup_small_ball_upper (glw : GaoLiWellnerConstants)
             Real.exp (-glw.upper *
               |Real.log (ε + Real.log ((n : ℝ) + 1) / Real.sqrt n)| ^ 3) := by
   -- Step 1: instantiate the 2D KMT coupling.
+  -- R33-D consumer migration (T2.2): the public theorem `two_dim_KMT_coupling`
+  -- now returns Form β output on `Ω × Ω` (linear-combo coupling, kernel
+  -- `√(1/2)·exp(-u·k/n)`, Δ-bound `2·log(n+1)/√n`).  The supNorm-on-Ω
+  -- argument below depends on the legacy full-sum-on-Ω signature, so we
+  -- route through `two_dim_KMT_coupling_legacy_Ω_form` (defined just below
+  -- the public theorem), which restates the legacy signature and contains
+  -- a single TAG'd sorry for the Form β → full-sum bridge gap; see
+  -- `Helpers/R33D_T1_MigrationAudit.md` §3 / §4.1.
   obtain ⟨Yplus, _Yminus, Δ, hYp_meas, _hYm_meas, hΔ_bd, hKMT_p, _hKMT_m, _hIndep,
       _hYp_cont, _hYm_cont, _hYp_tail, _hYm_tail⟩ :=
-    two_dim_KMT_coupling a ha
+    two_dim_KMT_coupling_legacy_Ω_form a ha
   -- Step 2: get the GLW upper bound on Y⁺.
   obtain ⟨εGLW, T, hεGLW_pos, hGLW_upper⟩ :=
     gao_li_wellner_small_ball_upper glw Yplus
@@ -4095,9 +4200,12 @@ theorem polynomial_sup_small_ball_upper_uniform (glw : GaoLiWellnerConstants)
   -- pulled outside the `∀ ε` quantifier. The only place the existing proof's
   -- `N₀` depends on `ε` is the threshold `log(n+1)/√n ≤ εGLW/2`, which is
   -- actually independent of `ε`. We make that explicit here.
+  -- R33-D consumer migration (T2.2): route through legacy-Ω bridge to
+  -- preserve the full-sum-on-Ω destructure shape this proof depends on.
+  -- See `Helpers/R33D_T1_MigrationAudit.md` §3 / §4.2.
   obtain ⟨Yplus, _Yminus, Δ, hYp_meas, _hYm_meas, hΔ_bd, hKMT_p, _hKMT_m, _hIndep,
       _hYp_cont, _hYm_cont, _hYp_tail, _hYm_tail⟩ :=
-    two_dim_KMT_coupling a ha
+    two_dim_KMT_coupling_legacy_Ω_form a ha
   obtain ⟨εGLW, T, hεGLW_pos, hGLW_upper⟩ :=
     gao_li_wellner_small_ball_upper glw Yplus
       (Erdos524.Helpers.gao_li_wellner_small_ball_upper_isGLWProcess_Yplus hYp_meas)
@@ -4243,9 +4351,16 @@ theorem polynomial_sup_small_ball_lower (glw : GaoLiWellnerConstants)
   -- `hIndep : IndepFun (fun ω u => Yplus u ω) (fun ω u => Yminus u ω) ℙ`.
   -- Then GLW-lower applied to each marginal plus the product formula gives
   -- the two-factor exponent `-2 · glw.lower`.
+  -- R33-D consumer migration (T2.3): route through legacy-Ω bridge to
+  -- preserve the full-sum-on-Ω destructure that the
+  -- `endpoint_reparametrization`-based reverse-containment step depends on.
+  -- The triangle bridge `IndepFun.measure_inter_preimage_eq_mul` is
+  -- already inline below (R33-A/B work) — what we need from the bridge
+  -- is the legacy `hIndep` on `(Ω, ℙ)` to feed it. See
+  -- `Helpers/R33D_T1_MigrationAudit.md` §3 / §4.3.
   obtain ⟨Yplus, Yminus, Δ, hYp_meas, hYm_meas, hΔ_bd, hKMT_p, hKMT_m, hIndep,
       hYp_cont, hYm_cont, _hYp_tail, _hYm_tail⟩ :=
-    two_dim_KMT_coupling a ha
+    two_dim_KMT_coupling_legacy_Ω_form a ha
   obtain ⟨εGLW_p, hεGLW_p_pos, hGLW_lower_p⟩ :=
     gao_li_wellner_small_ball_lower glw Yplus
       (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus hYp_meas)
@@ -4619,9 +4734,11 @@ theorem polynomial_sup_small_ball_lower_uniform (glw : GaoLiWellnerConstants)
   -- pulled outside the `∀ ε` quantifier. The `N₀` in the base theorem depends
   -- on `ε` through the threshold `δn ≤ ε/2`; we lift the threshold to
   -- `δn ≤ εGLW/2` (uniform) and carry the per-`ε` absorption as a hypothesis.
+  -- R33-D consumer migration (T2.3): route through legacy-Ω bridge.  See
+  -- `Helpers/R33D_T1_MigrationAudit.md` §3 / §4.4.
   obtain ⟨Yplus, Yminus, Δ, hYp_meas, hYm_meas, hΔ_bd, hKMT_p, hKMT_m, hIndep,
       hYp_cont, hYm_cont, _hYp_tail, _hYm_tail⟩ :=
-    two_dim_KMT_coupling a ha
+    two_dim_KMT_coupling_legacy_Ω_form a ha
   obtain ⟨εGLW_p, hεGLW_p_pos, hGLW_lower_p⟩ :=
     gao_li_wellner_small_ball_lower glw Yplus
       (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus hYp_meas)

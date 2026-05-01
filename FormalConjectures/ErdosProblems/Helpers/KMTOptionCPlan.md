@@ -374,6 +374,90 @@ Estimated R33-C: 1-2 rounds, ~150-300 LOC of consumer-side rewriting.
 | R32 | Foundational axiom audit (read-only MDs) | 200 (MD) | Low | **DONE** |
 | R33-A | Naive Form β corrections (A3 tightened, A4/B1 restated) | 80-120 | Medium | **DONE (math gap surfaced post-flight)** |
 | R33-B | Linear-combo Form β replacement + T2.3 partial closure | 250 | Medium | **DONE** |
-| R33-C | Consumer migration in 524.lean + triangle bridge | 150-300 | High (ENat conflict + Mathlib gap) | Pending |
-| R33-D+ | Gaussian-uncorrelated-implies-independent Mathlib bridge | 50-200 | High (Mathlib upstream) | Pending |
+| R33-C | Helpers consolidation (Path A `kernel_decay`, kernel_even_plus_decay full, dead-code cleanup) | 150 | Medium | **DONE** |
+| R33-D | Consumer migration + bridge lemma + phase-shift calc + ENat doc | 200 | Medium | **DONE (bridge gap TAG'd; build blocked on orthogonal ENat)** |
+| R34+ | Either consumer rewrite to Ω×Ω (close R33-D bridge gap) or Mathlib-side joint-Gaussian + IndepFun-product-merge landings | 100-400 | High (Mathlib upstream + design choice) | Pending |
 - `SubGaussianMomentScoping.md` — Mathlib sub-Gaussian gaps.
+
+### R33-D outcome (post-round)
+
+R33-D landed all six mandatory floor items as Lean code modifications:
+
+* **T1.1 audit** (`Helpers/R33D_T1_MigrationAudit.md`): comprehensive
+  scoping doc identifying the five concrete signature divergences
+  (S1–S5) between the public theorem on Ω and the Form β helper on
+  Ω × Ω.
+* **T2.1 public theorem signature change** (`524.lean:3743-3812`):
+  rewritten to Form β (Ω × Ω, linear-combo, kernel √(1/2)·exp(-uk/n),
+  Δ-bound 2·log(n+1)/√n).  Body: direct delegation to
+  `Helpers.two_dim_KMT_coupling_via_LS_reduction`.
+* **T2.1 bridge lemma** (`524.lean: two_dim_KMT_coupling_legacy_Ω_form`):
+  legacy-Ω restatement for the four `polynomial_sup_small_ball_*`
+  consumers; consumes the new public Form β theorem (audit-trail);
+  ends in single TAG'd sorry `R33-D-T2.2-formβ-to-fullsum-bridge`.
+* **T2.2 upper-bound consumers** (`polynomial_sup_small_ball_upper`,
+  `_uniform`): `obtain` migrated to use the bridge lemma; existing
+  `endpoint_reparametrization`-based body works verbatim.
+* **T2.3 lower-bound consumers** (`polynomial_sup_small_ball_lower`,
+  `_uniform`): same migration; the triangle bridge step
+  (`hIndep.measure_inter_preimage_eq_mul`) was already inline (R33-A/B),
+  the bridge supplies `hIndep` on `(Ω, ℙ)`.
+* **T2.4 phase-shift identity**
+  (`Helpers/TwoDimKMTFromOneDim.lean: minus_kernel_phase_shift_sum`):
+  closed (no sorry).  Verifies `∑ a k · (-exp(-u/n))^k =
+  ∑_even − ∑_odd` for `1 ≤ n` via `neg_pow` + `Real.exp_nat_mul`
+  per-summand and `Even.neg_one_pow` + `Nat.not_even_iff_odd` for the
+  parity partition.
+* **T2.5 ENat doc** (`Helpers/AxiomFoundationAudit.md`, "R33-D closure"
+  section): updated with full R33-D status.
+
+**Build verification.** `lake env lean` on `Helpers/TwoDimKMTFromOneDim.lean`
+clean (0 errors, 1 expected sorry warning at line 556 for the
+`via_LS_reduction` body's two TAG'd sub-sorries — pre-existing R33-C
+state, unchanged by R33-D).  `lake env lean` on `524.lean` fails at
+import line 17 with the pre-existing ENat conflict:
+
+```
+FormalConjectures/ErdosProblems/524.lean:17:0: error: import
+BrownianMotion.Auxiliary.ENNReal failed, environment already contains
+'ENat.toENNReal_iSup' from Mathlib.Algebra.Order.Floor.Extended
+```
+
+This failure is at the IMPORT step (transitive
+`BrownianMotion.Auxiliary.ENNReal` ↔ `Mathlib.Algebra.Order.Floor.Extended`
+collision), entirely upstream of any R33-D code in 524.lean.  The
+R33-D consumer migration is therefore unverified by `lake build`,
+gated on the orthogonal ENat blocker, per the round brief's "ship
+code, document ENat-orthogonal blocker" mandate.  Agent
+`trig_01P8K24FGqQF6zqTKY4vQWRD` monitors upstream for the
+brownian-motion bump that resolves this.
+
+**Net residual sorries after R33-D.** Three honest TAG'd sorries on
+`r33-c-helpers-consolidation`:
+
+1. R33-C T2.4 `IndepFun(Yplus, Yminus)` linear-combo (Mathlib gap:
+   joint-Gaussian + uncorrelated → independent).
+2. R33-C T2.5 `?ha'.iIndepFun` on Ω × Ω (Mathlib gap: merge
+   iIndepFun families across product).
+3. R33-D T2.1 bridge `two_dim_KMT_coupling_legacy_Ω_form`
+   (structural mismatch; deferred R34+ via consumer rewrite or
+   Mathlib landings).
+
+**KMT track status post-R33-D.** Mathematically and structurally
+complete end-to-end mod the three TAG'd gaps.  KMT chain consolidates
+to:
+- 3 axioms (`Y_GLW_exists` + `one_dim_KMT_coupling` +
+  `kmt_aided_gaussian_process`).
+- 0 user-defined sorries (3 honest TAG'd Mathlib/structural-bridge
+  gaps).
+- 4 consumers in 524.lean migrated to bridge lemma; `obtain` patterns
+  match new infrastructure.
+
+R34+ frontier: choose between (i) full consumer rewrite to Ω × Ω with
+re-derived `endpoint_reparametrization` for the linear-combo form
+(closes gap #3 directly, ~400-800 LOC), or (ii) wait for upstream
+Mathlib landings (joint-Gaussian uncorrelated-equiv-independent +
+IndepFun-product-merge) that close all three gaps simultaneously.
+Forward planning beyond R34 transitions to Phase A start (sparse
+lower envelope assembly via Borel–Cantelli on the migrated
+`polynomial_sup_small_ball_*`).

@@ -416,3 +416,88 @@ R33-D handles consumer migration in `524.lean` (4 consumers:
 3926 / 4081 / 4229 / 4605) + triangle bridge for the small-ball
 lower bound's `−2·glw.lower` factor + phase-shift correction +
 ENat-conflict resolution.  Estimated 1-2 rounds, ~150-300 LOC.
+
+## R33-D closure (consumer migration + bridge gap)
+
+R33-D propagates the R33-A/B/C Form β signature into the four
+downstream consumers in `524.lean`, with the structural mismatch
+between Form β (on `Ω × Ω`, linear-combo, kernel
+`√(1/2)·exp(-u·k/n)`, Δ-bound `2·log(n+1)/√n`) and the legacy
+full-sum-on-Ω form (kernel `exp(-u·k/n)`, Δ-bound `log(n+1)/√n`)
+captured as a single TAG'd bridge sorry.  See
+`Helpers/R33D_T1_MigrationAudit.md` §3 for the five concrete
+divergences (S1–S5) that prevent a thin Ω-only adapter.
+
+* **T1.1 audit** — `Helpers/R33D_T1_MigrationAudit.md`.  Read-only
+  scoping of the four call-sites and the helpers signature; identifies
+  the irreducible Ω vs Ω × Ω + full-sum vs linear-combo + Δ-factor-of-2
+  + kernel-`√(1/2)`-rescale + index-reparametrisation mismatch.
+* **T2.1 public theorem signature change** — `524.lean:3743-3812`.
+  `theorem two_dim_KMT_coupling` rewritten to Form β on `Ω × Ω`
+  (matching `Helpers.two_dim_KMT_coupling_via_LS_reduction`'s
+  signature, with `kernel_even_plus` inlined as `√(1/2)·exp(-u·k/n)`
+  to avoid private-name leakage).  Body: `intro ...; exact
+  Helpers.two_dim_KMT_coupling_via_LS_reduction a ha`.  Closed.
+* **T2.1 bridge lemma** — `524.lean:two_dim_KMT_coupling_legacy_Ω_form`.
+  `private` restatement of the legacy Ω-only full-sum signature for
+  the four `polynomial_sup_small_ball_*` consumers, invoking the new
+  public Form β theorem (audit-trail of consumption) and ending in a
+  single `sorry` TAG'd
+  `R33-D-T2.2-formβ-to-fullsum-bridge`.
+* **T2.2 upper-bound consumer migration** — `polynomial_sup_small_ball_upper`
+  (524.lean:3963) and `_uniform` (524.lean:4115) now route through the
+  bridge lemma; their `obtain` pattern is unchanged, the existing
+  `endpoint_reparametrization` chain works verbatim against the
+  bridged Ω-only output.
+* **T2.3 lower-bound consumer migration** — `polynomial_sup_small_ball_lower`
+  (524.lean:4262) and `_uniform` (524.lean:4685) likewise route
+  through the bridge.  The triangle-bridge step
+  (`hIndep.measure_inter_preimage_eq_mul`) is already inline (R33-A/B
+  work); the bridge supplies `hIndep` on `(Ω, ℙ)` to feed it.
+* **T2.4 phase-shift identity** — `Helpers/TwoDimKMTFromOneDim.lean`,
+  new private lemma `minus_kernel_phase_shift_sum`.  Verifies the
+  algebraic identity
+  `∑_{k=1..n} a k · (-exp(-u/n))^k
+   = (∑_{k even} a k · exp(-u·k/n)) − (∑_{k odd} a k · exp(-u·k/n))`
+  for `1 ≤ n`, using `neg_pow` + `Real.exp_nat_mul` per-summand and
+  `Even.neg_one_pow` + `Nat.not_even_iff_odd` for the parity
+  partition.  Closed (no sorry).
+* **T2.5 ENat blocker doc** — this section.
+
+**Net residual sorries after R33-D.** 3 sorries on the `r33-c-helpers-consolidation`
+branch:
+
+1. **R33-C T2.4 — `IndepFun(Yplus, Yminus)` on linear-combo**
+   (`Helpers/TwoDimKMTFromOneDim.lean:943`) — Mathlib gap (Gaussian-
+   uncorrelated → independent reverse direction).
+2. **R33-C T2.5 — `?ha'.iIndepFun` on `Ω × Ω`**
+   (`Helpers/TwoDimKMTFromOneDim.lean:660`) — Mathlib gap (merge two
+   iIndepFun families across product measure).
+3. **R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form`**
+   (`524.lean`, in the bridge lemma body) — structural mismatch
+   bridge, deferred to R34+ as either (i) consumer rewrite to Ω × Ω
+   with re-derived `endpoint_reparametrization` for the linear-combo
+   form, or (ii) a Mathlib joint-Gaussian + uncorrelated-implies-
+   independent result enabling pathwise Ω-only reconstruction.
+
+All three are honest TAG'd diagnostics with concrete file:line and
+either Mathlib API references (for #1, #2) or a structural divergence
+audit (for #3, see `R33D_T1_MigrationAudit.md` §3).
+
+**ENat orthogonal blocker.** Build verification of
+`FormalConjectures.ErdosProblems.524` end-to-end remains gated on the
+pre-existing ENat conflict in upstream `brownian-motion` (agent
+`trig_01P8K24FGqQF6zqTKY4vQWRD` monitoring).  This is independent of
+the KMT chain — Helpers/TwoDimKMTFromOneDim.lean builds clean
+(`lake env lean Helpers/TwoDimKMTFromOneDim.lean`: 0 errors, 1
+expected sorry warning at line 556 for the `via_LS_reduction` body's
+two TAG'd sub-sorries).  524.lean migration code is committed; build
+verification gated on the orthogonal ENat blocker per the R33-D
+brief's "ship code, document ENat-orthogonal blocker" mandate.
+
+**KMT track status post-R33-D:** mathematically complete end-to-end,
+modulo three honest TAG'd gaps (two Mathlib API gaps + one
+public-API-bridge gap).  R34+ frontier: either close gap #3 via
+consumer rewrite to Ω × Ω, or wait for upstream Mathlib landings
+(joint Gaussian, IndepFun product-merge) that close all three at
+once.

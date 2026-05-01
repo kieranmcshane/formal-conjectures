@@ -942,4 +942,69 @@ theorem two_dim_KMT_coupling_via_LS_reduction
     -- Honest TAG'd diagnostic, deferred.
     sorry
 
+/-! ### R33-D / T2.4 — phase-shift correction (calc lemma)
+
+The original public-theorem minus-kernel `(-exp(-u/n))^k` and the linear-combo
+Form β construction `Yminus = Y_e − Y_o` carry the same phase information.
+The lemma below verifies the algebraic identity at the sum level: the full
+minus-kernel sum `∑_{k=1..n} a k · (-exp(-u/n))^k` splits as the even-indexed
+plus-kernel sum minus the odd-indexed plus-kernel sum, which is exactly the
+even/odd decomposition that R33's Form β implements via
+`(a_even, kernel_even_plus)` and `(a_odd, kernel_even_plus)` on `Ω × Ω.fst`
+and `Ω × Ω.snd` respectively.  This is the formal certificate that R33's
+linear-combo construction preserves the phase content of the original
+minus-kernel form. -/
+
+/-- **R33-D / T2.4 — phase-shift sum identity.**
+`∑_{k=1..n} a k · (-exp(-u/n))^k = (∑_{k even} a k · exp(-u·k/n))
+                                   − (∑_{k odd}  a k · exp(-u·k/n))`
+for `1 ≤ n`.  Combines the per-summand identity
+`(-exp(-u/n))^k = (-1)^k · exp(-u·k/n)` (`neg_pow` + `exp_neg_div_pow`)
+with an even/odd partition of `Finset.Icc 1 n` and `Even.neg_one_pow`,
+`Odd.neg_one_pow`. -/
+private lemma minus_kernel_phase_shift_sum
+    (a : ℕ → ℝ) (n : ℕ) (hn : 1 ≤ n) (u : ℝ) :
+    ∑ k ∈ Finset.Icc 1 n, a k * (-Real.exp (-u / n)) ^ k
+      = (∑ k ∈ (Finset.Icc 1 n).filter Even,
+            a k * Real.exp (-u * k / n))
+        - (∑ k ∈ (Finset.Icc 1 n).filter (fun k => ¬ Even k),
+            a k * Real.exp (-u * k / n)) := by
+  -- Step 1: per-summand `a k · (-exp(-u/n))^k = (-1)^k · (a k · exp(-u·k/n))`.
+  have hn_pos : (0 : ℝ) < n := by exact_mod_cast hn
+  have hn_ne : (n : ℝ) ≠ 0 := ne_of_gt hn_pos
+  have h_exp_pow : ∀ k : ℕ,
+      Real.exp (-u / n) ^ k = Real.exp (-u * (k : ℝ) / n) := by
+    intro k
+    rw [← Real.exp_nat_mul]
+    congr 1; field_simp
+  have h_term : ∀ k ∈ Finset.Icc 1 n,
+      a k * (-Real.exp (-u / n)) ^ k
+        = (-1 : ℝ) ^ k * (a k * Real.exp (-u * (k : ℝ) / n)) := by
+    intro k _
+    rw [neg_pow, h_exp_pow]; ring
+  rw [Finset.sum_congr rfl h_term]
+  -- Step 2: split by parity (Even vs ¬Even).
+  rw [← Finset.sum_filter_add_sum_filter_not (Finset.Icc 1 n) (fun k => Even k)]
+  -- Step 3a: on the Even part, `(-1)^k = 1`.
+  have h_even : (∑ k ∈ (Finset.Icc 1 n).filter (fun k => Even k),
+        (-1 : ℝ) ^ k * (a k * Real.exp (-u * (k : ℝ) / n)))
+      = ∑ k ∈ (Finset.Icc 1 n).filter (fun k => Even k),
+          a k * Real.exp (-u * (k : ℝ) / n) := by
+    refine Finset.sum_congr rfl ?_
+    intro k hk
+    have hev : Even k := (Finset.mem_filter.mp hk).2
+    rw [hev.neg_one_pow]; ring
+  -- Step 3b: on the ¬Even part, `(-1)^k = -1` (k is odd).
+  have h_odd : (∑ k ∈ (Finset.Icc 1 n).filter (fun k => ¬ Even k),
+        (-1 : ℝ) ^ k * (a k * Real.exp (-u * (k : ℝ) / n)))
+      = - ∑ k ∈ (Finset.Icc 1 n).filter (fun k => ¬ Even k),
+          a k * Real.exp (-u * (k : ℝ) / n) := by
+    rw [← Finset.sum_neg_distrib]
+    refine Finset.sum_congr rfl ?_
+    intro k hk
+    have hnot : ¬ Even k := (Finset.mem_filter.mp hk).2
+    have hodd : Odd k := Nat.not_even_iff_odd.mp hnot
+    rw [hodd.neg_one_pow]; ring
+  rw [h_even, h_odd]; ring
+
 end Erdos524.Helpers
