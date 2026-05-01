@@ -291,4 +291,211 @@ theorem two_dim_KMT_coupling_via_LS_reduction :
     intro n hn ω u hu
     exact (hΔm_couple n hn ω u hu).trans (hΔm_bound n hn)
 
+/-! ### Even/odd reparametrization (R31 T2.1 + T2.2 — infrastructure for R32)
+
+The R31 consumer audit (`Helpers/R31APIScoping.md`) establishes that the
+existing public `two_dim_KMT_coupling` shape (Y⁺ / Y⁻ approximating the
+FULL discrete sums while being unconditionally independent) is
+mathematically over-stated and that all four `524.lean` consumers of the
+public theorem rely on the FULL-sum form, so a drop-in replacement by
+the decoupled paper-faithful form is **not** consumer-compatible (R31
+deferred T4.1 / T5.1 / T3.1 to R32).
+
+The infrastructure in this section is what R32 will compose into the
+mathematically-correct replacement, regardless of which corrective path
+R32 chooses (joint-correlated form (α) or paper-faithful decoupled
+form (β)). Specifically:
+
+* **`kernel_even_plus`** is the kernel obtained from `exp(-u·k/n)` by
+  substituting `k ↦ 2k`, compressing `m := n/2`, and inserting the
+  `√(1/2)` factor that maintains the `1/√n` normalisation. After
+  cancellation of the `2`s in numerator and denominator,
+  `kernel_even_plus u k m = √(1/2) · exp(-u·k/m)`. Applied to
+  `(a_{2j})_j` via `kmt_aided_gaussian_process`, it produces a Gaussian
+  witness `Y_even` for the EVEN-indexed half of the FULL plus-kernel
+  sum.
+
+* **`kernel_odd_minus`** is the analogous kernel for the ODD-indexed
+  half of the FULL minus-kernel sum
+  `(1/√n) ∑_k a_k · (-exp(-u/n))^k`. The factor `(-1)^k` evaluated at
+  odd `k = 2j+1` becomes `-1`, so the kernel carries an explicit
+  negative sign: `kernel_odd_minus u k m = -√(1/2) · exp(-u·(2k+1)/(2m))`.
+
+The two `LS_*_via_*` theorems below are the two axiom applications the
+brief specifies (T2.2). Both go through verbatim because the actual
+`kmt_aided_gaussian_process` axiom takes a pointwise `|kernel| ≤ 1`
+hypothesis (not the originally-briefed geometric-decay hypothesis), and
+both kernels satisfy the tighter pointwise bound `|·| ≤ √(1/2) ≤ 1`. -/
+
+/-- **R31 / T2.1.** Reparametrized kernel for the EVEN-indexed half of
+the FULL plus-kernel sum. Derived from `(u, k, n) ↦ exp(-u·k/n)` by:
+substituting `2k` for `k` (even-indexing in the original sum),
+compressing `m := n/2` (the new sequence length is half the original),
+and inserting `√(1/2)` to maintain the `1/√n` normalization (since
+`1/√n = √(1/2) · 1/√(n/2)`). The doubled-`u` and doubled-`m` from the
+substitution cancel, leaving `√(1/2) · exp(-u·k/m)`. -/
+private noncomputable def kernel_even_plus (u : ℝ) (k m : ℕ) : ℝ :=
+  Real.sqrt (1/2) * Real.exp (-u * (k : ℝ) / (m : ℝ))
+
+/-- **R31 / T2.1.** Reparametrized kernel for the ODD-indexed half of
+the FULL minus-kernel sum `(1/√n) ∑_k a_k · (-exp(-u/n))^k`.
+
+Original odd-kernel-and-sign at index `k = 2j+1`:
+`(-exp(-u/n))^(2j+1) = -exp(-u·(2j+1)/n)`.
+
+Even-indexing the odd half (we look at the `(2j+1)`-th elements of `a`)
++ compressing `m := n/2` + the same `√(1/2)` normalization factor as
+for the even half. The minus sign is folded into the kernel
+definition. -/
+private noncomputable def kernel_odd_minus (u : ℝ) (k m : ℕ) : ℝ :=
+  -Real.sqrt (1/2) * Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ)))
+
+/-- **R31 / T2.1.a.** Pointwise bound `|kernel_even_plus u k m| ≤ 1`,
+for `u ≥ 0`. This is the hypothesis required by the
+`kmt_aided_gaussian_process` axiom. The proof uses
+`|√(1/2)| ≤ 1` and `|exp(non-positive)| ≤ 1`. -/
+private lemma kernel_even_plus_bound :
+    ∀ u : ℝ, 0 ≤ u → ∀ k m : ℕ, |kernel_even_plus u k m| ≤ 1 := by
+  intro u hu k m
+  unfold kernel_even_plus
+  have hsqrt_pos : (0 : ℝ) < Real.sqrt (1/2) :=
+    Real.sqrt_pos.mpr (by norm_num)
+  have hsqrt_le_one : Real.sqrt (1/2) ≤ 1 := by
+    rw [show (1 : ℝ) = Real.sqrt 1 from Real.sqrt_one.symm]
+    exact Real.sqrt_le_sqrt (by norm_num)
+  have hexp_pos : 0 < Real.exp (-u * (k : ℝ) / (m : ℝ)) := Real.exp_pos _
+  have hexp_le_one : Real.exp (-u * (k : ℝ) / (m : ℝ)) ≤ 1 := by
+    refine Real.exp_le_one_iff.mpr ?_
+    have hu_k_nn : 0 ≤ u * (k : ℝ) := mul_nonneg hu (Nat.cast_nonneg _)
+    have hneg : -u * (k : ℝ) ≤ 0 := by linarith [hu_k_nn]
+    rcases Nat.eq_zero_or_pos m with hm | hm
+    · simp [hm]
+    · have hm_pos : (0 : ℝ) < (m : ℝ) := by exact_mod_cast hm
+      exact div_nonpos_of_nonpos_of_nonneg hneg hm_pos.le
+  rw [abs_mul, abs_of_pos hsqrt_pos, abs_of_pos hexp_pos]
+  calc Real.sqrt (1/2) * Real.exp (-u * (k : ℝ) / (m : ℝ))
+      ≤ 1 * 1 :=
+        mul_le_mul hsqrt_le_one hexp_le_one hexp_pos.le (by norm_num)
+    _ = 1 := mul_one _
+
+/-- **R31 / T2.1.b.** Pointwise bound `|kernel_odd_minus u k m| ≤ 1`,
+for `u ≥ 0`. Mirror of T2.1.a: the explicit negative sign is folded
+into `abs_neg`, and the exponent `-u·(2k+1)/(2m)` is non-positive on
+`u ≥ 0` (since `2k+1 ≥ 0` and `2m ≥ 0`). -/
+private lemma kernel_odd_minus_bound :
+    ∀ u : ℝ, 0 ≤ u → ∀ k m : ℕ, |kernel_odd_minus u k m| ≤ 1 := by
+  intro u hu k m
+  unfold kernel_odd_minus
+  have hsqrt_pos : (0 : ℝ) < Real.sqrt (1/2) :=
+    Real.sqrt_pos.mpr (by norm_num)
+  have hsqrt_le_one : Real.sqrt (1/2) ≤ 1 := by
+    rw [show (1 : ℝ) = Real.sqrt 1 from Real.sqrt_one.symm]
+    exact Real.sqrt_le_sqrt (by norm_num)
+  have hexp_pos :
+      0 < Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ))) := Real.exp_pos _
+  have hexp_le_one :
+      Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ))) ≤ 1 := by
+    refine Real.exp_le_one_iff.mpr ?_
+    have hk_nn : (0 : ℝ) ≤ 2 * (k : ℝ) + 1 := by
+      have : (0 : ℝ) ≤ (k : ℝ) := Nat.cast_nonneg _
+      linarith
+    have hu_kp1_nn : 0 ≤ u * (2 * (k : ℝ) + 1) :=
+      mul_nonneg hu hk_nn
+    have hneg : -u * (2 * (k : ℝ) + 1) ≤ 0 := by linarith [hu_kp1_nn]
+    rcases Nat.eq_zero_or_pos m with hm | hm
+    · simp [hm]
+    · have hm_pos : (0 : ℝ) < 2 * (m : ℝ) := by
+        have : (0 : ℝ) < (m : ℝ) := by exact_mod_cast hm
+        linarith
+      exact div_nonpos_of_nonpos_of_nonneg hneg hm_pos.le
+  rw [abs_mul, abs_neg, abs_of_pos hsqrt_pos, abs_of_pos hexp_pos]
+  calc Real.sqrt (1/2) * Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ)))
+      ≤ 1 * 1 :=
+        mul_le_mul hsqrt_le_one hexp_le_one hexp_pos.le (by norm_num)
+    _ = 1 := mul_one _
+
+/-- **R31 / T2.2 (helper).** The even sub-sequence `k ↦ a (2*k)`. -/
+private def a_even {Ω : Type*} (a : ℕ → Ω → ℝ) : ℕ → Ω → ℝ :=
+  fun k ω => a (2 * k) ω
+
+/-- **R31 / T2.2 (helper).** The odd sub-sequence `k ↦ a (2*k + 1)`. -/
+private def a_odd {Ω : Type*} (a : ℕ → Ω → ℝ) : ℕ → Ω → ℝ :=
+  fun k ω => a (2 * k + 1) ω
+
+/-- **R31 / T2.2 (helper).** The even sub-sequence inherits the
+i.i.d. Rademacher property from the parent sequence. The
+`measurable / prob_pos / prob_neg` fields are direct specializations of
+`ha` at index `2*k`; the `indep` field is the standard fact that an
+`iIndepFun`-family is closed under sub-family selection along an
+injection (`Mathlib`'s `ProbabilityTheory.iIndepFun.comp`-style API).
+
+The `indep` sub-step is left as a tagged `sorry` (the only sub-sorry
+inside T2.2): it is the standard "independence under sub-sequence
+selection" lemma whose Mathlib formalization is mechanical but not yet
+in the repo. -/
+private lemma IsRademacherSequence_a_even
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
+    Erdos524.IsRademacherSequence (a_even a) := by
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · -- iIndepFun under sub-sequence selection k ↦ 2*k.
+    sorry  -- TAG[R31-T2.2.indep-even]: iIndepFun.comp on an injective ℕ → ℕ
+  · intro k; exact ha.measurable (2 * k)
+  · intro k; exact ha.prob_pos (2 * k)
+  · intro k; exact ha.prob_neg (2 * k)
+
+/-- **R31 / T2.2 (helper).** Mirror for the odd sub-sequence. -/
+private lemma IsRademacherSequence_a_odd
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
+    Erdos524.IsRademacherSequence (a_odd a) := by
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · -- iIndepFun under sub-sequence selection k ↦ 2*k + 1.
+    sorry  -- TAG[R31-T2.2.indep-odd]: iIndepFun.comp on an injective ℕ → ℕ
+  · intro k; exact ha.measurable (2 * k + 1)
+  · intro k; exact ha.prob_pos (2 * k + 1)
+  · intro k; exact ha.prob_neg (2 * k + 1)
+
+/-- **R31 / T2.2.** First axiom application: produces a Gaussian witness
+`Y_even` for the EVEN-indexed half of the FULL plus-kernel sum, by
+applying `kmt_aided_gaussian_process` to `(a_even a, kernel_even_plus)`.
+
+The output structural conjuncts (measurability, continuity, tail decay,
+KMT coupling) are inherited verbatim from the axiom; consumers (R32) can
+extract the EVEN-indexed identity
+`(1/√m) ∑_{j=1..m} a (2*j) ω · √(1/2) · exp(-u·j/m)
+   = (1/√(2m)) · ∑_{j=1..m} a (2*j) ω · exp(-u·(2*j)/(2m))`
+to recover the half-sum interpretation. -/
+private theorem LS_yplus_via_even
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
+    ∃ (Y_even : ℝ → Ω → ℝ),
+      (∀ u, Measurable (Y_even u)) ∧
+      (∀ ω, Continuous (fun u : ℝ => Y_even u ω)) ∧
+      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y_even u ω| ≤ ε) ∧
+      (∀ m : ℕ, 1 ≤ m → ∀ ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt m) *
+            (∑ k ∈ Finset.Icc 1 m, a_even a k ω * kernel_even_plus u k m) -
+          Y_even u ω| ≤ Real.log (m + 1) / Real.sqrt m) :=
+  kmt_aided_gaussian_process kernel_even_plus kernel_even_plus_bound
+    (a_even a) (IsRademacherSequence_a_even a ha)
+
+/-- **R31 / T2.2.** Second axiom application: mirror of `LS_yplus_via_even`
+on the odd sub-sequence with `kernel_odd_minus`. Produces a Gaussian
+witness `Y_odd` for the (signed) ODD-indexed half of the FULL
+minus-kernel sum. -/
+private theorem LS_yminus_via_odd
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
+    ∃ (Y_odd : ℝ → Ω → ℝ),
+      (∀ u, Measurable (Y_odd u)) ∧
+      (∀ ω, Continuous (fun u : ℝ => Y_odd u ω)) ∧
+      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y_odd u ω| ≤ ε) ∧
+      (∀ m : ℕ, 1 ≤ m → ∀ ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt m) *
+            (∑ k ∈ Finset.Icc 1 m, a_odd a k ω * kernel_odd_minus u k m) -
+          Y_odd u ω| ≤ Real.log (m + 1) / Real.sqrt m) :=
+  kmt_aided_gaussian_process kernel_odd_minus kernel_odd_minus_bound
+    (a_odd a) (IsRademacherSequence_a_odd a ha)
+
 end Erdos524.Helpers
