@@ -1,0 +1,299 @@
+# R32 — Axiom foundation audit (synthesis)
+
+**Read-only audit, single round, R32 (branch `r32-audit-finish`).**
+Synthesises T1.1 (inventory), T2.1 (consumers), T3.1 (consistency
+hypotheses) into a per-axiom verdict table, draft Grok pre-flight
+prompts for the NEEDS_GROK items, and an R33+ round-budget estimate.
+
+## Per-axiom verdict table
+
+| # | Axiom / theorem-with-sorry | T1.1 location | T2.1 # consumers | T3.1 verdict |
+|---|-----------------------------|----------------|-------------------|---------------|
+| A1 | `Cp_T_explicit_pointwise_axiom` | `Helpers/GLWGaussianProjectiveLimit.lean:2070` (private, R27) | 1 (`tsum_Cp_T_explicit_lt_top_R22`) | **CLEAN** |
+| A2 | `one_dim_KMT_coupling` | `Helpers/OneDimKMT.lean:101` (semi-public, R29) | **0 (dormant)** | **CLEAN** |
+| A3 | `kmt_aided_gaussian_process` | `Helpers/StochasticProcessAxiom.lean:80` (semi-public, R30) | 5 in `TwoDimKMTFromOneDim.lean` (LS_kernel_coupling, R31 even/odd infra) | **NEEDS_GROK** (two distinct sub-issues: α single-call hypothesis-too-weak; β multi-call shared-input ⊕ downstream independence) |
+| A4 | `theorem two_dim_KMT_coupling` (statement, body has B1 sorry) | `524.lean:3741` (R30 retirement of public axiom) | 4 in `524.lean` (3926, 4081, 4229, 4605) | **CONFIRMED_CONTRADICTORY** (per R31; full-sum coupling + IndepFun at sub-CLT rate) |
+| B1 | `LS_independent_yplus_yminus` (sorry) | `Helpers/TwoDimKMTFromOneDim.lean:213` (R30 stretch) | 1 (`two_dim_KMT_coupling_via_LS_reduction`) | **CONFIRMED_CONTRADICTORY** (universal-IndepFun statement is false; specialised form inherits R31 issue) |
+| B2 | `IsRademacherSequence_a_even` (sorry) | `Helpers/TwoDimKMTFromOneDim.lean:442` (R31 infra) | 1 (`LS_yplus_via_even`, dead in r30-finish) | **CLEAN** (mechanical Mathlib gap) |
+| B3 | `IsRademacherSequence_a_odd` (sorry) | `Helpers/TwoDimKMTFromOneDim.lean:454` (R31 infra) | 1 (`LS_yminus_via_odd`, dead) | **CLEAN** |
+| C1-C4 | R26 dead sub-lemmas in `GLWGaussianProjectiveLimit.lean:2000/2017/2031/2042` | superseded by A1 | **0 consumers** (verified by grep) | (orphaned; flag for R33 cleanup, not audit-relevant) |
+
+**Mainline foundational state in `r30-finish`:**
+- 1 active CLEAN axiom (A1) + 1 dormant CLEAN axiom (A2) + 1 NEEDS_GROK
+  axiom (A3) on the active 524 chain.
+- 1 CONFIRMED_CONTRADICTORY theorem-statement (A4) and its load-bearing
+  sorry-discharge (B1).
+- 4 dead R26 sorries (C1-C4) that should be deleted in R33 cleanup.
+
+## NEEDS_GROK items — focused pre-flight prompts
+
+### Grok prompt 1 — A3-α (single-call hypothesis tightening)
+
+```
+Context: We have a Lean axiom (project: formal-conjectures, Erdős 524 KMT
+chain) of the following shape:
+
+  axiom kmt_aided_gaussian_process
+      (kernel : ℝ → ℕ → ℕ → ℝ)
+      (kernel_bound : ∀ u, 0 ≤ u → ∀ k n, |kernel u k n| ≤ 1)
+      (a : ℕ → Ω → ℝ) (ha : IsRademacherSequence a) :
+      ∃ Y : ℝ → Ω → ℝ,
+        (∀ u, Measurable (Y u)) ∧
+        (∀ ω, Continuous (fun u => Y u ω)) ∧
+        (∀ ε > 0, ∀ᵐ ω, ∃ T₀, ∀ u ≥ T₀, |Y u ω| ≤ ε) ∧
+        (∀ n ≥ 1, ∀ ω, ∀ u ≥ 0,
+          |(1/√n) · Σ_{k=1..n} a_k(ω) · kernel(u,k,n) - Y u ω|
+            ≤ log(n+1) / √n)
+
+Question 1: Is this axiom statement satisfiable for the constant kernel
+`kernel(u, k, n) := 1`? Note: `|kernel| ≤ 1` is verified, but the
+partial sum (1/√n) Σ a_k(ω) is independent of u and is approximately
+N(0,1) for large n by CLT. The tail-decay conjunct asserts Y(u, ω) → 0
+a.s. as u → ∞, which combined with the coupling forces |S_n(ω)/√n| ≤
+log(n+1)/√n + ε for arbitrarily small ε at large u — this is impossible
+for an N(0,1)-distributed quantity at fixed n. So the axiom is
+unsatisfiable for this kernel.
+
+Question 2: Suggest a tightened hypothesis that admits the two intended
+kernels (kernel_yplus(u,k,n) = exp(-uk/n) and kernel_yminus(u,k,n) =
+(-exp(-u/n))^k) but excludes the constant-1 kernel. Candidates we have
+considered: (i) add a u-tail-decay hypothesis on the kernel itself
+(`∀ k, ∀ ε > 0, ∃ U, ∀ u ≥ U, |kernel(u,k,n)| ≤ ε`); (ii) Hilbert-
+Schmidt type bound on the (u, k)-integral operator at scale n; (iii)
+bound the kernel uniformly by a u-decaying envelope. Which of these is
+the minimal-stronger hypothesis that:
+  (a) the two intended kernels still satisfy,
+  (b) admits a stochastic-integral construction of Y with the stated
+      coupling AND tail-decay AND continuity, AND
+  (c) does NOT admit constant kernels?
+
+Question 3: With the tightened hypothesis, is the per-call axiom
+statement provable in classical probability theory (granted upstream
+Itô-isometry + Kolmogorov–Chentsov + Borell)? Or does it remain
+upstream-pending in any case?
+
+Output format: (1) Yes/no on satisfiability for constant kernel.
+(2) Recommended tightened hypothesis (Lean-pseudocode is fine).
+(3) Sketch of provability under the tightened form.
+```
+
+### Grok prompt 2 — A3-β (multi-call independence, R31 contradiction restated)
+
+```
+Context: same axiom as Prompt 1. The 2D KMT chain in our project
+applies the axiom TWICE on the same Rademacher sequence (a_k):
+
+  apply 1: kernel = exp(-u·k/n), produces Y_p
+  apply 2: kernel = (-exp(-u/n))^k, produces Y_m
+
+Each Y satisfies its individual coupling at rate log(n+1)/√n. Our R31
+audit established that the downstream theorem
+(`theorem two_dim_KMT_coupling` in 524.lean) additionally claims
+`IndepFun(Y_p, Y_m)`, but this is unsatisfiable: both Y_p and Y_m
+approximate functions of the same input (a_k) at sub-CLT error rate,
+which forces deterministic ties between them and rules out
+unconditional independence.
+
+Question 1: Confirm or refute the R31 finding. Specifically: is it
+mathematically possible for an axiom of this shape to deliver, on two
+calls with shared input, two outputs Y_p, Y_m that are
+(i) jointly measurable with the structural conjuncts each, AND
+(ii) each individually couples to its kernel-filtered partial sum at
+     rate O(log n / √n), AND
+(iii) are unconditionally independent as ℝ → ℝ-valued random fields?
+Provide a clean yes/no with the contradiction (or the construction).
+
+Question 2: If the answer to Q1 is no, what are the candidate
+relaxations to recover *some* independence structure that the
+downstream consumers (specifically: 524.lean:4229 / 4605, which need a
+two-factor exponent `-2·glw.lower` in a small-ball lower bound) can
+still use?
+
+Candidates:
+(γ_a) Conditional independence given a sub-σ-algebra (e.g., conditional
+on the σ-algebra generated by even-indexed Rademacher variables).
+(γ_b) Disjoint-block / partitioned independence: use a_{2k} for Y_p,
+a_{2k+1} for Y_m; they are then functions of disjoint Rademacher
+blocks. This is the path our R31 even/odd infrastructure was preparing.
+The trade-off: each Y now approximates a HALF-sum (Σ over even or odd
+indices), not the full sum, which means downstream consumers must work
+with half-sums.
+(γ_c) Asymptotic / weak independence (e.g., total-variation distance to
+independence is o(1) as n → ∞), at the cost of degrading the rate from
+O(log n / √n) to slower.
+
+For each of (γ_a, γ_b, γ_c): is it (a) mathematically achievable,
+(b) compatible with the Erdős 524 small-ball lower-bound argument
+[the chain expects `ℙ{sup ≤ ε√n} ≥ exp(-2·glw.lower · |...|³)`, where
+the factor 2 comes from independence of the two "branches"]?
+
+Output format: (Q1) yes/no + sketch. (Q2) verdict and feasibility for
+each of γ_a / γ_b / γ_c.
+```
+
+### Grok prompt 3 — A4 + B1 corrected-statement options (post-Q2 conditional)
+
+```
+Context: same as Prompts 1 / 2. Assume Q2 selects path γ_b
+(disjoint-block independence: Y_p built from a_{2k}, Y_m from a_{2k+1}).
+Our four downstream consumers in 524.lean live as follows:
+
+  Consumers 3926 / 4081 (upper bound branch): use only Yplus side, do
+    NOT need IndepFun. Robust under any γ choice.
+
+  Consumers 4229 / 4605 (lower bound branch, two-factor exponent
+    -2·glw.lower): currently use IndepFun(Yplus, Yminus). Under γ_b,
+    they would need to:
+    (i) reformulate the GLW lower-bound application so that two
+        independent half-sum-Gaussian processes can each contribute a
+        glw.lower factor, with the Δ-rate replaced by the half-sum
+        version, AND
+    (ii) bridge the half-sum supremum back to the full-sum supremum
+        that supNorm asks for (Erdős 524's headline statement is in
+        terms of supNorm of the full polynomial, not a half-sum).
+
+Question 1: Is the bridge (ii) achievable in standard probability
+theory? The half-sum Y_p approximates (1/√n) Σ_{k=1..n} a_{2k} ·
+kernel(...). The full-sum supremum is (1/√n) Σ_{k=1..n} a_k · kernel.
+Is there a sub-Gaussian-tail / Anderson-style lift from the half-sum
+result to the full-sum result without the rate-2 factor degrading?
+
+Question 2: If (ii) is *not* directly achievable, what is the next-best
+option? Candidates:
+(δ_a) Restate Erdős 524 using a "decoupled supNorm" notion that already
+splits along even/odd blocks at the small-ball level.
+(δ_b) Accept rate degradation from -2·glw.lower to -glw.lower (lose the
+factor of 2, fall back to a single-kernel small-ball bound).
+(δ_c) Use a different mechanism entirely for the factor of 2 (e.g.,
+Anderson + scale-disjointness: split the supremum domain [-1, 1] into
+[-1, 0] ∪ [0, 1] and apply small-ball on each half; the two halves are
+not independent but Anderson allows a max-bound).
+
+Output format: (Q1) yes/no + sketch. (Q2) for each δ option, an
+estimate of how much of 524.lean's proof chain would need rewriting.
+```
+
+## CONFIRMED_CONTRADICTORY items — concrete fix sketches (R33 input)
+
+### A4 — `theorem two_dim_KMT_coupling`
+
+**Source of contradiction:** full-sum coupling for both Yplus and Yminus
++ unconditional `IndepFun`, all at rate O(log n / √n).
+
+**Candidate corrected statements:**
+
+- **Form α (joint-correlated, drop independence).** Remove the
+  `IndepFun` conjunct. Theorem becomes:
+
+  ```
+  ∃ Yplus Yminus Δ,
+    (measurability, Δ-bound, full-sum couplings, continuity, tail decay)
+  -- no IndepFun
+  ```
+
+  Provability: A3-applied-twice provides this directly. **Consumer
+  impact:** 3926 / 4081 robust (already underscore `_hIndep`); 4229 /
+  4605 lose the `2·glw.lower` factor and must be rewritten to derive
+  `1·glw.lower` from a single-kernel small-ball application or similar.
+
+- **Form β (decoupled, half-sum + IndepFun).** Replace the full-sum
+  couplings with half-sum couplings, applied separately to the even
+  and odd Rademacher sub-sequences. Both Yplus (built from a_{2k}) and
+  Yminus (built from a_{2k+1}) are now measurable w.r.t. disjoint
+  σ-algebras; `IndepFun` follows. Theorem becomes:
+
+  ```
+  ∃ Yplus Yminus Δ,
+    (measurability, Δ-bound,
+     Yplus couples HALF-sum (1/√m) Σ_{k=1..m} a_{2k} · kernel_p(u,k,m),
+     Yminus couples HALF-sum (1/√m) Σ_{k=1..m} a_{2k+1} · kernel_m(u,k,m),
+     IndepFun(Yplus, Yminus),
+     continuity, tail decay)
+  ```
+
+  Provability: A3-applied-twice on disjoint sub-sequences. **Consumer
+  impact:** ALL FOUR consumers must be rewritten because the supNorm
+  argument they invoke is in terms of the *full* polynomial, not
+  half-polynomials. Half-sum-to-full-sum bridge needs T2.1-type
+  analysis (Grok prompt 3).
+
+- **Form γ (to be discovered).** Per Grok prompt 2's Q2 candidates;
+  likely a hybrid (e.g., conditional-independence on a tail σ-algebra,
+  with an asymptotic-rate-degradation correction).
+
+Recommendation: R33 should run Grok prompts 2 and 3 first, then pick
+between forms α / β / γ on the basis of consumer-rewrite cost.
+
+### B1 — `LS_independent_yplus_yminus`
+
+**Source of contradiction:** universal IndepFun claim is false.
+
+**Candidate corrected statement:** parameterise by the two sub-σ-algebras
+that `Yplus` and `Yminus` are measurable w.r.t. and require those to be
+independent (which then implies `IndepFun(Yplus, Yminus)`).
+
+Or: drop the lemma entirely if A4 is replaced by Form α.
+
+## R33+ round budget estimate
+
+Based on T1.1-T2.1-T3.1 findings:
+
+- **Grok prompts 1, 2, 3 must be run before R33 picks a direction.**
+  Allocate a Grok-validation pass (call it R33-A) outside the regular
+  round structure (~half a round of Cowork synthesis time + Grok
+  back-and-forth).
+
+- **R33-B (single-call A3 fix, prompt-1 outcome).** If Grok confirms a
+  tightened hypothesis works, R33-B updates `StochasticProcessAxiom.lean`
+  with the new hypothesis + verifies the two intended kernels still
+  satisfy it (compile-time only). ~1 round.
+
+- **R33-C (multi-call A3 + A4 fix, prompt-2/3 outcome).** This is the
+  load-bearing round. Pick form α / β / γ for `theorem
+  two_dim_KMT_coupling`, restate it, rewrite the 4 downstream
+  consumers in 524.lean. **Estimate: 1 round if form α (drop
+  IndepFun + restate lower-bound consumers); 2-3 rounds if form β
+  (half-sum + bridge); unknown for γ.**
+
+- **R33-cleanup (orthogonal).** Delete C1-C4 dead R26 sub-lemmas in
+  `GLWGaussianProjectiveLimit.lean`. ~0.25 rounds.
+
+**Total R33+ budget projection:**
+- Best case (form α viable, no rewrites bigger than 50 LOC): **2 rounds.**
+- Mid case (form β + half-sum bridge tractable): **3-4 rounds.**
+- Worst case (no clean form, scope re-evaluation needed): **4-6 rounds**,
+  possibly with project-level scope-3 reconsideration.
+
+The Brier-honest read is that this is the most uncertain budget the
+project has had since R10: the foundational error in A3+A4 is not a
+local sorry-closing problem, it's a framing problem that ripples into
+the small-ball argument's structure. R32 is doing what it should —
+surfacing this BEFORE committing to a R33 direction.
+
+## Calibration
+
+R32 entered with the prediction that A3 was likely NEEDS_GROK and the
+other three CLEAN-or-already-known. Actuals:
+
+- A1 CLEAN ✓ (matches prediction)
+- A2 CLEAN ✓ (matches; bonus finding: dormant, zero current consumers)
+- A3 NEEDS_GROK ✓ (matches; **bonus finding: TWO sub-issues, not one**)
+- A4 CONFIRMED_CONTRADICTORY ✓ (already established by R31)
+- B1 CONFIRMED_CONTRADICTORY ✗ (R32-novel: the universal-IndepFun
+  statement is false even before invoking the R31 multi-call issue)
+
+Net additions vs. R31 understanding:
+1. A3's docstring already hints at the single-call hypothesis-too-weak
+   issue but frames it as "consumer-surface restricts it" — R32 surfaces
+   this as a foundational concern in its own right.
+2. B1's universal-IndepFun statement is independently false; it would
+   need correction even if A3 were not contradictory.
+3. A2 is dormant (zero consumers in `r30-finish`); the R29 plan to
+   "atomicise via 1D KMT axiom" was never realised in the actual
+   `r30-finish` build path.
+4. C1-C4 are dead code (4 false-positive sorries in
+   `GLWGaussianProjectiveLimit.lean`).
+
+R33's best path is to run Grok prompts 1-3 in parallel with a small
+exploratory round (delete C1-C4, retire A2, decide form α vs β based on
+prompt 3's consumer-rewrite cost estimate).
