@@ -15,6 +15,7 @@ limitations under the License.
 -/
 
 import FormalConjectures.Util.ProblemImports
+import FormalConjectures.ErdosProblems.Helpers.RademacherSequence
 import FormalConjectures.ErdosProblems.Helpers.IndepSetBridge
 import FormalConjectures.ErdosProblems.Helpers.BlockIndep
 import FormalConjectures.ErdosProblems.Helpers.LilNormAsymptotics
@@ -116,22 +117,12 @@ open scoped Topology
 
 namespace Erdos524
 
-/--
-A sequence `a : ℕ → Ω → ℝ` is an i.i.d. Rademacher sequence if the random
-variables `a k` are mutually independent and each takes values `1` and `-1`
-with probability `1/2`.
--/
-structure IsRademacherSequence
-    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    (a : ℕ → Ω → ℝ) : Prop where
-  /-- The random variables `(a k)` are mutually independent. -/
-  indep : ProbabilityTheory.iIndepFun (fun k : ℕ => a k) ℙ
-  /-- Each `a k` is a measurable function. -/
-  measurable (k : ℕ) : Measurable (a k)
-  /-- Each `a k` takes value `1` with probability `1/2`. -/
-  prob_pos (k : ℕ) : ℙ {ω | a k ω = 1} = 1 / 2
-  /-- Each `a k` takes value `-1` with probability `1/2`. -/
-  prob_neg (k : ℕ) : ℙ {ω | a k ω = -1} = 1 / 2
+-- `IsRademacherSequence` is now defined in
+-- `FormalConjectures.ErdosProblems.Helpers.RademacherSequence` and re-imported
+-- via the top-of-file imports.  Relocation done in R29 to break a circular
+-- import that blocks the KMT Option C theorem skeleton (the helper file
+-- `Helpers/TwoDimKMTFromOneDim.lean` needs to mention the predicate in its
+-- statement while being imported *by* this file).
 
 variable {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
 
