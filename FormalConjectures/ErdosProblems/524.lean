@@ -46,12 +46,17 @@ import FormalConjectures.ErdosProblems.Erdos524.EndpointReparametrization
 -- and final wrappers are byte-identical to the prior state.
 --
 -- Bridging gap to the GLW / KMT theorems and remaining axiom below:
--- Post-Round-7 (upper) and post-Round-8 (lower), `gao_li_wellner_small_ball_upper`
--- and `gao_li_wellner_small_ball_lower` are now THEOREMS with an
+-- Post-Round-34 (lower, R34 Phase A Option E) and post-Round-36 (upper,
+-- R36 Phase A Option E redux Path C3), both `gao_li_wellner_small_ball_lower`
+-- and `gao_li_wellner_small_ball_upper` are user-defined `axiom`s with an
 -- `Erdos524.Helpers.IsGLWProcess Y` hypothesis (defined in
 -- `Helpers/GLWProcessPredicate.lean`) capturing Gaussianity, K_GLW covariance,
--- continuous paths, and tail decay. The single remaining `axiom` in this file
--- is `two_dim_KMT_coupling` (a Rademacher → Gaussian strong invariance principle
+-- continuous paths, and tail decay. The R7/R8 inline sorries were functionally
+-- axiomatic (multi-year Mathlib formalization project: Karhunen–Loève + Talagrand
+-- + Slepian/SF/BTIS + multivariate-Gaussian-CDF differentiability — all 0% per
+-- `Helpers/PhaseAStatusInventory.md`); the relabelling makes
+-- `AxiomFoundationAudit` honest. Other axioms in this file remain
+-- `two_dim_KMT_coupling` (a Rademacher → Gaussian strong invariance principle
 -- still stated for arbitrary Rademacher inputs); the helper-side
 -- `Y_GLW_exists` axiom is a stepping-stone for the existence of a GLW process
 -- on a probability space and is unaffected by this round.
@@ -3481,64 +3486,98 @@ The remaining atomic pieces are:
 treatment of `Y` and removed when their callsites disappeared.)
 -/
 
-/-- **Sub-theorem 3 (Round 7): Gao–Li–Wellner small-ball UPPER asymptotic.**
-For the centered Gaussian process `Y(u) = ∫₀¹ e^{-u s} dB(s)` (or any
-process satisfying `IsGLWProcess`), there exist an upper constant
+/-- **Sub-axiom 3 (Round 36 regression): Gao–Li–Wellner small-ball UPPER
+asymptotic.** For the centered Gaussian process `Y(u) = ∫₀¹ e^{-u s} dB(s)`
+(or any process satisfying `IsGLWProcess`), there exist an upper constant
 `c̄ > 0` and a threshold `ε₀ > 0` such that for all `0 < ε ≤ ε₀` and a
 suitable truncation time `T(ε) ≤ -C log ε`,
 `ℙ(sup_{u ∈ [0, T(ε)]} |Y(u)| ≤ ε) ≤ exp(-c̄ |log ε|^3)`.
 
-**Round 7 status.** This was an `axiom` in Round 6; Round 7 promotes it
-to a `theorem` packaged in `Helpers.GLWUpperProof`. The proof chain
-(discretize → hier-Cauchy approximation → V1 instance Anderson-upper →
-optimization in `m(ε)`) is laid out in the helper module.
+**Round 36 status.** **Reverted to `axiom` (Phase A Option E redux,
+Path C3, mirror of the R34 lower-side regression).** This was an `axiom`
+in Round 6, promoted to a `theorem`-with-inline-`sorry` in Round 7
+(packaged in `Helpers.GLWUpperProof`, proof chain stubbed at the
+Karhunen–Loève + entropy-bound + V1-Anderson gap), and re-introduced as
+an explicit `axiom` in Round 36 to make the `AxiomFoundationAudit`
+output honest: the inline `sorry` was functionally axiomatic from R7
+onwards, since the residual blocker was a multi-year Mathlib
+formalization project, not a tactical proof gap. The mathematical
+content is unchanged; only the labelling shifts back to `axiom` so
+external audits do not under-count user-defined axioms.
 
-**Honesty fix from the prompt:** the original universal-over-`Y` form
-of the axiom is FALSE for `Y ≡ 0` (LHS = 1, RHS `→ 0`). Round 7 adds
-the hypothesis `IsGLWProcess Y` (defined in `Helpers/GLWUpperProof.lean`)
-which captures Gaussianity + K_GLW covariance + mean zero + continuity
-+ tail decay — exactly the structure produced by `Y_GLW_exists`. With
-this hypothesis, the bound is mathematically true; the documented
-`sorry` is now on the actual Mathlib gap (Karhunen–Loève + entropy
-methods), not on a falsity issue. -/
-theorem gao_li_wellner_small_ball_upper (glw : GaoLiWellnerConstants) :
+**R35 diagnostic (path-decision context, post-pre-flight).** R35
+identified the multivariate-Gaussian-CDF-differentiability lemma as the
+TRUE pre-flight blocker for Phase A upper Option B (Slepian + Sudakov-
+Fernique + Borell-TIS native closure). The R35 audit
+(`Helpers/R35_T1_DiffLemmaAudit.md`) named three concrete missing
+Mathlib pieces:
+1. `Matrix.det.differentiable` — only `Matrix.det.continuous` is
+   packaged (~30-80 LOC plumbing).
+2. `Matrix.PosDef.inv.differentiable` — generic `HasFDerivAt
+   Ring.inverse` exists, no `Matrix.PosDef`-specialisation (~50 LOC).
+3. `multivariateGaussianPdf` — brownian-motion's `multivariateGaussian`
+   is square-root pushforward, no explicit Lebesgue density formula.
+
+Compounding these is the absence of Slepian / Sudakov–Fernique /
+Borell-TIS infrastructure (all 0% per
+`Helpers/PhaseAStatusInventory.md`). A native upper closure would
+require ~600-1000 LOC across 4-6 rounds; Path C3 trades that for +1
+user-defined axiom in 1 round, matching the R34 lower-side budget.
+
+**R35 scaffolds preserved (T2.3 (a)).** The R35 signatures
+`slepian_comparison_finite`, `sup_continuous_eq_sup_dense`, and
+`multivariateGaussianOrthantCDF_differentiable_wrt_covariance` remain
+in `Helpers/PhaseAUpperBound.lean` and `Helpers/MultivariateGaussianCDF.lean`
+as research artefacts; their docstrings are updated to cite the C3
+election and the future-Mathlib retirement path.
+
+**Honesty fix carried over from Round 7.** The original `axiom` form of
+the upper bound was FALSE for `Y ≡ 0` (LHS box-event probability `1`,
+RHS `exp(-c̄|log ε|^3) → 0` as `ε → 0`). The Round 7 statement
+(preserved verbatim into the R36 axiom) replaces the bare measurability
+hypothesis with `IsGLWProcess Y` (defined in
+`Helpers/GLWProcessPredicate.lean`), which captures Gaussianity +
+K_GLW covariance + mean zero + continuity + tail decay — exactly the
+structure produced by `Y_GLW_exists`. With this hypothesis, the bound
+is mathematically true.
+
+**Truncated-form note.** Unlike the lower companion, which is stated on
+the full half-line `u ≥ 0` and gets a separate
+`gao_li_wellner_small_ball_lower_truncated` derivation, the upper bound
+is intrinsically truncated (existential `T : ℝ → ℝ` in the output).
+This matches the actual Round 7 proof shape (discretize → finite-grid
+Anderson → optimize `m(ε)`); the truncation `T(ε) ~ |log ε|²` is the
+quantity to be optimized over.
+
+**Upstream Mathlib gaps tracked in Phase A inventory + R35 audit:**
+- Karhunen–Loève expansion infrastructure (0%).
+- Talagrand generic-chaining entropy bounds for Gaussian processes (0%).
+- Slepian / Sudakov–Fernique comparison (0%, R35 stub-with-signature
+  lands `slepian_comparison_finite` for future-Mathlib retirement).
+- Borel-TIS Gaussian concentration (0%).
+- Multivariate-Gaussian-CDF differentiability + density formula (0%,
+  R35 stub-with-concrete-diagnostic at
+  `Helpers/MultivariateGaussianCDF.lean`).
+
+When any closure path matures (the R35 scaffold completes, or one of
+the listed Mathlib gaps lands), this axiom can be retired to a
+`theorem` body. The proof chain in `Helpers/GLWUpperProof.lean`
+remains otherwise complete modulo these gaps.
+
+**Symmetry with `gao_li_wellner_small_ball_lower` (R34 axiom).** The
+R34 + R36 pair regresses both the lower and upper Gao–Li–Wellner
+small-ball bounds to user-defined axioms, on identical grounds: the
+sorry was functionally axiomatic (multi-year Mathlib formalization
+project), and labelling honesty is the immediate gain. Net Phase A
+axiom budget: 5 user-defined axioms total at R37 closure (D2 +
+1D KMT + stepping-stone + GLW lower + GLW upper). -/
+axiom gao_li_wellner_small_ball_upper (glw : GaoLiWellnerConstants) :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
       (Y : ℝ → Ω → ℝ), Erdos524.Helpers.IsGLWProcess Y →
       ∃ (ε₀ : ℝ) (T : ℝ → ℝ), 0 < ε₀ ∧
         ∀ ε : ℝ, 0 < ε → ε ≤ ε₀ →
           (ℙ {ω | ∀ u ∈ Set.Icc (0 : ℝ) (T ε), |Y u ω| ≤ ε}).toReal ≤
-            Real.exp (-glw.upper * |Real.log ε| ^ 3) := by
-  intro Ω _mΩ _hℙ Y _h_glw
-  -- Choose ε₀ := 1 and T(ε) := |log ε|² + 1 (the Round 7 truncation).
-  refine ⟨1, Erdos524.Helpers.glwUpperT, one_pos, ?_⟩
-  intro ε _hε_pos _hε_le_one
-  -- BLOCKER: the cubic small-ball estimate `exp(-c̄ · |log ε|^3)` for the
-  --   GLW process Y(u) = ∫₀¹ e^{-us} dB(s) requires the Karhunen–Loève
-  --   eigenvalue decay `λ_k ~ k^{-2}`, then a Talagrand-style chaining
-  --   argument over the entropy of `[0, T(ε)]` under the Y-pseudometric.
-  -- TRIED: combining the Round 6 cov_eq_inner cascade
-  --   (`mvGaussian_realMatrixSqrt_pushforward_cov_eq`) with the V1
-  --   instance Anderson-upper (`Helpers/GLWBoxProbInstance.lean`) gives
-  --   the m-dimensional finite-grid bound `exp(-c · m · ε²)`; the
-  --   optimization `m(ε) ~ |log ε|²` would then yield the cubic exponent,
-  --   but the Mathlib infrastructure for the Karhunen–Loève expansion
-  --   of the K_GLW covariance kernel + entropy-of-Gaussian-process
-  --   estimates is absent.
-  -- ROUND 10 UPDATE: the V1 instance's `anderson_upper` field is now
-  --   unconditionally dischargeable via
-  --   `Helpers.glwBoxProb_anderson_upper_field` (after Round 10 closed
-  --   `(hierCauchyG m).PosDef`), so the finite-grid Anderson bound is
-  --   no longer the bottleneck. The remaining gap is purely the
-  --   Karhunen–Loève + entropy-bounding machinery in Mathlib.
-  -- NEEDS: (a) Karhunen–Loève expansion of `K_GLW` as a Mercer-style
-  --   eigenfunction series — not in Mathlib (multi-year project per
-  --   the original axiom docstring); OR (b) Talagrand's generic
-  --   chaining bound for Gaussian processes — also a Mathlib gap; OR
-  --   (c) a direct PDE / ODE argument exploiting the explicit form
-  --   `K_GLW(u, v) = (1 - exp(-(u+v)))/(u+v)` to bypass Karhunen–Loève
-  --   and reduce to the Round 6 multivariate-Gaussian density bound
-  --   (whose own documented sorry remains).
-  sorry
+            Real.exp (-glw.upper * |Real.log ε| ^ 3)
 
 /-- **Sub-axiom 4 (Round 34 regression): Gao–Li–Wellner small-ball
 LOWER asymptotic.** The matching lower bound for the centered Gaussian

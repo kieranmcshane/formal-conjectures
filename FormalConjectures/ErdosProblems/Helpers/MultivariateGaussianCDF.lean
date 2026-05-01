@@ -36,6 +36,22 @@ The signature is committed (T1.1). The body lands as a TAG'd diagnostic
 documenting the concrete Mathlib API gaps that prevent full closure at the
 current pin. See `Helpers/R35_T1_DiffLemmaAudit.md` for the full audit.
 
+## R36 status — preserved as research scaffold (Path C3 election)
+
+**Phase A took Option E redux Path C3 in R36** — `gao_li_wellner_small_ball_upper`
+is now a user-defined `axiom` in `524.lean`, mirroring the R34 lower-side
+regression. This file's differentiability lemma + the three Mathlib gaps it
+named (`Matrix.det.differentiable`, `Matrix.PosDef.inv.differentiable`,
+`multivariateGaussianPdf`) are **no longer on the active R37 trajectory**.
+The signature + concrete-diagnostic body are preserved here as a research
+scaffold for the (hypothetical) future round when one or more of those
+upstream Mathlib gaps lands and the C3 axiomatization can be retired to
+a `theorem` body via the chain laid out in `Helpers/PhaseAUpperBound.lean`.
+
+The R35 audit (`Helpers/R35_T1_DiffLemmaAudit.md`) remains the authoritative
+cost estimate (~250-400 LOC if all three pieces land in-tree). See
+`Helpers/PhaseAR36Status.md` for the C3 path-decision rationale.
+
 ## Mathlib gaps (from `R35_T1_DiffLemmaAudit.md`)
 
 The body needs three pieces, each a separate Mathlib gap:

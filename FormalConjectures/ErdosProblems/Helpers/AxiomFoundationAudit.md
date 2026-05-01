@@ -594,3 +594,132 @@ theorem labelling change in T2.1.
 with 5 user-defined axioms (`Cp_T_explicit_pointwise_axiom`,
 `one_dim_KMT_coupling`, `kmt_aided_gaussian_process`,
 `gao_li_wellner_small_ball_lower` (R34 new), and BTIS (R38 new)).
+
+## R35 — Phase A pre-flight (signature + diagnostic round)
+
+**Round 35 (single round, Phase A pre-flight).** Identified the
+multivariate-Gaussian-CDF differentiability lemma as the TRUE pre-flight
+blocker for Phase A upper Option B. Landed three named missing-Mathlib
+diagnostics + scaffold signatures; **no axiom additions, no axiom
+revisions**. See `Helpers/PhaseAR35Status.md` for the per-task ledger.
+
+* **Net axiom delta:** 0 (state preserved from R34).
+* **TAG'd sorry delta:** +3 deferral skeletons (`R35-T2.1`, `R35-T2.2`,
+  `R35-T2.3`), each with concrete diagnostic + tried-alternatives.
+* **R36 path decision (post-R35, user-set):** Path C3 — axiomatize the
+  upper bound directly (mirror of R34 lower-side regression). See R36
+  section below.
+
+## R36 — Phase A Option E redux upper-bound axiom regression
+
+**Round 36 (branch `r33-c-helpers-consolidation`, single round, Phase A
+upper-side Path C3).** Mechanical mirror of R34 on the upper side:
+re-introduces `gao_li_wellner_small_ball_upper` as an explicit `axiom`,
+removing the inline `sorry` that was functionally axiomatic from R7
+onwards. Plus orphan-scaffold disposition (R35 leftovers) and updated
+trajectory.
+
+### Axiom additions / revisions
+
+| # | Axiom / theorem-with-sorry | Pre-R36 state | Post-R36 state | Notes |
+|---|-----------------------------|----------------|------------------|--------|
+| A1 | `Cp_T_explicit_pointwise_axiom` | axiom (R27) | axiom (unchanged) | CLEAN |
+| A2 | `one_dim_KMT_coupling` | axiom (R29, dormant) | axiom (unchanged) | CLEAN |
+| A3 | `kmt_aided_gaussian_process` | axiom (R30) | axiom (unchanged) | NEEDS_GROK (per R32) |
+| A4 | `theorem two_dim_KMT_coupling` | theorem (R33-D body) | theorem (unchanged) | Body via_LS_reduction |
+| A5 | `gao_li_wellner_small_ball_lower` | axiom (R34) | axiom (unchanged) | R34 Option E regression |
+| **A6 (R36)** | **`gao_li_wellner_small_ball_upper`** | **theorem-with-inline-sorry (R7)** | **axiom (R36 Option E redux Path C3)** | **NEW user-defined axiom; the R7 sorry was functionally axiomatic** |
+
+**Net axiom count change (R34 → R36):** +1 user-defined axiom on the
+mainline 524 chain (A6 is the labelling promotion of the R7 sorry).
+Honest accounting:
+
+- **No math regression.** The R7 inline sorry was a multi-year Mathlib
+  formalization gap (Karhunen–Loève + Talagrand + Slepian + Sudakov-
+  Fernique + Borell-TIS + multivariate-Gaussian-CDF differentiability
+  — six distinct Mathlib gaps each at 0% per
+  `Helpers/PhaseAStatusInventory.md` + `Helpers/R35_T1_DiffLemmaAudit.md`).
+  Re-labelling as `axiom` makes the audit-tool output honest.
+- **No proof obligation transferred.** Retirement path: when any of the
+  upstream gaps land (or all of them, for full native closure), the
+  axiom can be downgraded to a `theorem` body. The proof chain in
+  `Helpers/GLWUpperProof.lean` plus the R35 scaffolds in
+  `Helpers/PhaseAUpperBound.lean` and `Helpers/MultivariateGaussianCDF.lean`
+  remain otherwise complete modulo those gaps.
+- **Truncated form: N/A on upper side.** Unlike the lower side which
+  needed `_lower_truncated`, the upper bound is intrinsically truncated
+  (existential `T : ℝ → ℝ` in the output). T2.2 was confirmed N/A by
+  grep (`Helpers/R36_T1_UpperBoundAudit.md` §3).
+- **Symmetry with R34.** R34 + R36 = pair of axiom regressions on the
+  Gao–Li–Wellner small-ball bounds. Both deferred to upstream Mathlib
+  closure of the same family of gaps. The labelling change is symmetric
+  on both sides; consumers (`524.lean:4094, 4251`) use `obtain` on the
+  existential output, identical to the R34 lower-side migration.
+
+### Orphan-scaffold disposition (R36 T2.3)
+
+R35 landed three signature-level scaffolds on the assumption Path B
+(native Slepian + SF + BTIS closure) would proceed in R36-R39. Path C3
+makes them dead code on the active trajectory. **R36 T2.3 election:
+Option (a) — preserve with updated docstrings.** The three artefacts:
+
+| Artefact | File | Disposition |
+|----------|------|-------------|
+| `slepian_comparison_finite` | `Helpers/PhaseAUpperBound.lean` | Preserved; file docstring updated to cite C3 + future-Mathlib retirement path |
+| `sup_continuous_eq_sup_dense` | `Helpers/PhaseAUpperBound.lean` | Preserved (same file, same docstring update) |
+| `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` (T2.1 stub) | `Helpers/MultivariateGaussianCDF.lean` | Preserved; file docstring updated to cite C3 |
+
+Cost: dead code in mainline (Helpers files compile clean — sorries are
+already TAG'd from R35). Benefit: R35's diagnostic work + signature
+drafts remain navigable without `git log` spelunking; future-Mathlib
+revival path is documented inline.
+
+### Net residual sorry count after R36
+
+8 TAG'd sorries on `r33-c-helpers-consolidation` (unchanged from R35):
+
+1. R33-C T2.4 — `IndepFun(Yplus, Yminus)` on linear-combo (Mathlib gap).
+2. R33-C T2.5 — `?ha'.iIndepFun` on Ω × Ω (Mathlib gap).
+3. R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form` (structural).
+4. R34 carry-over — `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus`
+   (`Helpers/GLWLowerProof.lean:328`).
+5. R34 carry-over — `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus`
+   (`Helpers/GLWLowerProof.lean:340`).
+6. R35 T2.1 — `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
+   (concrete Mathlib-gap diagnostic, R36-preserved scaffold).
+7. R35 T2.2 — `slepian_comparison_finite` body
+   (R36-preserved scaffold).
+8. R35 T2.3 — `sup_continuous_eq_sup_dense` body
+   (R36-preserved scaffold).
+
+R36 introduces **0 new sorries** (the `_upper` body sorry retires together
+with the `theorem` → `axiom` labelling change; R35 sorries persist only
+because the Path C3 election preserves them as research artefacts).
+
+### R36 → R37 trajectory (Phase A closure)
+
+- **R36 (this round).** Upper-side axiom regression complete. R35 orphan
+  scaffolds preserved. 5 user-defined axioms total.
+- **R37.** §11 limit-law assembly + Scope 3 closure (1 round projected,
+  consumes both `_lower` and `_upper` axioms via the existing chain at
+  `524.lean:4094, 4251` + lower-side at `4406, 4784`). Trade-off: the
+  intermediate "BTIS axiomatized" round (originally projected R38) is
+  absorbed into Path C3, since BTIS is no longer load-bearing under
+  axiomatized Slepian.
+
+**Total Phase A budget post-R36:** 4 rounds (R34 + R35 + R36 + R37).
+Closes on the original Phase A budget despite the R35 mid-round path
+revision. Net axioms at projected R37 closure: 5 user-defined
+(`Cp_T_explicit_pointwise_axiom`, `one_dim_KMT_coupling`,
+`kmt_aided_gaussian_process`, `gao_li_wellner_small_ball_lower` (R34),
+`gao_li_wellner_small_ball_upper` (R36 new)). Plus 3 R33-C/D-tracked
+upstream Mathlib gaps (IndepFun reverse + iIndepFun_prod + Ω/Ω×Ω
+bridge) and the R32-flagged IsGLWProcess discharge sorries (separate
+concern, both lower and upper sides).
+
+If R37 lands cleanly: **Scope 3 closure at R37** with explicitly-
+documented user-defined axioms + upstream-Mathlib-gap inventory. No
+contradictions, all axiomatized content classically correct (the
+Gao–Li–Wellner small-ball bounds and the listed Mathlib gaps are
+established results in the Gaussian-process literature; the gap is
+formalization, not mathematics).

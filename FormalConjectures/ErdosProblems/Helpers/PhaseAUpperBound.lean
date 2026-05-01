@@ -23,7 +23,36 @@ existing GLW chain in `524.lean` only proves a one-sided (lower-bound)
 small-ball estimate; the matching upper bound (Phase A) is required to
 pin down the limit law constants in the final theorem.
 
-## Structure (R14 placeholder — bodies are `sorry`)
+## R36 status — preserved as research scaffold (Path C3 election)
+
+**Phase A took the Option E redux Path C3 in R36** — `gao_li_wellner_small_ball_upper`
+is now a user-defined `axiom` in `524.lean`, mirroring the R34 lower-side
+regression. The native Slepian + Sudakov-Fernique + Borell-TIS closure
+sketched below is **no longer on the active R37 trajectory**. This file is
+preserved as a research scaffold:
+
+* **R35-landed signatures retained.** `slepian_comparison_finite` (the real
+  Slepian-comparison statement at `Matrix.PosDef` covariances, body TAG'd
+  `R35-T2.2-body-deferred-R36`) and `sup_continuous_eq_sup_dense` (the
+  countable-dense supremum-reduction skeleton, body TAG'd
+  `R35-T2.3-density-mechanical`) remain in this file. They are not
+  consumed by the R37 §11 limit-law assembly under Path C3.
+* **Future-Mathlib retirement path.** When Mathlib gains the missing
+  multivariate-Gaussian-CDF differentiability infrastructure (see
+  `Helpers/MultivariateGaussianCDF.lean` + `Helpers/R35_T1_DiffLemmaAudit.md`)
+  *and* the Slepian / Sudakov-Fernique / Borell-TIS comparison machinery,
+  this scaffold can be revived to retire `gao_li_wellner_small_ball_upper`
+  from `axiom` back to a `theorem` body. Current Phase A inventory shows
+  all four upstream gaps at 0%; R36-Path-C3 ships now and defers the
+  honest closure indefinitely.
+* **Legacy `True`-stub `slepian_comparison_GLW`** is also preserved for
+  audit-tracking continuity (it was R14's original placeholder, kept
+  alongside the R35 real-statement skeleton for git-history navigability).
+
+See `Helpers/PhaseAR36Status.md` for the C3 path-decision rationale and
+the R34/R36 axiom-pair-symmetry argument.
+
+## Original Phase-A pipeline (now research-only)
 
 The Phase-A pipeline mirrors the classical "Slepian → Sudakov–Fernique →
 Borell–TIS" route, transcribed for the GLW Ornstein–Uhlenbeck process:
@@ -47,8 +76,8 @@ See `Helpers/PhaseADiagnostic.md` for the Mathlib gap analysis. The four
 blockers (A1: Slepian, A2: Sudakov–Fernique, A3: Borell–TIS, A4:
 quantitative Kolmogorov–Chentsov) collectively prevent a sorry-free
 realisation of this scaffold at the current `mathlib4 @ 25ce63313608`
-pin. R15 may pursue a bespoke elementary route for blocker A2 or accept
-a logarithmic slack to bypass A3.
+pin. R36-Path-C3 axiomatizes the consumer (`gao_li_wellner_small_ball_upper`
+in `524.lean`) directly rather than discharge any of these blockers.
 -/
 
 namespace Erdos524.PhaseAUpperBound
