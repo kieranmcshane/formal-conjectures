@@ -3645,7 +3645,17 @@ theorem gao_li_wellner_small_ball_lower_truncated (glw : GaoLiWellnerConstants) 
   · exact measure_mono
       (Erdos524.Helpers.glwLowerSupBoxEvent_subset_truncated Y T ε)
 
-/-- **Sub-axiom 5: 2D Komlós–Major–Tusnády strong invariance principle.**
+/-
+**Sub-axiom 5 (historical doc, R33-A note): 2D Komlós–Major–Tusnády
+strong invariance principle.** This block was the public axiom's
+docstring through R29; with the R30 retirement (theorem replacing
+axiom) and the R33-A Form-β correction, it is preserved as a regular
+comment for historical context and reference. The current declaration
+(`theorem two_dim_KMT_coupling`) carries its own `/-- R30 retirement,
+R33-A consumer-rewrite pending. -/` doc just below.
+-/
+
+/-
 Chojecki (2026, Lemma 13): on an enriched probability space carrying both a
 Rademacher sequence `a` and two **independent** Brownian motions `B₊, B₋`,
 the two empirical partial-sum processes
@@ -3759,8 +3769,17 @@ theorem two_dim_KMT_coupling :
         (∀ ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
         (∀ ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
         (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
-        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) :=
-  Helpers.two_dim_KMT_coupling_via_LS_reduction
+        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) := by
+  -- TAG[R33-B-consumer-migration]: R32 audit established that the
+  -- full-sum-on-single-Ω + unconditional-IndepFun signature here is
+  -- mathematically contradictory. R33-A restated the helpers theorem
+  -- (`Helpers.two_dim_KMT_coupling_via_LS_reduction`) in paper-faithful
+  -- Form β (half-sum couplings on `Ω × Ω`). R33-B will rewrite the four
+  -- downstream consumers (lines ~3926, 4081, 4229, 4605) to use Form β
+  -- and the triangle bridge for the lower-bound `2·glw.lower` factor,
+  -- at which point this theorem is removed in favour of direct calls
+  -- to `Helpers.two_dim_KMT_coupling_via_LS_reduction`.
+  sorry
 
 /-- **Sub-axiom 6 (now a theorem): endpoint reparametrization.** The calculus
 identity that turns a supremum of a polynomial over `[-1, 1]` into twin

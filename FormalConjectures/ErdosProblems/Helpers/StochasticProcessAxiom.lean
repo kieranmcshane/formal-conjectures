@@ -37,21 +37,20 @@ T3.3-C4 coupling-error in `Helpers/TwoDimKMTFromOneDim.lean`):
 atomicity sweet spot).  Net axiom count flat after `two_dim_KMT_coupling`
 is replaced by theorem (R30 T-replace).
 
-**Hypothesis-shape note.**  The original R30 brief specified a
-`kernel_geometric_decay` hypothesis with a uniform `ρ ∈ (0, 1)`.  The
-intended Yplus / Yminus kernels (`exp (-u * k / n)` and
-`(-exp (-u / n)) ^ k`) only satisfy `|kernel u k n| ≤ (exp (-u / n)) ^ k`,
-and `sup_n exp (-u / n) = 1` for any fixed `u > 0`, so a single uniform
-`ρ < 1` is *not* dischargeable.  We weaken the hypothesis to the
-pointwise bound `|kernel u k n| ≤ 1`, which the two kernels satisfy
-trivially for `u ≥ 0`.  The axiom is then *technically* stronger than
-its hypothesis (a constant-`1` kernel satisfies the hypothesis but its
-partial sums do not exhibit tail decay), but the scope of the axiom is
-restricted by the consumer surface: only the LS-reduction in
-`Helpers/TwoDimKMTFromOneDim.lean` invokes it, and only with the two
-specific kernels for which the conclusions hold mathematically (Itô
-isometry + Kolmogorov–Chentsov + Borell).  This is the standard pattern
-for stepping-stone axioms encoding upstream theorems.
+**Hypothesis-shape note (R30 → R33-A tightening).**  The R30 form used
+only the pointwise bound `|kernel u k n| ≤ 1`, which is satisfied by the
+constant-`1` kernel — and that kernel produces a partial sum that is
+asymptotically `N(0, 1)` and does NOT decay as `u → ∞`, contradicting
+the conclusion's tail-decay conjunct.  R32's audit
+(`Helpers/AxiomFoundationAudit.md`, A3-α) flagged this as the
+"single-call hypothesis-too-weak" issue; R33-A's Grok pre-flight added a
+second hypothesis `kernel_decay` that the constant-`1` kernel violates.
+
+The second hypothesis is the pointwise tail-decay form
+`∀ ε > 0, ∃ U, ∀ n ≥ 1, ∀ u ≥ U, ∀ k ≤ n, |kernel u k n| ≤ ε` per the
+R33-A brief (Grok-validated form).  See
+`Helpers/AxiomFoundationAudit.md` and the R33-A round summary for the
+exact mathematical reasoning excluding the constant kernel.
 -/
 
 namespace Erdos524.Helpers
@@ -80,6 +79,8 @@ brownian-motion lands `MeasureTheory.StochasticIntegral.deterministic_L2_kernel`
 axiom kmt_aided_gaussian_process
     (kernel : ℝ → ℕ → ℕ → ℝ)
     (_kernel_bound : ∀ u, 0 ≤ u → ∀ k n, |kernel u k n| ≤ 1)
+    (_kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
+      ∀ u ≥ U, ∀ k : ℕ, k ≤ n → |kernel u k n| ≤ ε)
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     (a : ℕ → Ω → ℝ) (_ha : Erdos524.IsRademacherSequence a) :
     ∃ (Y : ℝ → Ω → ℝ),

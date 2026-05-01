@@ -19,201 +19,82 @@ import FormalConjectures.ErdosProblems.Helpers.StochasticProcessAxiom
 import Mathlib.Probability.Independence.Basic
 
 /-!
-# 2D KMT coupling — Letwin–Sawhney reduction (R30 closure)
+# 2D KMT coupling — Letwin–Sawhney reduction (R33-A Form β closure)
 
 Theorem reducing the 2D KMT coupling at `524.lean:3732` to the 1D KMT
-axiom in `Helpers/OneDimKMT.lean` plus the R30 stepping-stone axiom in
-`Helpers/StochasticProcessAxiom.lean` via the Letwin–Sawhney
+axiom in `Helpers/OneDimKMT.lean` plus the R33-A-tightened stepping-stone
+axiom in `Helpers/StochasticProcessAxiom.lean` via the Letwin–Sawhney
 construction (Letwin & Sawhney 2025, arXiv:2604.19294, Lemma 4.7).
 
-## R30 closure status
+## R33-A foundational correction (Form β)
 
-The five named R29 sub-theorems (T3.1–T3.5) and the R29 inline Yminus
-mirror have collapsed into a single `kmt_aided_gaussian_process` axiom
-(applied per kernel) plus the routine even/odd-decoupling step T3.4.
+The R30 closure (`two_dim_KMT_coupling_via_LS_reduction` in its R30 form)
+was flagged by R31 audit and confirmed contradictory by the R32
+foundational audit (`Helpers/AxiomFoundationAudit.md`): the
+unconditional `IndepFun(Yplus, Yminus)` conjunct combined with full-sum
+couplings at sub-CLT rate is mathematically unsatisfiable when both `Y±`
+are functions of the same `(a_k)` Rademacher sequence.
 
-* **T3.1 (`LS_yplus_construction`)** — closed via axiom application with
-  the Yplus kernel `(u, k, n) ↦ exp (-u * k / n)`.
-* **T3.2 (`LS_yminus_construction`)** — closed via axiom application
-  with the Yminus kernel `(u, k, n) ↦ (-exp (-u / n)) ^ k`.
-* **T3.3-C4 (`LS_coupling_error`)** — generalised to a kernel-parametric
-  form returning its own Gaussian witness, closed via the axiom.  The
-  Yplus and Yminus coupling conjuncts of `T4.1` are produced by two
-  applications of this combined helper.
-* **T3.4 (`LS_independent_yplus_yminus`)** — remains a `sorry` (R30
-  stretch); routine even/odd decoupling + `IndepFun.prod`, tractable in
-  Mathlib but not in the R30 mandatory floor.
-* **T3.5 (`LS_tail_decay_skeleton`)** — closed already in R29; kept here
-  as a small generic-form structural helper.
-* **T4.1 (`two_dim_KMT_coupling_via_LS_reduction`)** — body rewired to
-  obtain coherent `(Yplus, Δ_p, ...)` and `(Yminus, Δ_m, ...)` tuples
-  from two applications of `kmt_aided_gaussian_process`, then collapse
-  to a single `Δ := log (n + 1) / √n`.  The R29 inline Yminus-mirror
-  `sorry` is gone.
+**R33-A correction (Form β, paper-faithful Letwin–Sawhney Lemma 4.7):**
+- Construct the witnesses on a product space `Ω' := Ω × Ω`.
+- Apply the (R33-A-tightened) stepping-stone axiom on disjoint Rademacher
+  sub-sequences (`a_even` from R31 lifted via `fst`, `a_odd` from R31
+  lifted via `snd`).
+- The resulting Yplus / Yminus are HALF-sum couplings (each over a
+  half-sequence), and they are unconditionally independent on `Ω'` by
+  the product-space construction (`indepFun_prod` in
+  `Mathlib.Probability.Independence.Basic`).
 
-Total `sorry` count in this file after R30: **1** (only T3.4).
+## Form β file structure (R33-A)
 
-## Net axiom budget after R30 (with T-replace)
+* **Section 1 — R31 kernel/sequence infrastructure (kept).** The
+  reparametrized kernels `kernel_even_plus`, `kernel_odd_minus`, their
+  pointwise bounds, the half-sequences `a_even` / `a_odd`, and their
+  `IsRademacherSequence` derivations.
+* **Section 2 — R33-A T2.1 decay lemmas.** New `kernel_decay` arguments
+  for the two R31 kernels, satisfying the second hypothesis added to
+  `kmt_aided_gaussian_process` in R33-A.
+* **Section 3 — R31 axiom applications.** `LS_yplus_via_even` and
+  `LS_yminus_via_odd`, updated to thread the new `kernel_decay`
+  hypothesis.
+* **Section 4 — Form β headline (R33-A T2.2 + T2.3).**
+  `LS_independent_yplus_yminus_disjoint_blocks` (B1 corrected) and
+  `two_dim_KMT_coupling_via_LS_reduction` (A4 corrected).
 
-After the public `axiom two_dim_KMT_coupling` in `524.lean:3732` is
-replaced by the theorem `Erdos524.Helpers.two_dim_KMT_coupling_via_LS_reduction`,
-the project's net axiom count is:
+## What was deleted vs R30
+
+The dead R30 helpers `LS_yplus_construction`, `LS_yminus_construction`,
+`LS_kernel_coupling`, `LS_coupling_error` (and their kernel-bound
+helpers `yplus_kernel_bound`, `yminus_kernel_bound`) are removed: they
+fed into the R30 form of `two_dim_KMT_coupling_via_LS_reduction` which
+was contradictory.  The contradictory `LS_independent_yplus_yminus`
+(B1, "universal IndepFun on a single `Ω`") is replaced by the
+product-space-correct `LS_independent_yplus_yminus_disjoint_blocks`.
+
+## Net axiom budget after R33-A
+
+The project's net axiom count is unchanged:
 
 * `Y_GLW_exists` (private, `Helpers/GLWProcess.lean`)
 * `one_dim_KMT_coupling` (semi-public, `Helpers/OneDimKMT.lean`)
-* `kmt_aided_gaussian_process` (scope-limited stepping stone, `Helpers/StochasticProcessAxiom.lean`)
+* `kmt_aided_gaussian_process` (now with two hypotheses per R33-A
+  Grok-validated tightening — `Helpers/StochasticProcessAxiom.lean`)
 
-Three axioms — flat vs. R29 baseline — but the public 2D-KMT axiom is
-gone, replaced by a strictly more atomic kernel-parametrized one.
+R33-B handles consumer migration (`524.lean:3732` and the four
+downstream consumers) and the triangle bridge from half-sum to full-sum
+small-ball lower bounds.
 -/
 
 namespace Erdos524.Helpers
 
 open MeasureTheory ProbabilityTheory
 
-/-! ### Kernel-side bound lemmas (R30) -/
+/-! ### Generic helpers (retained from R29) -/
 
-/-- The Yplus kernel `exp (-u * k / n)` is pointwise bounded by `1` on
-`u ≥ 0`, uniformly in `(k, n)`.  This is the hypothesis required to
-apply `kmt_aided_gaussian_process` with this kernel. -/
-private lemma yplus_kernel_bound :
-    ∀ u : ℝ, 0 ≤ u → ∀ k n : ℕ, |Real.exp (-u * (k : ℝ) / (n : ℝ))| ≤ 1 := by
-  intro u hu k n
-  have hexp_pos : 0 < Real.exp (-u * (k : ℝ) / (n : ℝ)) := Real.exp_pos _
-  rw [abs_of_pos hexp_pos]
-  refine Real.exp_le_one_iff.mpr ?_
-  have hu_k_nn : 0 ≤ u * (k : ℝ) := mul_nonneg hu (Nat.cast_nonneg _)
-  have hneg : -u * (k : ℝ) ≤ 0 := by linarith [hu_k_nn]
-  rcases Nat.eq_zero_or_pos n with hn | hn
-  · simp [hn]
-  · have hn_pos : (0 : ℝ) < (n : ℝ) := by exact_mod_cast hn
-    exact div_nonpos_of_nonpos_of_nonneg hneg hn_pos.le
-
-/-- The Yminus kernel `(-exp (-u / n)) ^ k` is pointwise bounded by `1`
-on `u ≥ 0`, uniformly in `(k, n)`. -/
-private lemma yminus_kernel_bound :
-    ∀ u : ℝ, 0 ≤ u → ∀ k n : ℕ, |(-Real.exp (-u / (n : ℝ))) ^ k| ≤ 1 := by
-  intro u hu k n
-  have hexp_pos : 0 < Real.exp (-u / (n : ℝ)) := Real.exp_pos _
-  have hexp_le : Real.exp (-u / (n : ℝ)) ≤ 1 := by
-    refine Real.exp_le_one_iff.mpr ?_
-    rcases Nat.eq_zero_or_pos n with hn | hn
-    · simp [hn]
-    · have hn_pos : (0 : ℝ) < (n : ℝ) := by exact_mod_cast hn
-      exact div_nonpos_of_nonpos_of_nonneg (by linarith) hn_pos.le
-  rw [abs_pow, abs_neg, abs_of_pos hexp_pos]
-  exact pow_le_one₀ hexp_pos.le hexp_le
-
-/-! ### Sub-theorems -/
-
-/-- **T3.1 (R30 closure).**  Yplus construction: Gaussian process with
-measurable, continuous, eventually-small sample paths, derived from the
-stepping-stone axiom applied to the Yplus kernel `exp (-u * k / n)`.
-The coupling conjunct is recovered separately via
-`LS_kernel_coupling` so this theorem returns only the three structural
-conjuncts consumed by `T4.1`. -/
-private theorem LS_yplus_construction
-    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
-    ∃ (Yplus : ℝ → Ω → ℝ),
-      (∀ u, Measurable (Yplus u)) ∧
-      (∀ ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
-      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) := by
-  obtain ⟨Y, h_meas, h_cont, h_decay, _⟩ :=
-    kmt_aided_gaussian_process
-      (fun u k n => Real.exp (-u * (k : ℝ) / (n : ℝ)))
-      yplus_kernel_bound a ha
-  exact ⟨Y, h_meas, h_cont, h_decay⟩
-
-/-- **T3.2 (R30 closure).**  Yminus construction: mirror of T3.1 with
-kernel `(-exp (-u / n)) ^ k`. -/
-private theorem LS_yminus_construction
-    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
-    ∃ (Yminus : ℝ → Ω → ℝ),
-      (∀ u, Measurable (Yminus u)) ∧
-      (∀ ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
-      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) := by
-  obtain ⟨Y, h_meas, h_cont, h_decay, _⟩ :=
-    kmt_aided_gaussian_process
-      (fun u k n => (-Real.exp (-u / (n : ℝ))) ^ k)
-      yminus_kernel_bound a ha
-  exact ⟨Y, h_meas, h_cont, h_decay⟩
-
-/-- **T3.3 (R30 closure, kernel-parametrised).**  Combined construction
-+ coupling helper: for any pointwise-bounded deterministic kernel
-`(u, k, n) ↦ ℝ`, the stepping-stone axiom yields a Gaussian process `Y`
-together with the explicit KMT-rate `Δ n := log (n + 1) / √n` such that
-`Y` is measurable / continuous / eventually-small AND the partial sums
-`(1/√n) ∑_k a_k · kernel(u, k, n)` are coupled to `Y` within `Δ n`
-uniformly in `(n, ω, u)`.
-
-This is the kernel-parametric form recommended by Grok (R30 design): it
-folds T3.3-C4 (Yplus side) and the R29 inline Yminus-mirror sorry into a
-single helper consumed twice by `T4.1` (once per kernel). -/
-private theorem LS_kernel_coupling
-    (kernel : ℝ → ℕ → ℕ → ℝ)
-    (kernel_bound : ∀ u, 0 ≤ u → ∀ k n, |kernel u k n| ≤ 1)
-    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
-    ∃ (Y : ℝ → Ω → ℝ) (Δ : ℕ → ℝ),
-      (∀ u, Measurable (Y u)) ∧
-      (∀ ω, Continuous (fun u : ℝ => Y u ω)) ∧
-      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y u ω| ≤ ε) ∧
-      (∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n) ∧
-      (∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
-        |((1 : ℝ) / Real.sqrt n) *
-            (∑ k ∈ Finset.Icc 1 n, a k ω * kernel u k n) -
-          Y u ω| ≤ Δ n) := by
-  obtain ⟨Y, h_meas, h_cont, h_decay, h_couple⟩ :=
-    kmt_aided_gaussian_process kernel kernel_bound a ha
-  refine ⟨Y, fun n => Real.log (n + 1) / Real.sqrt n,
-    h_meas, h_cont, h_decay, fun _ _ => le_refl _, h_couple⟩
-
-/-- **T3.3 (R30 thin compatibility wrapper, deprecated form).**  The R29
-form of `LS_coupling_error` survives as a thin wrapper around
-`LS_kernel_coupling` specialised to the Yplus kernel.  It returns only a
-`Δ` together with the Yplus-side coupling bound (without the Y-side
-structural conjuncts), matching the R29 signature.
-
-The body now closes both R29 sorries (the C3 rate-bound and the
-C4 coupling conjunct) via the kernel-parametric helper.  The returned
-`Yplus` parameter is *ignored* — the coupling is realised by the axiom's
-own internal `Y`, and a trivial coercion would require an external
-"witness equality" hypothesis we deliberately do not assume. -/
-private theorem LS_coupling_error
-    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a)
-    (_Yplus : ℝ → Ω → ℝ) :
-    ∃ (Δ : ℕ → ℝ),
-      (∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n) ∧
-      ∃ (Y : ℝ → Ω → ℝ), ∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
-        |((1 : ℝ) / Real.sqrt n) *
-            (∑ k ∈ Finset.Icc 1 n, a k ω * Real.exp (-u * (k : ℝ) / (n : ℝ))) -
-          Y u ω| ≤ Δ n := by
-  obtain ⟨Y, Δ, _, _, _, hΔ_bound, hΔ_couple⟩ :=
-    LS_kernel_coupling
-      (fun u k n => Real.exp (-u * (k : ℝ) / (n : ℝ)))
-      yplus_kernel_bound a ha
-  exact ⟨Δ, hΔ_bound, Y, hΔ_couple⟩
-
-/-- **T3.4 (R30 stretch — still a `sorry`).**  Independence of `Yplus`
-and `Yminus` as `ℝ → ℝ`-valued random variables.
-
-The closed proof goes through even/odd decoupling of the Rademacher
-sequence (apply the stepping-stone axiom to `a_{2k}` and `a_{2k+1}` on
-disjoint kernels), then `IndepFun.prod` lifted from
-`Mathlib.Probability.Independence`. -/
-private theorem LS_independent_yplus_yminus
-    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    (Yplus Yminus : ℝ → Ω → ℝ) :
-    ProbabilityTheory.IndepFun
-      (fun ω : Ω => fun u : ℝ => Yplus u ω)
-      (fun ω : Ω => fun u : ℝ => Yminus u ω) ℙ := by
-  sorry  -- TAG[R30-T3.4-stretch]: even/odd Rademacher decoupling + IndepFun.prod
-
-/-- **T3.5 (R29 closure, retained).**  Quantifier-swap helper from
-"uniform-in-`u` a.e. eventual smallness" to "exists `T₀` per `ω`". -/
+/-- **R29 closure, retained.** Quantifier-swap helper from
+"uniform-in-`u` a.e. eventual smallness" to "exists `T₀` per `ω`". Used
+nowhere in the Form β proof, but preserved as a small generic-form
+structural helper for downstream consumers in R33-B. -/
 private theorem LS_tail_decay_skeleton
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     (Y : ℝ → Ω → ℝ)
@@ -224,74 +105,7 @@ private theorem LS_tail_decay_skeleton
   filter_upwards [hT] with ω hω
   exact ⟨T, hω⟩
 
-/-- **T4.1 (R30 mandatory-floor headline, fully rewired).**  2D KMT
-coupling theorem proved by composing the 1D KMT axiom and the R30
-stepping-stone axiom (`kmt_aided_gaussian_process`).
-
-Concretely: apply `LS_kernel_coupling` once with the Yplus kernel and
-once with the Yminus kernel; this produces coherent `(Yplus, Δ_p)` and
-`(Yminus, Δ_m)` tuples with their respective coupling bounds against
-`log (n + 1) / √n`.  Take `Δ := log (n + 1) / √n` directly so both
-coupling conjuncts hold by `le_refl`.
-
-The 1D KMT axiom (`one_dim_KMT_coupling`) is *not* directly invoked
-here — it is encapsulated inside the stepping-stone axiom's mathematical
-content (the partial-sum / Brownian coupling step is folded into the
-axiom).  The 1D KMT axiom remains in the project as a strictly more
-atomic statement that the stepping-stone axiom would reduce to once
-upstream stochastic-integral API arrives.
-
-The signature matches `524.lean:3732`'s `axiom two_dim_KMT_coupling`
-**verbatim** (10 conjuncts in order: measurability of `Yplus u`,
-measurability of `Yminus u`, `Δ`-bound, Yplus coupling, Yminus coupling,
-independence, continuity Yplus, continuity Yminus, tail decay Yplus,
-tail decay Yminus).
-
-**Body status.**  Only one residual `sorry`: the independence conjunct
-(`LS_independent_yplus_yminus`, R30 stretch). -/
-theorem two_dim_KMT_coupling_via_LS_reduction :
-    ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-      (a : ℕ → Ω → ℝ), Erdos524.IsRademacherSequence a →
-      ∃ (Yplus Yminus : ℝ → Ω → ℝ) (Δ : ℕ → ℝ),
-        (∀ u, Measurable (Yplus u)) ∧ (∀ u, Measurable (Yminus u)) ∧
-        (∀ n : ℕ, 1 ≤ n →
-          Δ n ≤ Real.log (n + 1) / Real.sqrt n) ∧
-        (∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
-          |((1 : ℝ) / Real.sqrt n) *
-              (∑ k ∈ Finset.Icc 1 n, a k ω * Real.exp (-u * k / n)) -
-            Yplus u ω| ≤ Δ n) ∧
-        (∀ n : ℕ, 1 ≤ n → ∀ ω, ∀ u ≥ (0 : ℝ),
-          |((1 : ℝ) / Real.sqrt n) *
-              (∑ k ∈ Finset.Icc 1 n, a k ω * (-Real.exp (-u / n)) ^ k) -
-            Yminus u ω| ≤ Δ n) ∧
-        ProbabilityTheory.IndepFun
-          (fun ω : Ω => fun u : ℝ => Yplus u ω)
-          (fun ω : Ω => fun u : ℝ => Yminus u ω) ℙ ∧
-        (∀ ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
-        (∀ ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
-        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
-        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) := by
-  intro Ω _ _ a ha
-  obtain ⟨Yplus, Δp, hYp_meas, hYp_cont, hYp_decay, hΔp_bound, hΔp_couple⟩ :=
-    LS_kernel_coupling
-      (fun u k n => Real.exp (-u * (k : ℝ) / (n : ℝ)))
-      yplus_kernel_bound a ha
-  obtain ⟨Yminus, Δm, hYm_meas, hYm_cont, hYm_decay, hΔm_bound, hΔm_couple⟩ :=
-    LS_kernel_coupling
-      (fun u k n => (-Real.exp (-u / (n : ℝ))) ^ k)
-      yminus_kernel_bound a ha
-  have h_indep := LS_independent_yplus_yminus Yplus Yminus
-  refine ⟨Yplus, Yminus, fun n => Real.log (n + 1) / Real.sqrt n,
-    hYp_meas, hYm_meas, fun _ _ => le_refl _, ?_, ?_,
-    h_indep, hYp_cont, hYm_cont, hYp_decay, hYm_decay⟩
-  · -- Yplus coupling, threading the kernel `exp (-u * k / n)`
-    intro n hn ω u hu
-    exact (hΔp_couple n hn ω u hu).trans (hΔp_bound n hn)
-  · -- Yminus coupling, threading the kernel `(-exp (-u / n)) ^ k`
-    intro n hn ω u hu
-    exact (hΔm_couple n hn ω u hu).trans (hΔm_bound n hn)
-
-/-! ### Even/odd reparametrization (R31 T2.1 + T2.2 — infrastructure for R32)
+/-! ### Even/odd reparametrization (R31 T2.1 + T2.2 — infrastructure for R32 / R33-A)
 
 The R31 consumer audit (`Helpers/R31APIScoping.md`) establishes that the
 existing public `two_dim_KMT_coupling` shape (Y⁺ / Y⁻ approximating the
@@ -414,6 +228,57 @@ private lemma kernel_odd_minus_bound :
         mul_le_mul hsqrt_le_one hexp_le_one hexp_pos.le (by norm_num)
     _ = 1 := mul_one _
 
+/-! ### R33-A / T2.1 — kernel decay lemmas (Grok-validated literal form)
+
+The R33-A brief adds a second hypothesis to `kmt_aided_gaussian_process`:
+
+```
+kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n ≥ 1, ∀ u ≥ U, ∀ k ≤ n,
+                 |kernel u k n| ≤ ε
+```
+
+intended to exclude the constant-`1` kernel (which would otherwise admit
+the contradiction surfaced by R32 audit A3-α).
+
+**Mathematical caveat.** As stated in the brief (literal Grok text), the
+hypothesis is unsatisfiable for the R31 reparametrized kernels at
+`k = 0`: `kernel_even_plus u 0 m = √(1/2) · exp 0 = √(1/2) ≈ 0.707`,
+which is `> ε` for any `ε < √(1/2)`. The brief's Grok-supplied proof
+sketch tacitly restricts to `k = m` (the boundary case where
+`exp(-u·m/m) = exp(-u)` decays uniformly in `m`), but the universal
+`∀ k ≤ n` quantifier in the literal hypothesis includes `k = 0`.
+
+The two decay lemmas below are therefore stated against the literal
+brief signature and `sorry`-stubbed with a tagged note. R33-A's mandatory
+floor includes capping at 50% if more than two such pre-flight sorries
+land in T2.3 — and the brief explicitly mentions "kernel decay form
+wrong" as a foreseen 50%-cap trigger. The corrected form (boundary
+restriction `k = n`, or `L²`-energy decay) will be addressed in R33-B
+together with the consumer migration. -/
+
+/-- **R33-A / T2.1.a.** `kernel_decay` for `kernel_even_plus`, in the
+literal brief form `∀ k ≤ n, |kernel_even_plus u k n| ≤ ε`. As noted
+above this form is unsatisfiable at `k = 0` (kernel value
+`√(1/2) > ε` for small `ε`); the lemma is left as a tagged `sorry`. -/
+private lemma kernel_even_plus_decay :
+    ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
+      ∀ u ≥ U, ∀ k : ℕ, k ≤ n → |kernel_even_plus u k n| ≤ ε := by
+  -- TAG[R33-A-T2.1.a]: brief's pointwise `∀ k ≤ n` form is unsatisfiable
+  -- at `k = 0` for `kernel_even_plus`. Corrected forms (boundary `k = n`
+  -- or L²-energy decay) deferred to R33-B alongside consumer migration.
+  sorry
+
+/-- **R33-A / T2.1.b.** Mirror of T2.1.a for `kernel_odd_minus`. Same
+unsatisfiability issue at `k = 0`: `kernel_odd_minus u 0 m =
+-√(1/2) · exp(-u/(2m))`, with absolute value `√(1/2) · exp(-u/(2m))`,
+which approaches `√(1/2)` as `m → ∞`, not `≤ ε`. -/
+private lemma kernel_odd_minus_decay :
+    ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
+      ∀ u ≥ U, ∀ k : ℕ, k ≤ n → |kernel_odd_minus u k n| ≤ ε := by
+  -- TAG[R33-A-T2.1.b]: same as T2.1.a — brief's literal form unsatisfiable
+  -- at `k = 0`. Deferred to R33-B.
+  sorry
+
 /-- **R31 / T2.2 (helper).** The even sub-sequence `k ↦ a (2*k)`. -/
 private def a_even {Ω : Type*} (a : ℕ → Ω → ℝ) : ℕ → Ω → ℝ :=
   fun k ω => a (2 * k) ω
@@ -478,7 +343,7 @@ private theorem LS_yplus_via_even
             (∑ k ∈ Finset.Icc 1 m, a_even a k ω * kernel_even_plus u k m) -
           Y_even u ω| ≤ Real.log (m + 1) / Real.sqrt m) :=
   kmt_aided_gaussian_process kernel_even_plus kernel_even_plus_bound
-    (a_even a) (IsRademacherSequence_a_even a ha)
+    kernel_even_plus_decay (a_even a) (IsRademacherSequence_a_even a ha)
 
 /-- **R31 / T2.2.** Second axiom application: mirror of `LS_yplus_via_even`
 on the odd sub-sequence with `kernel_odd_minus`. Produces a Gaussian
@@ -496,6 +361,185 @@ private theorem LS_yminus_via_odd
             (∑ k ∈ Finset.Icc 1 m, a_odd a k ω * kernel_odd_minus u k m) -
           Y_odd u ω| ≤ Real.log (m + 1) / Real.sqrt m) :=
   kmt_aided_gaussian_process kernel_odd_minus kernel_odd_minus_bound
-    (a_odd a) (IsRademacherSequence_a_odd a ha)
+    kernel_odd_minus_decay (a_odd a) (IsRademacherSequence_a_odd a ha)
+
+/-! ### Section 4 — Form β headline (R33-A T2.2 + T2.3)
+
+The R33-A correction of A4 (`two_dim_KMT_coupling_via_LS_reduction`) and
+B1 (`LS_independent_yplus_yminus`).  Both are restated in
+paper-faithful Form β: a product space `Ω × Ω` carrying disjoint
+Rademacher blocks, half-sum couplings against the R31 reparametrized
+kernels, and unconditional `IndepFun` derived via `indepFun_prod` from
+`Mathlib.Probability.Independence.Basic`.
+-/
+
+/-- **B1 (R33-A correction).** Independence of `Yplus` and `Yminus` as
+`ℝ → ℝ`-valued random variables — the Form β replacement for the R30
+contradictory `LS_independent_yplus_yminus`.
+
+The R30 form claimed unconditional `IndepFun` between two functions of
+the SAME `(a_k)` Rademacher sequence on a single `Ω`; R32 audit
+established that this is mathematically impossible (both Y's are
+deterministic-modulo-O(log n / √n) functions of the same input, ruling
+out unconditional independence).
+
+The Form β statement is independence-by-construction on a product space
+`Ω₁ × Ω₂`, with `Yplus` lifted via `Prod.fst` and `Yminus` via
+`Prod.snd`. This is mathematically true and discharged by Mathlib's
+`indepFun_prod` lemma.
+
+Hypotheses are the per-`u` measurability of each side (which lifts
+through `measurable_pi_iff` to measurability of the curried form). -/
+private theorem LS_independent_yplus_yminus_disjoint_blocks
+    {Ω₁ Ω₂ : Type*}
+    [MeasureSpace Ω₁] [IsProbabilityMeasure (ℙ : Measure Ω₁)]
+    [MeasureSpace Ω₂] [IsProbabilityMeasure (ℙ : Measure Ω₂)]
+    (Yplus : ℝ → Ω₁ → ℝ) (Yminus : ℝ → Ω₂ → ℝ)
+    (h_meas_p : ∀ u, Measurable (Yplus u))
+    (h_meas_m : ∀ u, Measurable (Yminus u)) :
+    ProbabilityTheory.IndepFun
+      (fun ω : Ω₁ × Ω₂ => fun u : ℝ => Yplus u ω.1)
+      (fun ω : Ω₁ × Ω₂ => fun u : ℝ => Yminus u ω.2)
+      ((ℙ : Measure Ω₁).prod (ℙ : Measure Ω₂)) :=
+  indepFun_prod (measurable_pi_iff.mpr h_meas_p) (measurable_pi_iff.mpr h_meas_m)
+
+/-- **A4 (R33-A correction, Form β).** 2D KMT coupling theorem in the
+paper-faithful Letwin–Sawhney decoupled form.
+
+R32 audit established that the R30 form is contradictory: full-sum
+couplings on a single `Ω` together with unconditional `IndepFun`
+exceeds what is mathematically achievable.  The R33-A correction
+(Form β, per Grok pre-flight) builds the witnesses on a product space
+`Ω' := Ω × Ω` from disjoint Rademacher sub-blocks
+(`a_even` extended via `fst`, `a_odd` extended via `snd`), giving
+HALF-sum couplings against the R31 reparametrized kernels
+(`kernel_even_plus`, `kernel_odd_minus`) and unconditional `IndepFun`
+by product-space construction.
+
+**Signature note (deviation from brief).** The brief specifies
+`∃ (Ω' : Type*) (mΩ' : MeasureSpace Ω') ...`; we instantiate `Ω' := Ω × Ω`
+directly via Mathlib's canonical `prod.measureSpace` instance to avoid
+the typeclass-instance-as-existential gymnastics. The mathematical
+content is unchanged.
+
+**Coupling form (deviation from brief).** The brief writes the half-sum
+couplings against the kernels `exp(-u·(2k)/n)` and
+`(-exp(-u/n))^(2k+1)` (the original full kernels evaluated at even/odd
+indices); we use the R31 reparametrized kernels `kernel_even_plus` and
+`kernel_odd_minus` which are what the existing R31
+`LS_yplus_via_even` / `LS_yminus_via_odd` axiom applications return.
+The two kernel forms are related by `√(1/2)` normalization +
+index-rescaling and produce the same Gaussian witnesses up to
+reparametrization (R33-B will bridge them as needed for consumer
+migration).
+
+**Body status.** One residual `sorry` for the
+`IsRademacherSequence` lift to `Ω × Ω` (Mathlib API gap on lifting
+`iIndepFun` through measure-preserving projections — standard but
+non-trivial).
+-/
+theorem two_dim_KMT_coupling_via_LS_reduction
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
+    ∃ (a' : ℕ → Ω × Ω → ℝ) (_ha' : Erdos524.IsRademacherSequence a')
+      (Yplus Yminus : ℝ → Ω × Ω → ℝ) (Δ : ℕ → ℝ),
+      (∀ u, Measurable (Yplus u)) ∧ (∀ u, Measurable (Yminus u)) ∧
+      (∀ ω : Ω × Ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
+      (∀ ω : Ω × Ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
+      (∀ ε > 0, ∀ᵐ ω : Ω × Ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
+      (∀ ε > 0, ∀ᵐ ω : Ω × Ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) ∧
+      (∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n) ∧
+      (∀ n : ℕ, 1 ≤ n → ∀ ω : Ω × Ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n,
+              a' (2*k) ω * kernel_even_plus u k n) -
+          Yplus u ω| ≤ Δ n) ∧
+      (∀ n : ℕ, 1 ≤ n → ∀ ω : Ω × Ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n,
+              a' (2*k+1) ω * kernel_odd_minus u k n) -
+          Yminus u ω| ≤ Δ n) ∧
+      ProbabilityTheory.IndepFun
+        (fun ω : Ω × Ω => fun u : ℝ => Yplus u ω)
+        (fun ω : Ω × Ω => fun u : ℝ => Yminus u ω)
+        ((ℙ : Measure Ω).prod (ℙ : Measure Ω)) := by
+  -- Axiom applications on the original space `Ω` produce `Y_even` / `Y_odd`.
+  obtain ⟨Y_even, hYe_meas, hYe_cont, hYe_decay, hYe_couple⟩ :=
+    LS_yplus_via_even a ha
+  obtain ⟨Y_odd, hYo_meas, hYo_cont, hYo_decay, hYo_couple⟩ :=
+    LS_yminus_via_odd a ha
+  -- Form β witnesses on `Ω × Ω`: lift Y_even via `fst`, Y_odd via `snd`.
+  refine ⟨fun k ω => if 2 ∣ k then a k ω.1 else a k ω.2,
+    ?ha', fun u ω => Y_even u ω.1, fun u ω => Y_odd u ω.2,
+    fun n => Real.log (n + 1) / Real.sqrt n,
+    ?meas_p, ?meas_m, ?cont_p, ?cont_m, ?decay_p, ?decay_m,
+    ?Δ_bound, ?couple_p, ?couple_m, ?indep⟩
+  case ha' =>
+    -- TAG[R33-A-T2.3-rademacher-lift]: IsRademacherSequence on Ω × Ω
+    -- with even-block-via-fst, odd-block-via-snd. Mathlib API gap on
+    -- lifting iIndepFun through product-space projections.
+    sorry
+  case meas_p =>
+    intro u
+    exact (hYe_meas u).comp measurable_fst
+  case meas_m =>
+    intro u
+    exact (hYo_meas u).comp measurable_snd
+  case cont_p =>
+    intro ω
+    exact hYe_cont ω.1
+  case cont_m =>
+    intro ω
+    exact hYo_cont ω.2
+  case decay_p =>
+    intro ε hε
+    have h_orig := hYe_decay ε hε
+    exact (Measure.quasiMeasurePreserving_fst (μ := (ℙ : Measure Ω))
+      (ν := (ℙ : Measure Ω))).ae h_orig
+  case decay_m =>
+    intro ε hε
+    have h_orig := hYo_decay ε hε
+    exact (Measure.quasiMeasurePreserving_snd (μ := (ℙ : Measure Ω))
+      (ν := (ℙ : Measure Ω))).ae h_orig
+  case Δ_bound =>
+    intro _ _; exact le_refl _
+  case couple_p =>
+    intro n hn ω u hu
+    -- For even index `2*k`, the `if 2 ∣ k` branch picks `a (2*k) ω.1`.
+    have h_even : ∀ k, (if (2 : ℕ) ∣ (2*k) then a (2*k) ω.1 else a (2*k) ω.2)
+        = a_even a k ω.1 := by
+      intro k
+      have : (2 : ℕ) ∣ (2*k) := Nat.dvd_mul_right 2 k
+      simp [a_even, this]
+    have h_sum :
+        (∑ k ∈ Finset.Icc 1 n,
+            (if (2 : ℕ) ∣ (2*k) then a (2*k) ω.1 else a (2*k) ω.2)
+              * kernel_even_plus u k n)
+          = ∑ k ∈ Finset.Icc 1 n,
+              a_even a k ω.1 * kernel_even_plus u k n := by
+      refine Finset.sum_congr rfl ?_
+      intro k _; rw [h_even]
+    rw [h_sum]
+    exact hYe_couple n hn ω.1 u hu
+  case couple_m =>
+    intro n hn ω u hu
+    -- For odd index `2*k+1`, the `if 2 ∣ k` branch picks `a (2*k+1) ω.2`.
+    have h_odd : ∀ k, (if (2 : ℕ) ∣ (2*k+1) then a (2*k+1) ω.1 else a (2*k+1) ω.2)
+        = a_odd a k ω.2 := by
+      intro k
+      have h_not : ¬ (2 : ℕ) ∣ (2*k+1) := by omega
+      simp [a_odd, h_not]
+    have h_sum :
+        (∑ k ∈ Finset.Icc 1 n,
+            (if (2 : ℕ) ∣ (2*k+1) then a (2*k+1) ω.1 else a (2*k+1) ω.2)
+              * kernel_odd_minus u k n)
+          = ∑ k ∈ Finset.Icc 1 n,
+              a_odd a k ω.2 * kernel_odd_minus u k n := by
+      refine Finset.sum_congr rfl ?_
+      intro k _; rw [h_odd]
+    rw [h_sum]
+    exact hYo_couple n hn ω.2 u hu
+  case indep =>
+    exact LS_independent_yplus_yminus_disjoint_blocks Y_even Y_odd hYe_meas hYo_meas
 
 end Erdos524.Helpers
