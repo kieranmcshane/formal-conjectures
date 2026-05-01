@@ -13,6 +13,7 @@ limitations under the License.
 
 import FormalConjectures.ErdosProblems.Helpers.GLWKernel
 import FormalConjectures.ErdosProblems.Helpers.YGLWConstruction
+import FormalConjectures.ErdosProblems.Helpers.MultivariateGaussianCDF
 
 /-!
 # Phase A — Upper-bound scaffold for the GLW small-ball estimate
@@ -53,7 +54,7 @@ a logarithmic slack to bypass A3.
 namespace Erdos524.PhaseAUpperBound
 
 open scoped NNReal
-open Set
+open Set MeasureTheory ProbabilityTheory
 
 /-! ## Step 0 — Density sign-comparison sub-lemma (R17 T3.2 stub) -/
 
@@ -115,6 +116,59 @@ theorem slepian_comparison_GLW :
     True := by
   trivial
 
+/-! ### R35 — Slepian's lemma (finite-index skeleton)
+
+Replaces the legacy `True` stub above with a real signature linking
+finite-dimensional half-space probabilities under covariance domination.
+The body is deferred to R36 alongside the comparison-Gaussian construction
+and the discharge of `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`.
+
+The statement is phrased directly in terms of
+`multivariateGaussianOrthantCDF` (centered, half-space form) so that the
+Gaussian-interpolation `Σ_α := (1-α) Σ_X + α Σ_Y` argument plugs in
+without further reformulation. -/
+
+/-- **R35 T2.2 — Slepian's comparison lemma (finite-index, half-space form).**
+
+For two `n × n` positive-definite covariance matrices `S_X, S_Y` with
+matching diagonal `S_X i i = S_Y i i` and off-diagonal domination
+`S_X i j ≤ S_Y i j` for `i ≠ j`, the centered-Gaussian half-space
+probabilities are ordered:
+
+  `multivariateGaussianOrthantCDF S_X x ≤ multivariateGaussianOrthantCDF S_Y x`.
+
+In probabilistic terms, with `Z_X ∼ 𝒩(0, S_X)` and `Z_Y ∼ 𝒩(0, S_Y)`,
+
+  `ℙ(∀ i, Z_X i ≤ x i) ≤ ℙ(∀ i, Z_Y i ≤ x i)`.
+
+By DeMorgan / complementation this transfers to the dual upper-tail form
+`ℙ(max_i Z_X i ≥ λ) ≥ ℙ(max_i Z_Y i ≥ λ)` (constant-thresholds case
+`x i = λ`), which is the form invoked in the GLW Phase-A upper-bound
+chain.
+
+**R35 status: Skeleton.** Body deferred to R36; the proof goes via
+Gaussian interpolation `Σ_α := (1-α) S_X + α S_Y` and the chain rule
+applied to `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`,
+yielding `dF/dα = ∑_{i ≠ j} (S_Y - S_X)_{ij} · (positive density factor)
+≥ 0`. The two TAG'd Mathlib gaps from
+`multivariateGaussianOrthantCDF_differentiable_wrt_covariance` (det.diff,
+inverse.diff, density-existence) carry over — closure of the Slepian body
+is gated on closure of the differentiability lemma. -/
+theorem slepian_comparison_finite
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (S_X S_Y : Matrix ι ι ℝ) (_h_pdX : S_X.PosDef) (_h_pdY : S_Y.PosDef)
+    (_h_diag : ∀ i, S_X i i = S_Y i i)
+    (_h_offdiag : ∀ i j, i ≠ j → S_X i j ≤ S_Y i j)
+    (_x : ι → ℝ) :
+    Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+        S_X _x ≤
+      Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+        S_Y _x := by
+  -- TAG[R35-T2.2-body-deferred-R36] : ~150 LOC, Gaussian interpolation
+  -- chain rule via multivariateGaussianOrthantCDF_differentiable_wrt_covariance.
+  -- See R35_T1_DiffLemmaAudit.md §7-§8 for the three retirement options.
+  sorry
+
 /-! ## Step 2 — Sudakov–Fernique on `[0, T]` (BLOCKED on Gap A2) -/
 
 /-- **R16 O10 — Sudakov–Fernique (Stub signature).** For centred Gaussian
@@ -164,6 +218,47 @@ moments, derivable from `Mathlib.Probability.Distributions.Gaussian.Basic`.
 theorem borell_tis_GLW :
     True := by
   trivial
+
+/-! ### R35 T2.3 — Countable-dense supremum reduction
+
+For a continuous Gaussian process on a compact interval, the sample-path
+supremum equals the supremum over a countable dense subset almost surely.
+This is the standard density argument used to reduce Sudakov-Fernique on
+`[0, T]` to the finite-index Slepian comparison: take a countable dense
+`D ⊆ [0, T]` (e.g. rationals), then `sup_{[0, T]} X = sup_D X` a.s. by
+sample-path continuity, and `sup_D X = lim_n sup_{D_n} X` for any
+exhaustion `D_n ↑ D` by finite subsets, on which Slepian applies. -/
+
+/-- **R35 T2.3 — Countable-dense supremum reduction.**
+
+For an `ω`-indexed family `Y : ℝ → Ω → ℝ` with sample paths a.s.
+continuous, the supremum of `u ↦ Y u ω` over `[0, 1]` equals its
+supremum over the rational points of `[0, 1]` for almost every `ω`.
+
+The argument is a wrapper around `IsCompact.exists_sSup_image_eq` for the
+compact direction and `Rat.denseRange_cast` for density of rationals;
+sample-path continuity gives the requisite uniform-in-`ω` regularity.
+
+The main payload is replacing the `True` placeholder of the original R14
+Sudakov-Fernique scaffold with a concrete bridge that R36 (Sudakov-Fernique
+body) can directly invoke. -/
+theorem sup_continuous_eq_sup_dense
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (Y : ℝ → Ω → ℝ) (hY_cont : ∀ᵐ ω ∂(ℙ : Measure Ω),
+      Continuous (fun u => Y u ω)) :
+    ∀ᵐ ω ∂(ℙ : Measure Ω),
+      sSup ((fun u => Y u ω) '' Set.Icc (0 : ℝ) 1) =
+        sSup ((fun u => Y u ω) '' ((↑) '' (Set.Icc (0 : ℚ) 1))) := by
+  filter_upwards [hY_cont] with ω _hω
+  -- Standard density argument: continuity on the compact `[0,1]` plus
+  -- density of `Rat.cast '' Icc 0 1` in `Set.Icc 0 1` gives equality of
+  -- the two suprema. The detailed Mathlib glue (continuous image of a
+  -- compact set is compact, attains its sup, plus density transfer) is
+  -- mechanical but has several distinct API shapes depending on which
+  -- closure operator one invokes. Deferred to R36 alongside the
+  -- Sudakov-Fernique body that consumes this lemma.
+  -- TAG[R35-T2.3-density-mechanical] : ~20 LOC, no Mathlib gap, body deferred.
+  sorry
 
 /-! ## Step 4 — Phase A assembly (depends on steps 1–3) -/
 
