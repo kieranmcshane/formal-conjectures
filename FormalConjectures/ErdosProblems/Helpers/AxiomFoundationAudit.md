@@ -366,7 +366,46 @@ slated for deletion alongside `kernel_odd_minus` in R33-C cleanup;
 1 R33-B linear-combo `IndepFun(Yplus, Yminus)` on
 Gaussian-uncorrelated).
 
-R33-C handles consumer migration in `524.lean` (4 consumers:
+## R33-C closure (Helpers consolidation)
+
+R33-C addresses Helpers-side foundational corrections:
+
+* **T1.1 audit** (`Helpers/R33C_T1_KernelDecayAudit.md`) — verified
+  that `kernel_geometric_decay` does not exist in the codebase; the
+  brief's "OTHER decay hypothesis" was a phantom.  T2.3 conditional
+  not triggered.
+* **T2.1 Path A axiom signature** — replaced wrong-shape pointwise
+  `_kernel_decay` with normalized L²-energy form
+  `(1/n)·∑ (kernel u k n)² ≤ ε`, Grok-validated.
+* **T2.2 `kernel_even_plus_decay`** — closed with explicit witness
+  `U := 1/(4ε)`; inner Real-arithmetic chain (geometric sum bound +
+  `a/(eᵃ−1) ≤ 1`) left as TAG'd sub-sorry per brief authorization.
+* **T2.4 `IndepFun(Yplus, Yminus)`** — honest TAG'd Mathlib API gap
+  diagnostic citing `IndepFun.covariance_eq_zero` (forward-only),
+  `IsGaussian` API limitations, `indepFun_iff_charFun_prod`
+  (requires joint Gaussian-ness not certified by the axiom).
+* **T2.5 `?ha'.iIndepFun`** — honest TAG'd Mathlib API gap
+  diagnostic citing `iIndepFun.precomp`/`comp`/`pi`/etc. as
+  ingredients but no packaged "merge two iIndepFun families on
+  disjoint index halves over a product measure" lemma.
+* **R33-C bonus** — closed both R31 `IsRademacherSequence_a_{even,odd}`
+  `iIndepFun` sorries via `iIndepFun.precomp` on the injections
+  `k ↦ 2k` / `k ↦ 2k+1`.
+
+Dead R30/R31 code deleted in R33-C: `kernel_odd_minus`,
+`kernel_odd_minus_bound`, `kernel_odd_minus_decay`,
+`LS_yminus_via_odd` (the linear-combo Form β uses only
+`kernel_even_plus`).
+
+Net residual sorries after R33-C: **3** (down from 6 in R33-B):
+1. T2.2 inner Real-arithmetic chain
+   (`R33-C-T2.2-explicit-witness`).
+2. T2.4 Gaussian-uncorrelated → independent
+   (`R33-C-T2.4-gaussian-uncorrelated-indep-mathlib-gap`).
+3. T2.5 iIndepFun product-lift on Ω × Ω
+   (`R33-C-T2.5-iIndepFun-prod-mathlib-gap`).
+
+R33-D handles consumer migration in `524.lean` (4 consumers:
 3926 / 4081 / 4229 / 4605) + triangle bridge for the small-ball
 lower bound's `−2·glw.lower` factor + phase-shift correction +
 ENat-conflict resolution.  Estimated 1-2 rounds, ~150-300 LOC.

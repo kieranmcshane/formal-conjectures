@@ -37,9 +37,9 @@ T3.3-C4 coupling-error in `Helpers/TwoDimKMTFromOneDim.lean`):
 atomicity sweet spot).  Net axiom count flat after `two_dim_KMT_coupling`
 is replaced by theorem (R30 T-replace).
 
-**Hypothesis-shape note (R30 → R33-A → R33-B tightening).**  The R30
-form used only the pointwise bound `|kernel u k n| ≤ 1`, which is
-satisfied by the constant-`1` kernel — and that kernel produces a
+**Hypothesis-shape note (R30 → R33-A → R33-B → R33-C tightening).**
+The R30 form used only the pointwise bound `|kernel u k n| ≤ 1`, which
+is satisfied by the constant-`1` kernel — and that kernel produces a
 partial sum that is asymptotically `N(0, 1)` and does NOT decay as
 `u → ∞`, contradicting the conclusion's tail-decay conjunct.  R32's
 audit (`Helpers/AxiomFoundationAudit.md`, A3-α) flagged this as the
@@ -50,11 +50,28 @@ violates.
 R33-A used the literal Grok-supplied form
 `∀ ε > 0, ∃ U, ∀ n ≥ 1, ∀ u ≥ U, ∀ k ≤ n, |kernel u k n| ≤ ε`, which is
 unsatisfiable at `k = 0` for the R31 reparametrized kernels
-(`kernel_even_plus u 0 m = √(1/2) · exp 0 = √(1/2)`).  R33-B retightens
-to `1 ≤ k ≤ n`, matching the `Finset.Icc 1 n` indexing in the axiom's
-coupling conjunct (the partial-sum index never reaches `k = 0`).  See
-`Helpers/AxiomFoundationAudit.md` and the R33-A / R33-B round summaries
-for the full mathematical reasoning.
+(`kernel_even_plus u 0 m = √(1/2) · exp 0 = √(1/2)`).  R33-B retightened
+to `1 ≤ k ≤ n`.  R33-B-debrief showed this pointwise form remains
+unsatisfiable for `kernel_even_plus` at `(k = 1, n` large`)`.
+
+**R33-C / Path A (Grok-validated).**  Replace the pointwise eventual
+smallness with **normalized L²-energy decay** of the kernel:
+
+```
+kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n ≥ 1, ∀ u ≥ U,
+    (1/n) · ∑_{k=1..n} (kernel u k n)² ≤ ε.
+```
+
+This form is satisfiable for `kernel_even_plus` with explicit witness
+`U = 1/(4ε)`, via `a/(e^a − 1) ≤ 1` applied to `a = 2u/n` (geometric
+sum bound on `(1/2)·∑exp(−2uk/n) ≤ 1/(4u)`). Sub-Gaussian tail control
+on `Y` then follows from the Rademacher structure + Borel-Cantelli on
+the integer grid + sample-path continuity.
+
+See `Helpers/R33C_T1_KernelDecayAudit.md` for the audit verifying that
+no other decay hypothesis (`kernel_geometric_decay`) exists in the
+codebase, and `Helpers/AxiomFoundationAudit.md` for the broader
+foundational reasoning.
 -/
 
 namespace Erdos524.Helpers
@@ -83,8 +100,9 @@ brownian-motion lands `MeasureTheory.StochasticIntegral.deterministic_L2_kernel`
 axiom kmt_aided_gaussian_process
     (kernel : ℝ → ℕ → ℕ → ℝ)
     (_kernel_bound : ∀ u, 0 ≤ u → ∀ k n, |kernel u k n| ≤ 1)
-    (_kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
-      ∀ u ≥ U, ∀ k : ℕ, 1 ≤ k → k ≤ n → |kernel u k n| ≤ ε)
+    (_kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n → ∀ u ≥ U,
+      (1 / (n : ℝ)) *
+        (Finset.Icc 1 n).sum (fun k => (kernel u k n) ^ 2) ≤ ε)
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     (a : ℕ → Ω → ℝ) (_ha : Erdos524.IsRademacherSequence a) :
     ∃ (Y : ℝ → Ω → ℝ),

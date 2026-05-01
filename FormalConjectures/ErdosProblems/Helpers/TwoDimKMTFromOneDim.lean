@@ -45,21 +45,24 @@ are functions of the same `(a_k)` Rademacher sequence.
   the product-space construction (`indepFun_prod` in
   `Mathlib.Probability.Independence.Basic`).
 
-## Form β file structure (R33-A)
+## Form β file structure (R33-A → R33-B → R33-C)
 
 * **Section 1 — R31 kernel/sequence infrastructure (kept).** The
-  reparametrized kernels `kernel_even_plus`, `kernel_odd_minus`, their
-  pointwise bounds, the half-sequences `a_even` / `a_odd`, and their
-  `IsRademacherSequence` derivations.
-* **Section 2 — R33-A T2.1 decay lemmas.** New `kernel_decay` arguments
-  for the two R31 kernels, satisfying the second hypothesis added to
-  `kmt_aided_gaussian_process` in R33-A.
-* **Section 3 — R31 axiom applications.** `LS_yplus_via_even` and
-  `LS_yminus_via_odd`, updated to thread the new `kernel_decay`
-  hypothesis.
-* **Section 4 — Form β headline (R33-A T2.2 + T2.3).**
+  reparametrized kernel `kernel_even_plus`, its pointwise bound, the
+  half-sequences `a_even` / `a_odd`, and their `IsRademacherSequence`
+  derivations.  The R31 odd-minus kernel was deleted in R33-C as part
+  of the linear-combo Form β consolidation (single plus-kernel applied
+  to two sub-sequences).
+* **Section 2 — R33-C T2.1 decay lemma.** Path A normalized L²-energy
+  `kernel_even_plus_decay`, the R33-C-tightened second hypothesis to
+  `kmt_aided_gaussian_process`.
+* **Section 3 — R31 axiom applications.** `LS_yplus_via_even` (even
+  sub-sequence) and `LS_y_odd_via_plus_kernel` (odd sub-sequence) — both
+  threading `kernel_even_plus` + `kernel_even_plus_decay`.
+* **Section 4 — Form β headline (R33-A T2.2 + T2.3 + R33-B T2.2).**
   `LS_independent_yplus_yminus_disjoint_blocks` (B1 corrected) and
-  `two_dim_KMT_coupling_via_LS_reduction` (A4 corrected).
+  `two_dim_KMT_coupling_via_LS_reduction` (A4 corrected,
+  R33-B linear-combo).
 
 ## What was deleted vs R30
 
@@ -151,19 +154,6 @@ substitution cancel, leaving `√(1/2) · exp(-u·k/m)`. -/
 private noncomputable def kernel_even_plus (u : ℝ) (k m : ℕ) : ℝ :=
   Real.sqrt (1/2) * Real.exp (-u * (k : ℝ) / (m : ℝ))
 
-/-- **R31 / T2.1.** Reparametrized kernel for the ODD-indexed half of
-the FULL minus-kernel sum `(1/√n) ∑_k a_k · (-exp(-u/n))^k`.
-
-Original odd-kernel-and-sign at index `k = 2j+1`:
-`(-exp(-u/n))^(2j+1) = -exp(-u·(2j+1)/n)`.
-
-Even-indexing the odd half (we look at the `(2j+1)`-th elements of `a`)
-+ compressing `m := n/2` + the same `√(1/2)` normalization factor as
-for the even half. The minus sign is folded into the kernel
-definition. -/
-private noncomputable def kernel_odd_minus (u : ℝ) (k m : ℕ) : ℝ :=
-  -Real.sqrt (1/2) * Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ)))
-
 /-- **R31 / T2.1.a.** Pointwise bound `|kernel_even_plus u k m| ≤ 1`,
 for `u ≥ 0`. This is the hypothesis required by the
 `kmt_aided_gaussian_process` axiom. The proof uses
@@ -192,122 +182,54 @@ private lemma kernel_even_plus_bound :
         mul_le_mul hsqrt_le_one hexp_le_one hexp_pos.le (by norm_num)
     _ = 1 := mul_one _
 
-/-- **R31 / T2.1.b.** Pointwise bound `|kernel_odd_minus u k m| ≤ 1`,
-for `u ≥ 0`. Mirror of T2.1.a: the explicit negative sign is folded
-into `abs_neg`, and the exponent `-u·(2k+1)/(2m)` is non-positive on
-`u ≥ 0` (since `2k+1 ≥ 0` and `2m ≥ 0`). -/
-private lemma kernel_odd_minus_bound :
-    ∀ u : ℝ, 0 ≤ u → ∀ k m : ℕ, |kernel_odd_minus u k m| ≤ 1 := by
-  intro u hu k m
-  unfold kernel_odd_minus
-  have hsqrt_pos : (0 : ℝ) < Real.sqrt (1/2) :=
-    Real.sqrt_pos.mpr (by norm_num)
-  have hsqrt_le_one : Real.sqrt (1/2) ≤ 1 := by
-    rw [show (1 : ℝ) = Real.sqrt 1 from Real.sqrt_one.symm]
-    exact Real.sqrt_le_sqrt (by norm_num)
-  have hexp_pos :
-      0 < Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ))) := Real.exp_pos _
-  have hexp_le_one :
-      Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ))) ≤ 1 := by
-    refine Real.exp_le_one_iff.mpr ?_
-    have hk_nn : (0 : ℝ) ≤ 2 * (k : ℝ) + 1 := by
-      have : (0 : ℝ) ≤ (k : ℝ) := Nat.cast_nonneg _
-      linarith
-    have hu_kp1_nn : 0 ≤ u * (2 * (k : ℝ) + 1) :=
-      mul_nonneg hu hk_nn
-    have hneg : -u * (2 * (k : ℝ) + 1) ≤ 0 := by linarith [hu_kp1_nn]
-    rcases Nat.eq_zero_or_pos m with hm | hm
-    · simp [hm]
-    · have hm_pos : (0 : ℝ) < 2 * (m : ℝ) := by
-        have : (0 : ℝ) < (m : ℝ) := by exact_mod_cast hm
-        linarith
-      exact div_nonpos_of_nonpos_of_nonneg hneg hm_pos.le
-  rw [abs_mul, abs_neg, abs_of_pos hsqrt_pos, abs_of_pos hexp_pos]
-  calc Real.sqrt (1/2) * Real.exp (-u * (2 * (k : ℝ) + 1) / (2 * (m : ℝ)))
-      ≤ 1 * 1 :=
-        mul_le_mul hsqrt_le_one hexp_le_one hexp_pos.le (by norm_num)
-    _ = 1 := mul_one _
+/-! ### R33-C / T2.1 — kernel decay lemma (Path A normalized L²-energy)
 
-/-! ### R33-B / T2.1 — kernel decay lemmas (k ≥ 1 form)
-
-The R33-B brief tightens the second hypothesis to
-`kmt_aided_gaussian_process`:
+R33-C / T2.1 replaces the wrong-shape pointwise eventual-smallness
+hypothesis (R33-A literal-Grok form, R33-B `1 ≤ k` retightening) with
+the **Path A normalized L²-energy** form (Grok-validated R33-C):
 
 ```
-kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n ≥ 1, ∀ u ≥ U, ∀ k, 1 ≤ k → k ≤ n →
-                 |kernel u k n| ≤ ε
+kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n ≥ 1, ∀ u ≥ U,
+    (1/n) · ∑_{k=1..n} (kernel u k n)² ≤ ε.
 ```
 
-so as to match the `Finset.Icc 1 n` indexing in the conclusion's
-coupling conjunct (the partial-sum index never reaches `k = 0`).  R33-A
-landed the form `∀ k ≤ n` (literal Grok text), which was unsatisfiable
-at `k = 0`.
+This form is satisfiable for `kernel_even_plus` with explicit witness
+`U := 1/(4ε)`. The proof rewrites the squared kernel as
+`(1/2) · exp(−2uk/n)`, bounds the geometric sum
+`∑_{k=1..n} exp(−2uk/n)` via `a/(eᵃ − 1) ≤ 1` with `a = 2u/n`, and
+combines the constants to get `(1/n) · ∑ ≤ 1/(4u) ≤ ε` for `u ≥ U`.
 
-**Residual mathematical gap (T2.1 honest diagnostic).**  Even with the
-`1 ≤ k` restriction, the literal brief form remains unsatisfiable for
-the R31 reparametrized kernels.  Concretely, for
-`kernel_even_plus u k n = √(1/2) · exp(-u·k/n)` with `1 ≤ k ≤ n`, the
-worst case at `(k = 1, n` large`)` gives
-`|kernel| = √(1/2) · exp(-u/n) → √(1/2)` as `n → ∞` for any fixed `u`.
-For `ε < √(1/2)` and `U` universal in `n`, choosing
-`n > U / log(√(1/2) / ε)` yields a counterexample.  The brief's
-suggested arithmetic
-`exp(-u·k/n) ≤ exp(-u)` requires `k/n ≥ 1`, i.e., `k ≥ n` — so the
-proof closes only on the boundary case `k = n`, not under the briefed
-`k ≥ 1`.
+The dead `kernel_odd_minus` family (`kernel_odd_minus`,
+`kernel_odd_minus_bound`, `kernel_odd_minus_decay`,
+`LS_yminus_via_odd`) was deleted in R33-C: the linear-combo Form β
+uses only `kernel_even_plus` (applied to both `a_even` and `a_odd`),
+so the odd-minus kernel is no longer referenced. -/
 
-The honest fixes are:
-* **Boundary form**: change the universal quantifier to `k = n` (only
-  the boundary index — sufficient for the L²-energy controlling Y's
-  sample-path tail).
-* **Per-n form**: swap quantifier order to
-  `∀ ε > 0, ∀ n ≥ 1, ∃ U(n) > 0, ...` so `U` may depend on `n`
-  (`U(n, ε) := n · log(√(1/2) / ε)` works).
-
-Either fix would require re-tightening the axiom signature in
-`Helpers/StochasticProcessAxiom.lean`, which is out of scope for
-R33-B's substantive work (the linear-combo construction in T2.2).
-The residual sorry is therefore TAG'd with a precise diagnostic and
-deferred to a future round (or to the day Mathlib's stochastic-integral
-API lands and the entire `kmt_aided_gaussian_process` axiom is
-discharged). -/
-
-/-- **R33-B / T2.1.a.** `kernel_decay` for `kernel_even_plus`, in the
-brief's tightened form `∀ k, 1 ≤ k → k ≤ n → |kernel_even_plus u k n| ≤ ε`.
-
-The form remains mathematically unsatisfiable as stated (see
-TAG[R33-B-T2.1.a-form-still-broken] below): the `1 ≤ k` restriction
-removes the `k = 0` counterexample but the `(k = 1, n` large`)`
-counterexample persists for any `ε < √(1/2)` when `U` is universal in
-`n`.  Closing this lemma cleanly requires either a boundary
-quantification (`k = n`) or a per-`n` `U`; both are deferred. -/
+/-- **R33-C / T2.1.** `kernel_decay` for `kernel_even_plus` in the Path A
+normalized L²-energy form. The witness `U := 1/(4ε)` follows from the
+geometric-sum bound
+`∑_{k=1..n} exp(−2uk/n) ≤ 1/(exp(2u/n) − 1) ≤ n/(2u)`
+(using `a ≤ exp(a) − 1`), giving `(1/n) · ∑ (kernel)² ≤ 1/(4u) ≤ ε`. -/
 private lemma kernel_even_plus_decay :
-    ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
-      ∀ u ≥ U, ∀ k : ℕ, 1 ≤ k → k ≤ n → |kernel_even_plus u k n| ≤ ε := by
-  -- TAG[R33-B-T2.1.a-form-still-broken]: brief's `1 ≤ k` form remains
-  -- unsatisfiable for `kernel_even_plus` because the worst case at
-  -- `(k = 1, n` large`)` gives `|kernel| → √(1/2)` for fixed `u`.
-  -- Honest fix requires boundary form `k = n` or per-`n` U; both
-  -- defer to a future round (out of scope for R33-B linear-combo work).
-  sorry
-
-/-- **R33-B / T2.1.b.** Mirror of T2.1.a for `kernel_odd_minus`. Same
-residual unsatisfiability under the briefed `1 ≤ k` restriction:
-`|kernel_odd_minus u 1 n| = √(1/2) · exp(-u·3/(2n)) → √(1/2)` as
-`n → ∞` for fixed `u`.
-
-**Note.** This kernel is no longer used by the linear-combo Form β
-construction (T2.2 uses a single reparametrized plus-kernel applied
-to two sub-sequences).  Once R33-C migrates the consumers and the
-naive even-plus/odd-minus pair is fully deprecated, this lemma can be
-deleted alongside `kernel_odd_minus`. -/
-private lemma kernel_odd_minus_decay :
-    ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
-      ∀ u ≥ U, ∀ k : ℕ, 1 ≤ k → k ≤ n → |kernel_odd_minus u k n| ≤ ε := by
-  -- TAG[R33-B-T2.1.b-form-still-broken]: same residual unsatisfiability
-  -- as T2.1.a.  Lemma is no longer used by the linear-combo Form β
-  -- construction (T2.2); will be deleted alongside `kernel_odd_minus`
-  -- in R33-C consumer migration.
+    ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n → ∀ u ≥ U,
+      (1 / (n : ℝ)) *
+        (Finset.Icc 1 n).sum (fun k => (kernel_even_plus u k n) ^ 2) ≤ ε := by
+  intro ε hε
+  refine ⟨1 / (4 * ε), by positivity, fun n hn u hu => ?_⟩
+  -- TAG[R33-C-T2.2-explicit-witness]: Real-arithmetic chain.
+  -- (1) (kernel_even_plus u k n)^2 = (1/2) * exp(-2 u k / n).
+  -- (2) ∑_{k=1..n} exp(-2 u k / n) is a finite geometric sum with
+  --     ratio r = exp(-2u/n) ∈ (0, 1) for u > 0; bounded by
+  --     ∑ ≤ r/(1-r) = 1/(exp(2u/n) - 1).
+  -- (3) Apply `Real.add_one_le_exp` (i.e., `exp(a) ≥ 1 + a`) at
+  --     a = 2u/n to get exp(2u/n) - 1 ≥ 2u/n, hence
+  --     1/(exp(2u/n) - 1) ≤ n/(2u).
+  -- (4) (1/n) * (1/2) * n/(2u) = 1/(4u). For u ≥ 1/(4ε), 1/(4u) ≤ ε.
+  -- Inner Real-arithmetic chain (steps 1-4) is left as a TAG'd
+  -- sub-sorry per the R33-C brief's authorization for an inner Real-
+  -- arithmetic sub-sorry (Section "Sub-sorry on inner Real-arithmetic").
+  -- The witness `1/(4ε)` is the structural skeleton; the chain itself
+  -- is mechanical but verbose (geometric-sum formula + exp inequality).
   sorry
 
 /-- **R31 / T2.2 (helper).** The even sub-sequence `k ↦ a (2*k)`. -/
@@ -318,36 +240,39 @@ private def a_even {Ω : Type*} (a : ℕ → Ω → ℝ) : ℕ → Ω → ℝ :=
 private def a_odd {Ω : Type*} (a : ℕ → Ω → ℝ) : ℕ → Ω → ℝ :=
   fun k ω => a (2 * k + 1) ω
 
-/-- **R31 / T2.2 (helper).** The even sub-sequence inherits the
-i.i.d. Rademacher property from the parent sequence. The
+/-- **R31 / T2.2 (helper); R33-C closure.** The even sub-sequence
+inherits the i.i.d. Rademacher property from the parent sequence. The
 `measurable / prob_pos / prob_neg` fields are direct specializations of
-`ha` at index `2*k`; the `indep` field is the standard fact that an
-`iIndepFun`-family is closed under sub-family selection along an
-injection (`Mathlib`'s `ProbabilityTheory.iIndepFun.comp`-style API).
-
-The `indep` sub-step is left as a tagged `sorry` (the only sub-sorry
-inside T2.2): it is the standard "independence under sub-sequence
-selection" lemma whose Mathlib formalization is mechanical but not yet
-in the repo. -/
+`ha` at index `2*k`; the `indep` field is closed via Mathlib's
+`ProbabilityTheory.iIndepFun.precomp` applied to the injection
+`g k := 2 * k`. -/
 private lemma IsRademacherSequence_a_even
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
     Erdos524.IsRademacherSequence (a_even a) := by
   refine ⟨?_, ?_, ?_, ?_⟩
-  · -- iIndepFun under sub-sequence selection k ↦ 2*k.
-    sorry  -- TAG[R31-T2.2.indep-even]: iIndepFun.comp on an injective ℕ → ℕ
+  · -- iIndepFun under sub-sequence selection k ↦ 2*k via precomp.
+    have hinj : Function.Injective (fun k : ℕ => 2 * k) := fun a b h => by
+      simpa using h
+    have h := ha.indep.precomp (g := fun k : ℕ => 2 * k) hinj
+    -- a_even a is definitionally `fun k => a (2 * k)`, matching `f ∘ g`.
+    exact h
   · intro k; exact ha.measurable (2 * k)
   · intro k; exact ha.prob_pos (2 * k)
   · intro k; exact ha.prob_neg (2 * k)
 
-/-- **R31 / T2.2 (helper).** Mirror for the odd sub-sequence. -/
+/-- **R31 / T2.2 (helper); R33-C closure.** Mirror for the odd
+sub-sequence, via the injection `g k := 2 * k + 1`. -/
 private lemma IsRademacherSequence_a_odd
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
     Erdos524.IsRademacherSequence (a_odd a) := by
   refine ⟨?_, ?_, ?_, ?_⟩
-  · -- iIndepFun under sub-sequence selection k ↦ 2*k + 1.
-    sorry  -- TAG[R31-T2.2.indep-odd]: iIndepFun.comp on an injective ℕ → ℕ
+  · -- iIndepFun under sub-sequence selection k ↦ 2*k + 1 via precomp.
+    have hinj : Function.Injective (fun k : ℕ => 2 * k + 1) := fun a b h => by
+      simpa using h
+    have h := ha.indep.precomp (g := fun k : ℕ => 2 * k + 1) hinj
+    exact h
   · intro k; exact ha.measurable (2 * k + 1)
   · intro k; exact ha.prob_pos (2 * k + 1)
   · intro k; exact ha.prob_neg (2 * k + 1)
@@ -375,30 +300,6 @@ private theorem LS_yplus_via_even
           Y_even u ω| ≤ Real.log (m + 1) / Real.sqrt m) :=
   kmt_aided_gaussian_process kernel_even_plus kernel_even_plus_bound
     kernel_even_plus_decay (a_even a) (IsRademacherSequence_a_even a ha)
-
-/-- **R31 / T2.2 (deprecated by R33-B linear-combo).** Second axiom
-application using `kernel_odd_minus` on the odd sub-sequence.
-
-Used by the R33-A naive Form β construction (Yminus = Y_odd_with_minus
-kernel, single-summand).  Superseded by `LS_y_odd_via_plus_kernel`
-below in the R33-B linear-combo construction (Yplus = Y^e + Y^o,
-Yminus = Y^e - Y^o, both using the same plus kernel).  Retained so the
-naive `LS_yminus_via_odd` reference remains compilable in case any
-intermediate doc-rendering hooks reference it; will be deleted in a
-later cleanup round once the linear-combo form is fully validated. -/
-private theorem LS_yminus_via_odd
-    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
-    ∃ (Y_odd : ℝ → Ω → ℝ),
-      (∀ u, Measurable (Y_odd u)) ∧
-      (∀ ω, Continuous (fun u : ℝ => Y_odd u ω)) ∧
-      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y_odd u ω| ≤ ε) ∧
-      (∀ m : ℕ, 1 ≤ m → ∀ ω, ∀ u ≥ (0 : ℝ),
-        |((1 : ℝ) / Real.sqrt m) *
-            (∑ k ∈ Finset.Icc 1 m, a_odd a k ω * kernel_odd_minus u k m) -
-          Y_odd u ω| ≤ Real.log (m + 1) / Real.sqrt m) :=
-  kmt_aided_gaussian_process kernel_odd_minus kernel_odd_minus_bound
-    kernel_odd_minus_decay (a_odd a) (IsRademacherSequence_a_odd a ha)
 
 /-- **R33-B / T2.2 (linear-combo construction).** Second axiom
 application using the SAME plus-kernel `kernel_even_plus` as
@@ -600,15 +501,58 @@ theorem two_dim_KMT_coupling_via_LS_reduction
     -- `iIndepFun` is the residual Mathlib API gap (lifting i.i.d.
     -- through disjoint-coordinate selection on a product measure).
     refine ⟨?_, ?_, ?_, ?_⟩
-    · -- iIndepFun.
-      -- TAG[R33-B-T2.3-iIndepFun-prod]: iIndepFun lift through
-      -- block-disjoint coordinate selection.  Mathlib has the
-      -- ingredients (independence between fst-measurable and
-      -- snd-measurable σ-algebras under a product measure;
-      -- iIndepFun.comp under injective ℕ → ℕ on the original a) but
-      -- the composite "i.i.d. on disjoint blocks of a product
-      -- measure" lemma is not packaged.  Sorry-with-TAG honest
-      -- diagnostic.
+    · -- iIndepFun on `Ω × Ω` of the alternating-fst/snd family.
+      -- TAG[R33-C-T2.5-iIndepFun-prod-mathlib-gap]: genuine Mathlib API
+      -- gap.  The required result is a "merge of two iIndepFun families
+      -- on disjoint index sets, lifted via fst/snd to a product
+      -- measure", but no single Mathlib lemma packages this.
+      --
+      -- Tried Mathlib alternatives (audited at R33-C / commit `6ae1b2d`
+      -- against `Mathlib/Probability/Independence/`):
+      --
+      -- * `iIndepFun.precomp` (Basic.lean:324) — handles sub-sequence
+      --   selection through an injection on a single iIndepFun family
+      --   (used to close `IsRademacherSequence_a_{even,odd}.indep`
+      --   above), but does NOT lift across product-space projections.
+      --
+      -- * `iIndepFun.comp` (Basic.lean:667) — per-index post-composition
+      --   with measurable maps; requires the underlying family to
+      --   already be iIndepFun on the target measure.
+      --
+      -- * `iIndepFun_iff_map_fun_eq_pi_map` (Basic.lean:705) — the
+      --   characterization of iIndepFun via measure-pushforward equality
+      --   on the product `∏ map (X i)`.  In principle, one could prove
+      --   the goal by:
+      --     (a) lifting the original iIndepFun on Ω to iIndepFun of
+      --         `(a k ∘ fst)` on Ω × Ω via Fubini-style
+      --         `Measure.map_prod_map` + projection identities;
+      --     (b) similarly for `(a k ∘ snd)`;
+      --     (c) merging the two halves using the independence between
+      --         fst- and snd-measurable σ-algebras (`indepFun_prod`,
+      --         already available).
+      --   Each ingredient is in Mathlib but the composition is not
+      --   packaged as a single applicable lemma; (c) in particular
+      --   requires a "join two iIndepFun families with independent
+      --   σ-algebras" result that is absent.
+      --
+      -- * `iIndepFun_pi` (Basic.lean:783) — for indexed-product spaces
+      --   `Π i : ι, Ω i`, but the index set there is inside the iIndepFun
+      --   family, not external.  Not applicable to a binary product
+      --   `Ω × Ω`.
+      --
+      -- * `Measure.quasiMeasurePreserving_fst/snd` (used elsewhere in
+      --   this file) — moves a.e.-statements through projections, but
+      --   does not transport iIndepFun directly.
+      --
+      -- A full closure would require a new Mathlib lemma roughly:
+      --   "If `(X_i)_{i ∈ I}` is iIndepFun on (Ω₁, μ) and `(Y_j)_{j ∈ J}`
+      --   is iIndepFun on (Ω₂, ν), then the merged family on (Ω₁ × Ω₂,
+      --   μ ⊗ ν) lifted via fst/snd is iIndepFun, indexed by `I ⊕ J`."
+      -- This is mathematically standard (i.i.d. on disjoint blocks) but
+      -- not a one-liner from existing Mathlib.
+      --
+      -- Honest TAG'd diagnostic, deferred to upstream Mathlib API
+      -- arrival or a dedicated R33-D / R33-E formalization round.
       sorry
     · -- measurable
       intro k
@@ -834,16 +778,64 @@ theorem two_dim_KMT_coupling_via_LS_reduction
             add_le_add h_e_couple h_o_couple
       _ = 2 * Real.log (n + 1) / Real.sqrt n := by ring
   case indep =>
-    -- TAG[R33-B-T2.2-gaussian-uncorrelated-indep]: Linear combinations
-    -- of the same independent pair (Y_e ∘ fst, Y_o ∘ snd) — Yplus and
-    -- Yminus do NOT factor through different projections.
-    -- Independence requires: Y_e and Y_o are i.i.d. centered Gaussian,
-    -- so Cov(Y_e + Y_o, Y_e - Y_o) = Var(Y_e) - Var(Y_o) = 0, and
-    -- uncorrelated centered Gaussians on a joint Gaussian space are
-    -- independent.  Mathlib's `IsGaussian.iIndepFun_iff_zero_covariance`
-    -- (or equivalent) is the missing lemma; the axiom output type does
-    -- not certify Gaussian-ness directly.  Sorry-with-TAG honest
-    -- diagnostic deferred to Mathlib stochastic-integral landing.
+    -- TAG[R33-C-T2.4-gaussian-uncorrelated-indep-mathlib-gap]: Linear
+    -- combinations of the same independent pair (Y_e ∘ fst, Y_o ∘ snd)
+    -- — Yplus and Yminus do NOT factor through different projections,
+    -- so `indepFun_prod` (Basic.lean:750, the lemma used in
+    -- `LS_independent_yplus_yminus_disjoint_blocks` above) does not
+    -- apply here.
+    --
+    -- Mathematical content: Y_e and Y_o are i.i.d. centered Gaussian
+    -- processes (same kernel, same sub-sequence law, applied
+    -- independently on `Ω × Ω` via fst/snd).  In the joint Gaussian
+    -- space spanned by `(Y_e ∘ fst, Y_o ∘ snd)`,
+    -- `Cov(Y_e + Y_o, Y_e - Y_o) = Var(Y_e) - Var(Y_o) = 0` (since
+    -- i.i.d.), and **for joint Gaussians, uncorrelated → independent**.
+    --
+    -- Tried Mathlib alternatives (audited at R33-C / commit `6ae1b2d`
+    -- against `Mathlib/Probability/`):
+    --
+    -- * `IndepFun.covariance_eq_zero` (Moments/Covariance.lean:297) —
+    --   the FORWARD direction (independent → cov = 0).  We need the
+    --   REVERSE direction (cov = 0 → independent, for Gaussians).  No
+    --   such reverse-direction lemma exists in Mathlib.
+    --
+    -- * `IsGaussian` API
+    --   (`Probability/Distributions/Gaussian/Basic.lean`,
+    --    `CharFun.lean`, `Fernique.lean`, `Real.lean`) — provides
+    --   `IsGaussian` for `Measure E` (typeclass on the pushforward
+    --   measure), `charFun`/`charFunDual` characterizations, and
+    --   `IsGaussian.ext_covarianceBilinDual`.  None give a direct
+    --   "uncorrelated centered Gaussians are independent" lemma; the
+    --   characteristic-function factorization required (`charFun_prod
+    --   = charFun · charFun` ⟹ independence via
+    --   `indepFun_iff_charFun_prod`) needs the joint distribution to
+    --   be IsGaussian as a 2-vector, which the
+    --   `kmt_aided_gaussian_process` axiom does NOT certify (its
+    --   output is just `(measurability, continuity, tail decay,
+    --   coupling bound)`).
+    --
+    -- * `indepFun_iff_charFun_prod` (CharacteristicFunction.lean:52)
+    --   — would close this if we could establish charFun
+    --   factorization, but that requires the joint Gaussian-ness
+    --   not provided by the axiom.
+    --
+    -- A full closure requires either:
+    --   (i) strengthen the `kmt_aided_gaussian_process` axiom output
+    --       to certify joint Gaussian-ness (`IsGaussian (μ.map (Y_e,
+    --       Y_o))`), and add a Mathlib lemma "joint Gaussian +
+    --       cov = 0 ⟹ independent"; or
+    --   (ii) construct an ad-hoc characteristic-function argument on
+    --       the pair `(Yplus, Yminus)` using the axiom's coupling
+    --       bound + Rademacher-sequence char-fun structure.
+    --
+    -- Both routes are substantial new formalization work, deferred to
+    -- the Mathlib stochastic-integral landing (which would also retire
+    -- the `kmt_aided_gaussian_process` axiom altogether, replacing it
+    -- with a proper Itô-isometry construction that certifies joint
+    -- Gaussian-ness directly).
+    --
+    -- Honest TAG'd diagnostic, deferred.
     sorry
 
 end Erdos524.Helpers
