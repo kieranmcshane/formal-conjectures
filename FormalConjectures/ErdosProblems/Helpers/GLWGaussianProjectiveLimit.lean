@@ -1977,70 +1977,13 @@ private lemma constL_prefactor_le (T : ℕ) :
     _ ≤ (2 : ℝ≥0∞) ^ (19 : ℝ) * ((T : ℝ≥0∞) + 1) := by
         exact mul_le_mul_of_nonneg_right h_const (zero_le _)
 
-/-- **R26 / step-2a-constL-unfold (PARTIAL — placeholder for full unfolding).**
-Direct upper bound on `constL ↥(Set.Ico T (T+1)) (6(T+1)) 1 2 2 (1/4) Set.univ`
-in terms of the dyadic sum at our parameters. Specifically:
-`constL_block T ≤ 2^15 · 6(T+1) · 2 · ∑ k, 2^(-k/2) · (4 · ofReal((L+k+2)²) + Cp 1 2 2)`
-where `L = logb 2 (6(T+1))`. This collapses the brownian-motion `constL`
-definition with `(p,q,d,β) = (2,2,1,1/4)`, `(diam+1) ≤ 2`, and absorbs the
-exponent simplification `k * (β·p - (q-d)) = -k/2`. -/
-private lemma constL_unit_block_le (T : ℕ) (hT : 1 ≤ T) :
-    constL ↥(Set.Ico ((T : NNReal)) ((T : NNReal) + 1))
-      (6 * ((T : ℝ≥0∞) + 1)) 1 2 2 (1 / 4 : ℝ≥0) Set.univ ≤
-    (2 : ℝ≥0∞) ^ (19 : ℝ) * ((T : ℝ≥0∞) + 1) *
-      ∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))) *
-        (4 * ENNReal.ofReal ((Real.logb 2 (6 * ((T : ℝ) + 1))
-                               + (k : ℝ) + 2) ^ 2)
-          + Cp 1 2 2) := by
-  -- Full unfolding of brownian-motion `constL` at our specific
-  -- parameters with the exponent simplification `k * (1/4 * 2 - (2-1)) =
-  -- -k/2` and `(diam + 1) ≤ 2` from `diam_unit_block_le_one`. This is the
-  -- load-bearing R26 sub-sorry — ~30-60 LOC of dense brownian-motion-API
-  -- glue. Captured as a structured sorry pending the constL-unfold pass.
-  sorry  -- TAG[R26-step-2a-constL-unfold]: unfold constL + dyadic exp simp + diam reduction
-
-/-- **R26 / step-1-final-bound.** Pointwise AM-QM bound for the inner sum:
-`∑ k, 2^(-k/2) · (4 ofReal((L+k+2)²) + Cp 1 2 2) ≤
-  8 ofReal((L+2)²) · S₀ + 8 · S_k² + Cp 1 2 2 · S₀`
-where `S₀ = ∑ k, 2^(-k/2)` and `S_k² = ∑ k, ofReal(k²) · 2^(-k/2)`. -/
-private lemma inner_tsum_AMQM_bound (L : ℝ) :
-    (∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))) *
-        (4 * ENNReal.ofReal ((L + (k : ℝ) + 2) ^ 2) + Cp 1 2 2)) ≤
-      8 * ENNReal.ofReal ((L + 2) ^ 2) *
-        (∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))))
-      + 8 * (∑' k : ℕ, ENNReal.ofReal ((k : ℝ) ^ 2) *
-              (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ))))
-      + Cp 1 2 2 * (∑' k : ℕ, (2 : ℝ≥0∞) ^ ((k : ℝ) * (-(1/2 : ℝ)))) := by
-  -- Apply `am_qm_three_term_ENN` pointwise then linearize via
-  -- ENNReal.tsum_le_tsum + ENNReal.tsum_add + ENNReal.tsum_mul_left.
-  -- LOC budget 25 (from R26 budget table); zero-cap 50.
-  sorry  -- TAG[R26-step-1-final-bound]: AM-QM pointwise + tsum linearity
-
-/-- **R26 / step-3b-MT-mult.** Multiplying the constL bound by `M_T` and
-applying `absorb_ENN` gives:
-`Cp_T_explicit T = M_T · constL ≤ K_full · ofReal((L+2)²) / (T+1)² + K_const / (T+1)²`
-where `K_full = 4 · 2^19 · 8 · S₀_real` and `K_const` collects the rest. -/
-private lemma Cp_T_explicit_le_log_sq_div_succ_sq (T : ℕ) (hT : 1 ≤ T) :
-    ∃ K_full K_const : ℝ≥0∞, K_full < ∞ ∧ K_const < ∞ ∧
-      Cp_T_explicit T ≤
-        K_full * ENNReal.ofReal ((Real.logb 2 (6 * ((T : ℝ) + 1)) + 2) ^ 2) /
-          ((T : ℝ≥0∞) + 1) ^ 2
-        + K_const / ((T : ℝ≥0∞) + 1) ^ 2 := by
-  -- Wires constL_unit_block_le + inner_tsum_AMQM_bound + absorb_ENN.
-  -- LOC budget 30; zero-cap 60.
-  sorry  -- TAG[R26-step-3b-step-5-compose]: M_T · constL + absorb chain
-
-/-- **R26 / step-5-final.** Chains `logb_change_base_sq` + `log_sq_le_sqrt`
-to convert `(L+2)² / (T+1)²` to `K / (T+1)^(3/2)` form, retiring the
-residual `R23-bound-pointwise`. -/
-private lemma Cp_T_explicit_le_K_div_three_halves_R26 (T : ℕ) (hT : 1 ≤ T) :
-    ∃ K : ℝ, 0 ≤ K ∧
-      Cp_T_explicit T ≤ ENNReal.ofReal (K / ((T : ℝ) + 1) ^ (3 / 2 : ℝ)) := by
-  -- Combines `Cp_T_explicit_le_log_sq_div_succ_sq` with `logb_change_base_sq`
-  -- and `log_sq_le_sqrt` to produce the headline bound.
-  -- LOC budget 25; zero-cap 50.
-  sorry  -- TAG[R26-step-5-final]: log² → √(T+1) chain + K_outer assembly
-
+-- R33-B / T3.3 cleanup: deleted four R26 sub-lemmas
+-- (`constL_unit_block_le`, `inner_tsum_AMQM_bound`,
+-- `Cp_T_explicit_le_log_sq_div_succ_sq`,
+-- `Cp_T_explicit_le_K_div_three_halves_R26`).
+-- R32 audit (`Helpers/AxiomFoundationAudit_T1_Inventory.md` §C1-C4)
+-- confirmed zero in-tree consumers; all four were superseded by the
+-- R27 D2 bascule axiom and never wired into the build path.
 
 /-! ## R27 / Option D bascule — D2 axiom for `Cp_T_explicit` pointwise
 

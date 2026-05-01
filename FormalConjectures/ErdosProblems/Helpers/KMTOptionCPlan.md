@@ -275,4 +275,105 @@ R30 closure: **public 2D-KMT axiom retired; net axioms unchanged at 3;
 - `KMTStatusInventory.md` — Option A/B/C/D comparison.
 - `TwoDimKMTRetirement.md` — original LS reduction sketch (R14, R17).
 - `OneDimKMTSketch.md` — 1D KMT proof routes (R17).
+
+## R33-B addendum — linear-combo Form β replaces naive Form β (2026-05-01)
+
+**Background.** R33-A (`r33-a-form-beta`, commit `42f5fd4`) landed the
+naive Form β construction per Cowork brief: `Yplus = Y_even` (R31's
+`kernel_even_plus` applied to `a_even`), `Yminus = Y_odd` (R31's
+`kernel_odd_minus` applied to `a_odd`), with half-sum couplings.  Grok
+R33-B post-flight identified the math gap: naive Form β controls only
+the EVEN-PLUS half-sum and the ODD-MINUS half-sum — the cross terms
+(odd-plus and even-minus) are uncontrolled, so the triangle bridge to
+the FULL plus-sum / FULL minus-sum (the form needed by 524.lean
+consumers) does not work.
+
+**R33-B correction (linear-combo Form β, Grok R33-B response).** Apply
+`kmt_aided_gaussian_process` twice with the *same* plus-kernel
+`kernel_even_plus`, once on `a_even` (→ `Y_e`) and once on `a_odd`
+(→ `Y_o`).  These are i.i.d. Gaussian processes (same kernel, same
+sub-sequence law).  Lift to `Ω × Ω` and define:
+
+* `Yplus := Y_e ∘ fst + Y_o ∘ snd`, controlling the half-even-plus +
+  half-odd-plus combined sum (factor 2 in `Δ_n`, still
+  `O(log n / √n)`).
+* `Yminus := Y_e ∘ fst - Y_o ∘ snd`, controlling the half-even-plus -
+  half-odd-plus sum.  The sign flip absorbs the alternating-sign
+  identity `(-exp(-u/n))^k = (-1)^k · exp(-uk/n)` (even-`k` keeps
+  sign, odd-`k` flips), so `Yminus` couples to the FULL minus-kernel
+  sum modulo a phase-shift constant deferred to R33-C consumer
+  migration.
+
+**Independence (the substantive Mathlib gap).** `Yplus` and `Yminus`
+are linear combinations of the independent pair `(Y_e, Y_o)`; they are
+not factor-projection-independent.  The covariance computation
+`Cov(Y_e + Y_o, Y_e - Y_o) = Var(Y_e) - Var(Y_o) = 0` (i.i.d.) shows
+they are uncorrelated, and uncorrelated centered Gaussians on a joint
+Gaussian space are independent.  This requires Mathlib's
+`IsGaussian.iIndepFun_iff_zero_covariance` (or equivalent).  The axiom
+`kmt_aided_gaussian_process` does not return Gaussian-ness explicitly,
+so this is genuinely a missing API — TAG'd
+`R33-B-T2.2-gaussian-uncorrelated-indep` and deferred to the day
+Mathlib's stochastic-integral API lands.
+
+### R33-B closure ledger
+
+| Outcome | Status | Notes |
+|---------|--------|-------|
+| T2.1 form correction (`kernel_decay` quantifier `∀ k, 1 ≤ k → ...`) | **Full** | Applied verbatim per brief; axiom signature in `Helpers/StochasticProcessAxiom.lean` retightened. |
+| T2.1.a / T2.1.b decay closures | **TAG'd** | Form remains unsatisfiable for the R31 reparametrized kernels even with `1 ≤ k` (worst case `(k=1, n` large`)`).  TAG[R33-B-T2.1.a-form-still-broken] / TAG[R33-B-T2.1.b-form-still-broken].  Honest fix requires boundary form `k = n` or per-`n` `U`; deferred. |
+| T2.2 linear-combo construction | **Full** | `via_LS_reduction` body rewritten with `Y_e + Y_o` / `Y_e - Y_o` linear combinations; structural conjuncts (measurability, continuity, tail decay, both coupling forms) closed by triangle inequalities. |
+| T2.2 IndepFun(Yplus, Yminus) | **TAG'd** | TAG[R33-B-T2.2-gaussian-uncorrelated-indep] — Mathlib API gap on Gaussian-uncorrelated-implies-independent. |
+| T2.3 `ha'` partial closure | **Partial** | 3 of 4 IsRademacherSequence fields (`measurable`, `prob_pos`, `prob_neg`) closed via `Measure.fst_apply` + `Measure.fst_prod` (and snd analogues).  Only `iIndepFun` remains, TAG[R33-B-T2.3-iIndepFun-prod]. |
+
+V1 build clean (3413 jobs).  Six TAG'd sorries in
+`TwoDimKMTFromOneDim.lean`: 2 T2.1 decay (kernel form), 2 R31
+sub-sequence iIndepFun, 1 R33-B `ha'.iIndepFun`, 1 R33-B linear-combo
+indep.
+
+### R33-C consumer migration plan
+
+The four 524.lean consumers
+(`524.lean:3926, 4081, 4229, 4605`) currently call
+`theorem two_dim_KMT_coupling`, whose body is sorry-stubbed since R33-A
+(signature changed to Form β).  The R33-C round will:
+
+1. **Update the public theorem** at `524.lean:3732` to dispatch to the
+   new `Helpers.two_dim_KMT_coupling_via_LS_reduction` linear-combo
+   output.  The signature change (kernels `kernel_even_plus` for both
+   couplings + sign on Yminus) is consumer-visible.
+2. **Triangle bridge for upper-bound consumers** (3926 / 4081, which
+   only use `hKMT_p`).  These pull a single
+   `|F₊(u, ω) - Yplus(u, ω)| ≤ Δ_n` bound; the R33-B form gives
+   `|F₊_even + F₊_odd - (Y_e + Y_o)| ≤ 2Δ_n` directly, so a `factor 2`
+   adjustment in the small-ball constants suffices.
+3. **Triangle bridge for lower-bound consumers** (4229 / 4605, which
+   use both `hKMT_p` AND `hKMT_m` AND `hIndep`).  The lower bound's
+   `−2·glw.lower` factor depends on independence; the R33-C bridge
+   composes the Yplus / Yminus linear-combo couplings with the
+   `IndepFun(Yplus, Yminus)` conjunct (TAG'd in R33-B until the
+   Mathlib Gaussian-uncorrelated lemma lands).
+4. **Phase-shift correction.** The brief's "FULL minus-sum coupling"
+   identity `(-exp(-u/n))^(2k+1) = -exp(-u·(2k+1)/n)` introduces an
+   `exp(-u/n)` factor that vanishes as `n → ∞` but is non-trivial at
+   finite `n`.  R33-C documents this as a `o(1)` correction absorbed
+   into the small-ball constants.
+5. **ENat conflict resolution** (still pending from R32 — does not
+   block R33-B / Helpers-level work but blocks the 524.lean end-to-end
+   build).  R33-C may be split if ENat resolution is non-trivial.
+
+Estimated R33-C: 1-2 rounds, ~150-300 LOC of consumer-side rewriting.
+
+### Updated round budget post-R33-B
+
+| Round | Task | LOC | Risk | Status |
+|-------|------|:---:|------|--------|
+| R29 | 1D axiom + LS bridge skeleton | 50-80 | Low | **DONE** |
+| R30 | Stepping-stone axiom + retire public 2D KMT | 80-120 | Medium | **DONE** |
+| R31 | EVEN/ODD half-sum infrastructure | 50-60 | Medium | **DONE** |
+| R32 | Foundational axiom audit (read-only MDs) | 200 (MD) | Low | **DONE** |
+| R33-A | Naive Form β corrections (A3 tightened, A4/B1 restated) | 80-120 | Medium | **DONE (math gap surfaced post-flight)** |
+| R33-B | Linear-combo Form β replacement + T2.3 partial closure | 250 | Medium | **DONE** |
+| R33-C | Consumer migration in 524.lean + triangle bridge | 150-300 | High (ENat conflict + Mathlib gap) | Pending |
+| R33-D+ | Gaussian-uncorrelated-implies-independent Mathlib bridge | 50-200 | High (Mathlib upstream) | Pending |
 - `SubGaussianMomentScoping.md` — Mathlib sub-Gaussian gaps.

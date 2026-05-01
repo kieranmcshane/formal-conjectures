@@ -37,20 +37,24 @@ T3.3-C4 coupling-error in `Helpers/TwoDimKMTFromOneDim.lean`):
 atomicity sweet spot).  Net axiom count flat after `two_dim_KMT_coupling`
 is replaced by theorem (R30 T-replace).
 
-**Hypothesis-shape note (R30 → R33-A tightening).**  The R30 form used
-only the pointwise bound `|kernel u k n| ≤ 1`, which is satisfied by the
-constant-`1` kernel — and that kernel produces a partial sum that is
-asymptotically `N(0, 1)` and does NOT decay as `u → ∞`, contradicting
-the conclusion's tail-decay conjunct.  R32's audit
-(`Helpers/AxiomFoundationAudit.md`, A3-α) flagged this as the
-"single-call hypothesis-too-weak" issue; R33-A's Grok pre-flight added a
-second hypothesis `kernel_decay` that the constant-`1` kernel violates.
+**Hypothesis-shape note (R30 → R33-A → R33-B tightening).**  The R30
+form used only the pointwise bound `|kernel u k n| ≤ 1`, which is
+satisfied by the constant-`1` kernel — and that kernel produces a
+partial sum that is asymptotically `N(0, 1)` and does NOT decay as
+`u → ∞`, contradicting the conclusion's tail-decay conjunct.  R32's
+audit (`Helpers/AxiomFoundationAudit.md`, A3-α) flagged this as the
+"single-call hypothesis-too-weak" issue; R33-A's Grok pre-flight added
+a second hypothesis `kernel_decay` that the constant-`1` kernel
+violates.
 
-The second hypothesis is the pointwise tail-decay form
-`∀ ε > 0, ∃ U, ∀ n ≥ 1, ∀ u ≥ U, ∀ k ≤ n, |kernel u k n| ≤ ε` per the
-R33-A brief (Grok-validated form).  See
-`Helpers/AxiomFoundationAudit.md` and the R33-A round summary for the
-exact mathematical reasoning excluding the constant kernel.
+R33-A used the literal Grok-supplied form
+`∀ ε > 0, ∃ U, ∀ n ≥ 1, ∀ u ≥ U, ∀ k ≤ n, |kernel u k n| ≤ ε`, which is
+unsatisfiable at `k = 0` for the R31 reparametrized kernels
+(`kernel_even_plus u 0 m = √(1/2) · exp 0 = √(1/2)`).  R33-B retightens
+to `1 ≤ k ≤ n`, matching the `Finset.Icc 1 n` indexing in the axiom's
+coupling conjunct (the partial-sum index never reaches `k = 0`).  See
+`Helpers/AxiomFoundationAudit.md` and the R33-A / R33-B round summaries
+for the full mathematical reasoning.
 -/
 
 namespace Erdos524.Helpers
@@ -80,7 +84,7 @@ axiom kmt_aided_gaussian_process
     (kernel : ℝ → ℕ → ℕ → ℝ)
     (_kernel_bound : ∀ u, 0 ≤ u → ∀ k n, |kernel u k n| ≤ 1)
     (_kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
-      ∀ u ≥ U, ∀ k : ℕ, k ≤ n → |kernel u k n| ≤ ε)
+      ∀ u ≥ U, ∀ k : ℕ, 1 ≤ k → k ≤ n → |kernel u k n| ≤ ε)
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     (a : ℕ → Ω → ℝ) (_ha : Erdos524.IsRademacherSequence a) :
     ∃ (Y : ℝ → Ω → ℝ),

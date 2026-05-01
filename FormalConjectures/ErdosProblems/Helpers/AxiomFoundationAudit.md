@@ -297,3 +297,76 @@ Net additions vs. R31 understanding:
 R33's best path is to run Grok prompts 1-3 in parallel with a small
 exploratory round (delete C1-C4, retire A2, decide form α vs β based on
 prompt 3's consumer-rewrite cost estimate).
+
+## R33-A / R33-B status update (2026-05-01)
+
+**R33-A landed** (commit `42f5fd4` on `r33-a-form-beta`): foundational
+corrections per Cowork brief.  A3 axiom tightened with `kernel_decay`
+hypothesis; A4 / B1 restated as Form β on `Ω × Ω` with half-sum
+couplings (naive form: `Yplus = Y_even`, `Yminus = Y_odd`).  V1 build
+clean; 5 sorries (2 T2.1 decays + 1 ha' lift + 2 R31 sub-sequence
+indep).  Grok R33-A pre-flight validated naive Form β.  Grok R33-B
+post-flight identified the math gap: naive Form β controls only the
+even-plus and odd-minus halves; the cross-terms (odd-plus, even-minus)
+are uncontrolled, so the triangle bridge to FULL plus / FULL minus
+sums is broken.
+
+**R33-B landed** (commit on `r33-b-linear-combo`): linear-combo Form β
+replacement per Grok R33-B response.
+
+* **A3 (`kernel_decay`)** — verdict updated to **CLEAN-with-residual**.
+  Form change `∀ k, 1 ≤ k → k ≤ n → ...` applied per brief; matches
+  the `Finset.Icc 1 n` indexing in the conclusion's coupling
+  conjunct.  Two T2.1 decay closures remain TAG'd
+  (`R33-B-T2.1.{a,b}-form-still-broken`) because the `1 ≤ k`
+  restriction alone does not make the form satisfiable for the R31
+  reparametrized kernels — the worst case `(k = 1, n` large`)` keeps
+  `|kernel| → √(1/2)` for fixed `u`.  Honest fix requires either a
+  boundary-only form (`k = n`) or a per-`n` `U(n)` (swap quantifier
+  order); deferred to a future round.
+
+* **A4 (`two_dim_KMT_coupling_via_LS_reduction`)** — verdict updated
+  to **resolved-via-linear-combo**.  Body rewritten to apply
+  `kmt_aided_gaussian_process` twice with the *same* plus-kernel on
+  `a_even` (→ Y_e) and `a_odd` (→ Y_o); `Yplus := Y_e + Y_o`,
+  `Yminus := Y_e - Y_o`.  Coupling conjuncts use `kernel_even_plus`
+  for both, with the sign flip on the odd summand for Yminus.
+  `Δ_n = 2·log(n+1)/√n` (factor 2 from triangle inequality).
+  Structural conjuncts (meas / cont / decay / both couplings) closed.
+  Independence `IndepFun(Yplus, Yminus)` TAG'd
+  (`R33-B-T2.2-gaussian-uncorrelated-indep`) — Mathlib API gap on
+  Gaussian-uncorrelated-implies-independent.
+
+* **B1 (`LS_independent_yplus_yminus_disjoint_blocks`)** — verdict
+  unchanged from R33-A: Form β statement (independence by
+  product-space projection) is mathematically clean and proved (no
+  sorry).  However, it is **no longer used** by the R33-B linear-combo
+  `via_LS_reduction` body, which needs Gaussian-uncorrelated-implies-
+  independent for the linear combination `Y_e ± Y_o`.  B1 remains a
+  true statement and may serve future consumers; it is not
+  load-bearing for the R33-B closure path.
+
+* **T2.3 `ha'` Rademacher lift** — verdict **partial closure**.  3 of
+  4 IsRademacherSequence fields (`measurable`, `prob_pos`, `prob_neg`)
+  closed via `Measure.fst_apply` + `Measure.fst_prod` (and snd
+  analogues).  Only `iIndepFun` remains TAG'd
+  (`R33-B-T2.3-iIndepFun-prod`).
+
+* **C1-C4 dead R26 sub-lemmas** — still flagged for deletion (R33-B
+  T3.3 stretch).
+
+V1 build status (R33-B): 3413 jobs clean, only tolerated `push_cast`
+linter warnings on R25 GLWGaussianProjectiveLimit.
+
+Net residual sorries in `Helpers/TwoDimKMTFromOneDim.lean`: 6
+(2 T2.1 form-still-broken kernel decays — `kernel_odd_minus_decay`
+slated for deletion alongside `kernel_odd_minus` in R33-C cleanup;
+2 R31 sub-sequence `iIndepFun` under injective ℕ → ℕ;
+1 R33-B `ha'.iIndepFun` on `Ω × Ω` product space;
+1 R33-B linear-combo `IndepFun(Yplus, Yminus)` on
+Gaussian-uncorrelated).
+
+R33-C handles consumer migration in `524.lean` (4 consumers:
+3926 / 4081 / 4229 / 4605) + triangle bridge for the small-ball
+lower bound's `−2·glw.lower` factor + phase-shift correction +
+ENat-conflict resolution.  Estimated 1-2 rounds, ~150-300 LOC.

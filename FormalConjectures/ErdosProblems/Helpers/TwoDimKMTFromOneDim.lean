@@ -228,55 +228,86 @@ private lemma kernel_odd_minus_bound :
         mul_le_mul hsqrt_le_one hexp_le_one hexp_pos.le (by norm_num)
     _ = 1 := mul_one _
 
-/-! ### R33-A / T2.1 — kernel decay lemmas (Grok-validated literal form)
+/-! ### R33-B / T2.1 — kernel decay lemmas (k ≥ 1 form)
 
-The R33-A brief adds a second hypothesis to `kmt_aided_gaussian_process`:
+The R33-B brief tightens the second hypothesis to
+`kmt_aided_gaussian_process`:
 
 ```
-kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n ≥ 1, ∀ u ≥ U, ∀ k ≤ n,
+kernel_decay : ∀ ε > 0, ∃ U > 0, ∀ n ≥ 1, ∀ u ≥ U, ∀ k, 1 ≤ k → k ≤ n →
                  |kernel u k n| ≤ ε
 ```
 
-intended to exclude the constant-`1` kernel (which would otherwise admit
-the contradiction surfaced by R32 audit A3-α).
+so as to match the `Finset.Icc 1 n` indexing in the conclusion's
+coupling conjunct (the partial-sum index never reaches `k = 0`).  R33-A
+landed the form `∀ k ≤ n` (literal Grok text), which was unsatisfiable
+at `k = 0`.
 
-**Mathematical caveat.** As stated in the brief (literal Grok text), the
-hypothesis is unsatisfiable for the R31 reparametrized kernels at
-`k = 0`: `kernel_even_plus u 0 m = √(1/2) · exp 0 = √(1/2) ≈ 0.707`,
-which is `> ε` for any `ε < √(1/2)`. The brief's Grok-supplied proof
-sketch tacitly restricts to `k = m` (the boundary case where
-`exp(-u·m/m) = exp(-u)` decays uniformly in `m`), but the universal
-`∀ k ≤ n` quantifier in the literal hypothesis includes `k = 0`.
+**Residual mathematical gap (T2.1 honest diagnostic).**  Even with the
+`1 ≤ k` restriction, the literal brief form remains unsatisfiable for
+the R31 reparametrized kernels.  Concretely, for
+`kernel_even_plus u k n = √(1/2) · exp(-u·k/n)` with `1 ≤ k ≤ n`, the
+worst case at `(k = 1, n` large`)` gives
+`|kernel| = √(1/2) · exp(-u/n) → √(1/2)` as `n → ∞` for any fixed `u`.
+For `ε < √(1/2)` and `U` universal in `n`, choosing
+`n > U / log(√(1/2) / ε)` yields a counterexample.  The brief's
+suggested arithmetic
+`exp(-u·k/n) ≤ exp(-u)` requires `k/n ≥ 1`, i.e., `k ≥ n` — so the
+proof closes only on the boundary case `k = n`, not under the briefed
+`k ≥ 1`.
 
-The two decay lemmas below are therefore stated against the literal
-brief signature and `sorry`-stubbed with a tagged note. R33-A's mandatory
-floor includes capping at 50% if more than two such pre-flight sorries
-land in T2.3 — and the brief explicitly mentions "kernel decay form
-wrong" as a foreseen 50%-cap trigger. The corrected form (boundary
-restriction `k = n`, or `L²`-energy decay) will be addressed in R33-B
-together with the consumer migration. -/
+The honest fixes are:
+* **Boundary form**: change the universal quantifier to `k = n` (only
+  the boundary index — sufficient for the L²-energy controlling Y's
+  sample-path tail).
+* **Per-n form**: swap quantifier order to
+  `∀ ε > 0, ∀ n ≥ 1, ∃ U(n) > 0, ...` so `U` may depend on `n`
+  (`U(n, ε) := n · log(√(1/2) / ε)` works).
 
-/-- **R33-A / T2.1.a.** `kernel_decay` for `kernel_even_plus`, in the
-literal brief form `∀ k ≤ n, |kernel_even_plus u k n| ≤ ε`. As noted
-above this form is unsatisfiable at `k = 0` (kernel value
-`√(1/2) > ε` for small `ε`); the lemma is left as a tagged `sorry`. -/
+Either fix would require re-tightening the axiom signature in
+`Helpers/StochasticProcessAxiom.lean`, which is out of scope for
+R33-B's substantive work (the linear-combo construction in T2.2).
+The residual sorry is therefore TAG'd with a precise diagnostic and
+deferred to a future round (or to the day Mathlib's stochastic-integral
+API lands and the entire `kmt_aided_gaussian_process` axiom is
+discharged). -/
+
+/-- **R33-B / T2.1.a.** `kernel_decay` for `kernel_even_plus`, in the
+brief's tightened form `∀ k, 1 ≤ k → k ≤ n → |kernel_even_plus u k n| ≤ ε`.
+
+The form remains mathematically unsatisfiable as stated (see
+TAG[R33-B-T2.1.a-form-still-broken] below): the `1 ≤ k` restriction
+removes the `k = 0` counterexample but the `(k = 1, n` large`)`
+counterexample persists for any `ε < √(1/2)` when `U` is universal in
+`n`.  Closing this lemma cleanly requires either a boundary
+quantification (`k = n`) or a per-`n` `U`; both are deferred. -/
 private lemma kernel_even_plus_decay :
     ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
-      ∀ u ≥ U, ∀ k : ℕ, k ≤ n → |kernel_even_plus u k n| ≤ ε := by
-  -- TAG[R33-A-T2.1.a]: brief's pointwise `∀ k ≤ n` form is unsatisfiable
-  -- at `k = 0` for `kernel_even_plus`. Corrected forms (boundary `k = n`
-  -- or L²-energy decay) deferred to R33-B alongside consumer migration.
+      ∀ u ≥ U, ∀ k : ℕ, 1 ≤ k → k ≤ n → |kernel_even_plus u k n| ≤ ε := by
+  -- TAG[R33-B-T2.1.a-form-still-broken]: brief's `1 ≤ k` form remains
+  -- unsatisfiable for `kernel_even_plus` because the worst case at
+  -- `(k = 1, n` large`)` gives `|kernel| → √(1/2)` for fixed `u`.
+  -- Honest fix requires boundary form `k = n` or per-`n` U; both
+  -- defer to a future round (out of scope for R33-B linear-combo work).
   sorry
 
-/-- **R33-A / T2.1.b.** Mirror of T2.1.a for `kernel_odd_minus`. Same
-unsatisfiability issue at `k = 0`: `kernel_odd_minus u 0 m =
--√(1/2) · exp(-u/(2m))`, with absolute value `√(1/2) · exp(-u/(2m))`,
-which approaches `√(1/2)` as `m → ∞`, not `≤ ε`. -/
+/-- **R33-B / T2.1.b.** Mirror of T2.1.a for `kernel_odd_minus`. Same
+residual unsatisfiability under the briefed `1 ≤ k` restriction:
+`|kernel_odd_minus u 1 n| = √(1/2) · exp(-u·3/(2n)) → √(1/2)` as
+`n → ∞` for fixed `u`.
+
+**Note.** This kernel is no longer used by the linear-combo Form β
+construction (T2.2 uses a single reparametrized plus-kernel applied
+to two sub-sequences).  Once R33-C migrates the consumers and the
+naive even-plus/odd-minus pair is fully deprecated, this lemma can be
+deleted alongside `kernel_odd_minus`. -/
 private lemma kernel_odd_minus_decay :
     ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n →
-      ∀ u ≥ U, ∀ k : ℕ, k ≤ n → |kernel_odd_minus u k n| ≤ ε := by
-  -- TAG[R33-A-T2.1.b]: same as T2.1.a — brief's literal form unsatisfiable
-  -- at `k = 0`. Deferred to R33-B.
+      ∀ u ≥ U, ∀ k : ℕ, 1 ≤ k → k ≤ n → |kernel_odd_minus u k n| ≤ ε := by
+  -- TAG[R33-B-T2.1.b-form-still-broken]: same residual unsatisfiability
+  -- as T2.1.a.  Lemma is no longer used by the linear-combo Form β
+  -- construction (T2.2); will be deleted alongside `kernel_odd_minus`
+  -- in R33-C consumer migration.
   sorry
 
 /-- **R31 / T2.2 (helper).** The even sub-sequence `k ↦ a (2*k)`. -/
@@ -345,10 +376,16 @@ private theorem LS_yplus_via_even
   kmt_aided_gaussian_process kernel_even_plus kernel_even_plus_bound
     kernel_even_plus_decay (a_even a) (IsRademacherSequence_a_even a ha)
 
-/-- **R31 / T2.2.** Second axiom application: mirror of `LS_yplus_via_even`
-on the odd sub-sequence with `kernel_odd_minus`. Produces a Gaussian
-witness `Y_odd` for the (signed) ODD-indexed half of the FULL
-minus-kernel sum. -/
+/-- **R31 / T2.2 (deprecated by R33-B linear-combo).** Second axiom
+application using `kernel_odd_minus` on the odd sub-sequence.
+
+Used by the R33-A naive Form β construction (Yminus = Y_odd_with_minus
+kernel, single-summand).  Superseded by `LS_y_odd_via_plus_kernel`
+below in the R33-B linear-combo construction (Yplus = Y^e + Y^o,
+Yminus = Y^e - Y^o, both using the same plus kernel).  Retained so the
+naive `LS_yminus_via_odd` reference remains compilable in case any
+intermediate doc-rendering hooks reference it; will be deleted in a
+later cleanup round once the linear-combo form is fully validated. -/
 private theorem LS_yminus_via_odd
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
@@ -363,14 +400,77 @@ private theorem LS_yminus_via_odd
   kmt_aided_gaussian_process kernel_odd_minus kernel_odd_minus_bound
     kernel_odd_minus_decay (a_odd a) (IsRademacherSequence_a_odd a ha)
 
-/-! ### Section 4 — Form β headline (R33-A T2.2 + T2.3)
+/-- **R33-B / T2.2 (linear-combo construction).** Second axiom
+application using the SAME plus-kernel `kernel_even_plus` as
+`LS_yplus_via_even`, but on the ODD sub-sequence `a_odd`.  Produces a
+Gaussian witness `Y_o` whose KMT coupling is against
+`(a_odd, kernel_even_plus)`.
+
+Together with `LS_yplus_via_even` (which produces `Y_e` against
+`(a_even, kernel_even_plus)`), this is the pair of independent
+processes the linear-combo Form β uses to build
+`Yplus := Y_e + Y_o` and `Yminus := Y_e - Y_o`.
+
+The key structural property: both Y_e and Y_o share the same kernel
++ same sequence-length parameter, so they are i.i.d. Gaussian
+processes (when lifted to disjoint blocks of a product space).  This
+i.i.d. property is what makes `Var(Y_e) = Var(Y_o)` in the brief's
+covariance computation
+`Cov(Y_e + Y_o, Y_e - Y_o) = Var(Y_e) - Var(Y_o) = 0`. -/
+private theorem LS_y_odd_via_plus_kernel
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (ha : Erdos524.IsRademacherSequence a) :
+    ∃ (Y_o : ℝ → Ω → ℝ),
+      (∀ u, Measurable (Y_o u)) ∧
+      (∀ ω, Continuous (fun u : ℝ => Y_o u ω)) ∧
+      (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Y_o u ω| ≤ ε) ∧
+      (∀ m : ℕ, 1 ≤ m → ∀ ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt m) *
+            (∑ k ∈ Finset.Icc 1 m, a_odd a k ω * kernel_even_plus u k m) -
+          Y_o u ω| ≤ Real.log (m + 1) / Real.sqrt m) :=
+  kmt_aided_gaussian_process kernel_even_plus kernel_even_plus_bound
+    kernel_even_plus_decay (a_odd a) (IsRademacherSequence_a_odd a ha)
+
+/-! ### Section 4 — Form β headline (R33-B linear-combo correction)
 
 The R33-A correction of A4 (`two_dim_KMT_coupling_via_LS_reduction`) and
-B1 (`LS_independent_yplus_yminus`).  Both are restated in
-paper-faithful Form β: a product space `Ω × Ω` carrying disjoint
-Rademacher blocks, half-sum couplings against the R31 reparametrized
-kernels, and unconditional `IndepFun` derived via `indepFun_prod` from
-`Mathlib.Probability.Independence.Basic`.
+B1 (`LS_independent_yplus_yminus`) used a "naive Form β" structure:
+`Yplus = Y_even` (only even-plus summand) and `Yminus = Y_odd` (only
+odd-minus summand), with half-sum couplings against the two
+reparametrized kernels.
+
+R33-B replaces this with the **linear-combo Form β** per Letwin–Sawhney
+Lemma 3.3 (Grok R33-B response):
+
+* Apply `kmt_aided_gaussian_process` twice with the *same* plus-kernel
+  `kernel_even_plus`, once on `a_even` and once on `a_odd`.  This
+  produces two i.i.d. Gaussian processes `Y_e` and `Y_o` (i.i.d. because
+  same kernel, same sub-sequence law).
+* Lift to the product space `Ω × Ω`: `Y_e` via `fst`, `Y_o` via `snd`.
+* Define `Yplus := Y_e + Y_o` and `Yminus := Y_e - Y_o` (linear combo).
+
+The structural advantages over the naive form:
+
+1. **Full-sum control.** The combined coupling now bounds
+   `(even-half + odd-half) - Yplus` and
+   `(even-half - odd-half) - Yminus`, both sums having explicit
+   summand-wise structure usable by downstream consumers (524.lean's
+   triangle bridge in R33-C).
+2. **Independence by Gaussian-uncorrelated → independent.**  In the
+   joint Gaussian space spanned by `(Y_e, Y_o)`, the covariance
+   `Cov(Y_e + Y_o, Y_e - Y_o) = Var(Y_e) - Var(Y_o) = 0` (i.i.d.), so
+   the linear combinations are independent.  This requires Mathlib's
+   `IsGaussian.iIndepFun_iff_zero_covariance` (or equivalent), which
+   is a known API gap.
+
+The R33-A `LS_independent_yplus_yminus_disjoint_blocks` lemma is
+retained but is **no longer used** by the new `via_LS_reduction` body
+(it bears witness to independence between two functions on the
+product space lifted via `fst`/`snd`, but the linear combinations
+intermix `fst` and `snd` and so don't fall under that lemma).  The
+independence step in the new body uses a different argument
+(Gaussian-uncorrelated → independent) and is TAG'd as a Mathlib API
+gap.
 -/
 
 /-- **B1 (R33-A correction).** Independence of `Yplus` and `Yminus` as
@@ -403,40 +503,50 @@ private theorem LS_independent_yplus_yminus_disjoint_blocks
       ((ℙ : Measure Ω₁).prod (ℙ : Measure Ω₂)) :=
   indepFun_prod (measurable_pi_iff.mpr h_meas_p) (measurable_pi_iff.mpr h_meas_m)
 
-/-- **A4 (R33-A correction, Form β).** 2D KMT coupling theorem in the
-paper-faithful Letwin–Sawhney decoupled form.
+/-- **A4 (R33-B linear-combo Form β).** 2D KMT coupling theorem in the
+linear-combo Letwin–Sawhney form.
 
-R32 audit established that the R30 form is contradictory: full-sum
-couplings on a single `Ω` together with unconditional `IndepFun`
-exceeds what is mathematically achievable.  The R33-A correction
-(Form β, per Grok pre-flight) builds the witnesses on a product space
-`Ω' := Ω × Ω` from disjoint Rademacher sub-blocks
-(`a_even` extended via `fst`, `a_odd` extended via `snd`), giving
-HALF-sum couplings against the R31 reparametrized kernels
-(`kernel_even_plus`, `kernel_odd_minus`) and unconditional `IndepFun`
-by product-space construction.
+R33-A landed a "naive Form β" where Yplus / Yminus were single-summand
+witnesses (Yplus = Y_even, Yminus = Y_odd via different kernels).  R33-B
+replaces this with the **linear-combo Form β** per Grok R33-B response:
 
-**Signature note (deviation from brief).** The brief specifies
-`∃ (Ω' : Type*) (mΩ' : MeasureSpace Ω') ...`; we instantiate `Ω' := Ω × Ω`
-directly via Mathlib's canonical `prod.measureSpace` instance to avoid
-the typeclass-instance-as-existential gymnastics. The mathematical
-content is unchanged.
+* Apply `kmt_aided_gaussian_process` twice with the *same* plus-kernel
+  `kernel_even_plus`, once on `a_even` (→ `Y_e`) and once on `a_odd`
+  (→ `Y_o`).  These are i.i.d. Gaussian processes (same kernel, same
+  sub-sequence law).
+* Lift to `Ω × Ω`: `Y_e` via `fst`, `Y_o` via `snd`.
+* Define `Yplus := Y_e + Y_o` and `Yminus := Y_e - Y_o`.
 
-**Coupling form (deviation from brief).** The brief writes the half-sum
-couplings against the kernels `exp(-u·(2k)/n)` and
-`(-exp(-u/n))^(2k+1)` (the original full kernels evaluated at even/odd
-indices); we use the R31 reparametrized kernels `kernel_even_plus` and
-`kernel_odd_minus` which are what the existing R31
-`LS_yplus_via_even` / `LS_yminus_via_odd` axiom applications return.
-The two kernel forms are related by `√(1/2)` normalization +
-index-rescaling and produce the same Gaussian witnesses up to
-reparametrization (R33-B will bridge them as needed for consumer
-migration).
+The signature's coupling conjuncts now bound the **combined** half-sums
+(even ± odd) against `Yplus` / `Yminus`, with `Δ_n = 2·log(n+1)/√n`
+(factor `2` from the triangle inequality
+`|F_even + F_odd - (Y_e + Y_o)| ≤ |F_even - Y_e| + |F_odd - Y_o|`).
 
-**Body status.** One residual `sorry` for the
-`IsRademacherSequence` lift to `Ω × Ω` (Mathlib API gap on lifting
-`iIndepFun` through measure-preserving projections — standard but
-non-trivial).
+**Signature note (kept from R33-A).** `Ω' := Ω × Ω` directly via
+Mathlib's canonical `prod.measureSpace` instance.
+
+**Coupling kernel (deviation from naive R33-A signature).** Both
+coupling conjuncts use `kernel_even_plus` (the linear-combo brief's
+single-kernel form), with the odd summand having a sign flip in the
+Yminus conjunct.  The naive R33-A signature used `kernel_even_plus`
+for Yplus and `kernel_odd_minus` for Yminus; the brief's R33-C
+consumer migration will bridge to the original 524.lean
+`exp(-uk/n)` / `(-exp(-u/n))^k` kernels via the sign-flip identity
+`(-exp(-u/n))^(2k+1) = -(exp(-u/n))^(2k+1)` and a phase-shift
+correction.
+
+**Body status.** Two residual `sorry`s with TAG diagnostics:
+
+* `?ha'` (T2.3): `IsRademacherSequence` lift on `Ω × Ω` with
+  block-disjoint construction.  Mathlib API gap on lifting
+  `iIndepFun` through product-space projections.  TAG[R33-B-T2.3-mathlib-gap].
+* `?indep` (linear-combo IndepFun): `Yplus = Y_e + Y_o` and
+  `Yminus = Y_e - Y_o` are linear combinations of the same independent
+  pair `(Y_e, Y_o)`; the standard IndepFun-from-projection arguments do
+  not apply.  Independence here requires the Gaussian-uncorrelated →
+  independent property
+  (`Cov(Y_e + Y_o, Y_e - Y_o) = Var(Y_e) - Var(Y_o) = 0` since `Y_e`,
+  `Y_o` are i.i.d.).  TAG[R33-B-T2.2-gaussian-uncorrelated-indep].
 -/
 theorem two_dim_KMT_coupling_via_LS_reduction
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
@@ -448,98 +558,292 @@ theorem two_dim_KMT_coupling_via_LS_reduction
       (∀ ω : Ω × Ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
       (∀ ε > 0, ∀ᵐ ω : Ω × Ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
       (∀ ε > 0, ∀ᵐ ω : Ω × Ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) ∧
-      (∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n) ∧
+      (∀ n : ℕ, 1 ≤ n → Δ n ≤ 2 * Real.log (n + 1) / Real.sqrt n) ∧
       (∀ n : ℕ, 1 ≤ n → ∀ ω : Ω × Ω, ∀ u ≥ (0 : ℝ),
         |((1 : ℝ) / Real.sqrt n) *
-            (∑ k ∈ Finset.Icc 1 n,
-              a' (2*k) ω * kernel_even_plus u k n) -
+            ((∑ k ∈ Finset.Icc 1 n,
+                a' (2*k) ω * kernel_even_plus u k n)
+            + (∑ k ∈ Finset.Icc 1 n,
+                a' (2*k+1) ω * kernel_even_plus u k n)) -
           Yplus u ω| ≤ Δ n) ∧
       (∀ n : ℕ, 1 ≤ n → ∀ ω : Ω × Ω, ∀ u ≥ (0 : ℝ),
         |((1 : ℝ) / Real.sqrt n) *
-            (∑ k ∈ Finset.Icc 1 n,
-              a' (2*k+1) ω * kernel_odd_minus u k n) -
+            ((∑ k ∈ Finset.Icc 1 n,
+                a' (2*k) ω * kernel_even_plus u k n)
+            - (∑ k ∈ Finset.Icc 1 n,
+                a' (2*k+1) ω * kernel_even_plus u k n)) -
           Yminus u ω| ≤ Δ n) ∧
       ProbabilityTheory.IndepFun
         (fun ω : Ω × Ω => fun u : ℝ => Yplus u ω)
         (fun ω : Ω × Ω => fun u : ℝ => Yminus u ω)
         ((ℙ : Measure Ω).prod (ℙ : Measure Ω)) := by
-  -- Axiom applications on the original space `Ω` produce `Y_even` / `Y_odd`.
-  obtain ⟨Y_even, hYe_meas, hYe_cont, hYe_decay, hYe_couple⟩ :=
+  -- Axiom applications on the original space `Ω` produce `Y_e` / `Y_o`,
+  -- both with the same `kernel_even_plus`.
+  obtain ⟨Y_e, hYe_meas, hYe_cont, hYe_decay, hYe_couple⟩ :=
     LS_yplus_via_even a ha
-  obtain ⟨Y_odd, hYo_meas, hYo_cont, hYo_decay, hYo_couple⟩ :=
-    LS_yminus_via_odd a ha
-  -- Form β witnesses on `Ω × Ω`: lift Y_even via `fst`, Y_odd via `snd`.
+  obtain ⟨Y_o, hYo_meas, hYo_cont, hYo_decay, hYo_couple⟩ :=
+    LS_y_odd_via_plus_kernel a ha
+  -- Linear-combo witnesses on `Ω × Ω`: Yplus = Y_e ∘ fst + Y_o ∘ snd,
+  -- Yminus = Y_e ∘ fst - Y_o ∘ snd.
   refine ⟨fun k ω => if 2 ∣ k then a k ω.1 else a k ω.2,
-    ?ha', fun u ω => Y_even u ω.1, fun u ω => Y_odd u ω.2,
-    fun n => Real.log (n + 1) / Real.sqrt n,
+    ?ha',
+    fun u ω => Y_e u ω.1 + Y_o u ω.2,
+    fun u ω => Y_e u ω.1 - Y_o u ω.2,
+    fun n => 2 * Real.log (n + 1) / Real.sqrt n,
     ?meas_p, ?meas_m, ?cont_p, ?cont_m, ?decay_p, ?decay_m,
     ?Δ_bound, ?couple_p, ?couple_m, ?indep⟩
   case ha' =>
-    -- TAG[R33-A-T2.3-rademacher-lift]: IsRademacherSequence on Ω × Ω
-    -- with even-block-via-fst, odd-block-via-snd. Mathlib API gap on
-    -- lifting iIndepFun through product-space projections.
-    sorry
+    -- T2.3 partial closure: split IsRademacherSequence into its four
+    -- fields.  `measurable`, `prob_pos`, `prob_neg` close cleanly via
+    -- product-measure projection lemmas
+    -- (`Measure.fst_apply`/`Measure.fst_prod` and snd analogues).
+    -- `iIndepFun` is the residual Mathlib API gap (lifting i.i.d.
+    -- through disjoint-coordinate selection on a product measure).
+    refine ⟨?_, ?_, ?_, ?_⟩
+    · -- iIndepFun.
+      -- TAG[R33-B-T2.3-iIndepFun-prod]: iIndepFun lift through
+      -- block-disjoint coordinate selection.  Mathlib has the
+      -- ingredients (independence between fst-measurable and
+      -- snd-measurable σ-algebras under a product measure;
+      -- iIndepFun.comp under injective ℕ → ℕ on the original a) but
+      -- the composite "i.i.d. on disjoint blocks of a product
+      -- measure" lemma is not packaged.  Sorry-with-TAG honest
+      -- diagnostic.
+      sorry
+    · -- measurable
+      intro k
+      by_cases hk : (2 : ℕ) ∣ k
+      · simp only [hk, ↓reduceIte]
+        exact (ha.measurable k).comp measurable_fst
+      · simp only [hk, ↓reduceIte]
+        exact (ha.measurable k).comp measurable_snd
+    · -- prob_pos
+      intro k
+      have hmeas_pos : MeasurableSet ({(1 : ℝ)} : Set ℝ) :=
+        measurableSet_singleton 1
+      have hpre : MeasurableSet ({ω : Ω | a k ω = 1}) :=
+        ha.measurable k hmeas_pos
+      by_cases hk : (2 : ℕ) ∣ k
+      · have hset : {ω : Ω × Ω |
+            (if (2 : ℕ) ∣ k then a k ω.1 else a k ω.2) = 1}
+              = Prod.fst ⁻¹' {ω₁ : Ω | a k ω₁ = 1} := by
+          ext ω; simp [hk]
+        rw [hset, show (ℙ : Measure (Ω × Ω))
+              = (ℙ : Measure Ω).prod (ℙ : Measure Ω) from rfl,
+          ← MeasureTheory.Measure.fst_apply hpre,
+          MeasureTheory.Measure.fst_prod]
+        exact ha.prob_pos k
+      · have hset : {ω : Ω × Ω |
+            (if (2 : ℕ) ∣ k then a k ω.1 else a k ω.2) = 1}
+              = Prod.snd ⁻¹' {ω₂ : Ω | a k ω₂ = 1} := by
+          ext ω; simp [hk]
+        rw [hset, show (ℙ : Measure (Ω × Ω))
+              = (ℙ : Measure Ω).prod (ℙ : Measure Ω) from rfl,
+          ← MeasureTheory.Measure.snd_apply hpre,
+          MeasureTheory.Measure.snd_prod]
+        exact ha.prob_pos k
+    · -- prob_neg
+      intro k
+      have hmeas_neg : MeasurableSet ({(-1 : ℝ)} : Set ℝ) :=
+        measurableSet_singleton (-1)
+      have hpre : MeasurableSet ({ω : Ω | a k ω = -1}) :=
+        ha.measurable k hmeas_neg
+      by_cases hk : (2 : ℕ) ∣ k
+      · have hset : {ω : Ω × Ω |
+            (if (2 : ℕ) ∣ k then a k ω.1 else a k ω.2) = -1}
+              = Prod.fst ⁻¹' {ω₁ : Ω | a k ω₁ = -1} := by
+          ext ω; simp [hk]
+        rw [hset, show (ℙ : Measure (Ω × Ω))
+              = (ℙ : Measure Ω).prod (ℙ : Measure Ω) from rfl,
+          ← MeasureTheory.Measure.fst_apply hpre,
+          MeasureTheory.Measure.fst_prod]
+        exact ha.prob_neg k
+      · have hset : {ω : Ω × Ω |
+            (if (2 : ℕ) ∣ k then a k ω.1 else a k ω.2) = -1}
+              = Prod.snd ⁻¹' {ω₂ : Ω | a k ω₂ = -1} := by
+          ext ω; simp [hk]
+        rw [hset, show (ℙ : Measure (Ω × Ω))
+              = (ℙ : Measure Ω).prod (ℙ : Measure Ω) from rfl,
+          ← MeasureTheory.Measure.snd_apply hpre,
+          MeasureTheory.Measure.snd_prod]
+        exact ha.prob_neg k
   case meas_p =>
     intro u
-    exact (hYe_meas u).comp measurable_fst
+    exact ((hYe_meas u).comp measurable_fst).add ((hYo_meas u).comp measurable_snd)
   case meas_m =>
     intro u
-    exact (hYo_meas u).comp measurable_snd
+    exact ((hYe_meas u).comp measurable_fst).sub ((hYo_meas u).comp measurable_snd)
   case cont_p =>
     intro ω
-    exact hYe_cont ω.1
+    exact (hYe_cont ω.1).add (hYo_cont ω.2)
   case cont_m =>
     intro ω
-    exact hYo_cont ω.2
+    exact (hYe_cont ω.1).sub (hYo_cont ω.2)
   case decay_p =>
+    -- |Y_e u ω.1 + Y_o u ω.2| ≤ |Y_e u ω.1| + |Y_o u ω.2| ≤ ε/2 + ε/2 = ε
+    -- for u ≥ max T_e T_o.  T_e (resp. T_o) from hYe_decay (resp.
+    -- hYo_decay) at ε/2 lifted via fst (resp. snd).
     intro ε hε
-    have h_orig := hYe_decay ε hε
-    exact (Measure.quasiMeasurePreserving_fst (μ := (ℙ : Measure Ω))
-      (ν := (ℙ : Measure Ω))).ae h_orig
+    have hε2 : (0 : ℝ) < ε / 2 := by linarith
+    have hYe_lift :=
+      (Measure.quasiMeasurePreserving_fst
+        (μ := (ℙ : Measure Ω)) (ν := (ℙ : Measure Ω))).ae (hYe_decay (ε/2) hε2)
+    have hYo_lift :=
+      (Measure.quasiMeasurePreserving_snd
+        (μ := (ℙ : Measure Ω)) (ν := (ℙ : Measure Ω))).ae (hYo_decay (ε/2) hε2)
+    filter_upwards [hYe_lift, hYo_lift] with ω hYe_ω hYo_ω
+    obtain ⟨T_e, hT_e⟩ := hYe_ω
+    obtain ⟨T_o, hT_o⟩ := hYo_ω
+    refine ⟨max T_e T_o, fun u hu => ?_⟩
+    have h_e : |Y_e u ω.1| ≤ ε/2 := hT_e u (le_of_max_le_left hu)
+    have h_o : |Y_o u ω.2| ≤ ε/2 := hT_o u (le_of_max_le_right hu)
+    calc |Y_e u ω.1 + Y_o u ω.2|
+        ≤ |Y_e u ω.1| + |Y_o u ω.2| := abs_add_le _ _
+      _ ≤ ε/2 + ε/2 := add_le_add h_e h_o
+      _ = ε := by ring
   case decay_m =>
+    -- Mirror of decay_p with sub instead of add.
     intro ε hε
-    have h_orig := hYo_decay ε hε
-    exact (Measure.quasiMeasurePreserving_snd (μ := (ℙ : Measure Ω))
-      (ν := (ℙ : Measure Ω))).ae h_orig
+    have hε2 : (0 : ℝ) < ε / 2 := by linarith
+    have hYe_lift :=
+      (Measure.quasiMeasurePreserving_fst
+        (μ := (ℙ : Measure Ω)) (ν := (ℙ : Measure Ω))).ae (hYe_decay (ε/2) hε2)
+    have hYo_lift :=
+      (Measure.quasiMeasurePreserving_snd
+        (μ := (ℙ : Measure Ω)) (ν := (ℙ : Measure Ω))).ae (hYo_decay (ε/2) hε2)
+    filter_upwards [hYe_lift, hYo_lift] with ω hYe_ω hYo_ω
+    obtain ⟨T_e, hT_e⟩ := hYe_ω
+    obtain ⟨T_o, hT_o⟩ := hYo_ω
+    refine ⟨max T_e T_o, fun u hu => ?_⟩
+    have h_e : |Y_e u ω.1| ≤ ε/2 := hT_e u (le_of_max_le_left hu)
+    have h_o : |Y_o u ω.2| ≤ ε/2 := hT_o u (le_of_max_le_right hu)
+    calc |Y_e u ω.1 - Y_o u ω.2|
+        = |Y_e u ω.1 + (- Y_o u ω.2)| := by rw [sub_eq_add_neg]
+      _ ≤ |Y_e u ω.1| + |- Y_o u ω.2| := abs_add_le _ _
+      _ = |Y_e u ω.1| + |Y_o u ω.2| := by rw [abs_neg]
+      _ ≤ ε/2 + ε/2 := add_le_add h_e h_o
+      _ = ε := by ring
   case Δ_bound =>
     intro _ _; exact le_refl _
   case couple_p =>
+    -- Linear-combo coupling for Yplus: triangle bound on the two
+    -- per-sub-sequence couplings (each ≤ log(n+1)/√n) gives 2·log(n+1)/√n.
     intro n hn ω u hu
-    -- For even index `2*k`, the `if 2 ∣ k` branch picks `a (2*k) ω.1`.
-    have h_even : ∀ k, (if (2 : ℕ) ∣ (2*k) then a (2*k) ω.1 else a (2*k) ω.2)
-        = a_even a k ω.1 := by
+    -- Identify the indicator-shaped sums with `a_even`/`a_odd` sums.
+    have h_even_idx : ∀ k,
+        (if (2 : ℕ) ∣ (2*k) then a (2*k) ω.1 else a (2*k) ω.2)
+          = a_even a k ω.1 := by
       intro k
       have : (2 : ℕ) ∣ (2*k) := Nat.dvd_mul_right 2 k
       simp [a_even, this]
-    have h_sum :
+    have h_odd_idx : ∀ k,
+        (if (2 : ℕ) ∣ (2*k+1) then a (2*k+1) ω.1 else a (2*k+1) ω.2)
+          = a_odd a k ω.2 := by
+      intro k
+      have h_not : ¬ (2 : ℕ) ∣ (2*k+1) := by omega
+      simp [a_odd, h_not]
+    have h_sum_even :
         (∑ k ∈ Finset.Icc 1 n,
             (if (2 : ℕ) ∣ (2*k) then a (2*k) ω.1 else a (2*k) ω.2)
               * kernel_even_plus u k n)
           = ∑ k ∈ Finset.Icc 1 n,
               a_even a k ω.1 * kernel_even_plus u k n := by
       refine Finset.sum_congr rfl ?_
-      intro k _; rw [h_even]
-    rw [h_sum]
-    exact hYe_couple n hn ω.1 u hu
+      intro k _; rw [h_even_idx]
+    have h_sum_odd :
+        (∑ k ∈ Finset.Icc 1 n,
+            (if (2 : ℕ) ∣ (2*k+1) then a (2*k+1) ω.1 else a (2*k+1) ω.2)
+              * kernel_even_plus u k n)
+          = ∑ k ∈ Finset.Icc 1 n,
+              a_odd a k ω.2 * kernel_even_plus u k n := by
+      refine Finset.sum_congr rfl ?_
+      intro k _; rw [h_odd_idx]
+    rw [h_sum_even, h_sum_odd]
+    -- Per-summand couplings.
+    have h_e_couple := hYe_couple n hn ω.1 u hu
+    have h_o_couple := hYo_couple n hn ω.2 u hu
+    -- Algebraic regrouping: (A + B) - (X + Y) = (A - X) + (B - Y).
+    set A := (1 : ℝ) / Real.sqrt n *
+        ∑ k ∈ Finset.Icc 1 n, a_even a k ω.1 * kernel_even_plus u k n
+    set B := (1 : ℝ) / Real.sqrt n *
+        ∑ k ∈ Finset.Icc 1 n, a_odd a k ω.2 * kernel_even_plus u k n
+    have h_eq : (1 : ℝ) / Real.sqrt n *
+        ((∑ k ∈ Finset.Icc 1 n, a_even a k ω.1 * kernel_even_plus u k n)
+        + (∑ k ∈ Finset.Icc 1 n, a_odd a k ω.2 * kernel_even_plus u k n))
+          - (Y_e u ω.1 + Y_o u ω.2)
+          = (A - Y_e u ω.1) + (B - Y_o u ω.2) := by
+      simp only [A, B]
+      ring
+    rw [h_eq]
+    calc |(A - Y_e u ω.1) + (B - Y_o u ω.2)|
+        ≤ |A - Y_e u ω.1| + |B - Y_o u ω.2| := abs_add_le _ _
+      _ ≤ Real.log (n + 1) / Real.sqrt n + Real.log (n + 1) / Real.sqrt n :=
+            add_le_add h_e_couple h_o_couple
+      _ = 2 * Real.log (n + 1) / Real.sqrt n := by ring
   case couple_m =>
+    -- Mirror of couple_p with the sign flip on the odd summand.
     intro n hn ω u hu
-    -- For odd index `2*k+1`, the `if 2 ∣ k` branch picks `a (2*k+1) ω.2`.
-    have h_odd : ∀ k, (if (2 : ℕ) ∣ (2*k+1) then a (2*k+1) ω.1 else a (2*k+1) ω.2)
-        = a_odd a k ω.2 := by
+    have h_even_idx : ∀ k,
+        (if (2 : ℕ) ∣ (2*k) then a (2*k) ω.1 else a (2*k) ω.2)
+          = a_even a k ω.1 := by
+      intro k
+      have : (2 : ℕ) ∣ (2*k) := Nat.dvd_mul_right 2 k
+      simp [a_even, this]
+    have h_odd_idx : ∀ k,
+        (if (2 : ℕ) ∣ (2*k+1) then a (2*k+1) ω.1 else a (2*k+1) ω.2)
+          = a_odd a k ω.2 := by
       intro k
       have h_not : ¬ (2 : ℕ) ∣ (2*k+1) := by omega
       simp [a_odd, h_not]
-    have h_sum :
+    have h_sum_even :
+        (∑ k ∈ Finset.Icc 1 n,
+            (if (2 : ℕ) ∣ (2*k) then a (2*k) ω.1 else a (2*k) ω.2)
+              * kernel_even_plus u k n)
+          = ∑ k ∈ Finset.Icc 1 n,
+              a_even a k ω.1 * kernel_even_plus u k n := by
+      refine Finset.sum_congr rfl ?_
+      intro k _; rw [h_even_idx]
+    have h_sum_odd :
         (∑ k ∈ Finset.Icc 1 n,
             (if (2 : ℕ) ∣ (2*k+1) then a (2*k+1) ω.1 else a (2*k+1) ω.2)
-              * kernel_odd_minus u k n)
+              * kernel_even_plus u k n)
           = ∑ k ∈ Finset.Icc 1 n,
-              a_odd a k ω.2 * kernel_odd_minus u k n := by
+              a_odd a k ω.2 * kernel_even_plus u k n := by
       refine Finset.sum_congr rfl ?_
-      intro k _; rw [h_odd]
-    rw [h_sum]
-    exact hYo_couple n hn ω.2 u hu
+      intro k _; rw [h_odd_idx]
+    rw [h_sum_even, h_sum_odd]
+    have h_e_couple := hYe_couple n hn ω.1 u hu
+    have h_o_couple := hYo_couple n hn ω.2 u hu
+    set A := (1 : ℝ) / Real.sqrt n *
+        ∑ k ∈ Finset.Icc 1 n, a_even a k ω.1 * kernel_even_plus u k n
+    set B := (1 : ℝ) / Real.sqrt n *
+        ∑ k ∈ Finset.Icc 1 n, a_odd a k ω.2 * kernel_even_plus u k n
+    have h_eq : (1 : ℝ) / Real.sqrt n *
+        ((∑ k ∈ Finset.Icc 1 n, a_even a k ω.1 * kernel_even_plus u k n)
+        - (∑ k ∈ Finset.Icc 1 n, a_odd a k ω.2 * kernel_even_plus u k n))
+          - (Y_e u ω.1 - Y_o u ω.2)
+          = (A - Y_e u ω.1) - (B - Y_o u ω.2) := by
+      simp only [A, B]
+      ring
+    rw [h_eq]
+    calc |(A - Y_e u ω.1) - (B - Y_o u ω.2)|
+        = |(A - Y_e u ω.1) + (- (B - Y_o u ω.2))| := by rw [sub_eq_add_neg]
+      _ ≤ |A - Y_e u ω.1| + |- (B - Y_o u ω.2)| := abs_add_le _ _
+      _ = |A - Y_e u ω.1| + |B - Y_o u ω.2| := by rw [abs_neg]
+      _ ≤ Real.log (n + 1) / Real.sqrt n + Real.log (n + 1) / Real.sqrt n :=
+            add_le_add h_e_couple h_o_couple
+      _ = 2 * Real.log (n + 1) / Real.sqrt n := by ring
   case indep =>
-    exact LS_independent_yplus_yminus_disjoint_blocks Y_even Y_odd hYe_meas hYo_meas
+    -- TAG[R33-B-T2.2-gaussian-uncorrelated-indep]: Linear combinations
+    -- of the same independent pair (Y_e ∘ fst, Y_o ∘ snd) — Yplus and
+    -- Yminus do NOT factor through different projections.
+    -- Independence requires: Y_e and Y_o are i.i.d. centered Gaussian,
+    -- so Cov(Y_e + Y_o, Y_e - Y_o) = Var(Y_e) - Var(Y_o) = 0, and
+    -- uncorrelated centered Gaussians on a joint Gaussian space are
+    -- independent.  Mathlib's `IsGaussian.iIndepFun_iff_zero_covariance`
+    -- (or equivalent) is the missing lemma; the axiom output type does
+    -- not certify Gaussian-ness directly.  Sorry-with-TAG honest
+    -- diagnostic deferred to Mathlib stochastic-integral landing.
+    sorry
 
 end Erdos524.Helpers
