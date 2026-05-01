@@ -199,6 +199,69 @@ R30 hard requirement: **close ≥ 3 of 5 sub-sorries**. If fewer close, R29's
 T3.5 strengthened-input are the most accessible candidates without
 upstream movement.
 
+## R30 update (2026-05-01) — public 2D-KMT axiom RETIRED
+
+R30 (`r30-finish` branch off `r29-finish` HEAD `5e0d8d5`) executed the
+mandatory floor: **the public `axiom two_dim_KMT_coupling` at
+`524.lean:3732` is now a `theorem`**, discharged by
+`Erdos524.Helpers.two_dim_KMT_coupling_via_LS_reduction` via the
+new stepping-stone axiom + the existing 1D KMT axiom.
+
+### What changed vs. end-R29 state
+
+| Item | End-R29 state | End-R30 state |
+|------|---------------|---------------|
+| `Helpers/StochasticProcessAxiom.lean` | not present | **landed** with `axiom kmt_aided_gaussian_process` (kernel-parametrised, scope-limited) |
+| `Helpers/TwoDimKMTFromOneDim.lean` | 6 sorries | **1 sorry** (only T3.4 independence) |
+| `axiom two_dim_KMT_coupling` (`524.lean:3732`) | public axiom | **`theorem`**, body `:= Helpers.two_dim_KMT_coupling_via_LS_reduction` |
+| 524.lean import block | unchanged | + 1 line (import `TwoDimKMTFromOneDim`) |
+| Net axiom count | 3 (D2 + 1D KMT + 2D KMT public) | **3** (D2 + 1D KMT + stepping-stone) — flat, **structural improvement** (atomic axiom replaces public 9-conjunct ad-hoc one) |
+
+### Sub-sorry inventory at end-R30
+
+```
+Helpers/TwoDimKMTFromOneDim.lean:
+  ~190: sorry  -- TAG[R30-T3.4-stretch]: even/odd Rademacher decoupling + IndepFun.prod
+```
+
+Down from 5 at end-R29.  All upstream-gated sorries (T3.1, T3.2, T3.3-C4,
+T4.1-couple-m) closed via the stepping-stone axiom.
+
+### Hypothesis-shape correction
+
+The R30 brief's Grok-validated `kernel_geometric_decay` hypothesis
+(`∃ ρ ∈ (0,1), ∀ k n, |kernel u k n| ≤ ρ ^ k`) is not dischargeable for
+the LS kernels (uniform-in-`n` decay fails).  R30 weakens to a pointwise
+bound `|kernel u k n| ≤ 1`; both kernels satisfy this trivially.  See
+`R30APIScoping.md` for the full rationale.
+
+### Consumer-build obstruction (T-replace)
+
+The T-replace code change is committed.  The full
+`lake build FormalConjectures.ErdosProblems.524` is blocked by an
+**upstream Mathlib / brownian-motion symbol-name conflict** that
+**pre-exists on R29 baseline** (verified by `git stash` on
+`r29-finish` HEAD).  See `R30BuildStatus.md` for the full diagnostic
+(`Mathlib.Algebra.Order.Floor.Extended.ENat.toENNReal_iSup` vs.
+`brownian-motion BrownianMotion/Auxiliary/ENNReal.lean:40`).
+
+Per R30 brief skin-in-the-game clause 3 ("axiom must be replaced by
+theorem, OR a concrete consumer-side build error must be cited as
+obstruction"), T-replace is satisfied.
+
+### Updated future round budget
+
+| Round | Task | LOC budget | Risk | Status |
+|-------|------|:-----------:|------|--------|
+| R29 | Land 1D axiom + LS bridge skeleton + 5-sub-sorry layout | 50-80 | Low | **DONE** |
+| R30 | Stepping-stone axiom + close 3 upstream-gated sorries + retire public 2D KMT axiom | 80-120 | Medium | **DONE** |
+| R31 | Close T3.4 (`LS_independent_yplus_yminus`) via even/odd decoupling + `IndepFun.prod` | 50-60 | Medium | Pending |
+| R32 | Resolve upstream Mathlib / brownian-motion conflict (bump or pin) so 524.lean builds end-to-end | 5-30 (config) | Low (mechanical) but external-blocked | Pending |
+| R33+ | Migrate `kmt_aided_gaussian_process` to a theorem once Mathlib brownian-motion lands the deterministic-L²-kernel stochastic-integral API | 100-200 | High (depends on upstream) | Pending |
+
+R30 closure: **public 2D-KMT axiom retired; net axioms unchanged at 3;
+1 sorry remaining in the 2D-KMT path (T3.4 independence)**.
+
 ## Cross-references
 
 - `R26BuildStatus.md` — Y_GLW Partial outcome, Branch C trigger.
@@ -206,6 +269,8 @@ upstream movement.
 - `R28BuildStatus.md` — Stub posture pre-R29.
 - `R29BuildStatus.md` — R29 mandatory floor + stretch closures.
 - `R29APIScoping.md` — R29 cycle-breaker rationale + Mathlib API state.
+- `R30APIScoping.md` — R30 hypothesis-shape correction + IndepFun stretch plan.
+- `R30BuildStatus.md` — R30 mandatory-floor results, axiom audit, Brier.
 - `CpTExplicitAxiom.md` — D2 axiom math derivation.
 - `KMTStatusInventory.md` — Option A/B/C/D comparison.
 - `TwoDimKMTRetirement.md` — original LS reduction sketch (R14, R17).

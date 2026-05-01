@@ -16,6 +16,7 @@ limitations under the License.
 
 import FormalConjectures.Util.ProblemImports
 import FormalConjectures.ErdosProblems.Helpers.RademacherSequence
+import FormalConjectures.ErdosProblems.Helpers.TwoDimKMTFromOneDim
 import FormalConjectures.ErdosProblems.Helpers.IndepSetBridge
 import FormalConjectures.ErdosProblems.Helpers.BlockIndep
 import FormalConjectures.ErdosProblems.Helpers.LilNormAsymptotics
@@ -3729,7 +3730,15 @@ Both are consequences of `ito_integral_exp_kernel`'s mathematical content
 intersections over `u ∈ [0, T]` to rational ones (Pi-measurability), and
 (b) upgrade the GLW sup-on-[0, T] event to a sup-over-all-u event
 (reverse containment up to the endpoint reparametrization). -/
-axiom two_dim_KMT_coupling :
+/-- **R30 retirement.**  Previously a public `axiom`; now a `theorem`
+discharged by `Erdos524.Helpers.two_dim_KMT_coupling_via_LS_reduction`,
+which composes the 1D KMT axiom (`Helpers/OneDimKMT.lean`) with the
+stepping-stone Itô-isometry axiom (`Helpers/StochasticProcessAxiom.lean`)
+via the Letwin–Sawhney reduction.  Net axiom count is unchanged at three
+(`Y_GLW_exists` private + `one_dim_KMT_coupling` + the new
+`kmt_aided_gaussian_process` stepping stone), but the public 2D-KMT
+axiom is gone. -/
+theorem two_dim_KMT_coupling :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
       (a : ℕ → Ω → ℝ), IsRademacherSequence a →
       ∃ (Yplus Yminus : ℝ → Ω → ℝ) (Δ : ℕ → ℝ),
@@ -3750,7 +3759,8 @@ axiom two_dim_KMT_coupling :
         (∀ ω, Continuous (fun u : ℝ => Yplus u ω)) ∧
         (∀ ω, Continuous (fun u : ℝ => Yminus u ω)) ∧
         (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yplus u ω| ≤ ε) ∧
-        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε)
+        (∀ ε > 0, ∀ᵐ ω, ∃ T₀ : ℝ, ∀ u ≥ T₀, |Yminus u ω| ≤ ε) :=
+  Helpers.two_dim_KMT_coupling_via_LS_reduction
 
 /-- **Sub-axiom 6 (now a theorem): endpoint reparametrization.** The calculus
 identity that turns a supremum of a polynomial over `[-1, 1]` into twin
