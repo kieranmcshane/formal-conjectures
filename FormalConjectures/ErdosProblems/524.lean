@@ -3540,78 +3540,74 @@ theorem gao_li_wellner_small_ball_upper (glw : GaoLiWellnerConstants) :
   --   (whose own documented sorry remains).
   sorry
 
-/-- **Sub-theorem 4 (Round 8): Gao–Li–Wellner small-ball LOWER asymptotic.**
-The matching lower bound for the centered Gaussian process
-`Y(u) = ∫₀¹ e^{-u s} dB(s)` (or any process satisfying `IsGLWProcess`):
+/-- **Sub-axiom 4 (Round 34 regression): Gao–Li–Wellner small-ball
+LOWER asymptotic.** The matching lower bound for the centered Gaussian
+process `Y(u) = ∫₀¹ e^{-u s} dB(s)` (or any process satisfying
+`IsGLWProcess`):
 `exp(-c̲ |log ε|^3) ≤ ℙ(sup_{u ≥ 0} |Y(u)| ≤ ε).toReal` for small `ε`.
 
-**Round 8 status.** This was an `axiom` in Rounds 6-7; Round 8 promotes
-it to a `theorem` packaged in `Helpers.GLWLowerProof`. The proof chain
-is the dual of the upper bound (Karhunen–Loève + Talagrand
-generic-chaining lower-tail entropy methods), bottomed out at a single
-documented `sorry` on the actual Mathlib gap.
+**Round 34 status.** **Reverted to `axiom` (Phase A Option E).** This
+was an `axiom` in Rounds 6-7, promoted to a `theorem`-with-inline-`sorry`
+in Round 8 (proof chain stubbed at the Karhunen–Loève + Talagrand gap),
+and re-introduced as an explicit `axiom` in Round 34 to make the
+`AxiomFoundationAudit` output honest: the inline `sorry` was
+functionally axiomatic from R8 onwards, since the residual blocker was
+a multi-year Mathlib formalization project, not a tactical proof gap.
+The mathematical content is unchanged; only the labelling shifts back
+to `axiom` so external audits do not under-count user-defined axioms.
 
-**Honesty fix from the Round 8 stress test.** The pre-Round-8 axiom
+The full proof chain (Karhunen–Loève spectral expansion of `K_GLW`
+with eigenvalues `λ_k ~ k^{-2}` + Talagrand-style generic-chaining
+lower-tail entropy bound + Anderson's multivariate inequality at PosDef
+covariance + optimization `m(ε) ~ |log ε|`) is laid out in
+`Helpers/GLWLowerProof.lean`'s docstring. The dominant Mathlib gaps are
+the Karhunen–Loève eigenfunction expansion infrastructure and the
+Talagrand entropy machinery for Gaussian processes (both 0% per the
+Phase A inventory at `Helpers/PhaseAStatusInventory.md`).
+
+**Honesty fix carried over from Round 8.** The pre-Round-8 axiom
 signature was universal over `(Ω, Y)`, with only measurability of `Y u`.
 For `Y ≡ 1` (or any constant `c > 0`) and `ε < c`, the box event has
 probability `0` while the LHS `exp(-c · |log ε|^3) > 0`, so the bound
-`exp(...) ≤ 0` is FALSE. Round 8 replaces the measurability hypothesis
-with the stronger `IsGLWProcess Y` (defined in
-`Helpers/GLWProcessPredicate.lean`) which captures Gaussianity + K_GLW
-covariance + mean zero + continuity + tail decay — exactly the
+`exp(...) ≤ 0` was FALSE. The Round 8 statement (preserved verbatim
+into the R34 axiom) replaces the measurability hypothesis with the
+stronger `IsGLWProcess Y` (defined in
+`Helpers/GLWProcessPredicate.lean`), which captures Gaussianity +
+K_GLW covariance + mean zero + continuity + tail decay — exactly the
 structure produced by `Y_GLW_exists`. With this hypothesis, the bound
-is mathematically true; the documented `sorry` sits on the actual
-Mathlib gap, not on a falsity issue.
+is mathematically true.
 
-**Full-window form.** Unlike the upper companion, which we state with a
-truncation `T(ε)` that consumers can lift externally, the lower direction
-is stated for the *full half-line* `u ∈ [0, ∞)`. This matches the actual
-Gao–Li–Wellner (2010) theorem, which lower-bounds the small-ball
-probability of `sup_{u ≥ 0} |Y(u)|`. Stating the truncated form would
-require an additional Ledoux §1.3 "Borell + σ²(T) → 0" bridge to absorb
-the tail region `(T(ε), ∞)` back into the bound; we bake that bridge
-directly into the theorem statement so that `polynomial_sup_small_ball_lower`
-can perform the KMT reverse-triangle unconditionally via the endpoint
-reparametrization. Mathematically this is no stronger than the truncated
-version plus Ledoux §1.3 (which is itself a consequence of the kernel's
-variance decay). -/
-theorem gao_li_wellner_small_ball_lower (glw : GaoLiWellnerConstants) :
+**Full-window form.** Unlike the upper companion, which is stated with
+a truncation `T(ε)` that consumers can lift externally, the lower
+direction is stated for the *full half-line* `u ∈ [0, ∞)`. This matches
+the actual Gao–Li–Wellner (2010) theorem, which lower-bounds the
+small-ball probability of `sup_{u ≥ 0} |Y(u)|`. Stating the truncated
+form would require an additional Ledoux §1.3 "Borell + σ²(T) → 0"
+bridge to absorb the tail region `(T(ε), ∞)` back into the bound; we
+bake that bridge directly into the axiom statement so that
+`polynomial_sup_small_ball_lower` can perform the KMT reverse-triangle
+unconditionally via the endpoint reparametrization. Mathematically
+this is no stronger than the truncated version plus Ledoux §1.3
+(which is itself a consequence of the kernel's variance decay).
+
+**Upstream Mathlib gaps tracked in Phase A inventory:**
+- Karhunen–Loève expansion infrastructure (0%).
+- Talagrand generic-chaining entropy bounds for Gaussian processes (0%).
+- Slepian / Sudakov–Fernique comparison (companion gap on the upper
+  side, 0%).
+- BTIS (Borell-TIS) Gaussian concentration (0%, axiomatized in the
+  R35-R39 Phase A upper Option B plan).
+
+When any of these land in Mathlib, this axiom can be retired to a
+`theorem` body (the proof chain in `Helpers/GLWLowerProof.lean` is
+otherwise complete modulo these gaps). -/
+axiom gao_li_wellner_small_ball_lower (glw : GaoLiWellnerConstants) :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
       (Y : ℝ → Ω → ℝ), Erdos524.Helpers.IsGLWProcess Y →
       ∃ ε₀ : ℝ, 0 < ε₀ ∧
         ∀ ε : ℝ, 0 < ε → ε ≤ ε₀ →
           Real.exp (-glw.lower * |Real.log ε| ^ 3) ≤
-            (ℙ {ω | ∀ u ≥ (0 : ℝ), |Y u ω| ≤ ε}).toReal := by
-  intro Ω _mΩ _hℙ Y _h_glw
-  -- Choose `ε₀ := exp(-100)` per `Erdos524.Helpers.glwLowerEpsZero`. The
-  -- specific constant is a free parameter; any positive value would do
-  -- for the existential, but `exp(-100)` keeps us firmly in the GLW
-  -- asymptotic regime where the cubic-exponent estimate is sharp.
-  refine ⟨Erdos524.Helpers.glwLowerEpsZero,
-          Erdos524.Helpers.glwLowerEpsZero_pos, ?_⟩
-  intro ε _hε_pos _hε_le_ε₀
-  -- BLOCKER: the cubic small-ball LOWER estimate `exp(-c̲ · |log ε|^3) ≤ …`
-  --   for the GLW process Y(u) = ∫₀¹ e^{-us} dB(s) is the dual of the
-  --   upper Karhunen–Loève + chaining argument. It uses Anderson's
-  --   multivariate inequality (the PosDef-covariance case) plus the
-  --   K_GLW eigenvalue decay `λ_k ~ k^{-2}` to extract a Talagrand-style
-  --   lower-tail entropy bound.
-  -- TRIED: combining the Round 6 cov_eq_inner cascade with the
-  --   `mvGaussian_box_density_at_mode_bound` finite-grid LOWER bound
-  --   (the Round 6 PosDef Anderson sorry — **closed in Round 9**, see
-  --   `Helpers/MVGaussianDensityBound.lean`); the optimization
-  --   `m(ε) ~ |log ε|` then yields the cubic exponent. With the
-  --   Anderson piece now available, the dominant remaining blocker is
-  --   the Karhunen–Loève + Talagrand machinery for K_GLW (Mathlib gap).
-  -- NEEDS: (a) Karhunen–Loève expansion of `K_GLW` as a Mercer-style
-  --   eigenfunction series with explicit eigenvalue decay — not in
-  --   Mathlib (multi-year project); OR (b) Talagrand's generic-chaining
-  --   LOWER bound for Gaussian processes — also a Mathlib gap; OR
-  --   (c) a direct PDE / ODE argument exploiting `K_GLW(u, v) =
-  --   (1 - exp(-(u+v)))/(u+v)` to reduce to the Round 6 multivariate
-  --   Gaussian density LOWER bound (the dual of the Round 6 upper sorry,
-  --   itself open).
-  sorry
+            (ℙ {ω | ∀ u ≥ (0 : ℝ), |Y u ω| ≤ ε}).toReal
 
 /-- **Truncated corollary of `gao_li_wellner_small_ball_lower`.** Composes
 the full-window lower bound with `glwLowerSupBoxEvent_subset_truncated`
@@ -3622,7 +3618,13 @@ event` (smaller window means fewer constraints and hence a LARGER
 event), so `ℙ(full-window) ≤ ℙ(truncated)`, and the cubic factor that
 lower-bounds `ℙ(full-window)` therefore lower-bounds `ℙ(truncated)` as
 well. Useful for consumers that only need the truncated form
-(matching the upper-bound `Icc 0 (T ε)` shape). -/
+(matching the upper-bound `Icc 0 (T ε)` shape).
+
+**R34 note.** The base statement `gao_li_wellner_small_ball_lower` is
+now an `axiom` (Phase A Option E regression — see its docstring). The
+derivation below applies the axiom by `obtain` on its existential,
+which is independent of whether the source is a `theorem` or an `axiom`;
+no proof-body changes are required. -/
 theorem gao_li_wellner_small_ball_lower_truncated (glw : GaoLiWellnerConstants) :
     ∀ {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
       (Y : ℝ → Ω → ℝ), Erdos524.Helpers.IsGLWProcess Y →

@@ -461,3 +461,90 @@ IndepFun-product-merge) that close all three gaps simultaneously.
 Forward planning beyond R34 transitions to Phase A start (sparse
 lower envelope assembly via Borel–Cantelli on the migrated
 `polynomial_sup_small_ball_*`).
+
+## R34 outcome — Phase A entry: lower-side axiom regression
+
+**Round R34 (single round, branch `r33-c-helpers-consolidation`).**
+Phase A track opens. Per the Phase A inventory's Option E
+recommendation, R34 reverted `gao_li_wellner_small_ball_lower` from a
+theorem-with-inline-sorry (R8 promotion) back to an explicit `axiom`,
+making the audit-tool output honest. Plus a re-audit of the two
+`IsGLWProcess Yplus/Yminus` discharge helpers in
+`Helpers/GLWLowerProof.lean` (R32-flagged "entangled with
+AxiomFoundationAudit's IndepFun issue").
+
+### R34 deliverables landed
+
+* **T1.1** — IsGLWProcess helpers post-R33-D audit. Output:
+  `Helpers/R34_T1_IsGLWProcessAudit.md`. Verdict: **STILL GATED** for
+  both helpers. R33-D's linear-combo Form β + IndepFun rework
+  operates on coupling structure (Ω vs Ω × Ω, joint-marginal
+  independence), NOT on per-Y K_GLW covariance derivation, so it
+  does not unblock the helpers. Resolution path (a) (extend
+  `two_dim_KMT_coupling` to assert `IsGLWProcess` per marginal via
+  the Letwin–Sawhney 2-independent-1D-KMT view) remains the most
+  practical, estimated 1-2 rounds when prioritized.
+* **T2.1** — `gao_li_wellner_small_ball_lower` converted from
+  `theorem ... := by ... sorry` to `axiom`. `524.lean:3578`. The R8
+  inline sorry was functionally axiomatic (Karhunen–Loève + Talagrand
+  + Anderson + optimization, all 0% Mathlib infrastructure per Phase A
+  inventory); R34 makes the labelling honest.
+* **T2.2** — `gao_li_wellner_small_ball_lower_truncated` derivation
+  unchanged (axiom application syntax identical to theorem
+  application). `524.lean:3622`. Docstring updated to reference the R34
+  axiom regression.
+* **T2.3** — IsGLWProcess helpers diagnostic refresh per T1.1 verdict.
+  `Helpers/GLWLowerProof.lean`: BLOCKER block-comment expanded with
+  R34 status (R33-D investigated, not unblocking) and explicit
+  reference to the audit doc; sorry bodies preserved (still gated,
+  not closable in R34's budget).
+* **T2.4** — `Helpers/AxiomFoundationAudit.md` updated with R34
+  section: per-axiom verdict table (A5 = `gao_li_wellner_small_ball_lower`,
+  R34 NEW), net axiom count change (+1 user-defined axiom — labelling
+  promotion, no math regression), IsGLWProcess helpers verdict, R34→R39
+  trajectory.
+* **T2.5** — Build verification log:
+  `Helpers/R34_T2_5_BuildLog.md`. `lake env lean GLWLowerProof.lean`
+  builds clean (2 expected sorry warnings on the IsGLWProcess
+  helpers). Full 524 build blocked on the pre-existing
+  ENat conflict in `BrownianMotion.Auxiliary.ENNReal` (TAG
+  `R34-T2.5-ENat-pre-existing`, agent `trig_01P8K24FGqQF6zqTKY4vQWRD`
+  monitoring).
+* **T2.6** — Phase A R34 status doc at
+  `Helpers/PhaseAR34Status.md` (new); this section appended.
+
+### Net residual sorries after R34
+
+Five honest TAG'd sorries on `r33-c-helpers-consolidation`:
+
+1. R33-C T2.4 — `IndepFun(Yplus, Yminus)` linear-combo (Mathlib gap).
+2. R33-C T2.5 — `?ha'.iIndepFun` on Ω × Ω (Mathlib gap).
+3. R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form`
+   (structural).
+4. **R34 carry-over** — `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus`
+   (`Helpers/GLWLowerProof.lean:347` post-R34 line shift; same sorry,
+   refreshed diagnostic).
+5. **R34 carry-over** — `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus`
+   (`Helpers/GLWLowerProof.lean:362`).
+
+#1, #2, #3 unchanged from R33-D; #4, #5 pre-existed in R8 form,
+re-audited and refreshed in R34. The mainline 524 chain now has 4
+user-defined axioms (`Cp_T_explicit_pointwise_axiom`,
+`one_dim_KMT_coupling`, `kmt_aided_gaussian_process`,
+**`gao_li_wellner_small_ball_lower` (R34 new)**) plus the in-Helpers
+`Y_GLW_exists` stepping-stone axiom.
+
+### R35+ trajectory
+
+Phase A continues per the Phase A inventory's "Option B realistic"
+path:
+
+- **R35-R37** (3 rounds): Phase A upper Option B native — Slepian
+  comparison + Sudakov-Fernique reduction over countable dense set,
+  using `Helpers/PhaseAUpperBound.lean` scaffold.
+- **R38** (1 round): BTIS axiomatized + assembly.
+- **R39** (1 round): §11 limit-law assembly + Scope 3 closure.
+
+**Total Phase A budget:** R34-R39 = 6 rounds. On track for Scope 3
+closure at R39 with 5 user-defined axioms (the 4 above + BTIS) plus
+the 3 R33 TAG'd Mathlib/bridge gaps.

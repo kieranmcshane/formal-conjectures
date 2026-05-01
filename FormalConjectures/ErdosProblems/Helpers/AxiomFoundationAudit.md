@@ -501,3 +501,96 @@ public-API-bridge gap).  R34+ frontier: either close gap #3 via
 consumer rewrite to Ω × Ω, or wait for upstream Mathlib landings
 (joint Gaussian, IndepFun product-merge) that close all three at
 once.
+
+## R34 — Phase A Option E lower-bound axiom regression
+
+**Round 34 (branch `r33-c-helpers-consolidation`, single round, Phase A
+entry).** Per the Phase A inventory (`Helpers/PhaseAStatusInventory.md`),
+re-introduces `gao_li_wellner_small_ball_lower` as an explicit `axiom`,
+removing the inline `sorry` that was functionally axiomatic from R8
+onwards. Plus a re-audit of the two `IsGLWProcess` discharge helpers in
+`Helpers/GLWLowerProof.lean` (post-R33-D unblock check).
+
+### Axiom additions / revisions
+
+| # | Axiom / theorem-with-sorry | Pre-R34 state | Post-R34 state | Notes |
+|---|-----------------------------|----------------|------------------|--------|
+| A1 | `Cp_T_explicit_pointwise_axiom` | axiom (R27) | axiom (unchanged) | CLEAN |
+| A2 | `one_dim_KMT_coupling` | axiom (R29, dormant) | axiom (unchanged) | CLEAN |
+| A3 | `kmt_aided_gaussian_process` | axiom (R30) | axiom (unchanged) | NEEDS_GROK (per R32) |
+| A4 | `theorem two_dim_KMT_coupling` | theorem-with-Form-β-body (R33-D) | theorem (unchanged) | Body = `via_LS_reduction`; 3 residual sorries downstream (post-R33-D) |
+| **A5 (R34)** | **`gao_li_wellner_small_ball_lower`** | **theorem-with-inline-sorry (R8)** | **axiom (R34 Option E regression)** | **NEW user-defined axiom; the R8 sorry was functionally axiomatic** |
+
+**Net axiom count change (R33-D → R34):** +1 user-defined axiom on the
+mainline 524 chain (A5 is the labelling promotion of the R8 sorry).
+Honest accounting:
+
+- **No math regression.** The R8 inline sorry was a multi-year Mathlib
+  formalization gap (Karhunen–Loève spectral expansion + Talagrand
+  generic-chaining lower-tail entropy + Anderson PosDef + optimization
+  in `m(ε)`). Re-labelling as `axiom` makes the audit-tool output
+  honest: a sorry that depends on 4 distinct Mathlib gaps each at 0%
+  is structurally an axiom. See the R34 docstring at `524.lean:3543`
+  for the full gap list.
+- **No proof obligation transferred.** The retirement path is the same
+  as before R34: when the Karhunen–Loève + entropy infrastructure
+  lands in Mathlib, the axiom can be downgraded to a `theorem` whose
+  body is the chain in `Helpers/GLWLowerProof.lean`.
+- **`gao_li_wellner_small_ball_lower_truncated` still a theorem.**
+  Derived from the axiom via `glwLowerSupBoxEvent_subset_truncated`
+  inclusion. Proof body unchanged (axiom application is identical to
+  theorem application).
+
+### IsGLWProcess helpers — R34 audit verdict
+
+The two helpers `gao_li_wellner_small_ball_lower_isGLWProcess_{Yplus,Yminus}`
+at `Helpers/GLWLowerProof.lean:328, 340` were flagged in R32 as
+"entangled with AxiomFoundationAudit's IndepFun issue". R34 audited
+them post-R33-D (full audit at `Helpers/R34_T1_IsGLWProcessAudit.md`).
+
+**Verdict:** STILL GATED for both helpers. R33-D's linear-combo
+Form β + IndepFun rework operates on coupling structure (Ω vs Ω × Ω,
+joint-marginal independence), NOT on per-Y K_GLW covariance derivation
+or joint Gaussianity. The legacy-Ω form's 13-tuple destructure
+supplies measurability + continuity + KMT coupling rate + IndepFun +
+tail decay, but explicitly not the K_GLW covariance structure required
+by `IsGLWProcess`. The two helpers remain honest TAG'd sorries with
+diagnostic refreshed to acknowledge the post-R33-D investigation
+(see the BLOCKER block-comment in `GLWLowerProof.lean:308`).
+
+**Sister helpers on the upper side**
+(`gao_li_wellner_small_ball_upper_isGLWProcess_{Yplus,Yminus}` at
+`Helpers/GLWUpperProof.lean:281`) have the SAME gating; they should
+retire together when one of the resolution paths lands.
+
+### Net residual sorry count after R34
+
+5 sorries on `r33-c-helpers-consolidation`:
+
+1. R33-C T2.4 — `IndepFun(Yplus, Yminus)` on linear-combo (Mathlib gap).
+2. R33-C T2.5 — `?ha'.iIndepFun` on Ω × Ω (Mathlib gap).
+3. R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form` (structural).
+4. **R34 carry-over — `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus`**
+   (`Helpers/GLWLowerProof.lean:328`). STILL GATED post-R33-D.
+5. **R34 carry-over — `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus`**
+   (`Helpers/GLWLowerProof.lean:340`). STILL GATED post-R33-D.
+
+Sorries #4 and #5 were also present pre-R34 — R34 only refreshed their
+diagnostic comments. They are genuinely orthogonal to the axiom-vs-
+theorem labelling change in T2.1.
+
+### R34 → R35+ trajectory (Phase A)
+
+- **R34 (this round).** Lower-side axiom regression complete. IsGLWProcess
+  helpers re-audited and confirmed still gated.
+- **R35-R37.** Phase A upper Option B: Slepian comparison + Sudakov-
+  Fernique reduction over countable dense set, native (not axiomatized).
+  See `Helpers/PhaseAUpperBound.lean` scaffold.
+- **R38.** BTIS axiomatized + assembly.
+- **R39.** §11 limit-law assembly + Scope 3 closure.
+
+**Total Phase A budget:** 4-5 rounds (matches Phase A inventory's
+"Option B realistic" estimate). On track for Scope 3 closure at R39
+with 5 user-defined axioms (`Cp_T_explicit_pointwise_axiom`,
+`one_dim_KMT_coupling`, `kmt_aided_gaussian_process`,
+`gao_li_wellner_small_ball_lower` (R34 new), and BTIS (R38 new)).

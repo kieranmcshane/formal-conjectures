@@ -318,9 +318,32 @@ space, or (c) accepting this as a stepping-stone helper analogous to
 --   a Gaussian); OR (b) a Skorokhod-style transfer of the
 --   Y_GLW_exists Y to the KMT space; OR (c) accepting this as a
 --   stepping-stone helper analogous to `Y_GLW_exists` itself.
+-- R34 STATUS REFRESH (post-R33-D, audit verdict: STILL GATED).
+--   R33-D's linear-combo Form β + IndepFun rework migrated the public
+--   `two_dim_KMT_coupling` to a product-space (Ω × Ω) shape and added a
+--   private bridge `two_dim_KMT_coupling_legacy_Ω_form` that exposes
+--   the legacy 13-tuple destructure
+--     ⟨Yplus, Yminus, Δ, hYp_meas, hYm_meas, hΔ_bd, hKMT_p, hKMT_m,
+--      hIndep, hYp_cont, hYm_cont, _hYp_tail, _hYm_tail⟩.
+--   The legacy tuple supplies measurability, continuity, KMT coupling
+--   rate `≤ log(n+1)/√n`, IndepFun, and tail decay — but explicitly
+--   NOT the K_GLW covariance or joint Gaussianity required by
+--   `IsGLWProcess`. R33-D's contribution operates on coupling /
+--   independence structure (Ω vs Ω × Ω), NOT on per-Y K_GLW covariance
+--   derivation, so it does not unblock these helpers. See
+--   `Helpers/R34_T1_IsGLWProcessAudit.md` for the full audit.
+--   Resolution paths (a/b/c above) are unchanged; the most practical
+--   is (a) — extend `two_dim_KMT_coupling` (or its legacy-Ω form) to
+--   ALSO produce `IsGLWProcess Y±` per marginal, leveraging the
+--   Letwin–Sawhney 2-independent-1D-KMT view in which each Y is an Itô
+--   integral against an independent Brownian motion (hence Gaussian +
+--   K_GLW covariance by construction). Estimated 1-2 rounds.
 /-- Discharges `IsGLWProcess Yplus` for the call sites of
 `gao_li_wellner_small_ball_lower` in `polynomial_sup_small_ball_lower`
-and `polynomial_sup_small_ball_lower_uniform` in `524.lean`. -/
+and `polynomial_sup_small_ball_lower_uniform` in `524.lean`.
+
+**R34 audit verdict: still gated.** See block-comment above and
+`Helpers/R34_T1_IsGLWProcessAudit.md`. -/
 theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     {Yplus : ℝ → Ω → ℝ} (_hYp_meas : ∀ u, Measurable (Yplus u)) :
@@ -332,7 +355,10 @@ theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
 and `polynomial_sup_small_ball_lower_uniform` in `524.lean`. The same
 argument as for `Yplus`: the KMT coupling provides `Yminus` with
 measurability, continuity and tail decay, but the K_GLW covariance
-requires the Itô-integral construction. -/
+requires the Itô-integral construction.
+
+**R34 audit verdict: still gated.** Identical resolution to the Yplus
+helper. See `Helpers/R34_T1_IsGLWProcessAudit.md`. -/
 theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yminus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     {Yminus : ℝ → Ω → ℝ} (_hYm_meas : ∀ u, Measurable (Yminus u)) :
