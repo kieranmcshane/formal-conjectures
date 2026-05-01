@@ -205,32 +205,136 @@ The dead `kernel_odd_minus` family (`kernel_odd_minus`,
 uses only `kernel_even_plus` (applied to both `a_even` and `a_odd`),
 so the odd-minus kernel is no longer referenced. -/
 
+/-- **R33-C / T2.1 sub-helper.** For `a > 0` and `n : ℕ`,
+`∑_{k=1..n} exp(-a·k) ≤ 1/a`.  Proof: the partial sum
+`S = ∑_{k=1..n} exp(-a·k)` satisfies `(exp a - 1) · S = 1 - exp(-a·n) ≤ 1`
+(by telescoping with `(exp a - 1) exp(-a·k) = exp(-a·(k-1)) - exp(-a·k)`),
+and `exp a - 1 ≥ a` (from `Real.add_one_le_exp`), hence `S ≤ 1/a`. -/
+private lemma sum_exp_neg_mul_le_one_div {a : ℝ} (ha : 0 < a) (n : ℕ) :
+    ∑ k ∈ Finset.Icc 1 n, Real.exp (-(a * (k : ℝ))) ≤ 1 / a := by
+  have h_exp_a_pos : 0 < Real.exp a := Real.exp_pos a
+  have h_exp_lb : a + 1 ≤ Real.exp a := Real.add_one_le_exp a
+  have h_exp_a_sub_pos : 0 < Real.exp a - 1 := by linarith
+  -- Telescoping identity by induction on m.
+  have h_telescope : ∀ m : ℕ,
+      (Real.exp a - 1) *
+          ∑ k ∈ Finset.Icc 1 m, Real.exp (-(a * (k : ℝ)))
+        = 1 - Real.exp (-(a * (m : ℝ))) := by
+    intro m
+    induction m with
+    | zero => simp
+    | succ m ih =>
+      have h_Icc : Finset.Icc 1 (m + 1) = insert (m + 1) (Finset.Icc 1 m) := by
+        ext k
+        simp only [Finset.mem_Icc, Finset.mem_insert]
+        omega
+      have h_not_mem : (m + 1) ∉ Finset.Icc 1 m := by
+        simp [Finset.mem_Icc]
+      rw [h_Icc, Finset.sum_insert h_not_mem, mul_add, ih]
+      -- Goal: 1 - exp(-(a*m)) + (exp a - 1) * exp(-(a*(m+1))) = 1 - exp(-(a*(m+1))).
+      have h_exp_diff :
+          Real.exp a * Real.exp (-(a * ((m + 1 : ℕ) : ℝ)))
+            = Real.exp (-(a * (m : ℝ))) := by
+        rw [← Real.exp_add]
+        congr 1
+        push_cast
+        ring
+      have h_step :
+          (Real.exp a - 1) * Real.exp (-(a * ((m + 1 : ℕ) : ℝ)))
+            = Real.exp (-(a * (m : ℝ))) -
+              Real.exp (-(a * ((m + 1 : ℕ) : ℝ))) := by
+        have : Real.exp a * Real.exp (-(a * ((m + 1 : ℕ) : ℝ)))
+              - Real.exp (-(a * ((m + 1 : ℕ) : ℝ)))
+            = Real.exp (-(a * (m : ℝ))) -
+              Real.exp (-(a * ((m + 1 : ℕ) : ℝ))) := by
+          rw [h_exp_diff]
+        linarith
+      linarith
+  -- (exp a - 1) * S = 1 - exp(-(a*n)) ≤ 1.
+  have h_exp_neg_pos : 0 < Real.exp (-(a * (n : ℝ))) := Real.exp_pos _
+  have h_le_one :
+      (Real.exp a - 1) *
+          ∑ k ∈ Finset.Icc 1 n, Real.exp (-(a * (k : ℝ))) ≤ 1 := by
+    rw [h_telescope n]; linarith
+  -- Hence S ≤ 1/(exp a - 1) ≤ 1/a.
+  have h_S :
+      ∑ k ∈ Finset.Icc 1 n, Real.exp (-(a * (k : ℝ)))
+        ≤ 1 / (Real.exp a - 1) := by
+    rw [le_div_iff₀ h_exp_a_sub_pos, mul_comm]
+    exact h_le_one
+  have h_a_le : a ≤ Real.exp a - 1 := by linarith
+  exact h_S.trans (one_div_le_one_div_of_le ha h_a_le)
+
 /-- **R33-C / T2.1.** `kernel_decay` for `kernel_even_plus` in the Path A
-normalized L²-energy form. The witness `U := 1/(4ε)` follows from the
-geometric-sum bound
-`∑_{k=1..n} exp(−2uk/n) ≤ 1/(exp(2u/n) − 1) ≤ n/(2u)`
-(using `a ≤ exp(a) − 1`), giving `(1/n) · ∑ (kernel)² ≤ 1/(4u) ≤ ε`. -/
+normalized L²-energy form. The witness `U := 1/(4ε)` follows from
+`(kernel_even_plus u k n)² = (1/2) · exp(-2u·k/n)`, the geometric-sum
+bound `∑_{k=1..n} exp(-2u·k/n) ≤ n/(2u)` (via
+`sum_exp_neg_mul_le_one_div` at `a = 2u/n`), and the chain
+`(1/n) · (1/2) · n/(2u) = 1/(4u) ≤ ε` for `u ≥ U`. -/
 private lemma kernel_even_plus_decay :
     ∀ ε > 0, ∃ U > 0, ∀ n : ℕ, 1 ≤ n → ∀ u ≥ U,
       (1 / (n : ℝ)) *
         (Finset.Icc 1 n).sum (fun k => (kernel_even_plus u k n) ^ 2) ≤ ε := by
   intro ε hε
   refine ⟨1 / (4 * ε), by positivity, fun n hn u hu => ?_⟩
-  -- TAG[R33-C-T2.2-explicit-witness]: Real-arithmetic chain.
-  -- (1) (kernel_even_plus u k n)^2 = (1/2) * exp(-2 u k / n).
-  -- (2) ∑_{k=1..n} exp(-2 u k / n) is a finite geometric sum with
-  --     ratio r = exp(-2u/n) ∈ (0, 1) for u > 0; bounded by
-  --     ∑ ≤ r/(1-r) = 1/(exp(2u/n) - 1).
-  -- (3) Apply `Real.add_one_le_exp` (i.e., `exp(a) ≥ 1 + a`) at
-  --     a = 2u/n to get exp(2u/n) - 1 ≥ 2u/n, hence
-  --     1/(exp(2u/n) - 1) ≤ n/(2u).
-  -- (4) (1/n) * (1/2) * n/(2u) = 1/(4u). For u ≥ 1/(4ε), 1/(4u) ≤ ε.
-  -- Inner Real-arithmetic chain (steps 1-4) is left as a TAG'd
-  -- sub-sorry per the R33-C brief's authorization for an inner Real-
-  -- arithmetic sub-sorry (Section "Sub-sorry on inner Real-arithmetic").
-  -- The witness `1/(4ε)` is the structural skeleton; the chain itself
-  -- is mechanical but verbose (geometric-sum formula + exp inequality).
-  sorry
+  have h_n_pos : (0 : ℝ) < n := by exact_mod_cast hn
+  have h_n_pos_nz : (n : ℝ) ≠ 0 := ne_of_gt h_n_pos
+  have h_U_pos : (0 : ℝ) < 1 / (4 * ε) := by positivity
+  have h_u_pos : 0 < u := lt_of_lt_of_le h_U_pos hu
+  -- Step 1: rewrite each squared kernel as (1/2) * exp(-(2u/n) * k).
+  have h_sq : ∀ k : ℕ, (kernel_even_plus u k n) ^ 2
+      = (1/2) * Real.exp (-((2 * u / n) * (k : ℝ))) := by
+    intro k
+    unfold kernel_even_plus
+    rw [mul_pow]
+    have h1 : (Real.sqrt (1/2))^2 = 1/2 :=
+      Real.sq_sqrt (by norm_num : (0:ℝ) ≤ 1/2)
+    have h2 : (Real.exp (-u * (k : ℝ) / (n : ℝ)))^2
+        = Real.exp (-((2 * u / n) * (k : ℝ))) := by
+      rw [sq, ← Real.exp_add]
+      congr 1
+      field_simp
+      ring
+    rw [h1, h2]
+  -- Step 2: sum and factor out (1/2).
+  have h_sum_eq :
+      (Finset.Icc 1 n).sum (fun k => (kernel_even_plus u k n) ^ 2)
+        = (1/2) * ∑ k ∈ Finset.Icc 1 n,
+            Real.exp (-((2 * u / n) * (k : ℝ))) := by
+    rw [Finset.mul_sum]
+    refine Finset.sum_congr rfl ?_
+    intro k _; exact h_sq k
+  rw [h_sum_eq]
+  -- Step 3: apply sum_exp_neg_mul_le_one_div with a = 2u/n.
+  have h_a_pos : (0 : ℝ) < 2 * u / n := by positivity
+  have h_geom :
+      ∑ k ∈ Finset.Icc 1 n, Real.exp (-((2 * u / n) * (k : ℝ)))
+        ≤ 1 / (2 * u / n) :=
+    sum_exp_neg_mul_le_one_div h_a_pos n
+  -- Step 4: combine factors. (1/n) * (1/2) * (1/(2u/n)) = 1/(4u).
+  have h_simplify : (1 / (n : ℝ)) * ((1/2) * (1 / (2 * u / n))) = 1 / (4 * u) := by
+    field_simp
+    ring
+  -- Step 5: 1/(4u) ≤ ε from u ≥ 1/(4ε).
+  have h_u_gt : 1 / (4 * ε) ≤ u := hu
+  have h_4u_pos : 0 < 4 * u := by positivity
+  have h_4ε_pos : 0 < 4 * ε := by positivity
+  have h_inv : 1 / (4 * u) ≤ ε := by
+    rw [div_le_iff₀ h_4u_pos]
+    have h_mul : 4 * u * ε ≥ 4 * (1 / (4 * ε)) * ε := by
+      have : 4 * u ≥ 4 * (1 / (4 * ε)) := by linarith
+      nlinarith [hε]
+    have h_simplify2 : 4 * (1 / (4 * ε)) * ε = 1 := by
+      field_simp
+    linarith
+  calc (1 / (n : ℝ)) * ((1/2) *
+          ∑ k ∈ Finset.Icc 1 n, Real.exp (-((2 * u / n) * (k : ℝ))))
+      ≤ (1 / (n : ℝ)) * ((1/2) * (1 / (2 * u / n))) := by
+        apply mul_le_mul_of_nonneg_left
+        · apply mul_le_mul_of_nonneg_left h_geom (by norm_num)
+        · exact div_nonneg one_pos.le h_n_pos.le
+    _ = 1 / (4 * u) := h_simplify
+    _ ≤ ε := h_inv
 
 /-- **R31 / T2.2 (helper).** The even sub-sequence `k ↦ a (2*k)`. -/
 private def a_even {Ω : Type*} (a : ℕ → Ω → ℝ) : ℕ → Ω → ℝ :=

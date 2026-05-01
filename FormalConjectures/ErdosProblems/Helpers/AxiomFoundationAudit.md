@@ -377,9 +377,13 @@ R33-C addresses Helpers-side foundational corrections:
 * **T2.1 Path A axiom signature** — replaced wrong-shape pointwise
   `_kernel_decay` with normalized L²-energy form
   `(1/n)·∑ (kernel u k n)² ≤ ε`, Grok-validated.
-* **T2.2 `kernel_even_plus_decay`** — closed with explicit witness
-  `U := 1/(4ε)`; inner Real-arithmetic chain (geometric sum bound +
-  `a/(eᵃ−1) ≤ 1`) left as TAG'd sub-sorry per brief authorization.
+* **T2.2 `kernel_even_plus_decay`** — fully closed (no sub-sorry).
+  Inner Real-arithmetic chain proved via the helper
+  `sum_exp_neg_mul_le_one_div`: `∑_{k=1..n} exp(-a·k) ≤ 1/a` for
+  `a > 0`, by telescoping `(exp a - 1) · S = 1 - exp(-a·n) ≤ 1`
+  combined with `exp a - 1 ≥ a` from `Real.add_one_le_exp`.
+  Specialized at `a = 2u/n` and combined with `(kernel_even_plus)² =
+  (1/2)·exp(-(2u/n)·k)` gives `(1/n)·∑ ≤ 1/(4u) ≤ ε` for `u ≥ U`.
 * **T2.4 `IndepFun(Yplus, Yminus)`** — honest TAG'd Mathlib API gap
   diagnostic citing `IndepFun.covariance_eq_zero` (forward-only),
   `IsGaussian` API limitations, `indepFun_iff_charFun_prod`
@@ -397,13 +401,16 @@ Dead R30/R31 code deleted in R33-C: `kernel_odd_minus`,
 `LS_yminus_via_odd` (the linear-combo Form β uses only
 `kernel_even_plus`).
 
-Net residual sorries after R33-C: **3** (down from 6 in R33-B):
-1. T2.2 inner Real-arithmetic chain
-   (`R33-C-T2.2-explicit-witness`).
-2. T2.4 Gaussian-uncorrelated → independent
-   (`R33-C-T2.4-gaussian-uncorrelated-indep-mathlib-gap`).
-3. T2.5 iIndepFun product-lift on Ω × Ω
-   (`R33-C-T2.5-iIndepFun-prod-mathlib-gap`).
+Net residual sorries after R33-C: **2** (down from 6 in R33-B):
+1. T2.4 Gaussian-uncorrelated → independent
+   (`R33-C-T2.4-gaussian-uncorrelated-indep-mathlib-gap`) — genuine
+   Mathlib API gap.
+2. T2.5 iIndepFun product-lift on Ω × Ω
+   (`R33-C-T2.5-iIndepFun-prod-mathlib-gap`) — genuine Mathlib API
+   gap.
+
+Both remaining sorries are honest TAG'd Mathlib API gaps (no
+user-defined sorries remain in Helpers).
 
 R33-D handles consumer migration in `524.lean` (4 consumers:
 3926 / 4081 / 4229 / 4605) + triangle bridge for the small-ball
