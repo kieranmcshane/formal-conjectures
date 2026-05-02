@@ -577,3 +577,134 @@ Realistic round score: 250-350 pts on 450 base ceiling.
   re-attempt or from-scratch route.
 * Path B′ closure of `borell_tis` Full body remains structurally
   valid (TD2 commits unaffected by TD3).
+
+## TD4 addendum — T2.0 path decision: **Path B forced** (collision + absent primitives)
+
+**Round:** TD4 (R52, Track D, round 4 of cluster).
+**Branch:** `track-d-btis-honest` (forked back from
+`track-d-pinbump-probe` after T1.1 BLOCKED verdict).
+**Commit chain so far:** `537c2b1` (T1.1 diagnostic doc).
+
+### T2.0 verdict
+
+The dispatch's probe-then-fork pattern presented a binary choice based on
+T1.1's outcome:
+
+* **Path A (probe CLEAN/MINOR):** cherry-pick pin bump to
+  `track-d-btis-honest`, lake-add SLT @ `4aaea155`, import
+  `lipschitz_cgf_bound` (line 1209), close sub-lemma 3 via 7-step
+  Cholesky adapter sketch.
+* **Path B (probe CASCADE-MAJOR):** discard pin bump, continue on
+  `track-d-btis-honest` with Bakry-Émery / OU semigroup from-scratch
+  route on current Mathlib pin `25ce63313608`.
+
+T1.1 produced neither verdict — the probe was BLOCKED at lake-update
+post-completion by a cross-track filesystem collision with a parallel
+Claude session on `track-c-1dkmt` (TC2 round 2 closure). Path A is
+**unavailable** by binding system signal: the lakefile.toml pin-bump
+edit was reverted by the parallel session and a system-reminder
+declared the revert "intentional, do not revert it unless the user
+asks you to." Pin-bump retry on this filesystem is forbidden for the
+remainder of this round.
+
+**Path B is therefore forced** — but Path B itself has a degenerate
+T2.1 ceiling on this pin, surfaced by pre-T2.1 grep:
+
+```
+$ /usr/bin/git log --oneline -1   # in .lake/packages/mathlib
+25ce633136 feat: a collection of roots ... (#33013)
+
+$ find Mathlib -type f -name "*.lean" \
+  | xargs grep -ilE "(ornstein|bakry|sobolev[ _]inequality|\
+poincare[ _]inequality|gaussian.{0,3}poincare|\
+gaussian.{0,5}log[ _]?sobolev|gaussian.{0,5}concentration|\
+isoperimetric)" 2>/dev/null
+(no output)
+
+$ grep -ci "lipschitz" Mathlib/Probability/Moments/SubGaussian.lean
+0
+```
+
+`Mathlib/Probability/Distributions/Gaussian/` contains only `Basic.lean`,
+`Fernique.lean`, `CharFun.lean`, `Real.lean` — no concentration,
+Poincaré, log-Sobolev, or OU module. From-scratch implementation
+estimate: ≥1500-2500 LOC of new Mathlib-quality content (OU semigroup
+~500-1000 + Bakry-Émery curvature ~300+ + log-Sobolev from Γ₂ ~200+ +
+Herbst ~100+ + Lipschitz CGF ~100+). **Out of single-round scope**
+(round budget 4-6h, hard-stop T+6:00).
+
+### T2.0 → T2.1 mapping
+
+T2.1 will ship sub-lemma 3 as **honest TAG'd sub-Stub with the
+Mathlib-API-gap diagnostic above as the concrete blocker citation.**
+
+This satisfies the dispatch's Path B sub-clause ("If primitives
+absent: TAG'd sub-Stub with concrete diagnostic (which Mathlib infra
+is missing for ground-up build)"). Per skin-in-the-game cap rules:
+
+* Avoids 0-pt floor (all four mandatory items will be committed:
+  T1.1 ✓, T2.0 this commit, T2.1 sub-Stub with citation, T2.2 build +
+  status).
+* Avoids 50% cap (concrete blocker citation present — file:line
+  evidence for Mathlib API gap; not hand-wavy).
+
+### TD4 round-end forecast
+
+| Item | Status post-TD4 |
+|------|-----------------|
+| Sorries on `track-d-btis-honest` | 1 → 1 (unchanged; Path B Full close blocked, sub-Stub holds) |
+| Axioms project-wide | 5 → 5 (unchanged; BTIS does not retire this round) |
+| TD3 → TD4 retirement pace | 0/round (continues TD3 trend) |
+| Sub-lemma 3 docstring | will be updated in T2.1 with Path B blocker (Mathlib API gap) atop existing TD3 M1-M4 narrative |
+| Cluster open thread | unchanged: sub-lemma 3 closure remains TD5+ target, contingent on either Mathlib infra landing OU/Bakry-Émery, the user-authorized pin bump on a coordinated filesystem window, or vendoring/SLT cherry-pick effort beyond round budget |
+
+### TD5+ unblocking conditions (forward-looking, not commitments)
+
+For sub-lemma 3 to close in a future round, one of:
+
+1. **User-coordinated pin bump.** User explicitly schedules a window
+   where no parallel session is active, then authorizes the pin bump
+   to a Mathlib revision that includes
+   `Mathlib.MeasureTheory.Measure.Prokhorov` (added to mathlib master
+   between `25ce633136` and `d68c4dc09f5e`). Identifier: the smallest
+   superset of `25ce633136` containing that file (TD3 outstanding item
+   §I.2 records the `git log --diff-filter=A` recipe). With the bump
+   applied, SLT lake-add becomes the same recipe as the original Path
+   A; T2.1 budget shifts to the 7-step Cholesky adapter (~360 LOC per
+   sub-lemma 3 docstring).
+2. **Mathlib upstream lands OU/Bakry-Émery infra.** PRs in flight that
+   would unblock Path B without pin bump:
+   * Search Mathlib4 PR queue for "Bakry", "Ornstein", "Gaussian
+     Poincaré", "Lipschitz concentration".
+   * On landing, repeat the pre-T2.1 grep to confirm primitive
+     availability, then implement Path B Full close via OU semigroup.
+3. **Vendoring path.** Cherry-pick SLT.GaussianLipConcen +
+   transitive deps + Prokhorov from mathlib master into project
+   `Helpers/Vendored/`. TD3 estimate: 5000+ LOC, license risk surfaced
+   by M1 (SLT no LICENSE file). Out of single-round scope; would
+   require a multi-round vendoring sub-cluster.
+4. **Mathlib-only Cholesky → Gaussian-isoperimetry direct route.**
+   Bypass log-Sobolev entirely via direct Cholesky transport +
+   Gaussian-isoperimetric inequality. Mathlib at `25ce633136` has no
+   isoperimetric module either (grep above returns zero), so this
+   route is also blocked at this pin.
+
+The cluster's open thread therefore migrates intact to TD5+ with
+documented unblocking conditions. Sub-lemma 3 remains the single
+TAG'd sorry on `track-d-btis-honest` and remains the gating item for
+BTIS axiom retirement (currently 1 of the 5 user-defined axioms in
+`AXIOM_INVENTORY.md`).
+
+### Cross-track ledger entry (V2 cluster discipline)
+
+This is the first V2 cross-track collision to leave persistent
+filesystem evidence (`lakefile.toml.tdbak` in project root, since
+moved to `/tmp/td4_pin_bump_backup_lakefile.toml` for evidence
+preservation) and to motivate a binding system-signal revert. R47-R48
+collisions per memory ledger involved branch-only switches (no project
+state mutation); TD4 escalated by touching shared pin state. **Process
+update for TD5+ and V2 cluster generally:** any pin-bump experiment
+must be preceded by user confirmation of an exclusive filesystem
+window. Probe-then-fork remains a sound pattern for build-cascade
+discovery on isolated filesystems but does not survive shared-FS
+cross-track concurrency.
