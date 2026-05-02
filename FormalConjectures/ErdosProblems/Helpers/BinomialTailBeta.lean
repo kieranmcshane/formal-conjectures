@@ -17,8 +17,10 @@ limitations under the License.
 import Mathlib.Analysis.Calculus.Deriv.Pow
 import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Data.Nat.Choose.Basic
+import Mathlib.Data.Nat.Factorial.Basic
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Basic
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.FundThmCalculus
+import Mathlib.Probability.ProbabilityMassFunction.Binomial
 
 /-!
 # Binomial-tail Beta-integral representation (Carter–Pollard 2004 §3 Step 1)
@@ -48,7 +50,7 @@ Both sides are functions of `p ∈ [0, 1]` with right-derivative
 namespace Erdos524.Helpers
 
 open MeasureTheory intervalIntegral
-open scoped Topology
+open scoped Topology NNReal ENNReal Nat
 
 /-- The binomial tail polynomial as a function of `p`:
 `Σ_{j=k}^{m} C(m, j) · p^j · (1-p)^(m-j)`. -/
@@ -308,5 +310,112 @@ theorem binomial_tail_beta_integral
     ring
   have h_eq := eq_of_has_deriv_right_eq h_diff_lhs h_diff_rhs h_cont_lhs h_cont_rhs h_init
   exact h_eq p ⟨hp0, hp1⟩
+
+/-! ### Stirling prefactor and PMF.binomial bridge (Carter–Pollard 2004 §3 Step 2)
+
+The prefactor `m · C(m-1, k-1)` from Step 1 admits the explicit upper bound
+`m^k / (k-1)!` (asymptotically sharp, but proved here without invoking
+Stirling's asymptotic). The binomial-tail polynomial then bridges to the
+PMF.binomial tail probability for use by downstream KMT-style couplings. -/
+
+/-- ℕ-level identity: `m · (C(m-1, k-1) · (k-1)!) = m.descFactorial k` for
+`1 ≤ k ≤ m`.
+
+Combines `Nat.choose_mul_factorial_mul_factorial` with
+`Nat.factorial_mul_descFactorial` to express the binomial-tail prefactor as a
+falling factorial. -/
+lemma m_mul_choose_mul_factorial_eq_descFactorial
+    {k m : ℕ} (hk : 1 ≤ k) (hkm : k ≤ m) :
+    m * ((m - 1).choose (k - 1) * (k - 1)!) = m.descFactorial k := by
+  apply Nat.eq_of_mul_eq_mul_right (Nat.factorial_pos (m - k))
+  have h_split : (m - 1) - (k - 1) = m - k := by omega
+  have hkm1 : k - 1 ≤ m - 1 := by omega
+  have h1 : (m - 1).choose (k - 1) * (k - 1)! * (m - k)! = (m - 1)! := by
+    have := Nat.choose_mul_factorial_mul_factorial hkm1
+    rwa [h_split] at this
+  have h2 : (m - k)! * m.descFactorial k = m ! := Nat.factorial_mul_descFactorial hkm
+  calc m * ((m - 1).choose (k - 1) * (k - 1)!) * (m - k)!
+      = m * ((m - 1).choose (k - 1) * (k - 1)! * (m - k)!) := by ring
+    _ = m * (m - 1)! := by rw [h1]
+    _ = m ! := Nat.mul_factorial_pred (by omega)
+    _ = (m - k)! * m.descFactorial k := h2.symm
+    _ = m.descFactorial k * (m - k)! := Nat.mul_comm _ _
+
+/-- **Stirling prefactor explicit bound** (Carter–Pollard 2004 §3 Step 2):
+`m · C(m-1, k-1) ≤ m^k / (k-1)!` for `1 ≤ k ≤ m`, in ℝ.
+
+Elementary explicit bound via `Nat.descFactorial_le_pow`; does not invoke
+Stirling's asymptotic. Asymptotic sharpness
+(`m · C(m-1, k-1) = (1+o(1)) · m^k / (k-1)!` as `m → ∞`) is not proved here. -/
+theorem stirling_prefactor_bound {k m : ℕ} (hk : 1 ≤ k) (hkm : k ≤ m) :
+    (m : ℝ) * ((m - 1).choose (k - 1) : ℝ) ≤ (m : ℝ) ^ k / ((k - 1).factorial : ℝ) := by
+  have hfact_pos : (0 : ℝ) < ((k - 1).factorial : ℝ) := by
+    exact_mod_cast Nat.factorial_pos _
+  rw [le_div_iff₀ hfact_pos]
+  have h_eq : m * ((m - 1).choose (k - 1) * (k - 1)!) = m.descFactorial k :=
+    m_mul_choose_mul_factorial_eq_descFactorial hk hkm
+  have h_le : m.descFactorial k ≤ m ^ k := Nat.descFactorial_le_pow m k
+  have key : m * ((m - 1).choose (k - 1) * (k - 1)!) ≤ m ^ k := h_eq ▸ h_le
+  have key_R : ((m * ((m - 1).choose (k - 1) * (k - 1)!) : ℕ) : ℝ)
+      ≤ ((m ^ k : ℕ) : ℝ) := by exact_mod_cast key
+  push_cast at key_R
+  linarith
+
+/-! ### PMF.binomial bridge corollary -/
+
+/-- **PMF.binomial bridge corollary** (Carter–Pollard 2004 §3 Step 2):
+the analytic binomial-tail polynomial `binomialPolyTail m k p` equals the
+PMF.binomial tail probability `P(X ≥ k)` for `X ~ Binomial(m, p)`.
+
+For `1 ≤ k ≤ m` and `p : ℝ≥0` with `p ≤ 1`:
+
+  `binomialPolyTail m k (p:ℝ) =
+     ((PMF.binomial p h m).toOuterMeasure {i | k ≤ (i : ℕ)}).toReal`
+
+Connects the analytic Step-1 identity (`binomial_tail_beta_integral`) to the
+probabilistic interface used downstream by KMT-style couplings. -/
+theorem binomialPolyTail_eq_pmf_tail
+    {m k : ℕ} (_hk : 1 ≤ k) (_hkm : k ≤ m)
+    (p : ℝ≥0) (h : p ≤ 1) :
+    binomialPolyTail m k (p : ℝ) =
+      (((PMF.binomial p h m).toOuterMeasure
+        {i : Fin (m + 1) | k ≤ (i : ℕ)})).toReal := by
+  -- Convert the Set to a Finset for sum extraction.
+  set S : Finset (Fin (m + 1)) :=
+    Finset.filter (fun i : Fin (m + 1) => k ≤ (i : ℕ)) Finset.univ with hS_def
+  have hSet_eq : ((↑S : Set (Fin (m + 1)))) =
+      {i : Fin (m + 1) | k ≤ (i : ℕ)} := by
+    ext i; simp [hS_def]
+  rw [← hSet_eq, PMF.toOuterMeasure_apply_finset]
+  -- Distribute toReal over the finite ENNReal sum.
+  rw [ENNReal.toReal_sum (fun i _ => PMF.apply_ne_top _ _)]
+  -- Re-index from S (Fin (m+1)) to Finset.Ico k (m+1) (ℕ) via i ↦ i.val.
+  unfold binomialPolyTail
+  symm
+  refine Finset.sum_bij (fun (i : Fin (m + 1)) (_ : i ∈ S) => i.val) ?_ ?_ ?_ ?_
+  · -- i ∈ S → i.val ∈ Finset.Ico k (m+1)
+    intro i hi
+    have hi' : k ≤ (i : ℕ) := by simpa [hS_def] using hi
+    exact Finset.mem_Ico.mpr ⟨hi', i.isLt⟩
+  · -- injectivity on S
+    intro a _ b _ hab
+    exact Fin.ext hab
+  · -- surjectivity onto Finset.Ico k (m+1)
+    intro j hj
+    rcases Finset.mem_Ico.mp hj with ⟨hjk, hjm⟩
+    refine ⟨⟨j, hjm⟩, ?_, rfl⟩
+    simp [hS_def, hjk]
+  · -- function values match: (binomial p h m i).toReal as a real summand
+    intro i hi
+    have hi_le : (i : ℕ) ≤ m := Nat.lt_succ_iff.mp i.isLt
+    have hp1 : (↑p : ℝ≥0∞) ≤ 1 := by exact_mod_cast h
+    rw [PMF.binomial_apply]
+    -- The exponent `(Fin.last m - i : ℕ)` elaborates to `↑(Fin.last m) - ↑i` in ℕ.
+    simp only [Fin.val_last]
+    -- Distribute `.toReal` over the ENNReal product, then collapse coercions.
+    rw [ENNReal.toReal_mul, ENNReal.toReal_mul, ENNReal.toReal_pow, ENNReal.toReal_pow,
+        ENNReal.toReal_sub_of_le hp1 ENNReal.one_ne_top, ENNReal.toReal_one,
+        ENNReal.coe_toReal, ENNReal.toReal_natCast]
+    ring
 
 end Erdos524.Helpers

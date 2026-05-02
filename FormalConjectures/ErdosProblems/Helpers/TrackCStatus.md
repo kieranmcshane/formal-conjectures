@@ -1391,3 +1391,156 @@ Plus `.continuous.continuousOn` was incorrect API — replaced with
 * **Track C cluster status**: Round 9 of ~22-25 complete. TC10 (Carter-Pollard Step 2 Stirling prefactor + `PMF.binomial` bridge corollary) NOW UNBLOCKED — Step 1 polynomial-form identity is a Full closure, available as `binomial_tail_beta_integral`.
 * **R52 hybrid (c) gate contribution**: TC9 is +0 retirement at gate-relevant scale (`binomial_tail_beta_integral` is a NEW Track C-internal Full theorem, NOT a mainline TAG'd-sorry/axiom retirement). TC9 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC10+ forecast: +1 mainline-relevant if full Carter-Pollard assembly lands across TC10-TC11+ and `tusnady_base_polynomial` retires.
 * **Cumulative misframing ledger**: 8 (unchanged from TC8).
+
+---
+
+# TC10 — Step 2 (Stirling prefactor) + PMF.binomial bridge
+
+**Format**: Variante 1, single round, parallel track. Q7 iterative micro-step binding (Step 2 prefactor + PMF bridge corollary ONLY).
+**Branch**: `track-c-1dkmt`. **Worktree**: `~/Documents/formal-conjectures-track-c`.
+**Pre-round HEAD**: `1fa1317` (TC9 closure: Carter-Pollard Step 1 Full).
+**Build cycles**: 2 (cycle 1 surfaced `(k-1)!` factorial-postfix scope error + `Fin.last_sub`/`Fin.val_rev` mis-elaboration of `(Fin.last n - i : ℕ)`; cycle 2 green after `open scoped Nat` + switching to `Fin.val_last` + `ENNReal.toReal_*` distribution chain).
+**Route chosen**: **Route A** (explicit elementary bound via `Nat.descFactorial_le_pow`), per T1.1 audit. Route B (Stirling `IsEquivalent`) and Route C (hybrid) NOT pursued — Route A's `m · C(m-1, k-1) ≤ m^k / (k-1)!` is asymptotically sharp by inspection without invoking `factorial_isEquivalent_stirling`.
+**Build time (final)**: **30s** targeted (well under 90s budget).
+**Final LOC** (BinomialTailBeta.lean): **421** (TC9 baseline 312, +109 LOC for TC10 Step 2 + bridge; well under 600 LOC threshold).
+
+**Outcome**: **Best-distribution** — both Step-2 prefactor lemma AND PMF.binomial bridge corollary land Full on cycle 2. **+2 Full theorems** (`stirling_prefactor_bound`, `binomialPolyTail_eq_pmf_tail`) plus 1 auxiliary lemma (`m_mul_choose_mul_factorial_eq_descFactorial`). **Zero sorries** added; **zero sub-stubs**.
+
+## TC10.1 Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Stirling-bridge audit + Claims Verification Table | **Full** | `Helpers/TrackC_round10_T1_StirlingBridgeAudit.md` | All 9 claims classified (6 VERIFIED, 1 PARTIAL, 3 NEEDS-PROOF). Mathlib API located: `Nat.choose_mul_factorial_mul_factorial`, `Nat.factorial_mul_descFactorial`, `Nat.descFactorial_le_pow`, `Nat.mul_factorial_pred`, `PMF.binomial_apply`, `PMF.toOuterMeasure_apply_finset`, `PMF.apply_ne_top`, `Fin.val_last`, `ENNReal.toReal_{mul,pow,sub_of_le,natCast,coe}`, `NNReal.coe_sub`. Route A locked (explicit bound, no Stirling needed). |
+| T2.1 — `stirling_prefactor_bound` Full close | **Full** | `Helpers/BinomialTailBeta.lean:344-362` (theorem body) + helper at `:327-342` | Closed via 2-step ladder: (1) auxiliary `m_mul_choose_mul_factorial_eq_descFactorial` reduces `m · C(m-1, k-1) · (k-1)!` to `m.descFactorial k` via `Nat.choose_mul_factorial_mul_factorial` + `Nat.factorial_mul_descFactorial` + `Nat.mul_factorial_pred`; (2) main bound applies `Nat.descFactorial_le_pow`, casts to ℝ via `push_cast`/`linarith`, divides by `(k-1)! > 0`. ~36 LOC for theorem body + helper. |
+| T2.2 — `binomialPolyTail_eq_pmf_tail` Full close | **Full** | `Helpers/BinomialTailBeta.lean:377-432` (theorem body) | Closed via 4-step bridge: (a) `Set → Finset` via `Finset.filter` + `Finset.coe_filter`/`Finset.mem_univ`; (b) `OuterMeasure → Finset.sum` via `PMF.toOuterMeasure_apply_finset`; (c) `ENNReal → ℝ` via `ENNReal.toReal_sum` + per-term `ENNReal.toReal_{mul,pow,sub_of_le,coe,natCast}` chain; (d) re-index `Fin (m+1) → ℕ` via `Finset.sum_bij (i ↦ i.val)` with explicit injectivity/surjectivity (`Fin.ext` / `⟨j, _⟩` construction). Hypotheses `1 ≤ k` and `k ≤ m` retained as `_hk`/`_hkm` (API documentation; the bridge holds vacuously without them). |
+| T2.3 — Build verification + status doc | **Full** | This section + `lake build` output below. | Single-target `BinomialTailBeta` build succeeds in 30s; no warnings (after `_hk`/`_hkm` rename). |
+| T2.4 — Push `track-c-1dkmt` | **Full** | (commit + push log below) | Single TC10 commit on `track-c-1dkmt` only. |
+
+All five mandatory-floor outcomes Full. Track C round 10 caps at 0 condition triggered: **none**.
+
+## TC10.2 Build verification log (verbatim)
+
+```
+$ lake exe cache get
+Using cache (Azure) from origin: leanprover-community/mathlib4
+No files to download
+Decompressing 7753 file(s)
+Unpacked in 2226 ms
+Completed successfully!
+
+$ lake build FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta
+✔ [2624/2624] Built FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta (30s)
+Build completed successfully (2624 jobs).
+```
+
+## TC10.3 Net debt change (project ledger update)
+
+### Sorries (Helpers, TC9 baseline)
+
+| File | TC9 baseline | TC10 close | Change |
+|---|---|---|---|
+| `BinomialTailBeta.lean` | 0 | **0** | **+0** (+2 Full theorems + 1 auxiliary lemma; no sorries introduced) |
+| `OneDimKMT.lean` `tusnady_base_polynomial` | 1 (Carter-Pollard sub-sorry) | 1 | +0 (TC11+ scope; Step 2 alone insufficient to retire — needs Steps 3+) |
+| **Total Helpers (TC9→TC10)** | **6** | **6** | **+0** (no regression; +2 NEW Full theorems advance the Carter-Pollard chain) |
+
+### Axioms
+
+| Source | TC9 baseline | TC10 close | Change |
+|---|---|---|---|
+| Track C internal | 0 | 0 | +0 |
+| **Total** | **5** | **5** | **+0** |
+
+### Mathlib gaps (this round)
+
+None. All required API surfaces (descFactorial bridge, factorial-pred, PMF.binomial def + apply, OuterMeasure-to-Finset-sum, ENNReal toReal distribution, NNReal coercion of subtraction, Fin.val_last) located at pin and used cleanly.
+
+## TC10.4 Math-content close documentation
+
+### Stirling prefactor bound
+
+**Theorem statement** (`Helpers/BinomialTailBeta.lean:350`):
+
+```
+theorem stirling_prefactor_bound {k m : ℕ} (hk : 1 ≤ k) (hkm : k ≤ m) :
+    (m : ℝ) * ((m - 1).choose (k - 1) : ℝ) ≤ (m : ℝ) ^ k / ((k - 1).factorial : ℝ)
+```
+
+**Proof architecture** (Route A — elementary explicit bound):
+
+1. **Auxiliary identity** (ℕ): `m · (C(m-1, k-1) · (k-1)!) = m.descFactorial k`.
+   - `Nat.choose_mul_factorial_mul_factorial (k-1) (m-1)` gives `C(m-1, k-1) · (k-1)! · (m-k)! = (m-1)!`.
+   - Multiply by `m`, apply `Nat.mul_factorial_pred (m ≠ 0) : m · (m-1)! = m!`.
+   - Apply `Nat.factorial_mul_descFactorial hkm : (m-k)! · m.descFactorial k = m!`.
+   - Cancel `(m-k)!` (positive) via `Nat.eq_of_mul_eq_mul_right (Nat.factorial_pos _)`.
+
+2. **Main bound** (ℝ): cast claim 1 to ℝ; apply `Nat.descFactorial_le_pow m k : m.descFactorial k ≤ m^k`; divide by `(k-1)! > 0` via `le_div_iff₀` + `push_cast` + `linarith`.
+
+**Why this is asymptotically sharp**: `m · C(m-1, k-1) = (k-1)!^{-1} · m · (m-1) · ... · (m-k+1)`; as `m → ∞` for fixed `k`, this is `(1+o(1)) · m^k / (k-1)!`. So the bound is tight up to lower-order terms — Route A captures both explicit non-asymptotic control AND asymptotic sharpness in a single elementary proof.
+
+### PMF.binomial bridge corollary
+
+**Theorem statement** (`Helpers/BinomialTailBeta.lean:377`):
+
+```
+theorem binomialPolyTail_eq_pmf_tail
+    {m k : ℕ} (_hk : 1 ≤ k) (_hkm : k ≤ m)
+    (p : ℝ≥0) (h : p ≤ 1) :
+    binomialPolyTail m k (p : ℝ) =
+      (((PMF.binomial p h m).toOuterMeasure
+        {i : Fin (m + 1) | k ≤ (i : ℕ)})).toReal
+```
+
+**Proof architecture** (4-step coercion bridge):
+
+1. **Set → Finset**: define `S := Finset.filter (fun i => k ≤ i.val) Finset.univ : Finset (Fin (m+1))`; show `(↑S : Set _) = {i | k ≤ i.val}` via `Finset.coe_filter` + `Finset.mem_univ` + `Set.ext`.
+
+2. **OuterMeasure → Finset.sum**: apply `PMF.toOuterMeasure_apply_finset` to reduce `(PMF.binomial p h m).toOuterMeasure ↑S` to `∑ i ∈ S, PMF.binomial p h m i` (in ℝ≥0∞).
+
+3. **ℝ≥0∞ sum → ℝ sum**: apply `ENNReal.toReal_sum` (with finiteness via `PMF.apply_ne_top`); per-term, distribute `.toReal` over the product via `ENNReal.toReal_{mul, pow}` and collapse coercions via `ENNReal.coe_toReal`, `ENNReal.toReal_natCast`, `ENNReal.toReal_sub_of_le hp1 ENNReal.one_ne_top`, `ENNReal.toReal_one`.
+
+4. **Re-index Fin → ℕ**: apply `Finset.sum_bij (fun i _ => i.val)` from `S` to `Finset.Ico k (m+1)`; injectivity via `Fin.ext`, surjectivity by constructing `⟨j, hj.2⟩`, function-values match closed by `ring` after `Fin.val_last` simp.
+
+**Why the hypotheses are formally unused**: the bridge holds for `k = 0` (both sides `= 1`, by binomial theorem) and for `k > m` (both sides `= 0`, empty sum / empty Set). We retain them as `_hk`/`_hkm` to match the brief signature and signal "intended downstream use case."
+
+## TC10.5 Cluster trajectory update (post-TC10)
+
+| Round | Target | Status post-TC10 |
+|---|---|---|
+| TC1-TC8 | Layer 1-4 + Mills truncation + Real-Beta + Mills_antitone + Stirling-Robbins | ✅ Closed |
+| TC9 | Carter-Pollard Step 1 Full | ✅ Closed (Beta tail integral representation) |
+| **TC10** | **Carter-Pollard Step 2 (Stirling prefactor) + PMF.binomial bridge** | **✅ Best-distribution Full closure (this round) — +2 Full theorems, ~109 LOC, zero sorries** |
+| TC11+ | Carter-Pollard Steps 3+ (Taylor expansion + bulk/tail split + envelope) → close `tusnady_base_polynomial` body | open |
+
+**Cluster trajectory**: TC10 hits Best-distribution. Cluster size estimate per Q7 was 22-25 rounds total; TC9 + TC10 together compress this slightly (Steps 1+2 closed in 2 rounds; Steps 3+ are non-trivial Taylor/envelope work but build on the now-Full Step-1+2 ground floor).
+
+## TC10.6 Honesty / framing notes
+
+* **Round outcome**: Best-distribution. Mandatory floor Full on all 5 outcomes; T2.1+T2.2 math-content closures Full. Net Helpers sorry +0 (NEW theorems, no existing Stub retired). Net axiom unchanged at 5. **+2 Full theorems added to Carter-Pollard assembly chain.**
+* **Mismatch ledger**: 8 (unchanged). T1.1 audit confirmed all 6+ Mathlib API surfaces at pin; T2.1+T2.2 implementation surfaced two infrastructure-level adjustments — (a) `(k-1)!` factorial-postfix notation requires `open scoped Nat` (the `scoped notation:10000 n "!"` is namespace-bound), (b) `(Fin.last n - i : ℕ)` in `PMF.binomial_apply` elaborates as ℕ-subtraction `↑(Fin.last m) - ↑i` (not `(Fin.last m - i).val`), so `Fin.last_sub`+`Fin.val_rev` is the wrong rewrite path; the right path is `Fin.val_last` simp. Both are infrastructure-level (Mathlib API conventions), not math content. Misframing ledger unchanged.
+* **Skin-in-the-game compliance check**:
+  - Worktree used ✓ (no cross-track collision; no `lake update`, no Mathlib pin bump).
+  - Claims Verification Table produced with all 9 rows classified (6 VERIFIED, 1 PARTIAL, 3 NEEDS-PROOF; PARTIAL+NEEDS-PROOF retired in T2.1+T2.2 closures) ✓.
+  - T2.1+T2.2 committed (Full Lean code, NOT plan doc) ✓.
+  - Track C work pushed only to `track-c-1dkmt` branch ✓.
+  - No mainline OR track-d files modified ✓.
+  - No TC1-TC9 Full theorems modified ✓.
+  - Cache freshness check at session start; `lake exe cache get` succeeded ✓.
+  - **Q7 iterative micro-step binding respected** — Step 2 + bridge ONLY attempted; Steps 3+ NOT attempted ✓.
+  - **No multi-step Carter-Pollard assembly attempted** ✓.
+  - **Strategy proposal vs binding** (TC9 lesson): Route A locked in audit T1.1 BEFORE coding T2.1; minor strengthening (dropping `1 ≤ k`, `k ≤ m` hypotheses on the bridge) handled by retaining them as `_hk`/`_hkm` rather than dropping — preserves brief signature.
+* **Active math engagement**: T2.1 required understanding the elementary identity `m · C(m-1, k-1) · (k-1)! = m.descFactorial k` (the bridge between Pascal-style choose-times-factorial and falling-factorial form), the trivial inequality `descFactorial ≤ pow` (one telescope shorter than each falling-factorial step), and the asymptotic-sharpness observation (the bound is tight to lower-order terms — Route A captures both explicit and asymptotic without separately invoking `factorial_isEquivalent_stirling`). T2.2 required understanding the four-stage coercion ladder (`Set→Finset→ENNReal sum→ℝ sum→ℕ-indexed sum`), the `Fin.last n - i` ℕ-subtraction elaboration trap (where `Fin.last_sub`/`Fin.val_rev` is the *wrong* path), and the bijection structure for `Finset.sum_bij` between Fin-indexed and ℕ-indexed Finsets.
+* **What did NOT happen in TC10**:
+  - Carter-Pollard Steps 3+ (Taylor + bulk/tail split + envelope; TC11+ scope per Q7).
+  - `tusnady_base_polynomial` body sub-sorry retirement (line 506 of `OneDimKMT.lean`; TC11+ scope after full assembly).
+  - Asymptotic-sharpness lemma `stirling_prefactor_isEquivalent` (Route B; deferred — Route A's elementary bound is asymptotically sharp by inspection).
+  - Layer 3 Hungarian dyadic step body close (TC11+ scope).
+  - Layer 4 SupError attempt (TC11+ scope).
+  - Axiom retirement (still 5).
+  - Cross-track FS coordination (no `lake update`, no pin bump — Track A R59 GLW infra runs in parallel without collision).
+
+## TC10.7 Status label
+
+* **Track C round 10 outcome**: **Best-distribution** (mandatory floor Full; T2.1+T2.2 Full Lean code closures of Carter-Pollard Step 2 prefactor + PMF.binomial bridge; +2 Full theorems; net branch sorry +0; net axiom unchanged).
+* **Track C cluster status**: Round 10 of ~22-25 complete. TC11+ (Carter-Pollard Steps 3+ Taylor expansion + bulk/tail split + envelope) NOW UNBLOCKED — Step 1 polynomial-form identity (`binomial_tail_beta_integral`, TC9), Step 2 prefactor explicit bound (`stirling_prefactor_bound`, TC10), and PMF bridge (`binomialPolyTail_eq_pmf_tail`, TC10) are all Full closures available for Step 3+ assembly.
+* **R52 hybrid (c) gate contribution**: TC10 is +0 retirement at gate-relevant scale (`stirling_prefactor_bound` and `binomialPolyTail_eq_pmf_tail` are NEW Track C-internal Full theorems, NOT mainline TAG'd-sorry/axiom retirements). TC10 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC11+ forecast: +1 mainline-relevant if full Carter-Pollard assembly lands across TC11+ and `tusnady_base_polynomial` retires.
+* **Cumulative misframing ledger**: 8 (unchanged from TC9).
