@@ -19,6 +19,58 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R47 V2 round 9 — MGE three-bridge diagnostic + Phase 2 deferral)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone).
+* **Branch:** `r46-track-a-mge-posdef` HEAD `03699d8`.
+* **Net debt change:** 0 sorries retired across R47 (12 → 12). Round
+  outcome: lower distribution per T1.1 audit prediction. Foundational
+  + diagnostic-quality only.
+* **Total mainline debt:** 5 user-defined axioms + 12 TAG'd sorries =
+  17 items.
+* **Cumulative R40-R47 retirement rate:** ~0.5 sorry/round (was
+  ~0.43/round at R46 close); 8 rounds total elapsed since R39.
+* **Three deliverables this round:**
+  * **R47-T1.1 grep audit + framing verification**
+    (`Helpers/R47_T1_GrepAuditAndFramingVerification.md`, ~269 lines)
+    catches the R44/R45/R46 sub-gap (b) "80-120 LOC" cost estimate
+    error. Verified at pin `mathlib4 @ 25ce63313608` that sub-gap (b)
+    decomposes into THREE intermediate Mathlib bridges — n-ary
+    Pi-withDensity factorization (~80-120 LOC), Map-withDensity
+    through measurable equiv (~30-50 LOC), Lebesgue-on-EuclideanSpace
+    identification (~20-100 LOC). Revised total: ~150-280 LOC, NOT
+    80-120. Also flagged Phase 2 body Full close as blocked on three
+    prerequisites (MGE main + `Matrix.det.differentiable` R40 Stub +
+    uniform Gaussian-tail integrability).
+  * **R47-T2.1 MGE Stub diagnostic-quality enhancement** (commit
+    `dfc88bc`). MGE main Stub body updated with the three-bridge
+    decomposition + concrete LOC estimates + Mathlib API gap citations
+    + R48-R49 closure path. Round-attempt at Bridge (b.A) Full helper
+    revealed non-trivial typeclass-inference issues (`SigmaFinite`
+    constraint propagation, `lintegral_mul_const` finiteness side-
+    conditions); aborted per honest-deferral rules. Net retirement: 0.
+  * **R47-T2.2 Phase 2 body deferral diagnostic** (commit `03699d8`).
+    Phase 2 body Stub body updated with concrete prerequisite chain
+    citing MGE main close dependency, `Matrix.det.differentiable` R40
+    Stub, uniform tail bound dependency. R46 helper consumption
+    pathways identified explicitly (`posDef_min_eigenvalue_pos` direct
+    consumer, `GaussianParametricAnalysis` foundational scaffold,
+    `det_CFC_sqrt_eq_sqrt_det` consumed inside MGE main). Net
+    retirement: 0.
+* **R52 milestone gate trajectory:** items at 17, gate threshold ≤ 8.
+  Mainline R48-R52 trajectory retires ~4 sorries (MGE main + det.diff
+  + Phase 2 sub-gaps); cumulative items 17 - 4 = 13. R52 GATE FAILS
+  without Track C/D parallel contribution. Path A (axiomatize BTIS at
+  R54) likelihood promoted to **probable outcome**.
+* **Process discipline:** R47 experienced repeated agent-infrastructure
+  branch-switching causing ~0.5h overhead. Future rounds should batch
+  git operations to maintain branch context across sub-tasks.
+
+See `Helpers/PhaseV2R47Status.md` and
+`Helpers/R47_T1_GrepAuditAndFramingVerification.md` for the round
+status doc + framing audit.
+
 ## Build status (R46 V2 round 8 — MGE sub-gap (a) Full + PosDef min-eigenvalue)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
