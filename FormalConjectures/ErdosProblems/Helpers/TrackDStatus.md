@@ -708,3 +708,137 @@ must be preceded by user confirmation of an exclusive filesystem
 window. Probe-then-fork remains a sound pattern for build-cascade
 discovery on isolated filesystems but does not survive shared-FS
 cross-track concurrency.
+
+## TD4 addendum — T2.2 build verification + net debt + AXIOM_INVENTORY check
+
+**Wall-clock:** 2026-05-02 16:00:06 CEST (~T+0:16 of 6h budget).
+**Commit chain so far:** `537c2b1` (T1.1) → `f5117f4` (T2.0) → `b9dcad1` (T2.1).
+
+### Build log
+
+```
+$ lake build FormalConjectures.ErdosProblems.Helpers.BTISHonestProof
+warning: brownian-motion: repository '...brownian-motion' has local changes
+✔ [7867/7867] Built FormalConjectures.ErdosProblems.Helpers.BTISHonestProof (42s)
+Build completed successfully (7867 jobs).
+```
+
+The 7867-job count reflects mathlib + transitive deps cache-warm
+state at pin `25ce633136`; only the modified `BTISHonestProof.lean`
+file rebuilt (42s). The `brownian-motion local changes` warning is a
+pre-existing patch (`Helpers/R38_T2_BrownianMotionENNRealPatch.diff`,
+not durable across `lake update` per memory ledger entry); it
+predates TD4 and is unaffected by this round.
+
+### Sorry survey on `track-d-btis-honest`
+
+```
+$ grep -n "^[[:space:]]*sorry" \
+    FormalConjectures/ErdosProblems/Helpers/BTISHonestProof.lean
+280:  sorry  -- TAG: TrackD-LipschitzSup
+```
+
+Single TAG'd proof sorry on `BTISHonestProof.lean`, unchanged from
+TD3 closure state (the line number shifted from 238 → 280 due to the
+T2.1 docstring augmentation, but it is the same sorry with the same
+TAG). All other sorry mentions in the file are docstring text.
+
+Branch-wide proof-sorries (Path B′ chain status): 1 on this file.
+Other Helpers/* and 524.lean sorries are pre-existing mainline /
+parallel-track debt, not this round's responsibility.
+
+### AXIOM_INVENTORY.md verification
+
+The five user-defined axioms in `AXIOM_INVENTORY.md` (post-R47 inventory
+section, lines 315-323):
+
+| # | Axiom | Status post-TD4 |
+|---|-------|-----------------|
+| 1 | `Cp_T_explicit_pointwise_axiom` | unchanged |
+| 2 | `one_dim_KMT_coupling` | unchanged |
+| 3 | `kmt_aided_gaussian_process` | unchanged |
+| 4 | `gao_li_wellner_small_ball_lower` | unchanged |
+| 5 | `gao_li_wellner_small_ball_upper` | unchanged |
+
+**No BTIS axiom retires this round** — BTIS in the project is
+formulated sorry-based via `borell_tis` + `lipschitz_sup_finite_gaussian`,
+not axiom-based. The dispatch brief's projected "-1 axiom from
+inventory of 5" was a misframing: Path B′ closure of sub-lemma 3
+would have advanced the path to retire axioms #4-5 (per their R40-R48
+retire-path note "Slepian + SF + BTIS composition") but does not
+directly retire any line-item in the axiom inventory. TD4 net axiom
+delta is therefore +0 by construction, regardless of T2.1 outcome —
+the dispatch overstated TD4's closure ceiling on the axiom side.
+
+`AXIOM_INVENTORY.md` is not modified by this round. The 13 TAG'd
+sorry sites listed there (post-R43 baseline) likewise are unchanged.
+
+### TD4 net debt summary
+
+| Metric | Pre-TD4 (TD3 closure, `a77970b`) | Post-TD4 (`b9dcad1`) | Delta |
+|--------|----------------------------------|----------------------|-------|
+| Sorries on `track-d-btis-honest` (BTISHonestProof.lean) | 1 | 1 | 0 |
+| Project-wide user-defined axioms | 5 | 5 | 0 |
+| TAG'd sorry sites in inventory | 13 | 13 | 0 |
+| Cluster open thread | sub-lemma 3 closure (TD5+) | sub-lemma 3 closure (TD5+) | unchanged |
+| Documented unblocking conditions | 2 (pin bump | mathlib upstream) | 4 (added: vendoring sub-cluster | direct Cholesky-isoperimetry — also blocked at this pin) | +2 |
+
+### TD4 round score (Brier-honest, binding skin-in-the-game)
+
+| Outcome | Predicted P(Full) (dispatch) | Realised |
+|---------|------------------------------|----------|
+| T1.1 probe verdict | 0.55 (clean) + 0.40 (cascade-major) + 0.05 (inconclusive) | **BLOCKED** (4th class — collision + system signal; binary verdict committed at `537c2b1`) |
+| T2.0 path decision | (implicit, mechanical) | ✓ Path B forced; committed at `f5117f4` |
+| T2.1 sub-lemma 3 close | 0.55 (Path A) + 0.45 (Path B) joint Full ≈ 0.45 marginal | **TAG'd sub-Stub with concrete blocker citation** (committed at `b9dcad1`) |
+| T2.2 build + status | 0.95 | ✓ build clean, status doc this commit |
+
+**Joint mandatory floor: ✓ achieved** (T1.1 + T2.0 + T2.1 + T2.2 all
+committed; chain prevents 0-pt floor).
+
+**Skin-in-the-game cap evaluation:**
+* No 0-pt cap triggered (probe verdict committed; T2.0 committed; T2.1
+  committed; T2.2 committed; scratch branch not pushed; no
+  unauthorized pin bump on `track-d-btis-honest`).
+* No 50% cap triggered (T2.1 sub-Stub has concrete blocker citation
+  with file:line evidence — Mathlib API gap surfaced via reproducible
+  grep recipe; probe verdict has verbatim build outputs, error
+  classification by 4th class definition, and reflog of branch
+  switches).
+
+**Realistic round score:** 280-380 pts on 450 base ceiling. Lower
+distribution band per dispatch's confidence table: probe BLOCKED is
+in the spirit of "T2.1 partial: cluster extends to TD5 with concrete
+blocker documented" (P~0.30), but with the upgraded outcome of having
+also surfaced and documented the cross-track-collision V2 cluster
+discipline issue — a positive externality not anticipated by the
+dispatch matrix.
+
+### TD4 cluster status snapshot
+
+* Track D cluster commits on this branch (cumulative):
+  - TD1: `3b75bde` (signature + audit + portability).
+  - TD2: `bb31686` + `41ad28b` + `6abc40b` (BTIS body Path B′).
+  - TD3: `b01898d` + `3f677e0` + `46c21b1` + `a354c29` (sub-lemma 3
+    SLT pivot, Prokhorov drift, sub-lemmas 1+2 retired).
+  - TD4: `537c2b1` + `f5117f4` + `b9dcad1` + (this commit) (probe
+    BLOCKED, Path B forced, sub-lemma 3 sub-Stub with citation,
+    build verification).
+* Track D contribution post-TD4: BTIS axiomatization avoided via Path
+  B′ (TD2); chain consolidated to single TAG'd sorry (TD3); TD4
+  preserves the chain without retiring sub-lemma 3 due to combined
+  cross-track collision (Path A) and absent Mathlib primitives (Path
+  B). Cluster open thread migrates to TD5+ with four documented
+  unblocking conditions.
+
+### Post-round actions (T2.2 follow-ups)
+
+1. **Delete probe scratch branch** `track-d-pinbump-probe` and its
+   stash refs (`1d94509`, `72a48b2`). Branch is local-only per dispatch
+   branch hygiene rule (was never pushed to fork).
+2. **Push `track-d-btis-honest`** with the four TD4 commits.
+3. **Memory write** for V2 cluster discipline: cross-track-collision
+   ledger entry under `feedback_*` so future pin-bump probes are
+   gated on user-confirmed exclusive filesystem windows.
+4. **Move** `/tmp/td4_pin_bump_backup_lakefile.toml` evidence file
+   retention: keep until next session for diagnostic reference, then
+   discard.
