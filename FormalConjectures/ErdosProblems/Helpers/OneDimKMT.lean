@@ -140,6 +140,7 @@ Mathlib gap audit), `Helpers/OneDimKMTSketch.md` (R17 exploratory sketch),
 namespace Erdos524.Helpers
 
 open MeasureTheory ProbabilityTheory
+open scoped Topology
 
 /-! ### Layer 1 — Skorokhod embedding for single sums
 
@@ -203,27 +204,154 @@ function does *not* exist as of T1.1 audit. LOC estimate: 80–120
 (easiest layer to land first per Grok Q5).
 -/
 
-/-- **Layer 2 (`TrackC-Layer2-Quantile`).**
+/-- **Layer 2 (`TrackC-Layer2-Quantile`, R2 Full close).**
 Quantile (inverse-CDF) transformation: for any probability measure `μ`
-on `ℝ`, the function `quantile μ : ℝ → ℝ` satisfies
-`(volume.restrict (Set.Ioc 0 1)).map (quantile μ) = μ` (i.e. pushing
-forward the uniform on `(0, 1]` by the quantile transform recovers `μ`).
+on `ℝ`, the function `q : ℝ → ℝ` defined as `q p := sInf {y | p ≤ cdf μ y}`
+on `Ioo 0 1` (and `0` outside) satisfies the pushforward identity
+`(volume.restrict (Ioc 0 1)).map q = μ` (uniform on `(0, 1]` recovers `μ`).
 
-Stated here at the Galois-connection level: `quantile μ p ≤ x ↔ p ≤ cdf μ x`.
--/
+The Galois iff `q p ≤ x ↔ p ≤ cdf μ x` is stated for `p ∈ Ioo 0 1`
+(the universal-μ form: at `p = 1` with unbounded-support μ the level set
+`{y : 1 ≤ cdf μ y}` may be empty, breaking the iff under Mathlib's
+`Real.sInf` convention; restriction to `Ioo` avoids the boundary issue).
+
+**Proof outline (TC2 closure):**
+1. The level set `S_p := {y : p ≤ cdf μ y}` is non-empty (cdf → 1 at +∞)
+   and bounded below (cdf → 0 at -∞) for `p ∈ Ioo 0 1`.
+2. Right-continuity of cdf at `sInf S_p` plus monotonicity gives
+   `p ≤ cdf μ (sInf S_p)`, hence the forward Galois direction.
+3. Backward Galois is direct from `csInf_le`.
+4. Measurability via `measurable_of_Iic` with case split on `0 ≤ x`.
+5. Pushforward via `Measure.ext_of_Iic` + `restrict_congr_set` (Ioc =ᵐ Ioo
+   under volume) + volume-of-Ioo-intersect-Iic case split on `cdf μ x = 1`.
+
+**TC2 status:** Layer 2 retired (sorry on branch 17 → 16). -/
 theorem quantile_transform_finite_moment
     (μ : Measure ℝ) [IsProbabilityMeasure μ] :
     ∃ (q : ℝ → ℝ),
       Measurable q ∧
-      (∀ p x : ℝ, q p ≤ x ↔ p ≤ cdf μ x) ∧
+      (∀ p ∈ Set.Ioo (0 : ℝ) 1, ∀ x : ℝ, q p ≤ x ↔ p ≤ cdf μ x) ∧
       ((volume.restrict (Set.Ioc (0 : ℝ) 1)).map q = μ) := by
-  -- TAG[TrackC-Layer2-Quantile]: Track C round 2 target (likely first to land).
-  -- Construction: q p := sInf {x : ℝ | p ≤ cdf μ x}, with the Galois
-  -- connection coming from right-continuity of cdf (already in Mathlib).
-  -- Pushforward identity is a standard cdf/measure correspondence; uses
-  -- `cdf_eq_real`, `ofReal_cdf`, and `Measure.map` lemmas.
-  -- Cluster target: round 2 (~80-120 LOC, lowest-risk closure).
-  sorry
+  classical
+  -- Define q := sInf-based piecewise inverse CDF.
+  let q : ℝ → ℝ := fun p =>
+    if p ∈ Set.Ioo (0:ℝ) 1
+    then sInf {y : ℝ | p ≤ cdf μ y}
+    else 0
+  -- Aux 1: level set non-empty for p ∈ Ioo 0 1 (cdf → 1 at +∞).
+  have hSp_ne : ∀ p ∈ Set.Ioo (0:ℝ) 1, ({y : ℝ | p ≤ cdf μ y}).Nonempty := by
+    rintro p ⟨_, hp_lt⟩
+    rcases ((tendsto_cdf_atTop μ).eventually_const_lt hp_lt).exists with ⟨y, hy⟩
+    exact ⟨y, hy.le⟩
+  -- Aux 2: level set bounded below for p ∈ Ioo 0 1 (cdf → 0 at -∞).
+  have hSp_bdd : ∀ p ∈ Set.Ioo (0:ℝ) 1, BddBelow {y : ℝ | p ≤ cdf μ y} := by
+    rintro p ⟨hp_pos, _⟩
+    have h := (tendsto_cdf_atBot μ).eventually_lt_const hp_pos
+    rw [Filter.eventually_atBot] at h
+    obtain ⟨N, hN⟩ := h
+    refine ⟨N, fun y hy => ?_⟩
+    by_contra hlt; push_neg at hlt
+    exact (hN y hlt.le).not_ge hy
+  -- Galois iff for p ∈ Ioo 0 1 (right-continuity + monotonicity).
+  have hGalois : ∀ p ∈ Set.Ioo (0:ℝ) 1, ∀ x : ℝ, q p ≤ x ↔ p ≤ cdf μ x := by
+    intro p hp x
+    show (if p ∈ Set.Ioo (0:ℝ) 1 then sInf {y | p ≤ cdf μ y} else 0) ≤ x ↔ _
+    simp only [if_pos hp]
+    refine ⟨fun hqx => ?_, fun hpcdf => csInf_le (hSp_bdd p hp) hpcdf⟩
+    -- Forward: sInf S ≤ x → p ≤ cdf μ x via right-continuity of cdf at sInf S.
+    have h_p_le_cdf : p ≤ cdf μ (sInf {y : ℝ | p ≤ cdf μ y}) := by
+      have h_rc := (cdf μ).right_continuous (sInf {y : ℝ | p ≤ cdf μ y})
+      have h_tend : Filter.Tendsto (fun y => (cdf μ : ℝ → ℝ) y)
+          (𝓝[Set.Ioi (sInf {y : ℝ | p ≤ cdf μ y})] (sInf {y : ℝ | p ≤ cdf μ y}))
+          (𝓝 (cdf μ (sInf {y : ℝ | p ≤ cdf μ y}))) :=
+        h_rc.mono_left (nhdsWithin_mono _ Set.Ioi_subset_Ici_self)
+      apply ge_of_tendsto h_tend
+      filter_upwards [self_mem_nhdsWithin] with z hz
+      rw [Set.mem_Ioi] at hz
+      obtain ⟨z₀, hz₀_mem, hz₀_lt⟩ :=
+        (csInf_lt_iff (hSp_bdd p hp) (hSp_ne p hp)).mp hz
+      exact (hz₀_mem : p ≤ cdf μ z₀).trans (monotone_cdf μ hz₀_lt.le)
+    exact h_p_le_cdf.trans (monotone_cdf μ hqx)
+  -- Measurability via case split on 0 ≤ x.
+  have hq_meas : Measurable q := by
+    apply measurable_of_Iic
+    intro x
+    -- The goal is `MeasurableSet (q ⁻¹' Iic x)`, which is the same set as `{p | q p ≤ x}`.
+    show MeasurableSet {p : ℝ | q p ≤ x}
+    by_cases hx : (0 : ℝ) ≤ x
+    · -- x ≥ 0: {p : q p ≤ x} = (Ioo 0 1)ᶜ ∪ (Ioo 0 1 ∩ Iic (cdf μ x))
+      have h_set : {p : ℝ | q p ≤ x} =
+          (Set.Ioo (0:ℝ) 1)ᶜ ∪ (Set.Ioo (0:ℝ) 1 ∩ Set.Iic (cdf μ x)) := by
+        ext p
+        simp only [Set.mem_setOf_eq, Set.mem_union, Set.mem_compl_iff, Set.mem_inter_iff,
+          Set.mem_Iic]
+        constructor
+        · intro hqx
+          by_cases hp : p ∈ Set.Ioo (0:ℝ) 1
+          · exact Or.inr ⟨hp, (hGalois p hp x).mp hqx⟩
+          · exact Or.inl hp
+        · rintro (hp | ⟨hp, hpc⟩)
+          · -- p ∉ Ioo 0 1: q p = 0 ≤ x by hx.
+            show q p ≤ x
+            simp only [q, if_neg hp]; exact hx
+          · exact (hGalois p hp x).mpr hpc
+      rw [h_set]
+      exact (measurableSet_Ioo).compl.union (measurableSet_Ioo.inter measurableSet_Iic)
+    · -- x < 0: {p : q p ≤ x} = Ioo 0 1 ∩ Iic (cdf μ x).
+      push_neg at hx
+      have h_set : {p : ℝ | q p ≤ x} = Set.Ioo (0:ℝ) 1 ∩ Set.Iic (cdf μ x) := by
+        ext p
+        simp only [Set.mem_setOf_eq, Set.mem_inter_iff, Set.mem_Iic]
+        constructor
+        · intro hqx
+          by_cases hp : p ∈ Set.Ioo (0:ℝ) 1
+          · exact ⟨hp, (hGalois p hp x).mp hqx⟩
+          · -- p ∉ Ioo 0 1: q p = 0, but x < 0, so 0 ≤ x is false → contradicts hqx.
+            exfalso
+            have hq_p : q p = 0 := by simp only [q, if_neg hp]
+            linarith [show (q p : ℝ) ≤ x from hqx, hq_p]
+        · rintro ⟨hp, hpc⟩; exact (hGalois p hp x).mpr hpc
+      rw [h_set]
+      exact measurableSet_Ioo.inter measurableSet_Iic
+  refine ⟨q, hq_meas, hGalois, ?_⟩
+  -- Pushforward identity.
+  -- Step 1: rewrite Ioc 0 1 to Ioo 0 1 via volume-restriction equality (NoAtoms).
+  have h_restrict_eq : volume.restrict (Set.Ioc (0:ℝ) 1) = volume.restrict (Set.Ioo (0:ℝ) 1) :=
+    Measure.restrict_congr_set Ioo_ae_eq_Ioc.symm
+  rw [h_restrict_eq]
+  -- Step 2: equality of measures via Measure.ext_of_Iic.
+  refine MeasureTheory.Measure.ext_of_Iic _ _ (fun x => ?_)
+  rw [Measure.map_apply hq_meas measurableSet_Iic,
+      Measure.restrict_apply (hq_meas measurableSet_Iic),
+      ← ofReal_cdf μ x]
+  -- Goal: volume (q ⁻¹' Iic x ∩ Ioo 0 1) = ENNReal.ofReal (cdf μ x).
+  -- Step 3: rewrite the set using Galois.
+  have h_set_eq :
+      q ⁻¹' Set.Iic x ∩ Set.Ioo (0:ℝ) 1 = Set.Ioo (0:ℝ) 1 ∩ Set.Iic (cdf μ x) := by
+    ext p
+    simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_Iic]
+    constructor
+    · rintro ⟨hqx, hp⟩; exact ⟨hp, (hGalois p hp x).mp hqx⟩
+    · rintro ⟨hp, hpc⟩; exact ⟨(hGalois p hp x).mpr hpc, hp⟩
+  rw [h_set_eq]
+  -- Step 4: case split on cdf μ x = 1 vs < 1.
+  set c := cdf μ x with hc
+  have hc_le1 : c ≤ 1 := cdf_le_one μ x
+  rcases lt_or_eq_of_le hc_le1 with hc_lt | hc_eq
+  · -- c < 1: Ioo 0 1 ∩ Iic c = Ioc 0 c.
+    have h_eq2 : Set.Ioo (0:ℝ) 1 ∩ Set.Iic c = Set.Ioc 0 c := by
+      ext p
+      simp only [Set.mem_inter_iff, Set.mem_Ioo, Set.mem_Iic, Set.mem_Ioc]
+      constructor
+      · rintro ⟨⟨h1, _⟩, h2⟩; exact ⟨h1, h2⟩
+      · rintro ⟨h1, h2⟩; exact ⟨⟨h1, h2.trans_lt hc_lt⟩, h2⟩
+    rw [h_eq2, Real.volume_Ioc, sub_zero]
+  · -- c = 1: Ioo 0 1 ∩ Iic 1 = Ioo 0 1.
+    have h_eq2 : Set.Ioo (0:ℝ) 1 ∩ Set.Iic c = Set.Ioo (0:ℝ) 1 := by
+      ext p
+      simp only [Set.mem_inter_iff, Set.mem_Ioo, Set.mem_Iic]
+      refine ⟨fun ⟨h, _⟩ => h, fun h => ⟨h, hc_eq ▸ h.2.le⟩⟩
+    rw [h_eq2, Real.volume_Ioo, sub_zero, hc_eq]
 
 /-! ### Layer 3 — Hungarian dyadic decomposition + recursive coupling
 
