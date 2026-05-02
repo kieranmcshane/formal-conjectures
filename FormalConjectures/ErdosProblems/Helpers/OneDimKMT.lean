@@ -17,6 +17,7 @@ limitations under the License.
 import FormalConjectures.ErdosProblems.Helpers.RademacherSequence
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Probability.Moments.Variance
+import Mathlib.Probability.Moments.SubGaussian
 import Mathlib.Probability.CDF
 import Mathlib.MeasureTheory.Measure.Stieltjes
 import Mathlib.Probability.Distributions.Gaussian.Real
@@ -496,8 +497,9 @@ state. Binomial-coefficient asymptotics partial in
 Grok Q4; per-round P(success) ≈ 0.25–0.35).
 -/
 
-/-- **Hungarian dyadic step (`TrackC-Layer3-Hungarian-dyadic-step`, TC3
-signature lockdown).**
+/-- **Hungarian dyadic step (`TrackC-Layer3-Hungarian-dyadic-step`, TC5
+signature tightening — sub-Gaussian + Brownian-motion law + universal
+Carter-Pollard constants).**
 
 Given a coupling `(S_{prev}, B_{prev})` of partial sums to a Brownian
 motion at the previous dyadic scale `2^(k-1)`, produce a refined coupling
@@ -506,12 +508,33 @@ error remains within the polynomial Tusnády envelope. Iteration over
 `k = 1, 2, …, K` is consumed by `hungarian_dyadic_coupling` to yield the
 uniform-in-ω' log envelope.
 
-**Round-3 form**: existential over the refined coupling space + per-step
-polynomial midpoint bound. Body sub-Stub'd, TC4 close target.
+**TC5 tightening (post-TC4 weakness W2):** the prior TC3/TC4 form had
+three weaknesses:
 
-**Recursion plan (docstring-only, body TC4):**
+1. *No sub-Gaussian / moment hypothesis on `a`.* TC5 adds
+   `_ha_subg : ∃ c : ℝ≥0, ∀ k, HasSubgaussianMGF (a k) c ℙ` (uniform
+   sub-Gaussian variance proxy across all summands). Without this,
+   Carter-Pollard polynomial midpoint bound fails for arbitrary
+   unit-variance laws (KMT-rate proof rests on sub-Gaussian tails or
+   bounded support; original KMT 1975 used bounded support).
+2. *No Brownian-motion law constraint on `B_cur`.* TC5 adds
+   `∀ t : NNReal, μ'.map (B_cur t) = gaussianReal 0 t` to the
+   existential conjunction. Brownian motion at time `t` has marginal
+   `N(0, t)`. This eliminates the degenerate witness `B_cur t ≡ S_cur (...)`
+   (since `S_cur` is a partial sum with discrete-lattice marginal,
+   incompatible with `gaussianReal 0 t` continuous law).
+3. *Per-`n` constants `(A, C)`.* TC5 hardcodes universal Carter-Pollard
+   constants `A = 0.6`, `C = 1` (parallel to TC5 T2.1 on
+   `tusnady_base_polynomial`). Switches `∀ ω'` → `∀ᵐ ω' ∂μ'` for the
+   probability-measure null-set discipline.
+
+**Round-3 form (post-TC5):** existential over refined coupling space +
+sub-Gaussian + BM-law marginals + universal-constants per-step
+polynomial midpoint bound. Body sub-Stub'd, TC6+ close target.
+
+**Recursion plan (docstring-only, body TC6+):**
 1. Apply `tusnady_base_polynomial` (above) with `n ↦ 2^(k-1)` to obtain
-   `(B_{Bin}, Z_{Gauss})` with `|B_{Bin} - 2^(k-1) - Z_{Gauss}| ≤ A + C · Z²/2^(k-1)`.
+   `(B_{Bin}, Z_{Gauss})` with `|B_{Bin} - 2^(k-1) - Z_{Gauss}| ≤ 0.6 + Z²/2^(k-1)`.
 2. Use `Z_{Gauss}` as the *Brownian-motion increment* over the dyadic
    subblock `[2^(k-1), 2^k]`.
 3. Define `S_{cur} := S_{prev} + (sum of next 2^(k-1) summands)`,
@@ -525,44 +548,40 @@ theorem hungarian_dyadic_step
     (a : ℕ → Ω → ℝ) (_ha_indep : ProbabilityTheory.iIndepFun a ℙ)
     (_ha_centred : ∀ k, ∫ ω, a k ω ∂ℙ = 0)
     (_ha_var : ∀ k, ProbabilityTheory.variance (a k) ℙ = 1)
+    (_ha_subg : ∃ c : ℝ≥0, ∀ k, ProbabilityTheory.HasSubgaussianMGF (a k) c ℙ)
     (k : ℕ) (_hk : 1 ≤ k) :
     ∃ (Ω' : Type) (_ : MeasurableSpace Ω') (μ' : Measure Ω')
-      (S_cur : ℕ → Ω' → ℝ) (B_cur : NNReal → Ω' → ℝ) (A C : ℝ),
-      IsProbabilityMeasure μ' ∧ 0 < A ∧ 0 < C ∧
+      (S_cur : ℕ → Ω' → ℝ) (B_cur : NNReal → Ω' → ℝ),
+      IsProbabilityMeasure μ' ∧
       (∀ t, Measurable (B_cur t)) ∧
       (∀ n, Measurable (S_cur n)) ∧
       -- S_cur tracks partial sums up to the current dyadic scale.
       μ'.map (S_cur (2 ^ k)) = (ℙ : Measure Ω).map
         (fun ω => ∑ j ∈ Finset.Icc 1 (2 ^ k), a j ω) ∧
-      -- Polynomial per-step midpoint bound (Tusnády base via PMF/Gaussian
-      -- pairing on the dyadic increment).
-      ∀ ω', |S_cur (2 ^ k) ω' - B_cur (2 ^ k : NNReal) ω'| ≤
-        A + C * (B_cur (2 ^ k : NNReal) ω') ^ 2 / ((2 ^ k : ℕ) : ℝ) := by
-  -- TAG[TrackC-Layer3-Hungarian-dyadic-step]: TC5+ close target (revised
-  -- post-TC4 T1.1 audit). Recursion plan: see docstring above.
+      -- Brownian motion marginals: B_cur t ~ N(0, t).
+      (∀ t : NNReal, μ'.map (B_cur t) = gaussianReal 0 t) ∧
+      -- Universal-Carter-Pollard polynomial per-step midpoint bound,
+      -- µ'-almost-everywhere (probability-measure null-set discipline).
+      ∀ᵐ ω' ∂μ', |S_cur (2 ^ k) ω' - B_cur (2 ^ k : NNReal) ω'| ≤
+        (0.6 : ℝ) + (B_cur (2 ^ k : NNReal) ω') ^ 2 / ((2 ^ k : ℕ) : ℝ) := by
+  -- TAG[TrackC-Layer3-Hungarian-dyadic-step]: TC6+ close target (revised
+  -- post-TC5 T2.2 signature tightening). Recursion plan: see docstring.
   --
-  -- TC4 dependency state (per TrackC_round4_T1_TusnadyAudit.md):
-  --   • `tusnady_base_polynomial` is Path A partial (probability space
-  --     scaffolding closed via TC2 quantile transport; polynomial bound
-  --     `|B - n - Z| ≤ A + C·Z²/n` is a sub-sorry pending Mills + Stirling
-  --     + Beta machinery, multi-week math-engineering).
-  --   • Composing `tusnady_base_polynomial` here would inherit the same
-  --     sub-sorry, so a parallel Path A on this lemma would leave an
-  --     identical math gap.
+  -- TC5 weakness W2 resolved at signature level:
+  --   (i) sub-Gaussian hypothesis on `a` (uniform variance proxy `c : ℝ≥0`)
+  --       — admits Carter-Pollard polynomial midpoint bound at the
+  --       quantile-coupling level.
+  --   (ii) BM-law constraint `μ'.map (B_cur t) = gaussianReal 0 t`
+  --        — eliminates degenerate witness `B_cur ≡ S_cur` (S_cur partial
+  --        sum has discrete-lattice marginal, incompatible with continuous
+  --        gaussianReal 0 t law).
+  --   (iii) universal Carter-Pollard A=0.6, C=1 hard-coded; conclusion
+  --         is `∀ᵐ ω' ∂μ'`.
   --
-  -- Signature observations flagged for TC5+ tightening (status doc):
-  --   (i) No sub-Gaussian / moment hypothesis on `a` beyond unit variance.
-  --       The KMT polynomial midpoint bound is sharp under sub-Gaussian
-  --       tails (or bounded support per original KMT 1975); without that,
-  --       quantile-coupling differences are unbounded over Ioc 0 1, and
-  --       the conclusion fails for arbitrary unit-variance laws.
-  --   (ii) No Gaussian-process / Brownian-motion law constraint on
-  --        `B_cur`; locked signature accepts `B_cur ≡ S_cur` as a
-  --        degenerate witness, which Layer 4 cannot consume usefully.
-  --
-  -- TC5+ should either (a) tighten the signature with sub-Gaussian +
-  -- BM-law constraints before attempting close, or (b) ship a strengthened
-  -- companion lemma with the sharper hypotheses.
+  -- TC6+ body close: the dependency on `tusnady_base_polynomial` body
+  -- (Mills + Stirling + Beta) carries over; TC5 deliverables (Mills ratio
+  -- local def + lemmas in T2.3) close one of the three Mathlib pin gaps.
+  -- Stirling-explicit + real-Beta remain TC6 scope.
   sorry
 
 /-- **Layer 3 (`TrackC-Layer3-Hungarian-bottleneck`).**
