@@ -655,6 +655,36 @@ theorem two_dim_KMT_coupling_via_LS_reduction
       -- This is mathematically standard (i.i.d. on disjoint blocks) but
       -- not a one-liner from existing Mathlib.
       --
+      -- **Track B re-verification (track-b-r33cd-gaps, from 37c671f).**
+      -- Re-checked the Mathlib API at the current Track B HEAD against
+      -- `.lake/packages/mathlib/Mathlib/Probability/Independence/`:
+      --   * `iIndepFun_pi` (`Independence/Basic.lean:783`) —
+      --     `[Fintype ι]` constraint and indexed-product (`Π i, Ω i`)
+      --     shape. Still does not lift to a binary product `Ω × Ω`
+      --     with an external index `ℕ` and even/odd-coordinate
+      --     selection.
+      --   * `indepFun_prod` (`Independence/Basic.lean:750`) — gives
+      --     pairwise independence between fst/snd projections, useful
+      --     building block but does not lift iIndepFun across a
+      --     disjoint-coordinate merge.
+      --   * `iIndepFun.precomp` (`Independence/Basic.lean:324`) — still
+      --     restricted to sub-sequence selection on a single iIndepFun
+      --     family.
+      --   * `iIndepFun.indepFun_prodMk{,_prodMk}`
+      --     (`Independence/Basic.lean:851, 861`) — give *binary*
+      --     IndepFun out of an iIndepFun family between disjoint-index
+      --     pairs/quadruples; not the full iIndepFun merge.
+      -- A direct proof via `iIndepFun_iff_measure_inter_preimage_eq_mul`
+      -- (no Fintype constraint) is mathematically straightforward but
+      -- ~150–250 LOC of careful Finset/measure plumbing (split S into
+      -- even/odd halves, factor each preimage as fst- or snd-cylinder
+      -- via `Measure.prod_prod`, reassemble via the partition product
+      -- formula). Borderline-feasible in a single Track B round but
+      -- risks burning the round budget; deferred to a dedicated
+      -- Track B-2 round with wider LOC envelope.
+      -- See `Helpers/TrackB_T1_R33cdGapsAudit.md` §2.2 for full
+      -- re-verification trace.
+      --
       -- Honest TAG'd diagnostic, deferred to upstream Mathlib API
       -- arrival or a dedicated R33-D / R33-E formalization round.
       sorry
@@ -938,6 +968,25 @@ theorem two_dim_KMT_coupling_via_LS_reduction
     -- the `kmt_aided_gaussian_process` axiom altogether, replacing it
     -- with a proper Itô-isometry construction that certifies joint
     -- Gaussian-ness directly).
+    --
+    -- **Track B re-verification (track-b-r33cd-gaps, from 37c671f).**
+    -- Re-checked the Mathlib API at the current Track B HEAD against
+    -- `.lake/packages/mathlib/Mathlib/Probability/`:
+    --   * `IndepFun.covariance_eq_zero` at `Moments/Covariance.lean:297`
+    --     — still forward-only.
+    --   * No reverse-direction lemma (search for `uncorrelated.*indep`,
+    --     `cov.*zero.*indep`, `gaussian.*indep`,
+    --     `charFun.*prod.*charFun`) returns matches in `Probability/`
+    --     beyond sub-Gaussian-MGF-with-indep-hypothesis lemmas.
+    --   * `IsGaussian.charFunDual_eq` + `charFunDual_prod`
+    --     (`Distributions/Gaussian/Basic.lean:244`) provide the
+    --     building blocks but require the joint distribution
+    --     `(Y_e, Y_o).map (ℙ.prod ℙ)` to be `IsGaussian` in the
+    --     vector sense, which the project's
+    --     `kmt_aided_gaussian_process` axiom output does not certify.
+    -- Verdict reaffirmed at current Mathlib HEAD: gap stands.
+    -- See `Helpers/TrackB_T1_R33cdGapsAudit.md` §2.1 for full
+    -- re-verification trace (search commands + per-lemma audit).
     --
     -- Honest TAG'd diagnostic, deferred.
     sorry

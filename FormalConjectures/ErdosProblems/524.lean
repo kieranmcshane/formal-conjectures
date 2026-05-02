@@ -3917,6 +3917,19 @@ private theorem two_dim_KMT_coupling_legacy_Ω_form
   -- (ii) joint-Gaussian + uncorrelated-equiv-independent Mathlib API
   -- enabling a pathwise Ω-only reconstruction from the Form β output.
   -- Both are out of round-budget; deferred to R34+.
+  --
+  -- **Track B re-verification (track-b-r33cd-gaps, from 37c671f).**
+  -- Path (i) bare LOC budget: ~600–1400 LOC across 4 consumer
+  -- rewrites (`polynomial_sup_small_ball_{upper,upper_uniform,lower,
+  -- lower_uniform}` at 524.lean:3933, 4085, 4232, 4608), each
+  -- requiring a re-derivation of the `endpoint_reparametrization`
+  -- chain for the linear-combo Form β coupling — far beyond a
+  -- single-round budget. Path (ii) is dependency-blocked on the
+  -- Mathlib joint-Gaussian + cov-zero-implies-indep gap audited at
+  -- `Helpers/TwoDimKMTFromOneDim.lean:885-944` (`?indep` case) and
+  -- re-verified by Track B against current Mathlib HEAD (gap stands).
+  -- See `Helpers/TrackB_T1_R33cdGapsAudit.md` §2.3 for the full
+  -- dependency analysis.
   sorry
 
 /-- **Sub-axiom 6 (now a theorem): endpoint reparametrization.** The calculus
