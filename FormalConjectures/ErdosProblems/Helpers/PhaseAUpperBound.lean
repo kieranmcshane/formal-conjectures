@@ -199,6 +199,93 @@ theorem posDef_convex_combination
         · exact absurd h h1
       exact (hX.smul h1').add_posSemidef (hY.smul h0').posSemidef
 
+/-! ### R46-T2.2 — PosDef minimum-eigenvalue lower bound
+
+R46 Track A advance, per Grok R46 pre-flight Q2 (with R46-T1.1 framing
+correction). The brief's claim "`Matrix.PosDef.isOpen`" in
+`Matrix n n ℝ` is mathematically FALSE because PosDef requires
+`IsHermitian`, which is closed (not open) in the full matrix space (see
+`R46_T1_GrepAuditAndFramingVerification.md` §4 for the audit). The
+correctly-framed mathematical content is the **minimum-eigenvalue lower
+bound** on PosDef: for any `M : Matrix n n ℝ` with `M.PosDef` and `n`
+nonempty, the eigenvalues of `M` (well-defined via `M.IsHermitian`) admit
+a positive uniform lower bound.
+
+This is the core constructive ingredient for:
+
+* (i) **Local stability under Hermitian perturbations** — for symmetric
+  `N` close to `M` in operator norm, `N.PosDef` (i.e. PosDef is open
+  *within the symmetric subspace*).
+* (ii) **Uniform Gaussian tail bound** on compact PosDef sets — the
+  pdf `(2π)^(-n/2) (det Σ)^(-1/2) exp(-x^T Σ^(-1) x / 2)` admits a
+  uniform Gaussian envelope `C exp(-c‖x‖²)` (Phase 2 dominated-convergence
+  majorant).
+
+Both (i) and (ii) build on `posDef_min_eigenvalue_pos` plus the
+spectral theorem; that composition is R47+ scope. R46 lands the
+foundational helper.
+
+**Mathlib API used:** `Matrix.IsHermitian.posDef_iff_eigenvalues_pos`
+(`Mathlib/Analysis/Matrix/PosDef.lean:74`), `Matrix.PosDef.eigenvalues_pos`
+(`PosDef.lean:85`), `Finset.exists_min_image`
+(`Mathlib/Data/Finset/Max.lean:543`). -/
+
+/-- **R46-T2.2 — PosDef minimum eigenvalue is positive (Full).**
+
+For `M : Matrix n n ℝ` positive definite with `n` nonempty `Fintype`,
+there exists a strictly positive lower bound on all eigenvalues of `M`.
+This is the Hermitian-subspace version of the (incorrectly-framed)
+"`Matrix.PosDef.isOpen`" claim from Grok R46 pre-flight Q2.
+
+The minimum eigenvalue itself is always achieved on a finite spectrum;
+this lemma exposes the witness as `c := min eigenvalues > 0`.
+
+Used by R47+ Phase 2 body close (uniform Gaussian tail majorant) and by
+R47+ local-stability-under-Hermitian-perturbations corollary. -/
+theorem posDef_min_eigenvalue_pos
+    {n : Type*} [Fintype n] [DecidableEq n] [Nonempty n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) :
+    ∃ c : ℝ, 0 < c ∧ ∀ i : n, c ≤ hM.isHermitian.eigenvalues i := by
+  -- All eigenvalues are positive (Mathlib `PosDef.eigenvalues_pos`).
+  have h_pos : ∀ i, 0 < hM.isHermitian.eigenvalues i := hM.eigenvalues_pos
+  -- The set `{eigenvalues i | i ∈ Finset.univ}` is finite + nonempty,
+  -- so attains its minimum at some `i₀`.
+  obtain ⟨i₀, _, h_min⟩ :=
+    Finset.exists_min_image (Finset.univ : Finset n) hM.isHermitian.eigenvalues
+      Finset.univ_nonempty
+  refine ⟨hM.isHermitian.eigenvalues i₀, h_pos i₀, ?_⟩
+  intro i
+  exact h_min i (Finset.mem_univ i)
+
+/-- **R46-T2.2 corollary — `c := min eigenvalues` repackaged via `Finset.min'`.**
+
+Same content as `posDef_min_eigenvalue_pos` but exposes the constant
+explicitly via `Finset.min'` rather than as an existential witness.
+Useful when consumers need to pin the constant for further computation. -/
+theorem posDef_min_eigenvalue_witness
+    {n : Type*} [Fintype n] [DecidableEq n] [Nonempty n]
+    {M : Matrix n n ℝ} (hM : M.PosDef) :
+    let c := ((Finset.univ : Finset n).image hM.isHermitian.eigenvalues).min' (by
+      rw [Finset.image_nonempty]
+      exact Finset.univ_nonempty)
+    0 < c ∧ ∀ i : n, c ≤ hM.isHermitian.eigenvalues i := by
+  simp only
+  refine ⟨?_, ?_⟩
+  · -- Positive minimum: every element of the image is positive (since each
+    -- eigenvalue of PosDef is positive), and `Finset.min'_mem` gives the
+    -- minimum is in the image.
+    have h_min_mem :
+        ((Finset.univ : Finset n).image hM.isHermitian.eigenvalues).min'
+          (by rw [Finset.image_nonempty]; exact Finset.univ_nonempty) ∈
+        (Finset.univ : Finset n).image hM.isHermitian.eigenvalues :=
+      Finset.min'_mem _ _
+    rw [Finset.mem_image] at h_min_mem
+    obtain ⟨i₀, _, hi₀⟩ := h_min_mem
+    rw [← hi₀]
+    exact hM.eigenvalues_pos i₀
+  · intro i
+    exact Finset.min'_le _ _ (Finset.mem_image.mpr ⟨i, Finset.mem_univ i, rfl⟩)
+
 /-! ### R43 — Phase 1A and Phase 1B: differentiability along the linear path
 
 R43-T2.2 (Phase 1A) and R43-T2.3 (Phase 1B), per Grok R43 pre-flight Q4
