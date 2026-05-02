@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -/
 
+import Mathlib.LinearAlgebra.Matrix.Permanent
 import FormalConjectures.ErdosProblems.Helpers.GaussianParametricAnalysis
 
 /-!
@@ -163,20 +164,99 @@ namespace Erdos524.Helpers.GLWSmallBallShortcut
 open MeasureTheory ProbabilityTheory Matrix
 open scoped ENNReal NNReal Real MatrixOrder
 
-/-! ## Imports + scaffolding only — no new TAG'd Stubs in R48 stretch
+/-! ## R50 deferred-paper sub-Stubs (Lemmas 4.1 + 4.2)
 
-This namespace is reserved for R50-R51 GLW shortcut closure targets.
-The signatures listed in this file's docstring above will land as
-Full theorems (or honest TAG'd Stubs at that time) in those rounds.
+R50 T1.1 audit (`Helpers/Round50_T1_GLWShortcutAudit.md`) found a
+chain mismatch: the brief's premise that closing GLW 2010 §4
+Lemmas 4.1 + 4.2 retires axioms A4 + A5 is not supported by the
+existing axiom signatures or in-tree state. Specifically:
 
-R48 stretch leaves this namespace empty by design to avoid debt
-inflation (R46-T3.1 pattern).
+* A4 / A5 (`gao_li_wellner_small_ball_lower` / `_upper` at
+  `524.lean:3643` / `:3574`) are **Gaussian-process** small-ball
+  asymptotics over `IsGLWProcess Y` on continuous index `u ≥ 0`.
+* Lemmas 4.1 + 4.2 are **finite-dim deterministic** matrix
+  identities. The bridge requires discretization + Anderson +
+  optimization + tail handling + `IsGLWProcess` covariance
+  consumption (chain α/β/γ/δ/ε in the audit doc), all 0% in Mathlib
+  at pin and not within the brief's 110-150 LOC scope.
+* Mainline already contains a 5909+ LOC alternate in-tree closure
+  track (Q1a/b/c via Fourier smoothing + Berry-Esseen + hierarchical
+  Cauchy: `CauchyDetLowerBound.lean`, `CharFunCrossBlock.lean`,
+  `MultivariateSmallBallUpper.lean`, `SurgicalDensityAtZero.lean`,
+  `EsseenSmoothing.lean`, `GaussianHierCauchyBox.lean`) which the
+  brief's GLW determinant shortcut does not connect to.
 
-R48 stretch import set is intentionally minimal
-(`GaussianParametricAnalysis` only, which transitively brings the
-needed `multivariateGaussian` + R46 helpers); R50-R51 will expand
-imports to include `MultivariateSmallBallUpper`,
-`GLWGaussianProjectiveLimit`, `GLWUpperProof`, and `GLWLowerProof`
-as the theorem bodies are written. -/
+Per R50 brief's discipline rule "if any claim cannot be verified,
+flag explicitly and propose alternative", T2.1 + T2.2 land as honest
+TAG'd sub-Stubs (this section) recording the deferral; T2.3 is
+SKIPPED (no axiom-to-theorem swap). Mismatch ledger entry #16 (same
+family as #14 — Cowork+Grok shared chain-level scope-mismatch).
+
+Both sub-Stubs below are conservative-shape signatures intended as
+forward-compatible deferral records — exact entries / exact
+formulation requires Gao-Li-Wellner 2010 §4 paper access (not in R50
+audit window). R51+ should refine signatures and either close Full
+or replace with the concrete in-tree consumer construction.
+
+This file remains **un-imported** by any other file at R50 close, so
+the +2 sorries below are isolated and do not pollute consumer build
+state. -/
+
+/-- **GLW 2010 §4 Lemma 4.1 (deferred-paper sub-Stub).**
+
+Conservative-shape forward-compatible deferral record for GLW 2010 §4
+Lemma 4.1 (a determinant perturbation identity for the GLW kernel
+matrix `K_GLW^(n)`). The exact form of the perturbation identity
+requires paper access not in R50 audit window — see
+`Round50_T1_GLWShortcutAudit.md` claim #6.
+
+The signature here states a generic Jacobi-style first-order
+expansion: along any scalar path `ε ↦ K + ε • E` through a square
+real matrix `K`, the determinant is differentiable at `ε = 0` with
+some derivative `c`. The actual GLW 2010 §4 Lemma 4.1 is more
+specific (it pins `c` to an explicit value involving `K`'s structure);
+R51+ should refine.
+
+The body genuinely requires the R40 `Matrix.det.differentiable` Stub
+(`MatrixDetDifferentiable.lean:144`) closure plus a chain rule, hence
+the sorry is non-trivial and load-bearing.
+
+NOT consumed by any other file at R50 close.
+TAG[R50-T2.1-glw-lemma-4-1-deferred-paper] -/
+theorem glw_lemma_4_1_deferred_paper :
+    ∀ (n : ℕ) (K E : Matrix (Fin n) (Fin n) ℝ),
+      ∃ c : ℝ, HasDerivAt (fun ε : ℝ => (K + ε • E).det) c 0 := by
+  sorry
+
+/-- **GLW 2010 §4 Lemma 4.2 (deferred-paper sub-Stub).**
+
+Conservative-shape forward-compatible deferral record for GLW 2010 §4
+Lemma 4.2 (`per(A) = 1` and `det(A) = 32·m·(240·e⁻³)^m` for a specific
+structured matrix `A` of dimension `m × m` indexed by the
+hierarchical grid). The exact matrix entries and the precise
+formulation require paper access not in R50 audit window — see
+`Round50_T1_GLWShortcutAudit.md` claim #7.
+
+The signature here states the existence of a structured matrix `A`
+of dimension `m² × m²` (suggested by the hierarchical-grid index
+structure used in the in-tree Q1a/b/c track:
+`hierGrid m : Fin m × Fin m`) such that both the permanent and the
+determinant take the values stated in the brief. The dimension `m²`
+is a guess based on the in-tree Q1a/b/c hierarchical-grid pattern;
+the GLW 2010 §4 paper may use a different convention (e.g. `m × m`
+or `(m+1) × (m+1)`), in which case R51+ refines.
+
+The brief's stated formula `32m · (240 e^{-3})^m` is interpreted as
+`32 · m · (240 · e⁻³)^m`. The alternative interpretation
+`32^m · (240 · e⁻³)^m` is also plausible; without paper access,
+neither can be verified. R51+ refines if needed.
+
+NOT consumed by any other file at R50 close.
+TAG[R50-T2.2-glw-lemma-4-2-deferred-paper] -/
+theorem glw_lemma_4_2_deferred_paper :
+    ∀ m : ℕ, 1 ≤ m → ∃ A : Matrix (Fin (m * m)) (Fin (m * m)) ℝ,
+      A.permanent = 1 ∧
+      A.det = (32 : ℝ) * (m : ℝ) * ((240 : ℝ) * Real.exp (-3)) ^ m := by
+  sorry
 
 end Erdos524.Helpers.GLWSmallBallShortcut
