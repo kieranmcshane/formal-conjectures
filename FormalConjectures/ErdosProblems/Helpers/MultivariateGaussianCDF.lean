@@ -14,7 +14,9 @@ limitations under the License.
 import BrownianMotion.Gaussian.MultivariateGaussian
 import Mathlib.LinearAlgebra.Matrix.PosDef
 import Mathlib.Analysis.Calculus.FDeriv.Basic
+import Mathlib.Analysis.Calculus.Deriv.Basic
 import Mathlib.Analysis.Matrix.Normed
+import Mathlib.Data.Matrix.Basis
 
 /-!
 # R35 — Multivariate-Gaussian half-space probability differentiability
@@ -163,50 +165,128 @@ theorem multivariateGaussianOrthantCDF_differentiable_wrt_covariance
   -- See R35_T1_DiffLemmaAudit.md sections 3, 4, 5 for the three concrete
   -- Mathlib API gaps and the tried alternatives.
   --
-  -- Outline of the closed-form proof (deferred to R36 or later):
-  --   (i)   Express the orthant probability as ∫_{orthant x} ρ(z; Σ) dz
-  --         where ρ is the Lebesgue density of multivariateGaussian 0 Σ.
-  --   (ii)  Use Matrix.det.differentiable + Matrix.PosDef.inv.differentiable
-  --         to get pointwise smoothness of (Σ, z) ↦ ρ(z; Σ).
-  --   (iii) Apply HasFDerivAt under the integral sign (Lebesgue dominated
-  --         convergence with a Σ-uniform integrable dominator) on the
-  --         orthant region.
-  --   (iv)  Verify Σ.PosDef stays in an open neighborhood (PosDef is open
-  --         in the entry-wise topology — itself a Mathlib gap, though
-  --         smaller).
+  -- **R41-T1.1 audit refinement.** Path B per Grok R41 pre-flight Q2 ("chain
+  -- on R40 Stubs as axiom-equivalent") is *partially* applicable: the R40
+  -- stubs `Matrix.det.hasFDerivAt`, `Matrix.det.differentiable`, and
+  -- `Matrix.PosDef.inv_hasFDerivAt` are real signatures and compose cleanly.
+  -- HOWEVER, the R40-T2.3 stubs `multivariateGaussian_eq_lebesgue_withDensity`
+  -- (MGE) and `multivariateGaussianOrthantCDF_eq_lebesgue_integral` (MGI) are
+  -- `True := by trivial` placeholders, NOT real signatures. The diff-under-
+  -- integral closure step requires MGI as a black-box rewrite to recast
+  -- `multivariateGaussianOrthantCDF S x = ∫_{orthant} pdf(z; S) dz`; with
+  -- MGI = True, that rewrite is impossible. R41-T1.1 audit
+  -- (`R41_T1_ChainCompositionAudit.md`) documents this gap in detail.
+  --
+  -- **Closure prerequisites (R42 work):**
+  --
+  --   (P1) MGE `True` → real signature: `multivariateGaussian 0 S` admits
+  --        `multivariateGaussianPdf S` as Lebesgue density (modulo the
+  --        EuclideanSpace ↔ ι → ℝ identification). ~50 LOC.
+  --   (P2) MGI `True` → real signature: orthantCDF S x equals the Lebesgue
+  --        integral of `multivariateGaussianPdf S` over `orthant x`. ~30 LOC.
+  --   (P3) `Matrix.det.hasFDerivAt` Stub → Full body. ~150-300 LOC (R40-T2.1
+  --        cofactor route). Currently chainable as black-box.
+  --
+  -- **Closure body proof (R42 scope, ~400-700 LOC after P1+P2):**
+  --
+  --   (i)   Rewrite orthant CDF via MGI: orthantCDF S x = ∫_{orthant x} pdf(z; S) dz.
+  --   (ii)  Pointwise smoothness of (S, z) ↦ pdf(z; S) via Matrix.det.diff +
+  --         Matrix.PosDef.inv_hasFDerivAt + Real.exp.differentiable.
+  --   (iii) Diff-under-integral via Lebesgue dominated convergence with a
+  --         Σ-uniform integrable dominator on the orthant region.
+  --   (iv)  Verify S.PosDef stays in an open neighborhood of S₀ (det > 0
+  --         is open + Hermitian is closed + PSD-cone interior).
   sorry
 
 /-! ## Entry-wise partial-derivative formula (R36+ scope, signature here for
 documentation) -/
 
-/-- **R35 T1.1 ledger — entry-wise derivative formula for the orthant CDF.**
+/-! ### R41 — real-signature upgrade for the off-diagonal partial derivative
 
-Per the standard derivation, for a centered multivariate Gaussian with
-covariance `Σ`, the partial derivative of the orthant CDF at threshold `x`
-with respect to off-diagonal entry `Σ_{ij}` (with `i ≠ j`) is given by
+R40-T2.3 left this signature as `True := by trivial`, a non-informative
+placeholder. R41-T1.1 audit (`R41_T1_ChainCompositionAudit.md`) flagged
+the `True` shape as the actual blocker for `slepian_comparison_finite`'s
+chain-rule + sign-analysis closure: chaining on a `True` Stub gives the
+consumer no usable assumption. R41 upgrades the type from `True` to a
+real `HasDerivAt`-along-1D-path statement that is directly chainable in
+the Slepian body via FTC.
 
-  `∂F/∂Σ_{ij}|_{x} = ρ_{ij}(x_i, x_j; Σ_{ii}, Σ_{ij}, Σ_{jj}) · F_{ι\{i,j}}`
+The upgrade carries a `sorry` body — closure of the actual derivative-
+non-negativity statement requires the bivariate Gaussian density formula
+and the conditional orthant probability on `ι \ {i, j}`, both of which
+depend on the R40-T2.3 `multivariateGaussian_eq_lebesgue_withDensity`
+bridge (still a `True` placeholder at R41) plus the Stein integration-by-
+parts identity. Closure target: R42–R43 alongside MGE / MGI real-
+signature upgrades.
+-/
 
-where `ρ_{ij}` is the bivariate Gaussian density of `(Z_i, Z_j)` evaluated
-at `(x_i, x_j)`, and `F_{ι\{i,j}}` is the conditional orthant probability
-on the remaining coordinates conditioned on `Z_i = x_i, Z_j = x_j`.
+/-- **R41 T2.1 — Off-diagonal directional-derivative non-negativity (real
+signature, body deferred).**
 
-This is the load-bearing entry-wise positivity fact for Slepian: each
-`(N_Y - N_X)_{ij}` factor is non-negative (off-diagonal-domination
-hypothesis) and each density factor is non-negative, so `dF/dα ≥ 0`.
+For a positive-definite covariance `S₀` and threshold `x : ι → ℝ`,
+restrict the orthant CDF to the 1-parameter symmetric off-diagonal
+perturbation
 
-**R35 status:** statement only, body deferred to R36 alongside the
-multivariate density-existence work. This signature documents the target
-formula so R36 has a concrete handle. -/
+    `α ↦ multivariateGaussianOrthantCDF (S₀ + α • E_{ij}) x`,
+
+where `E_{ij} := single i j 1 + single j i 1` is the symmetric off-diagonal
+basis matrix (preserves the Hermitian / symmetric covariance structure).
+This 1-parameter restriction has a derivative at `α = 0`, and that
+derivative is **non-negative** for `i ≠ j`.
+
+Per the standard Slepian-via-density derivation, the explicit derivative
+equals the bivariate Gaussian density of `(Z_i, Z_j)` at `(x_i, x_j)`
+under the marginal `(0, 0; S₀ ii, S₀ ij, S₀ jj)` covariance, times the
+conditional orthant probability on `ι \ {i, j}` given `Z_i = x_i` and
+`Z_j = x_j`. Since both factors are non-negative, the derivative is
+non-negative.
+
+**R41 status: real-signature, TAG'd Stub body.** R40 left this as
+`True := by trivial`, which carried no information for downstream chain
+composition. R41 upgrades the type to `∃ d, 0 ≤ d ∧ HasDerivAt …`. The
+body remains a TAG'd Stub.
+
+**Mathlib gap diagnostic (concrete, refined R41-T1.1):**
+
+Closure of the body requires three concrete pieces, none packaged at
+the pin:
+
+1. **Bivariate Gaussian density formula.** The `multivariateGaussian`
+   measure has only a *characteristic-function* characterization in
+   `brownian-motion`; the explicit Lebesgue density `(2π)^{-1} (det Σ)^{-1/2}
+   exp(-x^T Σ^{-1} x / 2)` requires the
+   `multivariateGaussian_eq_lebesgue_withDensity` bridge from
+   `MultivariateGaussianPdf.lean`, currently a `True` placeholder.
+2. **Conditional orthant probability on `ι \ {i, j}`.** No Mathlib API
+   for the conditional orthant probability of a centered Gaussian
+   conditioned on `Z_i = x_i, Z_j = x_j`. Would need an explicit
+   conditional density formula derivation.
+3. **Stein integration-by-parts.** The derivative computation reduces
+   to a Stein-style integration-by-parts on the bivariate marginal —
+   not packaged in `Mathlib.Probability.*`. The classical proof is
+   ~50 LOC of integration-by-parts + Gaussian-tail bounds.
+
+Per `R41_T1_ChainCompositionAudit.md`, the upgraded real-signature
+unblocks `slepian_comparison_finite`'s body to chain through this Stub
+as a black-box assumption: the Slepian body becomes "FTC + the
+existential `d` provided here, summed over off-diagonal entries", with
+the sign-of-`d` non-negativity providing the FTC monotonicity. -/
 theorem multivariateGaussianOrthantCDF_partial_offdiagonal
-    (S₀ : Matrix ι ι ℝ) (_h_pd : S₀.PosDef) (_x : ι → ℝ) (_i _j : ι)
-    (_hij : _i ≠ _j) :
-    -- Statement: the partial derivative w.r.t. the (i,j)-entry equals the
-    -- bivariate density of (Z i, Z j) at (x i, x j) times the conditional
-    -- orthant probability on ι \ {i, j} given Z i = x i, Z j = x j.
-    -- Concrete Lean shape deferred to R36 once the bivariate density and
-    -- conditional measure are in hand (both Mathlib gaps).
-    True := by
-  trivial
+    (S₀ : Matrix ι ι ℝ) (_h_pd : S₀.PosDef) (x : ι → ℝ) (i j : ι)
+    (_hij : i ≠ j) :
+    ∃ d : ℝ, 0 ≤ d ∧ HasDerivAt
+      (fun α : ℝ =>
+        multivariateGaussianOrthantCDF
+          (S₀ + α • (Matrix.single i j (1 : ℝ) + Matrix.single j i (1 : ℝ))) x)
+      d 0 := by
+  -- TAG[R41-T2.1-bivariate-density-conditional] : real-signature upgrade of
+  -- R40-T2.3 `True` placeholder. Body deferred to R42-R43 alongside MGE / MGI
+  -- real-signature upgrades. Concrete Mathlib gap diagnostic: bivariate-Gaussian-
+  -- density (depends on multivariateGaussian_eq_lebesgue_withDensity, which is
+  -- itself a True placeholder at R41) + conditional-orthant-probability (no
+  -- Mathlib API) + Stein integration-by-parts (no Mathlib API). See
+  -- R41_T1_ChainCompositionAudit.md "R41 / R42 split" table for the multi-round
+  -- plan.
+  sorry
 
 end Erdos524.Helpers.MultivariateGaussianCDF

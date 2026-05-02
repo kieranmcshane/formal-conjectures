@@ -1173,3 +1173,111 @@ differentiability body (T3.1 from R40 stretch) + Slepian body (T3.2).
 R42 adds Sudakov-Fernique + Borell-TIS-axiomatize (+1 axiom temporary
 to 6). R43-R44 closes Slepian + SF + BTIS composition to retire A4 + A5
 (axioms 6 → 4).
+
+---
+
+## R41 — V2 round 3: chain composition advance (2026-05-02)
+
+R41 lands the audit-surfaced refinement to Grok R41 pre-flight Q2 — chain
+composition on R40 Stubs is sound only when the Stubs carry real signatures,
+not when they are `True := by trivial` placeholders. The round delivers
+two real-Lean advances + 1 audit doc.
+
+### Round summary
+
+* **R41-T1.1 audit** (`Helpers/R41_T1_ChainCompositionAudit.md`, ~140 LOC):
+  re-verified each R40 Stub's actual Lean type. Found 3 of 6 R40 Stubs
+  are real signatures (det.hasFDerivAt, det.differentiable wrapper,
+  PosDef.inv_hasFDerivAt), 3 of 6 are `True := by trivial` placeholders
+  (MGE `multivariateGaussian_eq_lebesgue_withDensity`,
+  MGI `multivariateGaussianOrthantCDF_eq_lebesgue_integral`,
+  MGP `multivariateGaussianOrthantCDF_partial_offdiagonal`). The audit
+  redirects T2.1 / T2.2 Full body work to R42 / R43 (presupposes real
+  signatures everywhere).
+
+* **R41-T2.2 commit `1e30dda`** — `Matrix.PosDef.inv_hasFDerivAt`
+  Stub→Full: composes `hasFDerivAt_ringInverse` from
+  `Mathlib/Analysis/Calculus/FDeriv/Mul.lean` with the global function
+  equality `Matrix.nonsing_inv_eq_ringInverse` (Matrix.inv = Ring.inverse
+  for all matrices, returning 0 for non-units). Activates
+  `Matrix.linftyOpNormedRing` + `Matrix.linftyOpNormedAlgebra` as local
+  instances. ~30 LOC.
+
+* **R41-T2.1 MGP real-signature upgrade**
+  (`Helpers/MultivariateGaussianCDF.lean:201-211`): `True := by trivial`
+  → real `∃ d : ℝ, 0 ≤ d ∧ HasDerivAt …` signature. The directional-
+  derivative-along-`E_{ij} := single i j 1 + single j i 1` form is
+  directly chainable in `slepian_comparison_finite`'s FTC + sign-analysis.
+  Body remains TAG'd Stub (`R41-T2.1-bivariate-density-conditional`)
+  citing 3 concrete Mathlib gaps (bivariate density, conditional orthant
+  probability, Stein IBP). ~50 LOC.
+
+* **R41 helper** — `posDef_convex_combination` lemma in
+  `Helpers/PhaseAUpperBound.lean:182-200`. **Fully proved (no `sorry`).**
+  Composes `Matrix.PosDef.smul` + `Matrix.PosDef.posSemidef` +
+  `Matrix.PosDef.add_posSemidef` plus endpoint case splits. ~12 LOC.
+  Used in slepian body restructure to surface
+  `hSα_posDef : ∀ α ∈ [0, 1], (Sα α).PosDef` as a real witness.
+
+* **R41 slepian body restructure**
+  (`Helpers/PhaseAUpperBound.lean:209-323`): adds the `hSα_posDef` step,
+  references the now-real-signature MGP, strengthens TAG'd Stub
+  diagnostic to cite R41-T1.1 audit.
+
+* **R41 diagnostics strengthening**:
+  `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` and
+  `slepian_comparison_finite` Stub diagnostics updated to cite the
+  R41-T1.1 audit refinement. R42 scope for MGE / MGI upgrades.
+
+### Build verification (T2.3)
+
+| Target | Status | Sorry change vs R40 |
+|---|---|---|
+| `FormalConjectures.ErdosProblems.Helpers.MatrixDetDifferentiable` | ✅ green | -1 (PosDef.inv closed) |
+| `FormalConjectures.ErdosProblems.Helpers.MultivariateGaussianPdf` | ✅ green | unchanged (T2.3 Full def + Stub bridge) |
+| `FormalConjectures.ErdosProblems.Helpers.MultivariateGaussianCDF` | ✅ green | +1 (MGP True → real-signature Stub) |
+| `FormalConjectures.ErdosProblems.Helpers.PhaseAUpperBound` | ✅ green | unchanged (slepian Stub strengthened, helper added) |
+| `FormalConjectures.ErdosProblems.«524»` | ✅ green | unchanged R33-D bridge sorry |
+| `FormalConjectures.ErdosProblems.Helpers.GLWLowerProof` + `.GLWUpperProof` | ✅ green | unchanged R39 V2 sorries |
+
+R38 + R39 + R40 milestones preserved. **All five critical build targets
+remain green.**
+
+### Net residual sorry count after R41
+
+| # | Sorry / TAG | Status post-R41 |
+|---|---|-----------------|
+| 1 | R33-C T2.4 — `IndepFun(Yplus, Yminus)` on linear-combo | unchanged |
+| 2 | R33-C T2.5 — `?ha'.iIndepFun` on Ω × Ω | unchanged |
+| 3 | R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form` | unchanged |
+| 4 | R35 T2.1 — `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` | unchanged (diagnostic strengthened) |
+| 5 | R35 T2.2 — `slepian_comparison_finite` body | unchanged (body restructured, diagnostic strengthened) |
+| 6 | V2-R39 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus` | unchanged |
+| 7 | V2-R39 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus` | unchanged |
+| 8 | V2-R39 — `gao_li_wellner_small_ball_upper_isGLWProcess_Yplus` | unchanged |
+| 9 | V2-R40 — `Matrix.det.hasFDerivAt` | unchanged (R42 close target) |
+| 10 | V2-R40 — `Matrix.det.differentiable` (wrapper) | unchanged (R42 close target) |
+| ~11~ | V2-R40 — `Matrix.PosDef.inv_hasFDerivAt` | **RETIRED in R41-T2.2 (`1e30dda`)** |
+| 11 | **V2-R41 — `multivariateGaussianOrthantCDF_partial_offdiagonal`** | **NEW** (R41-T2.1 real-signature upgrade, body TAG'd Stub) |
+
+Net count: **11 TAG'd sorries** (unchanged from R40 in absolute terms,
+but with quality upgrade: -1 PosDef.inv, +1 MGP real-signature).
+
+### Final 5-axiom inventory (post-R41, unchanged from R40)
+
+| # | Axiom | Justification | R41 status |
+|---|---|---|---|
+| 1 | `Cp_T_explicit_pointwise_axiom` (D2) | upstream Mathlib gap | unchanged |
+| 2 | `one_dim_KMT_coupling` | upstream Mathlib gap | unchanged |
+| 3 | `kmt_aided_gaussian_process` (stepping-stone) | upstream Mathlib gap | unchanged |
+| 4 | `gao_li_wellner_small_ball_lower` | upstream Mathlib gap | unchanged (R44-R45 retirement target) |
+| 5 | `gao_li_wellner_small_ball_upper` | upstream Mathlib gap | unchanged (R44-R45 retirement target) |
+
+R41 is the third round of V2; chain composition advance lands
+PosDef.inv full body + MGP real signature + posDef_convex_combination
+helper. R42 picks up MGE / MGI real-signature upgrades + T2.1 Full body
+(MVG-CDF differentiability via diff-under-integral). R43 picks up T2.2
+Full body (Slepian via FTC + Stein on real MGP). R44 axiomatizes
+Borell-TIS (+1 axiom temporary to 6). R45-R46 closes GLW assembly to
+retire A4 + A5 (axioms 6 → 4). Per `R41_T1_ChainCompositionAudit.md`,
+Priority #1 ceiling (R59) unbreached.

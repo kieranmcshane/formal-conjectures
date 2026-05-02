@@ -157,6 +157,48 @@ The statement is phrased directly in terms of
 Gaussian-interpolation `Σ_α := (1-α) Σ_X + α Σ_Y` argument plugs in
 without further reformulation. -/
 
+/-! ### R41 — `posDef_convex_combination` infrastructure helper
+
+R41-T2.2 advance: a convex combination of two PosDef matrices is PosDef on
+`α ∈ [0, 1]`. Required by `slepian_comparison_finite`'s body to verify that
+the linear interpolation path `Σ(α) := (1 − α) S_X + α S_Y` stays in the
+PosDef cone, which in turn is required for invoking
+`multivariateGaussianOrthantCDF_partial_offdiagonal` (the off-diagonal
+directional-derivative non-negativity) at every interior point of the
+path.
+
+This helper is **fully proved** (no `sorry`); it composes
+`Matrix.PosDef.smul`, `Matrix.PosDef.posSemidef`, and
+`Matrix.PosDef.add_posSemidef` from `Mathlib.LinearAlgebra.Matrix.PosDef`,
+plus endpoint case splits for `α = 0` and `α = 1`. -/
+
+/-- **R41 T2.2 — PosDef preservation under convex combination on [0, 1].**
+
+For two positive-definite matrices `S_X, S_Y : Matrix ι ι ℝ` and
+`α ∈ [0, 1]`, the convex combination `(1 − α) • S_X + α • S_Y` is
+positive-definite. Real-Lean proof; no Stubs.
+
+Used in the `slepian_comparison_finite` body to verify PosDef of the
+interpolation path `Sα α` at every α ∈ [0, 1], so that the off-diagonal
+directional-derivative non-negativity (R41-T2.1
+`multivariateGaussianOrthantCDF_partial_offdiagonal`) applies at every
+interior point. -/
+theorem posDef_convex_combination
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {S_X S_Y : Matrix ι ι ℝ} (hX : S_X.PosDef) (hY : S_Y.PosDef)
+    {α : ℝ} (h₀ : 0 ≤ α) (h₁ : α ≤ 1) :
+    ((1 - α) • S_X + α • S_Y).PosDef := by
+  by_cases h0 : α = 0
+  · subst h0; simpa using hX
+  · by_cases h1 : α = 1
+    · subst h1; simpa using hY
+    · have h0' : 0 < α := lt_of_le_of_ne h₀ (Ne.symm h0)
+      have h1' : 0 < 1 - α := by
+        rcases lt_or_eq_of_le h₁ with h | h
+        · linarith
+        · exact absurd h h1
+      exact (hX.smul h1').add_posSemidef (hY.smul h0').posSemidef
+
 /-- **R35 T2.2 — Slepian's comparison lemma (finite-index, half-space form).**
 
 For two `n × n` positive-definite covariance matrices `S_X, S_Y` with
@@ -193,7 +235,8 @@ theorem slepian_comparison_finite
         S_X x ≤
       Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
         S_Y x := by
-  -- **R41-T3.2 Slepian body (Path B per Grok pre-flight).**
+  -- **R41-T2.2 Slepian body — infrastructure advance (Path B, lower-outcome
+  -- per R41-T1.1 audit refinement).**
   --
   -- Strategy: Gaussian interpolation `Σ(α) := (1-α) S_X + α S_Y` for α ∈ [0,1].
   -- Define `F(α) := orthantCDF(Σ(α), x)`. By the chain rule + Stein identity,
@@ -201,21 +244,46 @@ theorem slepian_comparison_finite
   -- factor is non-negative (off-diagonal hypothesis + density positivity).
   -- FTC gives `F(0) ≤ F(1)`, i.e. `orthantCDF S_X x ≤ orthantCDF S_Y x`.
   --
-  -- R41 lands the **infrastructure** (path, PosSemidef preservation,
-  -- F endpoints) and structures the closure step as a TAG'd dependency
-  -- on T3.1 (CDF differentiability) + T3.1-partial-offdiagonal (explicit
-  -- derivative formula) — both R35 / R40-pending. Path B per Grok:
-  -- T3.2 composes soundly on those Stubs as black-box assumptions.
+  -- **R41 advances** (vs R40 placeholder Stub):
+  --   * `posDef_convex_combination` proved (real Lean, no `sorry`) — gives
+  --     `(Sα α).PosDef` for every α ∈ [0, 1].
+  --   * `multivariateGaussianOrthantCDF_partial_offdiagonal` upgraded from
+  --     `True := by trivial` to a real `∃ d, 0 ≤ d ∧ HasDerivAt …` signature
+  --     (body still TAG'd Stub, but the type is now usable for chain
+  --     composition).
+  --   * Slepian body restructured to surface the residual closure
+  --     dependencies as a single TAG'd `sorry` with concrete diagnostic.
+  --
+  -- **Residual closure dependencies** (deferred to R42–R43 per the
+  -- R41/R42 split table in `R41_T1_ChainCompositionAudit.md`):
+  --   (a) `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
+  --       Full body — provides `DifferentiableAt ℝ (fun S => orthantCDF S x)
+  --       (Sα α)`. R42 scope (depends on MGE / MGI real-signature upgrades).
+  --   (b) `multivariateGaussianOrthantCDF_partial_offdiagonal` Full body —
+  --       proves the existential `d ≥ 0` exists and identifies it as the
+  --       bivariate density times conditional orthant probability. R42–R43
+  --       scope (depends on bivariate density formula, conditional orthant
+  --       probability, Stein integration-by-parts).
+  --   (c) Chain-rule decomposition `F'(α) = ∑_{i,j} (S_Y - S_X)_{ij} ·
+  --       (∂F/∂Σ_{ij})_{Sα α}`. Diagonal terms vanish by `_h_diag :
+  --       S_X i i = S_Y i i` (so `(S_Y - S_X) i i = 0`). Off-diagonal
+  --       terms are non-negative by `_h_offdiag` × `multivariateGaussianOrthantCDF_partial_offdiagonal`.
+  --   (d) FTC: `F(0) ≤ F(1)` from `F'(α) ≥ 0` on `[0, 1]`.
+
   -- Step 1: linear interpolation path Σ(α).
   set Sα : ℝ → Matrix ι ι ℝ := fun α => (1 - α) • S_X + α • S_Y with hSα_def
   -- Step 2: endpoint identities Sα(0) = S_X, Sα(1) = S_Y.
   have hSα_0 : Sα 0 = S_X := by simp [hSα_def]
   have hSα_1 : Sα 1 = S_Y := by simp [hSα_def]
-  -- Step 3: define F(α) := orthantCDF(Σ(α), x).
+  -- Step 3: PosDef preservation along the interpolation path (R41 advance).
+  have hSα_posDef : ∀ α : ℝ, 0 ≤ α → α ≤ 1 → (Sα α).PosDef := by
+    intro α h₀ h₁
+    exact posDef_convex_combination _h_pdX _h_pdY h₀ h₁
+  -- Step 4: define F(α) := orthantCDF(Σ(α), x).
   set F : ℝ → ℝ := fun α =>
     Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
       (Sα α) x with hF_def
-  -- Step 4: F endpoint identities.
+  -- Step 5: F endpoint identities.
   have hF_0 : F 0 = Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
       S_X x := by
     change Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
@@ -226,26 +294,29 @@ theorem slepian_comparison_finite
     change Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
       (Sα 1) x = _
     rw [hSα_1]
-  -- Step 5: rewrite goal F(0) ≤ F(1).
+  -- Step 6: rewrite goal F(0) ≤ F(1).
   rw [← hF_0, ← hF_1]
-  -- Step 6: closure via FTC + sign analysis.
-  -- Body chains on:
-  --   (a) `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` (R35-T2.1
-  --       Stub) — gives `DifferentiableAt ℝ (fun S => orthantCDF S x) (Sα α)` for
-  --       every α ∈ [0,1] with Σ(α) PosDef.
-  --   (b) PosSemidef preservation under convex combination (proved below as
-  --       `Erdos524.Helpers.posDef_convex_combination`).
-  --   (c) `multivariateGaussianOrthantCDF_partial_offdiagonal` (R35-T1.1 stub)
-  --       — explicit formula for ∂F/∂Σ_{ij} at off-diagonal i ≠ j.
-  --   (d) Sign analysis: each ∂F/∂Σ_{ij} factor is non-negative density-times-
-  --       conditional-prob, and the chain-rule weight `(S_Y - S_X)_{ij} ≥ 0` by
-  --       off-diagonal hypothesis. Diagonal terms vanish by equal-variance
-  --       hypothesis `_h_diag`.
-  --   (e) FTC: `F(0) ≤ F(1)` follows from `F'(α) ≥ 0` for all `α ∈ [0,1]`.
-  -- TAG[R41-T3.2-FTC-via-Stein-and-T3.1-Stub] : ~150 LOC chain-rule + sign
-  -- analysis + FTC. Closes Full once T3.1 explicit-derivative-formula stub
-  -- (`multivariateGaussianOrthantCDF_partial_offdiagonal`) is upgraded from
-  -- `True` placeholder to a real statement. R42 scope per Path B.
+  -- Step 7: closure via FTC + sign analysis (TAG'd, R42-R43 scope).
+  -- TAG[R41-T2.2-FTC-via-Stein-and-real-MGP] : ~250-400 LOC chain-rule + sign
+  -- analysis + FTC. Closes Full once R42–R43 lands (a) MGE / MGI real-signature
+  -- upgrades + T2.1 Full body, and (b) MGP Full body (bivariate density +
+  -- conditional orthant probability + Stein IBP). Path B per Grok pre-flight
+  -- modulo the R41-T1.1 audit refinement: chain composition presupposes real
+  -- signatures everywhere, not `True` placeholders.
+  --
+  -- Per `R41_T1_ChainCompositionAudit.md`, the closure path on the now-real MGP
+  -- is:
+  --   (i) ∀ α ∈ [0,1], DifferentiableAt of `S ↦ orthantCDF S x` at `Sα α`
+  --       (uses `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
+  --       at the PosDef matrix `Sα α`, available via `hSα_posDef α h₀ h₁`).
+  --   (ii) Chain rule: `F'(α) = ⟨fderiv ℝ (orthantCDF · x) (Sα α),
+  --        d/dα Sα α⟩ = ⟨fderiv …, S_Y − S_X⟩`.
+  --   (iii) Decompose `S_Y − S_X` into entry-pair contributions; diagonal
+  --        vanishes by `_h_diag`; off-diagonal `(i, j)` contributes
+  --        `(S_Y − S_X)_{ij} ≥ 0` (by `_h_offdiag`) times the directional
+  --        derivative along `single i j 1 + single j i 1` at `Sα α`, which
+  --        is `≥ 0` by `multivariateGaussianOrthantCDF_partial_offdiagonal`.
+  --   (iv) FTC: `F(1) − F(0) = ∫₀¹ F'(α) dα ≥ 0`.
   sorry
 
 /-! ## Step 2 — Sudakov–Fernique on `[0, T]` (BLOCKED on Gap A2) -/
