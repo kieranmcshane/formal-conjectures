@@ -19,6 +19,82 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R48 V2 round 10 — Path γ' framing audit + T2.1 abort)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone).
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R48-T2.3 (T1.1 audit
+  + revision shipped, T2.1 ABORTED per user course correction at
+  T+0:50, T2.2 build verification on unchanged code).
+* **Net debt change:** 0 sorries retired across R48 (12 → 12).
+  **5th consecutive lower-distribution round** on mainline (R44-R48
+  all 0 retirements). Round outcome: T1.1 audit caught two
+  independent Grok Q3 Path γ' misframings; T2.1 code attempt aborted
+  per user directive; substantive deliverable is the T1.1 audit doc.
+* **Total mainline debt:** 5 user-defined axioms + 12 TAG'd sorries =
+  17 items.
+* **Cumulative R40-R48 retirement rate:** ~0.44 sorry/round (was
+  ~0.5/round at R47 close); 9 rounds total elapsed since R39.
+* **Three deliverables this round:**
+  * **R48-T1.1 Path γ' framing verification audit**
+    (`Helpers/R48_T1_PathGammaPrimeAudit.md`, ~395 lines after revision
+    `d4aa693`). Verified at pin `mathlib4 @ 25ce63313608` that the
+    brief's Grok Q3 Path γ' recipe rests on TWO independent
+    misframings:
+    * **(M1)** Lean MGI
+      (`multivariateGaussianOrthantCDF_eq_lebesgue_integral` at
+      `MultivariateGaussianPdf.lean:412`) is the integral REWRITE
+      (CDF → ∫pdf), NOT a density-differentiability lemma. R44 Full
+      body (lines 412-477) is three sequential `rw`s consuming MGE
+      Stub via line 466. Grok appears to have conflated Lean MGI
+      (integral rewrite) with literature MGI (Maximal Gaussian
+      Inequality / generic chaining envelope for `sup_t G_t`). Pdf
+      S-differentiability requires the closed-form chain through R40
+      `Matrix.det.differentiable` Stub at
+      `MatrixDetDifferentiable.lean:149` (~80-150 LOC, NOT 20-30 as
+      Q3 claimed; R40 still open).
+    * **(M2)** `GaussianParametricAnalysis.lean` (R46-T3.1) exposes
+      only re-exports of R46 helpers (lines 103-154); the tail bound
+      `multivariateGaussianPdf_uniform_tail_bound_on_compact_posDef`
+      lives inside a docstring code block (lines 168-192) labeled
+      "R47+ scope, NOT YET LANDED" — it is NOT a Lean theorem. Path
+      γ' step (3) DCT chain consumer "Gaussian tail majorant" does
+      not exist as a Lean object; landing it as a Full helper is a
+      separate ~60-100 LOC sub-round target.
+    Combined LOC re-estimate for Path γ' Phase 2 body Full close:
+    ~380-700 LOC (vs. Q3 brief estimate ~80-100). The MGE-axiom-
+    equivalent treatment from the brief does NOT reduce these costs
+    — they sit in chain dependencies independent of MGE.
+  * **R48-T2.1 ABORTED** per user course correction at T+0:50. Lean
+    Stub body at `MultivariateGaussianCDF.lean:160-313` unchanged
+    from R47-T2.2 close (`03699d8`). T1.1 audit retained as the R48
+    substantive substitute deliverable.
+  * **R48-T2.2 build verification on unchanged code** (this entry).
+    All 4 critical build targets remain green; R38-R47 milestones
+    preserved. Three R40-era Mathlib piece Stubs unchanged:
+    `Matrix.det.differentiable`, MGE Stub, sub-gap (b). MGE-axiom-
+    equivalent treatment NOT applied (out of scope per brief).
+  * **R48-T2.3 status doc + AXIOM_INVENTORY update** (this section
+    + `Helpers/PhaseV2R48Status.md`).
+* **R52 milestone gate trajectory:** items at 17, gate threshold ≤ 8.
+  Mainline R49-R52 trajectory (post-R48 audit) retires ~2 sorries
+  (R40 Stub + Phase 2 body via tail bound + R51 chain composition);
+  cumulative items 17 - 2 = 15. **R52 GATE FAILS** without
+  compression bundle items (iii) Track D round 3 + (iv) GLW shortcut
+  + Track C round 2 contributing ~5-7 retirements jointly. Path A
+  switch (axiomatize BTIS at R54) **probability promoted to ~70%**
+  for R52 gate decision.
+* **Cumulative T1.1 audit ledger: 7 distinct Grok pre-flight
+  misframings caught before scope commitment** across R44, R45, R46,
+  TC2, R47, R48-M1, R48-M2. Process Q4 ii Local Claude grep audit
+  pipeline continues to be the primary defense against scope
+  misalignment — R48 demonstrates the pipeline catching TWO
+  misframings in a single audit pass.
+
+See `Helpers/PhaseV2R48Status.md` and
+`Helpers/R48_T1_PathGammaPrimeAudit.md` for the round status doc +
+framing audit.
+
 ## Build status (R47 V2 round 9 — MGE three-bridge diagnostic + Phase 2 deferral)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
