@@ -19,6 +19,98 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R50 V2 round 12 — GLW determinant shortcut audit + deferred-paper sub-Stubs)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). All 8 R50-relevant critical build targets remain green
+  (7937 jobs, 19s incremental).
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R50 (T1.1 audit
+  `a8b660c`, T2.1+T2.2 sub-Stubs `dbdb042`, T2.5 this entry).
+* **Round type:** Variante 1, single round, mainline. **T1.1 audit
+  caught chain mismatch on R50 brief premise** before code budget
+  committed; round shipped honest deferral instead of fake retirement.
+* **Net debt change:**
+  * Sorries: **11 → 13** (+2, deferred-paper sub-Stubs in
+    `Helpers/GLWSmallBallShortcut.lean:226, :256` —
+    `glw_lemma_4_1_deferred_paper`, `glw_lemma_4_2_deferred_paper`).
+  * User-defined axioms: **6 → 6** (unchanged — A4 + A5 NOT retired;
+    the brief's premise that closing GLW Lemmas 4.1+4.2 retires them
+    was unverified at T1.1 audit, see `Round50_T1_GLWShortcutAudit.md`).
+  * Items at gate: **17 → 19** (+2, worse-than-baseline; honest
+    deferral preferred over polluting `AXIOM_INVENTORY.md` with a
+    faulty retirement claim).
+* **Total mainline debt:** 6 user-defined axioms + 13 TAG'd sorries =
+  19 items.
+* **Cumulative R40-R50 retirement rate:** ~0.4 sorry/round (was ~0.5
+  at R49 close; R50 added +2 sub-Stubs without retirement).
+* **Three deliverables this round:**
+  * **R50-T1.1 GLW determinant shortcut audit**
+    (`Helpers/Round50_T1_GLWShortcutAudit.md`, 357 lines, commit
+    `a8b660c`). Claims Verification Table verified claims 1-5;
+    flagged claims 6-8 UNVERIFIED with alternative path proposed.
+    Central finding: A4/A5 are Gaussian-process small-ball
+    asymptotics over `IsGLWProcess Y` on continuous `u ≥ 0`;
+    Lemmas 4.1+4.2 are finite-dim deterministic determinant +
+    permanent identities. Bridge requires:
+    * (α) discretization of sup-over-continuous to finite grid,
+    * (β) Anderson's multivariate inequality (Mathlib status: 0%),
+    * (γ) tail handling for full-window lower (`Ledoux §1.3` bridge),
+    * (δ) optimization `m(ε) ~ |log ε|`,
+    * (ε) `IsGLWProcess` covariance consumption.
+    None are within the brief's 110-150 LOC scope. Mainline already
+    contains a 5909+ LOC alternate in-tree closure track for A5
+    (Q1a/b/c via Fourier smoothing + Berry-Esseen + hierarchical
+    Cauchy: `CauchyDetLowerBound.lean` 3126 LOC, `CharFunCrossBlock.lean`
+    635, `MultivariateSmallBallUpper.lean` 621, `SurgicalDensityAtZero.lean`
+    543, `EsseenSmoothing.lean` 817, `GaussianHierCauchyBox.lean` 167)
+    that the brief's GLW determinant shortcut does not connect to.
+  * **R50-T2.1+T2.2 deferred-paper sub-Stubs** (commit `dbdb042`).
+    Two TAG'd sub-Stubs added to `Helpers/GLWSmallBallShortcut.lean`:
+    * `glw_lemma_4_1_deferred_paper` (Jacobi-style first-order
+      determinant expansion along scalar path; load-bearing on R40
+      `Matrix.det.differentiable` Stub),
+    * `glw_lemma_4_2_deferred_paper` (existence of structured matrix
+      with `per(A) = 1` and `det(A) = 32·m·(240·e⁻³)^m` of dim
+      `m² × m²`).
+    Conservative-shape forward-compatible signatures; exact GLW 2010
+    §4 form requires paper access (not in R50 audit window). R51+
+    refines or replaces with concrete in-tree consumer construction.
+    `GLWSmallBallShortcut.lean` is currently un-imported anywhere, so
+    the +2 sorries are isolated and do not regress consumer build
+    state. T2.3 axiom-to-theorem swap **SKIPPED** (premise unverified
+    at T1.1). T2.4 Q3.3 stretch **SKIPPED**.
+  * **R50-T2.5 build verification + this AXIOM_INVENTORY.md update +
+    status doc + push** (`Helpers/PhaseV2R50Status.md` + this entry).
+    All 8 critical targets green: `MultivariateGaussianCDF`,
+    `MultivariateGaussianPdf`, `PhaseAUpperBound`,
+    `MatrixDetDifferentiable`, `GLWLowerProof`, `GLWUpperProof`,
+    `«524»` consumer, plus the modified `GLWSmallBallShortcut`. R49
+    + R38-R47 milestones preserved.
+* **R52 milestone gate trajectory (post-R50):** items at 19, gate
+  threshold ≤ 8. Mainline R51-R52 trajectory must contribute ~11
+  retirements across 2 rounds = 5.5/round, **infeasible under any
+  realistic scope**. R52 gate verdict: **fails decisively under
+  hybrid (c)** without major Track C/D/branch-fork contribution. γ
+  floor + β R58 extension (BACKGROUND.md confirmed commitment)
+  remains the active trajectory: R51 should pivot to either
+  (i) Q1a/b/c track consolidation (close one of the 3 named sorries
+  in `MultivariateSmallBallUpper.lean:73, :238, :616`), OR
+  (ii) γ-floor MGE axiomatization, OR
+  (iii) γ-floor `Matrix.det.differentiable` Stub axiomatization.
+* **Cumulative T1.1 audit ledger:** 8 distinct misframings caught
+  pre-dispatch via T1.1 audit pipeline, including this round's
+  semantic mismatch on the GLW determinant shortcut chain. Mismatch
+  ledger entry **#16** added (Cowork+Grok shared chain-level
+  scope-mismatch on Lemmas 4.1+4.2 → A4/A5 bridge; same family as
+  #14 — chain-level vs per-step form). T1.1 pipeline once again
+  delivers round-saving value: caught a misframed retirement claim
+  at audit stage rather than after writing 110-150 LOC of code that
+  would not connect to A4/A5.
+
+See `Helpers/PhaseV2R50Status.md` and
+`Helpers/Round50_T1_GLWShortcutAudit.md` for the round status doc +
+T1.1 audit.
+
 ## Build status (R49 V2 round 11 — Path A axiomatization of Phase 2 body)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
