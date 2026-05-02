@@ -238,15 +238,55 @@ theorem multivariateGaussianOrthantCDF_eq_lebesgue_integral
         {z : EuclideanSpace ℝ ι | ∀ i, z i ≤ x i} =
       ∫ y in {z : EuclideanSpace ℝ ι | ∀ i, z i ≤ x i},
         multivariateGaussianPdf S (fun i => y i) := by
-  -- TAG[R43-T2.1-MGI-orthant-via-MGE-body] : Real-signature upgrade of
-  -- the R40 `True := by trivial` placeholder. Body derives from
-  -- `multivariateGaussian_eq_lebesgue_withDensity` (MGE, R44 scope) via:
-  --   (i)  Apply MGE: `multivariateGaussian 0 S = volume.withDensity (pdf)`.
-  --   (ii) `Measure.real_withDensity_apply` (or equivalent toReal extraction):
-  --        `(volume.withDensity (ofReal pdf)).real (orthant x) =
-  --         ∫ y in orthant x, pdf y`. Standard Mathlib API.
-  -- ~30 LOC consumer wrapper. Closure target: R44 Phase 2 alongside MGE.
-  -- See `R43_T1_SignatureUpgradeAudit.md` §2.2.
-  sorry
+  -- **R44-T2.2 Full close.** Consumer wrapper of MGE
+  -- (`multivariateGaussian_eq_lebesgue_withDensity`) via the
+  -- `withDensity_apply` ↔ `integral_eq_lintegral_of_nonneg_ae` bridge.
+  -- Strategy:
+  --   (i)   Orthant set is measurable (countable intersection of measurable
+  --         half-space preimages via `PiLp.continuous_apply`).
+  --   (ii)  Apply MGE to rewrite the LHS measure.
+  --   (iii) Unfold `Measure.real` to `(... ).toReal`, then apply
+  --         `withDensity_apply` to convert measure-of-set to lintegral.
+  --   (iv)  Use `integral_eq_lintegral_of_nonneg_ae` in reverse, given
+  --         non-negativity of the PDF (`multivariateGaussianPdf_nonneg`)
+  --         and continuity (hence AEStronglyMeasurable) of the composite
+  --         `y ↦ pdf S (fun i => y i)`.
+  set orthant : Set (EuclideanSpace ℝ ι) :=
+    {z : EuclideanSpace ℝ ι | ∀ i, z i ≤ x i} with h_orthant_def
+  -- (i) The orthant is measurable: it is `⋂ i, (proj i) ⁻¹' Iic (x i)`.
+  have h_meas : MeasurableSet orthant := by
+    have h_eq : orthant = ⋂ i, {z : EuclideanSpace ℝ ι | z i ≤ x i} := by
+      ext z; simp [h_orthant_def]
+    rw [h_eq]
+    refine MeasurableSet.iInter (fun i => ?_)
+    have h_proj : Measurable (fun z : EuclideanSpace ℝ ι => z i) :=
+      (PiLp.continuous_apply (β := fun _ : ι => ℝ) 2 i).measurable
+    exact h_proj measurableSet_Iic
+  -- Continuity of the integrand `y ↦ pdf S (fun i => y i)`.
+  have h_cont : Continuous (fun y : EuclideanSpace ℝ ι =>
+      multivariateGaussianPdf S (fun i => y i)) := by
+    unfold multivariateGaussianPdf
+    refine Continuous.mul (continuous_const.mul continuous_const) ?_
+    refine Real.continuous_exp.comp ?_
+    refine continuous_const.mul ?_
+    -- Continuity of `y ↦ y ⬝ᵥ S⁻¹ *ᵥ y` on EuclideanSpace ℝ ι.
+    -- Reduce via `(fun y i => y i)` to the underlying Pi structure, then
+    -- use `Continuous.dotProduct` + `Continuous.matrix_mulVec`.
+    have h_y_pi : Continuous (fun y : EuclideanSpace ℝ ι => fun i : ι => y i) :=
+      continuous_pi (fun i =>
+        PiLp.continuous_apply (β := fun _ : ι => ℝ) 2 i)
+    exact h_y_pi.dotProduct (continuous_const.matrix_mulVec h_y_pi)
+  -- (ii) Apply MGE to rewrite the multivariate Gaussian measure.
+  rw [multivariateGaussian_eq_lebesgue_withDensity S _hS]
+  -- (iii) Unfold `Measure.real` and apply `withDensity_apply`.
+  rw [Measure.real_def, withDensity_apply _ h_meas]
+  -- (iv) Reverse the integral_eq_lintegral_of_nonneg_ae direction.
+  -- Note: integral_eq_lintegral_of_nonneg_ae gives
+  --   ∫ a, f a ∂μ = (∫⁻ a, ENNReal.ofReal (f a) ∂μ).toReal
+  -- We use it with μ = volume.restrict orthant and f = pdf composed.
+  rw [integral_eq_lintegral_of_nonneg_ae
+        (Filter.Eventually.of_forall
+          (fun y : EuclideanSpace ℝ ι => multivariateGaussianPdf_nonneg S _))
+        h_cont.aestronglyMeasurable]
 
 end Erdos524.Helpers.MultivariateGaussianPdf
