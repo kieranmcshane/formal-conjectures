@@ -19,6 +19,96 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R52 V2 round 14 — Q1c track consolidation, mid-distribution + Mathlib API drift fix)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). All 8 R50-relevant critical build targets remain green.
+  **Bonus**: `CharFunCrossBlock` + `MultivariateSmallBallUpper` (Q1c
+  alternate-track) now compile cleanly for the first time since the
+  Mathlib `offDiag_insert` API drift, lifting these from the "pre-
+  existing failure" list flagged in R51's build verification.
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R52 (T1.1 audit
+  `9d03cc3`, R51-followup placeholder fix `5d0682a`, T2.1
+  CharFunCrossBlock + diagnostic upgrade `15ca171`, T2.2 this
+  entry + status doc, T2.3 build + push).
+* **Round type:** Variante 1, single round, mainline. **Q1c track
+  consolidation, mid-distribution outcome** per the user dispatch
+  ("Q1a/b/c track consolidation (item-positive if Full close lands)").
+  T2.1 attempted Full close of `geomSeries_offDiag_le`
+  (`Helpers/MultivariateSmallBallUpper.lean:230-238`) but determined
+  the general `4M` bound requires per-distance-class fibre re-indexing
+  (~100-180 LOC, P(Full)/round ~0.55) beyond the single-round R52
+  budget; shipped diagnostic upgrade with concrete proof recipe + three
+  Mathlib gaps decomposed.
+* **Net debt change:**
+  * Sorries (mainline gate): **12 → 12** (unchanged; `geomSeries_offDiag_le`
+    is in `Helpers/MultivariateSmallBallUpper.lean`, an alternate-track
+    file un-imported in mainline build path).
+  * User-defined axioms: **7 → 7** (unchanged).
+  * Items at gate: **19 → 19** (no mainline-gate change).
+  * **Project-total side effect**: alternate-track build state
+    improved — `CharFunCrossBlock` (635 LOC) + `MultivariateSmallBallUpper`
+    (621 LOC) now compile for the first time since the Mathlib API drift.
+    Project sorry-count on the alternate Q1c chain: 2
+    (`geomSeries_offDiag_le` + `multivariate_small_ball_upper`),
+    diagnostic-quality upgraded.
+* **Total mainline debt:** 7 user-defined axioms + 12 TAG'd sorries =
+  19 items (unchanged).
+* **Three deliverables this round:**
+  * **R52-T1.1 Q1c consolidation audit** (`Helpers/Round52_T1_Q1cConsolidationAudit.md`,
+    ~173 lines, commit `9d03cc3`). All 8 Claims Verification Table
+    rows VERIFIED. Catches the brief's slightly-off line numbers
+    (brief said sorries at 73/238/616; actual sorries at 238/619, with
+    line 73 a docstring reference). `multivariate_small_ball_upper`
+    (line 619) flagged as **NOT closeable in R52** per the body
+    comment's fundamental ε-cancellation issue (multivariate Fourier
+    infrastructure gap, R55+ scope). `geomSeries_offDiag_le` (line 238)
+    selected as T2.1 target with P(Full) 0.55.
+  * **R52-T2.1a CharFunCrossBlock API drift fix** (commit `15ca171`).
+    `Finset.offDiag_insert` now requires the element `a` as an explicit
+    argument (Mathlib `variable (a : α)` ahead of the theorem); patched
+    `CharFunCrossBlock.lean:397` from `Finset.offDiag_insert has` to
+    `Finset.offDiag_insert a has`. **Full close of pre-existing build
+    error** that was on the R49+R50+R51 "pre-existing failure" list.
+    `lake build CharFunCrossBlock` 7867/7867 green;
+    `lake build MultivariateSmallBallUpper` 7872/7872 green. First time
+    the Q1c alternate-track compiles cleanly post-Mathlib-API-drift.
+  * **R52-T2.1b geomSeries_offDiag_le diagnostic upgrade** (same commit).
+    Per the brief's "if Full close lands" qualifier, the lemma body
+    remains a TAG'd Stub with an enriched docstring documenting:
+    (i) per-distance-class proof recipe
+    `∑_{d=1}^{M-1} 2(M-d)·(1/2)^d ≤ 2M ≤ 4M`,
+    (ii) three Mathlib gaps blocking single-round close —
+    `Finset.partition_by_distance` (per-distance fibre cardinality),
+    `Finset.sum_geometric_two_le_one` (finite-partial geometric bound),
+    composition glue (~30-50 LOC),
+    (iii) two tried alternative crude bounds (term ≤ 1 covers M ≤ 5;
+    term ≤ 1/2 covers M ≤ 9) and their failure for general M,
+    (iv) R53+ closure plan ~100-180 LOC, P(Full)/round ~0.55.
+* **R52 milestone gate trajectory (post-R52):** items at 19, gate
+  threshold ≤ 8. R53-R58 trajectory must contribute **~11 retirements
+  across 6 rounds = ~1.83/round**, above the cumulative ~0.4/round rate.
+  R52 demonstrated that the alternate Q1c track is now build-verifiable
+  (CharFunCrossBlock + MultivariateSmallBallUpper cleanly compile) —
+  this preserves R55-R58 optionality for actual track-Q1 retirements.
+  R53 candidate per BACKGROUND.md: γ-floor `Matrix.det.differentiable`
+  Stub axiomatization (item-neutral but frees more budget) OR Track C
+  round 5 dispatch.
+* **Cumulative T1.1 audit ledger:** 8 distinct misframings caught
+  pre-dispatch (unchanged from R50/R51). R52 T1.1 audit (8/8 VERIFIED)
+  did not catch any new misframings — the brief's line-number drift
+  (73/616 vs 238/619) was minor positional, not semantic.
+* **Anti-mismatch hygiene 8/8:**
+  CharFunCrossBlock fix is a 1-line argument-position adjustment matching
+  current Mathlib API; MultivariateSmallBallUpper change is docstring +
+  comment-only (lemma body and signature unchanged at sorry); R49 axiom
+  #6, A1-A5, R50 deferred-paper sub-Stubs, R51 axiom #7 all unaffected;
+  no track branch contamination; mainline-only.
+
+See `Helpers/PhaseV2R52Status.md` and
+`Helpers/Round52_T1_Q1cConsolidationAudit.md` for the round status doc +
+Claims Verification Table.
+
 ## Build status (R51 V2 round 13 — γ-floor MGE axiomatization, mechanical)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
