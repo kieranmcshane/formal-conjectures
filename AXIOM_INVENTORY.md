@@ -19,6 +19,61 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (Track D round 5 — sub-lemma 3 axiomatization, Track D closes)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). `lake build FormalConjectures.ErdosProblems.Helpers.BTISHonestProof`
+  clean (7867/7867 jobs).
+* **Branch:** `track-d-btis-honest` HEAD post-TD5-T2.1.
+* **Net debt change (TD5):** branch sorries `1 → 0` (sub-lemma 3
+  retired); branch axioms `5 → 6` (Axiom #9 `lipschitz_sup_finite_gaussian`
+  added). **Track D closes** as an active concern: branch is now
+  zero-sorry, ready to merge to mainline OR archive. Project total
+  unchanged at 41 items (sorry-to-axiom swap, net 0).
+* **Track D branch debt (post-TD5):** 6 user-defined axioms +
+  **0 TAG'd sorries** on this branch.
+* **Why axiomatized — γ-floor strategy.** Borell-TIS / Tsirelson-
+  Ibragimov-Sudakov inequality is **absent at every Mathlib pin** as of
+  2026-05-02 (zero hits across `leanprover-community/mathlib4` for
+  `borell`, `tsirelson`, `ibragimov`, `sudakov`, `cis_inequality`;
+  zero open PRs; zero issues — structural gap, not pin-version
+  artefact). Three from-scratch derivation routes all out of single-
+  round scope: Route A (Bakry-Émery LSI + Herbst, 800-1200 LOC,
+  ≥5-8 dedicated rounds); Route B (hypercontractivity / Nelson,
+  similar cost); Route C (Gaussian isoperimetry, harder). γ-floor
+  strategy: axiomatize this single consumer-facing lemma to close
+  the BTIS chain at TD2 Path B′ Full and unblock Track D entirely.
+  Math content remains classically standard (Borell 1975;
+  Tsirelson-Ibragimov-Sudakov 1974/1976; Adler-Taylor 2010 Thm 2.1.2;
+  BLM13 Thms 5.6 / 5.8).
+* **Three deliverables this round:**
+  * **TD5-T1.1** signature extraction + caller grep audit
+    (`Helpers/TrackD_round5_T1_SubLemma3Axiomatization.md`, ~134 lines).
+    All 10 Claims Verification Table rows VERIFIED. Sole caller of
+    sub-lemma 3 is `borell_tis` (line 341); axiomatization preserves
+    the Path B′ chain unchanged.
+  * **TD5-T2.1** axiom replacement (`Helpers/BTISHonestProof.lean:313`).
+    Theorem `lipschitz_sup_finite_gaussian` → axiom of identical
+    signature. Docstring augmented with TD5 closure note (γ-floor
+    rationale + retirement plan + classical references) preserving
+    historical TD3 + TD4 record verbatim. `lake env lean` clean.
+  * **TD5-T2.2** AXIOM_INVENTORY.md update (this section + new
+    Axiom #9 row in the active-axioms table).
+* **TD5 commit chain on `track-d-btis-honest`:** `21a43fe` (T1.1) →
+  `<TBD T2.1>` (axiom replacement) → this AXIOM_INVENTORY commit
+  → T2.3 build/status/push.
+* **Retirement plan for Axiom #9.** Post-R59. Three options:
+  (i) **Upstream.** Monitor Mathlib for `borell_tis` PR landing
+      (timeline unknown; 0 PRs as of 2026-05-02).
+  (ii) **From-scratch local closure (Route A — Bakry-Émery LSI +
+      Herbst).** ~800-1200 LOC over 5-8 dedicated rounds; replaces
+      Axiom #9 with Full proof.
+  (iii) **Mathlib contribution.** Same content as (ii), packaged as
+       a Mathlib PR (highest community benefit, multi-week effort).
+* **Track D cluster status:** TD5 closes Track D. Subsequent work
+  on the BTIS axiom retirement migrates to a dedicated post-R59
+  cluster (Route A) OR awaits Mathlib upstream (Route i).
+
 ## Build status (Track D round 3 — sub-lemma 3 SLT pivot, Prokhorov drift, sub-lemmas 1+2 retired)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
@@ -312,7 +367,7 @@ for the round status doc + audit.
   `Helpers/R39_T1_AlphaConversionAudit.md` for the cold re-audit and
   `Helpers/PhaseV2R39Status.md` for the round status.
 
-## 5 user-defined axioms (technical debt — must retire)
+## 6 user-defined axioms (technical debt — must retire)
 
 | # | Axiom | Source round | Provisional retire-path |
 |---|---|---|---|
@@ -321,9 +376,74 @@ for the round status doc + audit.
 | 3 | `kmt_aided_gaussian_process` | pre-Phase-A | V2 R49-R53 (derive from #1+#2 + scaling-limit theorem; also closes V2-R39 sorries 7-9) |
 | 4 | `gao_li_wellner_small_ball_lower` | R34 | V2 R40-R48 (Slepian + SF + BTIS composition) |
 | 5 | `gao_li_wellner_small_ball_upper` | R36 | V2 R40-R48 (parallel to #4) |
+| 9 | `lipschitz_sup_finite_gaussian` (sub-lemma 3, BTIS) | TD5 (V2 Track D round 5, 2026-05-02) | post-R59 — Mathlib upstream OR from-scratch Route A (Bakry-Émery LSI + Herbst, ~800-1200 LOC, 5-8 rounds) OR Mathlib PR contribution |
 
-All five are classically correct (see the audit doc for the
-classical-justification chain).
+All six are classically correct (see the audit doc for the
+classical-justification chain). The numbering gap (#6-8) reflects
+the R39 α-conversion of the three IsGLWProcess β-axioms; the
+ledger slots are retired and the new TD5 axiom takes the next
+project-wide ledger position #9.
+
+### Axiom #9 detail — `lipschitz_sup_finite_gaussian` (sub-lemma 3, Borell-TIS)
+
+* **Added:** TD5 (V2 Track D round 5, 2026-05-02), γ-floor strategy.
+* **File:** `FormalConjectures/ErdosProblems/Helpers/BTISHonestProof.lean:313`
+  (declaration line; full block lines 313-323 after the
+  150-line docstring spanning 114-312).
+* **Lean signature** (verbatim from T2.1):
+  ```lean
+  axiom lipschitz_sup_finite_gaussian
+      {Ω T : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+      [Fintype T] [Nonempty T]
+      (X : T → Ω → ℝ)
+      (_hgauss : IsCenteredGaussianProcess X)
+      (sigma2 : ℝ) (_hσ_pos : 0 < sigma2)
+      (_hσ_var : ∀ t, Var[X t; (ℙ : Measure Ω)] ≤ sigma2)
+      (_hM_int : Integrable (fun ω => ⨆ t, X t ω) ℙ) :
+      HasSubgaussianMGF
+        (fun ω => (⨆ s, X s ω) - ∫ ω', (⨆ s, X s ω') ∂ℙ)
+        sigma2.toNNReal ℙ
+  ```
+* **Mathematical content.** Standard Borell-TIS / Tsirelson-
+  Ibragimov-Sudakov inequality. For a centered Gaussian process
+  `X : T → Ω → ℝ` with variance budget
+  `sigma2 := sup_t Var(X_t) > 0`, the centered supremum
+  `Y(ω) := (⨆ t, X t ω) − 𝔼[⨆ t, X t]` is sub-Gaussian with
+  variance proxy `sigma2`, packaged as the Mathlib structure
+  `HasSubgaussianMGF Y sigma2.toNNReal ℙ`.
+* **Why axiomatized.** γ-floor strategy (TD5 brief). Structural
+  Mathlib gap: Borell-TIS / CIS inequality absent at every Mathlib
+  pin (zero hits over `leanprover-community/mathlib4` for
+  `borell`, `tsirelson`, `ibragimov`, `sudakov`, `cis_inequality`;
+  zero open PRs; zero issues, per Grok cross-check 2026-05-02).
+  Three from-scratch derivation routes all out of single-round
+  scope (Route A LSI + Herbst 800-1200 LOC, Route B
+  hypercontractivity, Route C Gaussian isoperimetry). Closes Track
+  D (branch becomes 0-sorry).
+* **Retirement target.** Post-R59. Sub-plan:
+  (i) **Upstream.** Monitor Mathlib for a `borell_tis` PR landing
+      (timeline unknown).
+  (ii) **From-scratch local closure (Route A).** Build LSI + Herbst
+      from Bakry-Émery / Ornstein-Uhlenbeck semigroup; ~800-1200
+      LOC over 5-8 dedicated rounds; replaces Axiom #9 with Full
+      proof.
+  (iii) **Mathlib contribution PR.** Same content as (ii), packaged
+       as a Mathlib PR (highest community benefit, multi-week
+       effort).
+* **Status.** ACTIVE (placeholder; math content provable from
+  classical sources cited above).
+* **Consumers.** Single call site at
+  `FormalConjectures/ErdosProblems/Helpers/BTISHonestProof.lean:341`
+  (inside `borell_tis` Full body, TD2 Path B′ closure lines 326-358).
+  The chain `borell_tis ← lipschitz_sup_finite_gaussian` is
+  structurally locked at the file level; TD2 `borell_tis` Full body
+  carries no `sorry` modulo Axiom #9.
+* **References.** Borell 1975 ("The Brunn-Minkowski inequality in
+  Gauss space," Invent. Math. 30); Tsirelson-Ibragimov-Sudakov
+  1974/1976 ("Norms of Gaussian sample functions," Springer
+  LNM 550); Adler-Taylor, *Random Fields and Geometry*
+  (Springer 2007/2010), Theorem 2.1.2; Boucheron-Lugosi-Massart,
+  *Concentration Inequalities* (OUP 2013), Theorems 5.6 / 5.8.
 
 **R39 retired axioms 6-8** (the 3 IsGLWProcess β-axioms) by α-tighten:
 sound tightened signatures requiring KMT-coupling-rate hypothesis;
