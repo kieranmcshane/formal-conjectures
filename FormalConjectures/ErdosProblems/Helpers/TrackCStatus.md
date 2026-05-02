@@ -956,3 +956,167 @@ Cluster size estimate unchanged at **8 rounds total**.
 * **Track C cluster status:** Round 6 of ~8 complete. TC7 target: Carter-Pollard polynomial bound assembly (composes Mills truncation + Stirling Robbins + Real-Beta-Gamma identities to close `tusnady_base_polynomial` body sub-sorry); P(TC7 Full polynomial closure) ~ 0.30-0.45 single round given 3 dependent Stubs; multi-round potential. Mills `pos` + `antitone` could be closed in TC7 prelude if budget permits (≤30 LOC each given truncation).
 * **R52 hybrid (c) gate contribution:** TC6 is +0 retirement at gate-relevant scale (Mills truncation closes a Track C-internal Stub but not a mainline TAG'd-sorry/axiom). TC6 cumulative since TC1: still +1 retirement (TC2 Layer 2). TC7+ forecast: +1 if Carter-Pollard polynomial body lands; +2-3 if TC7 + TC8 land cleanly through Layer 3 dyadic step body.
 * **Cumulative misframing ledger:** 8 (unchanged from TC4 + TC5).
+
+---
+
+# Track C status — round 7 closure
+
+**Round:** Track C round 7 (parallel-track, branch `track-c-1dkmt` from `61073a3`).
+**Date:** 2026-05-02.
+**Worktree:** `~/Documents/formal-conjectures-track-c`.
+**Mathlib pin:** `25ce633136084367f182be00fdff7613ea949d27` (unchanged).
+**Pre-TC7 HEAD:** `61073a3` (TC6 close).
+**Post-TC7 HEAD:** post-T2.4 commit (this status doc).
+**Outcome:** **Mid-distribution closure of mandatory floor (T1.1 + T2.1 + T2.2 + T2.3 + T2.4).** Two Full lemma closures (Mills `_pos`, Real-Beta-Gamma); two refined diagnostics (Mills `_antitone`, Stirling Robbins); Carter-Pollard polynomial bound sub-sorry diagnostic refreshed with TC7 prelude status. Net branch sorry -2.
+
+## TC7.1 Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Cache check + Claims Verification Table (10 rows) | **Full** | `Helpers/TrackC_round7_T1_AssemblyAudit.md` (135 lines, well above ≥50-line floor), commit `13cbce0` | All 10 claims VERIFIED. Mathlib API surfaces grep-pinned. Cache fresh; skipped `lake exe cache get`. Stirling Robbins explicitly flagged as Mathlib gap binding (P=0.05 Full close). |
+| T2.1A — `gaussianMillsRatioReal_pos` Full close | **Full** | `Helpers/GaussianMillsRatio.lean:91-114` (~22 LOC), commit `4be6ae0` | Closure via `setIntegral_pos_iff_support_of_nonneg_ae` + `support gaussianPDFReal = univ` (pdf positive everywhere with v=1) + `Real.volume_Ioi = ∞ > 0` + `div_pos`. |
+| T2.1B — `gaussianMillsRatioReal_antitone` close attempt | **Refined Stub** | `Helpers/GaussianMillsRatio.lean:258-303` (docstring expanded ~50 LOC), commit `4be6ae0` | Derivative chain blocked on lack of direct FTC API for Ioi-integrals at pin. Concrete TC8 recipe documented: Ioi/Iic splitting via `integral_Iic_add_Ioi` + localized `integral_hasDerivAt_left` + quotient rule + `antitoneOn_of_deriv_nonpos`. ~120-180 LOC TC8 estimate. |
+| T2.2A — `realBeta_eq_Gamma_ratio` Full close | **Full** | `Helpers/RealBeta.lean:74-106` (~35 LOC), commit `4be6ae0` | Closure via `intervalIntegral.integral_ofReal` coercion + integrand identity on `uIcc 0 1` (`Complex.ofReal_cpow` on `x` and `1-x`) + `Complex.betaIntegral_eq_Gamma_mul_div` + `Complex.Gamma_ofReal` triple bridge. |
+| T2.2B — `factorial_le_stirling_robbins` close attempt | **Refined Stub** | `Helpers/StirlingTwoSided.lean:167-225` (docstring expanded ~50 LOC), commit `4be6ae0` | Mathlib comment binding (`Stirling.lean:264, 280`: "Sharper bounds due to Robbins are available, but are not yet formalised"). TC8 recipe expanded: 4-step trapezoidal-remainder plan (log-correction antitonicity + limit + unfold + algebra). ~120-180 LOC TC8 estimate. NOT attempted in TC7 per audit P=0.05. |
+| T2.3 — Carter-Pollard polynomial bound sub-sorry refresh | **Diagnostic** | `Helpers/OneDimKMT.lean:466-505` (docstring expanded ~30 LOC), commit `4be6ae0` | TC7 prelude status table embedded: Mills `_pos` + Mills truncation + looser Stirling + Real-Beta-Gamma all Full → tail case ASSEMBLABLE; bulk case still blocked on Stirling Robbins (TC8). No partial close attempted (preserves TC5 universal-constants form). |
+| T2.4 — Build verification + status doc + push | **Full** | This document + `lake build` output below | Targeted build of 4 Track C files clean (2904 jobs, 22s). |
+
+All seven mandatory-floor outcomes Full or honest refined-diagnostic per the brief's "Full or honest diagnostic per priority" rule. Track C round 7 caps at 0 condition triggered: **none.**
+
+## TC7.2 Build verification log (verbatim)
+
+```
+$ cd ~/Documents/formal-conjectures-track-c
+$ lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+             FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio \
+             FormalConjectures.ErdosProblems.Helpers.StirlingTwoSided \
+             FormalConjectures.ErdosProblems.Helpers.RealBeta
+✔ [2901/2904] Built FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio (22s)
+✔ [2902/2904] Built FormalConjectures.ErdosProblems.Helpers.StirlingTwoSided (22s)
+✔ [2903/2904] Built FormalConjectures.ErdosProblems.Helpers.RealBeta (22s)
+✔ [2904/2904] Built FormalConjectures.ErdosProblems.Helpers.OneDimKMT (22s)
+Build completed successfully (2904 jobs).
+```
+
+Per-file `lake env lean` (substantive type-check, post-T2.x sequence):
+
+```
+$ lake env lean FormalConjectures/ErdosProblems/Helpers/GaussianMillsRatio.lean
+FormalConjectures/.../GaussianMillsRatio.lean:272:8: warning: declaration uses 'sorry'
+
+$ lake env lean FormalConjectures/ErdosProblems/Helpers/RealBeta.lean
+(no warnings, exit 0)
+
+$ lake env lean FormalConjectures/ErdosProblems/Helpers/StirlingTwoSided.lean
+FormalConjectures/.../StirlingTwoSided.lean:224:8: warning: declaration uses 'sorry'
+
+$ lake env lean FormalConjectures/ErdosProblems/Helpers/OneDimKMT.lean
+FormalConjectures/.../OneDimKMT.lean:172:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:422:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:576:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:629:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:687:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:729:8: warning: declaration uses 'sorry'
+```
+
+OneDimKMT.lean's 6 sorries unchanged from pre-TC7 baseline (TC4 sub-sorry preserved with TC7-aware diagnostic refresh; the existing 5 layer / main / step Stubs unchanged from TC5/TC6).
+
+## TC7.3 Net debt change (project ledger update)
+
+### Axioms
+
+* **Track C axioms (cumulative since TC1):** unchanged at 5.
+* **Mainline axioms:** unchanged at 8 user-defined + 11 mainline TAG'd sorries = 19.
+
+A2 (`one_dim_KMT_coupling`) retirement still blocked on Layers 1, 3 (full chain), 4 + main body (TC8+ cluster-rounds).
+
+### Sorries on `track-c-1dkmt` branch
+
+* **Pre-TC7 (post-TC6):** 22 TAG'd sorries on branch (per TC6 close ledger).
+* **Post-TC7:** **20 TAG'd sorries** (-2, two Full lemma closures).
+  * **-2 retirements:** `gaussianMillsRatioReal_pos` (TC7 T2.1A); `realBeta_eq_Gamma_ratio` (TC7 T2.2A).
+  * **+0 introductions:** no new declarations (refined diagnostics are docstring updates, not new Stubs).
+
+Surface area decomposition (post-TC7) within Helpers files:
+
+| File | Pre-TC7 sorries | Post-TC7 sorries | Change |
+|---|---|---|---|
+| `OneDimKMT.lean` | 6 | 6 | unchanged (sub-sorry diagnostic refreshed) |
+| `GaussianMillsRatio.lean` | 2 (`_pos`, `_antitone`) | 1 (`_antitone` only) | -1 (T2.1A) |
+| `StirlingTwoSided.lean` | 1 (Robbins) | 1 (Robbins refined Stub) | unchanged |
+| `RealBeta.lean` | 1 (Beta-Gamma) | 0 | -1 (T2.2A) |
+| **Total Helpers** | **10** | **8** | **-2** |
+
+Plus 12 pre-TC1 baseline sorries elsewhere in the project (unchanged by TC7).
+Total branch: 8 + 12 = 20.
+
+## TC7.4 Anti-mismatch hygiene compliance
+
+Every Mathlib lemma invoked in T2.1A and T2.2A was grep-verified against the pinned Mathlib (`25ce633136`) during T1.1 audit:
+
+| Lemma name | File:line at pin | Used in |
+|---|---|---|
+| `setIntegral_pos_iff_support_of_nonneg_ae` | `Mathlib/MeasureTheory/Integral/Bochner/Set.lean:594` | T2.1A numerator positivity |
+| `gaussianPDFReal_pos` | `Mathlib/Probability/Distributions/Gaussian/Real.lean:62` | T2.1A pointwise positivity |
+| `gaussianPDFReal_nonneg` | `Mathlib/Probability/Distributions/Gaussian/Real.lean:67` | T2.1A `0 ≤ᵐ` |
+| `Real.volume_Ioi` | `Mathlib/MeasureTheory/Measure/Lebesgue/Basic.lean:171` | T2.1A volume positivity |
+| `integrable_gaussianPDFReal` | TC6-used (per `GaussianMillsRatio.lean:208`) | T2.1A `IntegrableOn` |
+| `intervalIntegral.integral_ofReal` | `Mathlib/MeasureTheory/Integral/IntervalIntegral/Basic.lean:810` | T2.2A real-Beta coercion |
+| `Complex.ofReal_cpow` | `Mathlib/Analysis/SpecialFunctions/Pow/Real.lean:275` | T2.2A integrand identity |
+| `Complex.betaIntegral_eq_Gamma_mul_div` | `Mathlib/Analysis/SpecialFunctions/Gamma/Beta.lean:525` | T2.2A Beta-Gamma in ℂ |
+| `Complex.Gamma_ofReal` | `Mathlib/Analysis/SpecialFunctions/Gamma/Basic.lean:432` | T2.2A complex-to-real Gamma bridge |
+| `intervalIntegral.integral_congr` | `Mathlib/MeasureTheory/Integral/IntervalIntegral/Basic.lean:1004` | T2.2A integrand congruence on `uIcc 0 1` |
+
+No invented or hallucinated lemma names. **One minor mid-build adjustment**: T2.2A `rw` chain in `h_gamma` step finished the goal entirely (no trailing `push_cast` / `rfl` tactic needed); removed final tactic per "no goals to be solved" feedback. Infrastructure-level adjustment, NOT math content; misframing ledger unchanged.
+
+No new misframings caught during TC7 implementation.
+
+## TC7.5 Cluster trajectory update (post-TC7)
+
+| Round | Target | Status post-TC7 |
+|---|---|---|
+| TC1 | Layer 1-4 signatures + Mathlib gap audit | ✅ Full closure (`15192f1`) |
+| TC2 | Layer 2 (`quantile_transform_finite_moment`) | ✅ Full closure (`f018aea`/`7f25b84`) |
+| TC3 | Layer 3 base + dyadic step signatures | ✅ Full closure (`8c5451f`/`c96e54b`/`f4511f5`) |
+| TC4 | Tusnády polynomial body + Hungarian dyadic step body | ✅ Mid-low closure (`a1d6b6a`) — Path A scaffolding + signature weaknesses flagged |
+| TC5 | Signature tightening + Mills ratio infrastructure start | ✅ Mid-distribution Full closure (`7af23b8`) |
+| TC6 | Mills truncation Full + Stirling Robbins + Real-Beta sigs | ✅ Mid-distribution Full closure (`61073a3`) |
+| **TC7** | **Mills `_pos` + Real-Beta-Gamma close + Carter-Pollard infrastructure** | **✅ Mid-distribution closure (this round)** |
+| TC8 | Mills `_antitone` Full close + Stirling Robbins Full close | open: Mills `_antitone` ~120-180 LOC, Stirling Robbins ~120-180 LOC; cluster bottleneck |
+| TC9 | Carter-Pollard polynomial bound assembly (closes `tusnady_base_polynomial` body) | open: depends on TC8 closures |
+| TC10+ | Layer 3 `hungarian_dyadic_step` body close + Layer 4 SupError + main `oneDimKMT` assembly | open |
+
+**Cluster size estimate updated: 10 rounds total (was 8 pre-TC7).** TC7 outcome reveals that Mills `_antitone` requires its own dedicated TC8 sub-round (FTC for Ioi-integrals heavier than initially scoped); Stirling Robbins also requires TC8 dedicated round. TC9 then composes for Carter-Pollard.
+
+## TC7.6 Honesty / framing notes
+
+* **Round outcome:** Mid-distribution. Mandatory floor Full on all 7 outcomes (with two refined diagnostics where Full close was Mathlib-gap-blocked or required infrastructure beyond round budget). Net branch sorry -2 (Mills `_pos` + Real-Beta-Gamma retired). Net axiom unchanged at 5.
+* **Mismatch ledger:** 8 (unchanged). T1.1 audit confirmed Mathlib pin state for the entire TC7 priority surface; T2.x implementations uncovered no new Grok-recipe misframings (T2.1A and T2.2A both followed the audit recipe verbatim).
+* **Skin-in-the-game compliance check:**
+  - Worktree used ✓ (no cross-track collision).
+  - Claims Verification Table produced with all 10 rows VERIFIED ✓.
+  - T2.1A + T2.2A committed (Full Lean code, NOT plan doc) ✓.
+  - T2.1B + T2.2B refined diagnostics committed with concrete LOC + Mathlib-gap citations ✓.
+  - T2.3 Carter-Pollard sub-sorry diagnostic refreshed with TC7 prelude status table ✓.
+  - T2.4 status doc + push committed ✓.
+  - Track C work pushed only to `track-c-1dkmt` branch ✓.
+  - No mainline OR track-d files modified ✓.
+  - No TC1-TC6 Full theorems modified ✓.
+  - Cache freshness check at session start; `lake exe cache get` skipped per audit ✓.
+  - Universal-constants form (TC5) preserved on `tusnady_base_polynomial` ✓.
+  - No `O(log n)` Tusnády regression (per-step polynomial form preserved) ✓.
+* **Active math engagement:** T2.1A required understanding of `support_eq_univ` characterization for everywhere-positive functions, ENNReal positivity of `volume (Ioi x) = ∞`, and the support-set-intersection algebra `support f ∩ Ioi x = Ioi x` when `support f = univ`. T2.2A required: integrand identity on `uIcc 0 1` (note: `uIcc 0 1 = Icc 0 1` since `0 ≤ 1`), `Complex.ofReal_cpow` requires `0 ≤ x` AND `0 ≤ 1-x` (need both endpoints), `Complex.betaIntegral_eq_Gamma_mul_div` requires `(a:ℂ).re > 0` which simp-reduces to the real `0 < a` hypothesis. The `Gamma_ofReal` triple bridge required threading `← Complex.ofReal_add` between the second and third applications because the complex Gamma was computed at `(a:ℂ) + (b:ℂ)` while the real Gamma is at `a + b`; the `ofReal_add` rewrite re-bundles before the real-Gamma extraction.
+* **What did NOT happen in TC7:**
+  - Mills `_antitone` Full close (refined Stub; FTC for Ioi-integrals not directly available at pin; ~120-180 LOC TC8 estimate).
+  - Stirling Robbins Full close (refined Stub; Mathlib gap binding per `Stirling.lean:264` comment; ~120-180 LOC TC8 estimate).
+  - Carter-Pollard polynomial bound full close (blocked on Mills `_antitone` + Robbins; tail-case partial intentionally NOT split out to preserve TC5 universal-constants form on `tusnady_base_polynomial`).
+  - Layer 3 Hungarian dyadic step body close (TC10+ scope).
+  - Layer 4 SupError attempt (TC10+ scope).
+  - Axiom retirement (still 5).
+
+## TC7.7 Status label
+
+* **Track C round 7 outcome:** Mid-distribution (mandatory floor Full; T2.1A + T2.2A Full lemma closures; T2.1B + T2.2B refined diagnostics with concrete LOC + Mathlib-gap citations; T2.3 Carter-Pollard sub-sorry diagnostic refreshed with TC7 prelude status table; net branch sorry -2; net axiom unchanged).
+* **Track C cluster status:** Round 7 of ~10 complete (cluster size +2 vs TC6 forecast; TC8 split into Mills `_antitone` close + Stirling Robbins close; TC9 then composes for Carter-Pollard). TC8 target: Mills `_antitone` Full close OR Stirling Robbins Full close (whichever hits the lower-LOC bound first). P(TC8A Mills `_antitone` Full) ~ 0.35 single-round; P(TC8B Robbins Full) ~ 0.30 single-round.
+* **R52 hybrid (c) gate contribution:** TC7 is +0 retirement at gate-relevant scale (Mills `_pos` + Real-Beta-Gamma close Track C-internal Stubs, NOT mainline TAG'd-sorries/axioms). TC7 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC8+ forecast: +0-1 mainline-relevant if Layer 3 close cascades up; +1 if Carter-Pollard polynomial bound assembly lands and `tusnady_base_polynomial` retires.
+* **Cumulative misframing ledger:** 8 (unchanged from TC4 + TC5 + TC6).
