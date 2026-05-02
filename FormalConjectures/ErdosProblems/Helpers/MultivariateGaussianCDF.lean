@@ -229,12 +229,87 @@ theorem multivariateGaussianOrthantCDF_differentiable_wrt_covariance
   -- this round preserves the single TAG'd Stub with diagnostic-quality
   -- enhancement (P~0.65 mid-distribution outcome).
   --
-  -- See `Helpers/R45_T1_FramingVerificationAudit.md` §4-§5 for the
-  -- full Mathlib API verification + sub-gap LOC decomposition + R45
-  -- outcome distribution. The R44 status doc
-  -- (`Helpers/PhaseV2R44Status.md`) recorded MGI Full close;
-  -- `Helpers/PhaseV2R45Status.md` (this round) records the Phase 2
-  -- diagnostic-quality advance with the sorry preserved.
+  -- **R47-T2.2 deferral diagnostic (this round, per brief abort rules).**
+  --
+  -- Phase 2 body Full close was a candidate R47 mandatory deliverable
+  -- per the brief's aggressive 2-retirement scope. T1.1 grep audit
+  -- (`R47_T1_GrepAuditAndFramingVerification.md` §3) verified that
+  -- closure is BLOCKED on three prerequisites at pin
+  -- `mathlib4 @ 25ce63313608`:
+  --
+  --   1. **MGE main Full close** (sub-gap (b) chain, R47-T2.1
+  --      diagnostic): the integrand `multivariateGaussianPdf S y` is
+  --      only a "claimed" Lebesgue density of `multivariateGaussian 0 S`
+  --      until MGE main Stub closes. Sub-gap (B) integrability and
+  --      sub-gap (C) Lipschitz envelope both consume this density
+  --      identification. Closure depends on Bridges (b.A) + (b.B) +
+  --      (b.C) — see `MultivariateGaussianPdf.lean:248` for the
+  --      three-bridge decomposition and revised LOC estimates.
+  --
+  --   2. **`Matrix.det.differentiable` (R40 Stub at
+  --      `MatrixDetDifferentiable.lean:149`)**: the Lipschitz envelope
+  --      sub-gap (C) requires the explicit Fréchet derivative formula
+  --      chain through `Matrix.det.differentiable`. Mathlib has only
+  --      `Matrix.det.continuous` (`Topology/Instances/Matrix.lean:459`);
+  --      polynomial expansion route via `Matrix.det_apply` +
+  --      `MultilinearMap.contDiff` is unpackaged (~30-80 LOC of
+  --      plumbing).
+  --
+  --   3. **Uniform Gaussian-tail bound integrability** (sub-gap (B)):
+  --      depends on (1) for the closed-form PDF integrability claim.
+  --
+  -- **R46 helpers contribution to the chain (POSITIVE):**
+  --
+  --   * `Erdos524.Helpers.posDef_min_eigenvalue_pos` (R46-T2.2,
+  --     `PhaseAUpperBound.lean`): supplies the minimum-eigenvalue lower
+  --     bound on compact PosDef sets. This is the constructive
+  --     ingredient for sub-gap (A) (PosDef compact neighbourhood) AND
+  --     for the uniform Gaussian-tail bound in sub-gap (B). **Direct
+  --     consumer of the R46 helper.**
+  --
+  --   * `Erdos524.Helpers.GaussianParametricAnalysis` (R46-T3.1
+  --     stretch, cross-track synergy library): provides parametric
+  --     Gaussian density bounds + DCT scaffold for `S ↦ ∫ pdf(S) dy`
+  --     differentiability. **Foundational; direct consumption requires
+  --     MGE main Full first.**
+  --
+  --   * `Erdos524.Helpers.MultivariateGaussianPdf.det_CFC_sqrt_eq_sqrt_det`
+  --     (R46-T2.1): identifies the Jacobian factor in
+  --     `multivariateGaussianPdf` as `(det S)^(-1/2)`. **Foundational;
+  --     consumed inside MGE main, not directly by Phase 2 body.**
+  --
+  -- **Realistic LOC for Phase 2 body Full close (post-R46 helpers,
+  -- with prerequisites NOT met):** ~300-550 LOC across sub-gaps (A) +
+  -- (B) + (C) + DCT chain composition. Single-round close in R47 is
+  -- **NOT FEASIBLE** with the prerequisite chain blocked.
+  --
+  -- **R47 T2.2 outcome (this round):** deferred per brief abort rules
+  -- with concrete diagnostic. R47 net retirement: 0 sorries.
+  --
+  -- **Future-round closure path (R48-R52):**
+  --
+  --   * R48: close MGE Bridge (b.A) as standalone Full helper
+  --     (~80-120 LOC; benefits Track C 1D KMT + indep-coord
+  --     Pi-Gaussian). **Indirect Phase 2 prerequisite step 1.**
+  --   * R49: close MGE main via (b.B) + (b.C) composition
+  --     (~50-150 LOC; net retirement: -1 sorry, MGE main retired).
+  --     **Phase 2 prerequisite step 1 done.**
+  --   * R50: close `Matrix.det.differentiable` R40 Stub
+  --     (~30-80 LOC; net retirement: -1 sorry). **Phase 2 prerequisite
+  --     step 2 done.**
+  --   * R51-R52: close Phase 2 body via sub-gaps (B) + (C) using
+  --     R46-T2.2 helpers + R46-T3.1 library + closed prerequisites
+  --     (~200-400 LOC; net retirement: -1 sorry, Phase 2 main retired).
+  --
+  -- This trajectory retires 3 sorries across R49-R52. Combined with
+  -- Track C+D parallel deliveries, sufficient to meet hybrid (c) R52
+  -- gate at items ≤ 8 IF Track C + Track D each retire ~2 sorries in
+  -- the same window. Without Track C+D contribution: total net
+  -- retirements R47-R52 = 3, leaving items at 17 - 3 = 14 → R52 gate
+  -- FAILS, Path A (axiomatize BTIS at R54) triggered.
+  --
+  -- See `Helpers/R47_T1_GrepAuditAndFramingVerification.md` §3-§4 +
+  -- `Helpers/PhaseV2R47Status.md` (this round) for full status.
   sorry
 
 /-! ## Entry-wise partial-derivative formula (R36+ scope, signature here for
