@@ -261,158 +261,141 @@ theorem glw_lemma_4_2_deferred_paper :
 
 end Erdos524.Helpers.GLWSmallBallShortcut
 
-/-! ## R59 — GLW infrastructure (paper-faithful sigs, R60-R61 bodies)
+/-! ## R59 → R60 — GLW infrastructure (paper-faithful sigs, R61 bodies)
 
-R59 is an **infrastructure** round, not a closure round. The
-post-TC9 Grok strategy probe surfaced three candidate signatures
-for the GLW 2010 §4 shortcut; cross-checking against the project
-pin (`mathlib4 @ 25ce63313608`) revealed:
+R59 was an infrastructure round drafted from a Cowork-derived recall
+of arXiv:1001.0200v1 §4 (paper-recheck not independently verified at
+draft time, see `TrackA_R59_T1_GrepAudit.md` lines 94–108 hedge
+clause). R60 attempt 1 surfaced empirical disproofs of both R59
+closure claims at m=1 (`per(A) = 4 ≠ 1`; Lemma 4.1 RHS form fails on
+`a = [[2]], b = [[0]]`) — see `TrackA_R60_T1_PerLemma41Audit.md` §T1.2
+/ §T1.3. R60 attempt 2 (this revision) fetches the paper verbatim
+and replaces the R59 sigs with their paper-exact forms.
 
-* The Cauchy determinant identity is **not** in Mathlib at this
-  pin (0 hits for `cauchyMatrix / det_cauchy / cauchy_det`).
-* Lemma 4.1 needs a `rowSup` helper since `Matrix.row A k |>.max'`
-  does not compile at this pin.
-* The hierarchical-grid dimension is `m * m` (not `m * (m+1)`)
-  per arXiv:1001.0200v1 §4.
-* The realistic `det(A)` body budget is 600–900+ LOC, not 300–450,
-  once Cauchy + the A/B/C partition step are zoom-checked.
+**Verbatim corrections vs R59** (audit doc §T1.6):
 
-R59 lands the paper-faithful refinement of the R50 deferred-paper
-sub-Stubs above: corrected `hierarchicalGrid` (`Fin (m*m)`,
-δ-formula `4m/(m+q)`), `glwMatrixA` with the diagonal /
-off-diagonal split, and three signatures (Lemma 4.2 paper specs,
-Lemma 4.1 perturbation, plus the auxiliary `Matrix.rowSup`). All
-theorem bodies are sorried with TAG comments naming the staged
-round (R60 or R61).
+* Grid: `δ_{m·p+q} = 4^{p+m} · (m+q)` for `0 ≤ p < m`, `1 ≤ q ≤ m`
+  (the exponent on 4 is `p+m`, each block scales ×4 — R59 had `4·m`
+  flat, missing the geometric block factor).
+* Matrix `A`: Cauchy form `a_{ij} = 1 / (δ_i + δ_j)` (R59 had
+  `δ²` / exp split, paper-incorrect).
+* Auxiliary matrix `B`: `b_{ij} = exp(−δ_i − δ_j) · a_{ij}` (absent
+  in R59; used in Lemma 4.1 application).
+* Lemma 4.2: both halves are **inequalities** —
+  `per(A) ≤ 1` and `det(A) ≥ (240·e)^{−2m³}` (R59 had equalities
+  with paper-incorrect constants `32^m·(240·e^{-3})^m`).
+* Lemma 4.1: ratio-based perturbation —
+  `det(a − b) ≥ det(a) − (∑_k max_l (b_{kl}/a_{kl})) · per(a)` (R59
+  had absolute `∑_l B` without ratio against `A`, and used `B` rather
+  than `(a − b)` on the LHS index).
 
-The two R50 sub-Stubs above (`glw_lemma_4_1_deferred_paper`,
-`glw_lemma_4_2_deferred_paper`) are **not retired** by R59 — they
-remain as historical conservative-shape deferral records, to be
-retired by a future round once R60–R61 close the paper-faithful
-bodies and the consumer call sites
-(`gao_li_wellner_small_ball_lower / _upper`) are bridged in R62+.
+The R59 helper `Matrix.rowSup` is removed — it was infra for the old
+Lemma 4.1 sig, which the paper-exact ratio form does not consume.
+The R50 historical sub-Stubs above (`glw_lemma_4_1_deferred_paper`,
+`glw_lemma_4_2_deferred_paper`) are unchanged and remain as
+conservative-shape deferral records.
 
-Net debt change R58 → R59: **+2 sorries (TAG'd for R60–R61),
-0 axioms, 0 Stub retirements**. Reported as `infra +2 sorries`,
-NOT as net debt change toward the R52 gate (per Erdős 524 framing:
-infrastructure rounds are milestones, not closures).
+R60 lands the sig revisions; bodies stage to R61. Net debt change
+R59 → R60: **0 sorries / 0 axioms / 0 Stub retirements** (the two
+R59 sorries persist with TAGs migrated from `R60-*` / `R61-*` to
+`R61-*`).
 
-See `Helpers/TrackA_R59_T1_GrepAudit.md` for the audit grounding
-(Mathlib API surface, paper recheck of the δ formula and the
-`det(A)` constant `32^m · (240 · exp(−3))^m`, and placeholder
-location confirmation). -/
-
-namespace Matrix
-
-/-- Row supremum of a square real matrix at row `k`. Wraps
-`Finset.univ.sup'` so downstream proofs (R60+) can rewrite without
-re-deriving the construction. Used in
-`glw_lemma_4_1_perturbation` below. -/
-noncomputable def rowSup {ι : Type*} [Fintype ι] [Nonempty ι]
-    (A : Matrix ι ι ℝ) (k : ι) : ℝ :=
-  Finset.univ.sup' Finset.univ_nonempty (A k)
-
-end Matrix
+See `Helpers/TrackA_R60_T1_PerLemma41Audit.md` (especially §T1.2,
+§T1.3, §T1.6) for the audit trail. -/
 
 namespace Erdos524.Helpers.GLWSmallBallShortcut
 
 /-- Discretization grid from Gao–Li–Wellner 2010 §4
-(arXiv:1001.0200v1), paper-exact form: `δ_{m·p + q} = 4·m / (m + q)`
-for `p ∈ {0, …, m-1}` and `q ∈ {1, …, m}`, encoded flat on
-`Fin (m * m)` via `q = (i.val % m) + 1`, `p = i.val / m`. The
-formula depends only on `q`; the `p` index is the row-block
-selector and is preserved in the docstring for paper-faithfulness. -/
+(arXiv:1001.0200v1), paper-exact form: `δ_{m·p + q} = 4^{p+m} · (m+q)`
+for `0 ≤ p < m`, `1 ≤ q ≤ m`. Encoded flat on `Fin (m * m)` via
+`p = i.val / m`, `q = (i.val % m) + 1`. The exponent `p + m` on 4
+is critical — each `p`-block scales ×4 (R59 had `4·m` flat, missing
+this geometric factor). -/
 noncomputable def hierarchicalGrid (m : ℕ) (_hm : 0 < m) :
     Fin (m * m) → ℝ :=
-  fun i => (4 * (m : ℝ)) / ((m : ℝ) + (((i.val % m : ℕ) : ℝ) + 1))
+  fun i =>
+    (4 : ℝ) ^ (i.val / m + m) * ((m : ℝ) + ((i.val % m + 1 : ℕ) : ℝ))
 
 /-- Test lemma — every grid value is positive when `m ≥ 1`. -/
 theorem hierarchicalGrid_pos (m : ℕ) (hm : 0 < m) (i : Fin (m * m)) :
     0 < hierarchicalGrid m hm i := by
   unfold hierarchicalGrid
-  have hm' : (0 : ℝ) < (m : ℝ) := by exact_mod_cast hm
-  have hi : (0 : ℝ) ≤ ((i.val % m : ℕ) : ℝ) := by
-    exact_mod_cast Nat.zero_le _
-  have hnum : (0 : ℝ) < 4 * (m : ℝ) := by linarith
-  have hden : (0 : ℝ) < (m : ℝ) + (((i.val % m : ℕ) : ℝ) + 1) := by
-    linarith
-  exact div_pos hnum hden
+  have h4 : (0 : ℝ) < (4 : ℝ) ^ (i.val / m + m) := by positivity
+  have hm0 : (0 : ℝ) ≤ (m : ℝ) := by exact_mod_cast Nat.zero_le _
+  have hq1 : (1 : ℝ) ≤ ((i.val % m + 1 : ℕ) : ℝ) := by
+    exact_mod_cast Nat.succ_le_succ (Nat.zero_le _)
+  have hsum : (0 : ℝ) < (m : ℝ) + ((i.val % m + 1 : ℕ) : ℝ) := by linarith
+  exact mul_pos h4 hsum
 
-/-- Test lemma — every grid value is bounded above by `4·m`.
-
-Follows from `4·m / (m + q) ≤ 4·m` when `m + q ≥ 1`, which holds
-since `q ≥ 1`. -/
-theorem hierarchicalGrid_le_4m (m : ℕ) (hm : 0 < m) (i : Fin (m * m)) :
-    hierarchicalGrid m hm i ≤ 4 * (m : ℝ) := by
-  unfold hierarchicalGrid
-  have hm' : (0 : ℝ) < (m : ℝ) := by exact_mod_cast hm
-  have hi : (0 : ℝ) ≤ ((i.val % m : ℕ) : ℝ) := by
-    exact_mod_cast Nat.zero_le _
-  have hnum : (0 : ℝ) ≤ 4 * (m : ℝ) := by linarith
-  have hden : (1 : ℝ) ≤ (m : ℝ) + (((i.val % m : ℕ) : ℝ) + 1) := by
-    linarith
-  exact div_le_self hnum hden
-
-/-- Structured matrix `A` from Gao–Li–Wellner 2010 §4 (paper-exact
-form): on the diagonal, `A i i = δ_i · δ_i`; off the diagonal,
-`A i j = exp(−(δ_i · δ_j))`. The `δ_i` are values of
-`hierarchicalGrid m hm`. Lemma 4.2
-(`glw_lemma_4_2_paper_specs` below) computes
-`permanent A = 1` and `det A = 32^m · (240 · exp(−3))^m`. -/
+/-- Cauchy-form matrix `A` from Gao–Li–Wellner 2010 §4 (paper-exact):
+`a_{ij} = 1 / (δ_i + δ_j)`. The Cauchy structure is exploited in
+Lemma 4.2 via the classical Cauchy determinant identity (R61 body;
+identity NOT in Mathlib at the project pin, must be derived from
+scratch or axiomatised at R61). -/
 noncomputable def glwMatrixA (m : ℕ) (hm : 0 < m) :
     Matrix (Fin (m * m)) (Fin (m * m)) ℝ :=
+  fun i j => 1 / (hierarchicalGrid m hm i + hierarchicalGrid m hm j)
+
+/-- Auxiliary matrix `B` from Gao–Li–Wellner 2010 §4 (paper-exact):
+`b_{ij} = exp(−δ_i − δ_j) · a_{ij}`. Used in Lemma 4.1 application
+to bound `det(A − B)`. -/
+noncomputable def glwMatrixB (m : ℕ) (hm : 0 < m) :
+    Matrix (Fin (m * m)) (Fin (m * m)) ℝ :=
   fun i j =>
-    let δi := hierarchicalGrid m hm i
-    let δj := hierarchicalGrid m hm j
-    if i = j then δi * δj else Real.exp (-(δi * δj))
+    Real.exp (-(hierarchicalGrid m hm i) - hierarchicalGrid m hm j)
+      * glwMatrixA m hm i j
 
-/-- **GLW 2010 §4 Lemma 4.2 (paper-faithful sig).**
+/-- **GLW 2010 §4 Lemma 4.2 (paper-exact, both halves are inequalities).**
 
-States `permanent (glwMatrixA m hm) = 1` and
-`det (glwMatrixA m hm) = 32^m · (240 · exp(−3))^m`. Body is staged
-across R60 (`per(A) = 1`, ~100–150 LOC, 5-step crude bound) and
-R61 (`det(A)`, ~600–900 LOC with the Cauchy identity + A/B/C
-partition; if R60 gate binds the explicit constant may be
-axiomatized hybrid (c)).
+States `permanent (glwMatrixA m hm) ≤ 1` and
+`det (glwMatrixA m hm) ≥ (240 · e)^(−2·m³)`. Body is staged for R61
+(per side: Cauchy permanent bound + grid constants, ~150–250 LOC; det
+side: Cauchy determinant identity + telescoping + grid constants,
+~500–700 LOC; the Cauchy det identity is NOT in Mathlib at this pin
+and must be derived from scratch ~30–60 LOC or axiomatised — choice
+deferred to R61).
 
 Refines (does NOT retire) the conservative-shape R50 sub-Stub
-`glw_lemma_4_2_deferred_paper` above. The R50 form had an
-ambiguous `32 · m` vs `32^m` self-flag; the R59 brief's paper
-recheck (see `TrackA_R59_T1_GrepAudit.md` T1.2) records `32^m`
-as the correct form per arXiv:1001.0200v1 §4.
+`glw_lemma_4_2_deferred_paper` above. R60 corrects two paper-fidelity
+errors in the R59 sig: (a) both halves are inequalities, not
+equalities; (b) the constants are `(240·e)^{−2m³}`, not
+`32^m · (240·e^{−3})^m`.
 
-NOT consumed by any other file at R59 close.
-TAG[R59-T3-glw-lemma-4-2-paper-specs] -/
+NOT consumed by any other file at R60 close.
+TAG[R61-glw-lemma-4-2-paper-specs] -/
 theorem glw_lemma_4_2_paper_specs (m : ℕ) (hm : 0 < m) :
-    Matrix.permanent (glwMatrixA m hm) = 1 ∧
-    (glwMatrixA m hm).det =
-      (32 : ℝ) ^ m * ((240 : ℝ) * Real.exp (-3)) ^ m := by
-  sorry
+    Matrix.permanent (glwMatrixA m hm) ≤ 1 ∧
+    (glwMatrixA m hm).det ≥
+      (240 * Real.exp 1) ^ (-2 * (m : ℤ) ^ 3) := by
+  refine ⟨?_, ?_⟩
+  · sorry
+  · sorry
 
-/-- **GLW 2010 §4 Lemma 4.1 (paper-faithful perturbation sig).**
+/-- **GLW 2010 §4 Lemma 4.1 (paper-exact perturbation).**
 
-States the determinant comparison: for `B ≤ A` entrywise and
-`0 ≤ B` entrywise on a square real matrix,
-`det B ≥ det A − (∑ k, (∑ l, B k l) · rowSup A k) · permanent A`.
-Body is staged for R60 (Strategy A: `det` multilinearity +
-permanent expansion via `Matrix.det_apply`, ~60–100 LOC).
+For square real matrices with `0 < a_{ij}` everywhere and
+`0 < b_{ij} < a_{ij}` everywhere,
+`det(a − b) ≥ det(a) − (∑_k max_l (b_{kl} / a_{kl})) · per(a)`.
+
+Body is staged for R61 (multilinearity of `det` + bookkeeping of the
+ratio sup, ~80–120 LOC).
 
 Refines (does NOT retire) the conservative-shape R50 sub-Stub
-`glw_lemma_4_1_deferred_paper` above. The R50 form was a generic
-Jacobi-style first-order expansion `∃ c, HasDerivAt …`; R59
-upgrades to the paper-faithful comparison form.
+`glw_lemma_4_1_deferred_paper` above. R60 corrects the R59 sig: the
+perturbation term is `max_l (b/a)` ratio (not `∑_l B` absolute), and
+the matrix index on the LHS is `(a − b)` (not `b`).
 
-Uses `Matrix.rowSup` (defined above this section).
-
-NOT consumed by any other file at R59 close.
-TAG[R59-T3-glw-lemma-4-1-perturbation] -/
-theorem glw_lemma_4_1_perturbation {ι : Type*} [Fintype ι]
-    [DecidableEq ι] [Nonempty ι]
-    (A B : Matrix ι ι ℝ)
-    (h_le : ∀ i j, B i j ≤ A i j) (h_nonneg : ∀ i j, 0 ≤ B i j) :
-    B.det ≥ A.det
-      - (∑ k : ι, (∑ l : ι, B k l) * Matrix.rowSup A k)
-        * Matrix.permanent A := by
+NOT consumed by any other file at R60 close.
+TAG[R61-glw-lemma-4-1-perturbation] -/
+theorem glw_lemma_4_1_perturbation
+    {ι : Type*} [Fintype ι] [DecidableEq ι] [Nonempty ι]
+    (a b : Matrix ι ι ℝ)
+    (h_pos_a : ∀ i j, 0 < a i j)
+    (h_strict : ∀ i j, 0 < b i j ∧ b i j < a i j) :
+    Matrix.det (fun i j => a i j - b i j) ≥
+      Matrix.det a -
+        (∑ k : ι, Finset.univ.sup' Finset.univ_nonempty
+          (fun l : ι => b k l / a k l)) * Matrix.permanent a := by
   sorry
 
 end Erdos524.Helpers.GLWSmallBallShortcut
