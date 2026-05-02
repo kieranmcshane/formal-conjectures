@@ -19,6 +19,100 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R53 V2 round 15 — γ-floor `Matrix.det.differentiable` axiomatization, mechanical)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). All 8 R50-relevant critical build targets remain green
+  post-R53 axiom replacement; R52's CharFunCrossBlock + MultivariateSmallBallUpper
+  build state preserved.
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R53 (T1.1 audit
+  `b42485b`, T2.1 axiom replacement `1b25996`, T2.2 this
+  entry, T2.3 build + status + push).
+* **Round type:** Variante 1, single round, mainline. **γ-floor
+  mechanical axiomatization**, not a math content close. Replaces
+  `Matrix.det.differentiable` Stub at
+  `Helpers/MatrixDetDifferentiable.lean:141` with axiom of identical
+  signature. Continues the R49 (axiom #6) + R51 (axiom #7) γ-floor
+  pattern.
+* **Net debt change:**
+  * Sorries: **12 → 11** (-1, `Matrix.det.differentiable` wrapper Stub
+    retired via debt-conversion at
+    `Helpers/MatrixDetDifferentiable.lean:141`).
+  * User-defined axioms: **7 → 8** (+1, Axiom #8 added — see "Axiom #8"
+    section below).
+  * Items at gate: **19 → 19** (no change; sorry-to-axiom is a wash for
+    gate counting). Strategic value: freed R54-R58 mainline budget for
+    actual retirement work elsewhere.
+* **Total mainline debt:** 8 user-defined axioms + 11 TAG'd sorries =
+  19 items.
+* **Cumulative R40-R53 retirement rate:** ~0.32 sorry/round (sorry count
+  R39→R53: 14 → 11 across 14 rounds gross, with 4 axioms-via-γ-floor
+  swaps along the way).
+* **Three deliverables this round:**
+  * **R53-T1.1 Claims Verification Table + `Matrix.det.differentiable`
+    Stub signature extraction**
+    (`Helpers/Round53_T1_MatrixDetDifferentiableAxiomatization.md`,
+    ~197 lines, commit `b42485b`). All 8 claims VERIFIED. Sole
+    status: **ZERO Lean call sites** at HEAD `c38c250` — all 6 grep
+    hits for `Matrix.det.differentiable` / `Matrix.det.hasFDerivAt` are
+    docstrings/comments (`524.lean:3514`,
+    `MultivariateGaussianPdf.lean:242`,
+    `GLWSmallBallShortcut.lean:220`,
+    `MultivariateGaussianCDF.lean:46/63/177`). Companion Stub
+    `Matrix.det.hasFDerivAt` (line 124-132) deliberately NOT modified
+    in R53 (R54+ candidate). R49 axiom #6 + R51 axiom #7 + A1-A5 + R50
+    sub-Stubs all re-confirmed intact at HEAD `c38c250`.
+  * **R53-T2.1 `Matrix.det.differentiable` Stub → axiom replacement**
+    (commit `1b25996`). In `Helpers/MatrixDetDifferentiable.lean`:
+    * Deleted the 5-line `:= by ... sorry` body block.
+    * Replaced `theorem` with `axiom` keyword; preserved exact signature
+      including typeclass binders `{n : Type*} [Fintype n]
+      [DecidableEq n]` and conclusion `Differentiable ℝ (fun A : Matrix
+      n n ℝ => A.det)`.
+    * Added a 50-line Lean docstring above the axiom documenting the
+      γ-floor strategy, classical justification (Leibniz expansion +
+      polynomial differentiability, Lang 2002 / Hörmander 1990), the
+      two-path R55-R59 retirement plan, and the consumer-future-readiness
+      note.
+    * Top-of-file docstring updated (lines 39-58) to reflect the
+      axiomatization status (companion `Matrix.det.hasFDerivAt` remains
+      Stub, `Matrix.PosDef.inv_hasFDerivAt` retains R41-T2.2 Full state).
+    * `lake env lean Helpers/MatrixDetDifferentiable.lean` clean (only
+      the expected sorry warning from the unchanged companion Stub at
+      line 124-132).
+    * Net diff: -34 / +83 LOC.
+  * **R53-T2.2 + T2.3 AXIOM_INVENTORY.md update + status doc + push**
+    (this entry; `Helpers/PhaseV2R53Status.md`).
+* **R52 milestone gate trajectory (post-R53):** items at 19, gate
+  threshold ≤ 8. Mainline R54-R58 trajectory must contribute **~11
+  retirements across 5 rounds = ~2.2/round**, well above the cumulative
+  ~0.32/round rate. **R52 gate fails decisively under hybrid (c)** —
+  γ floor + β R58 extension trajectory binding per BACKGROUND.md. R54
+  candidates (priority order):
+  1. **Companion Stub `Matrix.det.hasFDerivAt` axiomatization** (R54
+     γ-floor extension) — same TAG, same closure path, +1 axiom -1
+     sorry, items unchanged.
+  2. **Q1c track full close attempt** — `geomSeries_offDiag_le`
+     per-distance-class re-indexing per R52-T2.1 recipe, ~100-180 LOC,
+     P(Full)/round ~0.55, item-positive on alternate-track if Full.
+  3. **MVGaussianDensityBound API drift fix** (~5-15 LOC using R46
+     helper `det_CFC_sqrt_eq_sqrt_det`) — Full close of pre-existing
+     build error from R52's "remaining failures" list.
+* **Cumulative T1.1 audit ledger:** 8 distinct misframings caught
+  pre-dispatch (unchanged from R50/R51/R52 — R53 is mechanical
+  axiomatization, no Grok dispatch).
+* **Anti-mismatch hygiene 8/8:**
+  type signature verbatim including all typeclass binders; no surrounding
+  `variable` block (theorem binds typeclasses directly); zero Lean call
+  sites pre/post; companion `Matrix.det.hasFDerivAt` Stub at line
+  124-132 unaffected; R49 axiom #6 + R51 axiom #7 + A1-A5 + R50 sub-Stubs
+  unaffected; track branches not touched (mainline only); no new imports
+  needed.
+
+See `Helpers/PhaseV2R53Status.md` and
+`Helpers/Round53_T1_MatrixDetDifferentiableAxiomatization.md` for the
+round status doc + T1.1 Claims Verification Table.
+
 ## Build status (R52 V2 round 14 — Q1c track consolidation, mid-distribution + Mathlib API drift fix)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
@@ -741,7 +835,7 @@ for the round status doc + audit.
   `Helpers/R39_T1_AlphaConversionAudit.md` for the cold re-audit and
   `Helpers/PhaseV2R39Status.md` for the round status.
 
-## 7 user-defined axioms (technical debt — must retire)
+## 8 user-defined axioms (technical debt — must retire)
 
 | # | Axiom | Source round | Provisional retire-path |
 |---|---|---|---|
@@ -752,9 +846,10 @@ for the round status doc + audit.
 | 5 | `gao_li_wellner_small_ball_upper` | R36 | V2 R40-R48 (parallel to #4) |
 | 6 | `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` | R49 (Path A switch) | V2 R55-R59 post-gate (Mathlib pin bump preferred; from-scratch ~150-300 LOC fallback) |
 | 7 | `multivariateGaussian_eq_lebesgue_withDensity` | R51 (γ-floor switch) | V2 R55-R59 post-gate (Mathlib pin bump preferred; from-scratch ~150-300 LOC fallback — sub-gap (a) closed R46, (b) + (c) + composition pending) |
+| 8 | `Matrix.det.differentiable` | R53 (γ-floor switch) | V2 R55-R59 post-gate (Mathlib pin bump preferred; from-scratch ~100-200 LOC Leibniz-expansion fallback via companion `Matrix.det.hasFDerivAt` Stub close) |
 
-All seven are classically correct (see the audit doc + Axiom #6 / #7
-detail below for classical-justification chains).
+All eight are classically correct (see the audit doc + Axiom #6 / #7 /
+#8 detail below for classical-justification chains).
 
 ### Axiom #6 detail: `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
 
@@ -917,20 +1012,109 @@ detail below for classical-justification chains).
     measure-of-orthant to integral-of-pdf-over-orthant. Sole non-comment
     Lean caller; positional arity 2 preserved by the axiom swap.
 
+### Axiom #8 detail: `Matrix.det.differentiable`
+
+* **Added:** R53 (V2 round 15, 2026-05-02), γ-floor switch (post-R52
+  audit-redirect; user-confirmed "γ floor + β R58 extension" trajectory
+  per BACKGROUND.md, continuing the R49 axiom #6 + R51 axiom #7
+  mechanical pattern).
+* **File:** `FormalConjectures/ErdosProblems/Helpers/MatrixDetDifferentiable.lean:141`.
+* **Lean signature:**
+  ```lean
+  axiom Matrix.det.differentiable
+      {n : Type*} [Fintype n] [DecidableEq n] :
+      Differentiable ℝ (fun A : Matrix n n ℝ => A.det)
+  ```
+  (Typeclass binders bound directly on the axiom; no surrounding
+  `variable` block in this section. The axiom lives inside `namespace
+  Erdos524.Helpers` with `open Matrix`.)
+* **Mathematical content (plain English):** for every finite-index `n`
+  with decidable equality and every real `n × n` matrix, the
+  determinant function `A ↦ A.det : Matrix n n ℝ → ℝ` is
+  Fréchet-differentiable on the entire matrix space. Equivalently, the
+  determinant is smooth (in particular C¹) as a function of the entries.
+  Reference: Lang (2002) "Algebra" Ch. XIII §5; Hörmander (1990)
+  "Analysis of Linear Partial Differential Operators" Ch. I §1. The
+  classical proof: determinant is a polynomial in the matrix entries
+  via the Leibniz expansion `det A = ∑_{σ ∈ Perm n} sign σ · ∏_i A i (σ
+  i)`; polynomials in finitely many real variables are smooth on a
+  finite-dimensional real normed space.
+* **Why axiomatized at R53 (γ-floor switch):** R40-T2.1 introduced the
+  `Matrix.det.differentiable` Stub (line 141-149) along with the
+  companion existential form `Matrix.det.hasFDerivAt` (line 124-132),
+  both TAG'd `R40-T2.1-det-cofactor-route`. Both were intended as Phase
+  A upper Option B infrastructure. The closure path α (cofactor /
+  Leibniz expansion + polynomial differentiability + sum/product
+  combinator chain) is mathematically clear but requires ~100-200 LOC
+  of careful Lean involving:
+  * `Matrix.det_apply'` (packaged) for the Leibniz expansion,
+  * Per-summand polynomial differentiability via `Matrix.entryLinearMap`
+    (packaged) + `Differentiable.prod_finset` + `Differentiable.sum_finset`,
+  * Bookkeeping over `Equiv.Perm` for the sign + permutation indexing,
+  * Final assembly into the `HasFDerivAt` form, then wrapper
+    composition via `HasFDerivAt.differentiableAt.differentiable`.
+
+  R41-R52 attempted no Phase A upper Option B Slepian / SF / BTIS body
+  close that consumed this Stub directly, so it has remained
+  unconsumed at every gate measurement. The R52 milestone gate is
+  decisively failing under hybrid (c); the user-confirmed γ-floor + β
+  R58 extension trajectory accepts axiomatization of the wrapper form
+  (which downstream consumers will use) to free 1-2 mainline rounds for
+  retirement work elsewhere. The companion `Matrix.det.hasFDerivAt`
+  Stub remains for now (R54+ candidate for additional γ-floor
+  axiomatization if needed).
+* **Retirement target: R55-R59 (post-gate), two-path sub-plan:**
+  1. *Mathlib pin bump (preferred):* monitor Mathlib for landings of
+     `Matrix.det.hasFDerivAt` (likely via `MultilinearMap` or
+     `LinearMap` route, or via `Polynomial.contDiff` on the Leibniz
+     expansion). Post-`v4.27` toolchain bump may package this directly.
+     Wrapper retires as a 2-line consumer:
+     `Matrix.det.differentiable := fun M => (Matrix.det.hasFDerivAt
+     M).differentiableAt.differentiable`.
+  2. *From-scratch closure (fallback):* close the companion
+     `Matrix.det.hasFDerivAt` Stub via the cofactor route (~100-200
+     LOC) + 2-line wrapper composition. Total ~100-200 LOC over 1-2
+     rounds.
+
+  Retirement is **not required for the R52 gate** (gate measures item
+  count; +1 axiom / -1 sorry is a wash there). Strategic value of the
+  γ-floor axiomatization is the freed mainline budget for OTHER
+  retirements R54-R58.
+* **Status:** ACTIVE (placeholder, math content provable from the
+  classical Leibniz-polynomial route described above).
+* **Consumers (Lean code):** **zero Lean call sites at HEAD R53 close**.
+  All 6 grep hits for `Matrix.det.differentiable` /
+  `Matrix.det.hasFDerivAt` at R53 are docstrings/comments
+  (`524.lean:3514`, `Helpers/MultivariateGaussianPdf.lean:242`,
+  `Helpers/GLWSmallBallShortcut.lean:220`,
+  `Helpers/MultivariateGaussianCDF.lean:46/63/177`). Future consumers
+  will appear in the R55+ Slepian / multivariate-CDF differentiability
+  assembly phase under the original axiom name.
+
 **R39 retired axioms 6-8** (the 3 IsGLWProcess β-axioms) by α-tighten:
 sound tightened signatures requiring KMT-coupling-rate hypothesis;
 content deferred to V2 R49-R53 cluster (bundled with axiom #3
 retirement). See `Helpers/AxiomFoundationAudit.md` "R39 — V2 round 1"
 section.
 
-## 12 TAG'd `sorry` sites (post-R51 — -1 from post-R50 via MGE γ-floor axiomatization)
+## 11 TAG'd `sorry` sites (post-R53 — -1 from post-R51 via Matrix.det.differentiable γ-floor axiomatization)
 
-(Post-R51 baseline: same 11 sites listed below from post-R42, plus the 2
+(Post-R53 baseline: same 11 sites listed below from post-R42, plus the 2
 R50 deferred-paper sub-Stubs added in `GLWSmallBallShortcut.lean`, minus
 the MGE Stub at `MultivariateGaussianPdf.lean:248` retired in R51-T2.1
-via γ-floor axiomatization (now Axiom #7). Net post-R51 sorries: 11 + 2
-- 1 = 12. The R44-Full MGI theorem `multivariateGaussianOrthantCDF_eq_lebesgue_integral`
-remains in the codebase as a Full theorem and is unaffected by R51.)
+via γ-floor axiomatization (now Axiom #7), minus the
+`Matrix.det.differentiable` wrapper Stub at
+`MatrixDetDifferentiable.lean:141` retired in R53-T2.1 via γ-floor
+axiomatization (now Axiom #8). Net post-R53 sorries: 11 + 2 - 1 - 1 =
+11. The companion `Matrix.det.hasFDerivAt` Stub at
+`MatrixDetDifferentiable.lean:124-132` remains in the inventory below.)
+
+* **R53-T2.1 `Matrix.det.differentiable` retirement (γ-floor
+  axiomatization, this round):** the wrapper Stub at
+  `MatrixDetDifferentiable.lean:141` (TAG `R40-T2.1-det-cofactor-route`)
+  has been replaced with **Axiom #8** of identical signature. See
+  "Axiom #8 detail" section above. Net debt: -1 sorry, +1 axiom, items
+  unchanged at 19.
 
 * **R51-T2.1 MGE retirement (γ-floor axiomatization, this round):**
   the MGE Stub at `MultivariateGaussianPdf.lean:248`
