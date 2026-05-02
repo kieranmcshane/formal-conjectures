@@ -197,6 +197,48 @@ TD4 closure of sub-lemma 3 either via SLT (post-M1 user clearance)
 or from-scratch (Bakry-Émery / Ornstein-Uhlenbeck semigroup) is now
 the cluster's open thread.
 
+**Round-4 status (TD4 T2.1 sub-Stub).** Both TD4 paths foreclosed this
+round; sorry preserved with concrete blocker citation. Full TD4 record:
+`Helpers/TrackD_round4_T1_PinBumpProbe.md` (probe diagnostic) and
+`Helpers/TrackDStatus.md` TD4 addendum (T2.0 path decision, T2.2 build
+verification).
+
+* **Path A blocked (collision + binding system signal).** Probe scratch
+  branch `track-d-pinbump-probe` was created from this branch's HEAD
+  (`a77970b`); `lakefile.toml` mathlib `rev` was bumped from
+  `25ce63313608` to `d68c4dc09f5e` (the SLT pin); `lake update mathlib`
+  succeeded (mathlib package on disk advanced to `d68c4dc09f5e`). Five
+  minutes in, before `lake build` could be invoked, the parallel TC2
+  Claude session intervened to recover its working tree on
+  `track-c-1dkmt`: `git stash` of my edits onto the probe branch,
+  branch switch, mathlib package restore to `25ce633136`, TC2 commit
+  `7f25b84` (Kieran McShane authorship, 2026-05-02 15:49:40 +0200,
+  acknowledging the cross-track interference). A binding
+  system-reminder followed declaring the lakefile revert "intentional,
+  do not revert it unless the user asks you to." Path A retry on this
+  filesystem is forbidden for the remainder of this round; cluster
+  unblocking via this route migrates to TD5+ with documented
+  user-coordinated-pin-bump precondition.
+* **Path B blocked (absent Mathlib primitives at current pin).**
+  Pre-T2.1 grep at pin `25ce633136`:
+  `find Mathlib -type f -name "*.lean" | xargs grep -ilE "(ornstein|`
+  `bakry|sobolev[ _]inequality|poincare[ _]inequality|`
+  `gaussian.{0,3}poincare|gaussian.{0,5}log[ _]?sobolev|`
+  `gaussian.{0,5}concentration|isoperimetric)"` returns **no output**.
+  `grep -ci "lipschitz" Mathlib/Probability/Moments/SubGaussian.lean`
+  returns **0**. `Mathlib/Probability/Distributions/Gaussian/` contains
+  only `Basic.lean`, `Fernique.lean`, `CharFun.lean`, `Real.lean` — no
+  concentration / Poincaré / log-Sobolev / OU module. From-scratch
+  closure estimate: ≥1500-2500 LOC across OU semigroup ~500-1000 +
+  Bakry-Émery curvature ~300+ + log-Sobolev from Γ₂ ~200+ + Herbst
+  ~100+ + Lipschitz CGF ~100+. Out of single-round scope (4-6h
+  budget); honest TAG'd sub-Stub is the most this round can produce.
+
+TD4 net: sorry count unchanged (1 → 1 on this branch), BTIS axiom
+unchanged (5 → 5 in `AXIOM_INVENTORY.md`), TD3 → TD4 retirement pace
+0/round (continues TD3 trend). Sub-lemma 3 closure remains the gating
+item for BTIS axiom retirement and the cluster's open thread.
+
 **Adapter sketch for the post-M1 path** (so T2.1 has a "tried" line
 even on abort):
 
