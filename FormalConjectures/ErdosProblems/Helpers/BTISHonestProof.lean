@@ -109,9 +109,53 @@ structure IsCenteredGaussianProcess
   `HasGaussianLaw` or the brownian-motion-package predicate. -/
   joint_gaussian : True
 
-/- ## Sub-lemma 3 — Sup is a Lipschitz functional (TD4 closure target post-M1) -/
+/- ## Sub-lemma 3 — Sup is a Lipschitz functional (TD5: γ-floor axiom #9) -/
 
 /-- **Sup is a Lipschitz functional of a centered Gaussian process.**
+
+**TD5 closure (γ-floor strategy, 2026-05-02).** This declaration is an
+**axiom** in the project (Axiom #9 in `AXIOM_INVENTORY.md`), not a
+proven theorem. It states the standard Borell-Tsirelson-Ibragimov-
+Sudakov (BTIS) inequality for the centered supremum of a finite-index
+centered Gaussian process: `Y := (⨆ t, X t) − 𝔼[⨆ t, X t]` is
+sub-Gaussian with variance proxy `sigma2 := sup_t Var(X_t)`.
+
+* **Why axiomatized.** Borell-TIS / Tsirelson-Ibragimov-Sudakov / CIS
+  inequality is **absent at every Mathlib pin** as of 2026-05-02 (zero
+  hits over `leanprover-community/mathlib4` for `borell`, `tsirelson`,
+  `ibragimov`, `sudakov`, `cis_inequality`; zero open PRs; zero issues
+  — a structural gap, not a pin-version artefact). Three from-scratch
+  derivation routes are all out of single-round scope: Route A
+  (Bakry-Émery LSI + Herbst, 800-1200 LOC, ≥5-8 rounds), Route B
+  (hypercontractivity / Nelson, similar cost), Route C (Gaussian
+  isoperimetry, harder). γ-floor strategy: axiomatize this single
+  consumer-facing lemma to close the BTIS chain at TD2 Path B′ Full,
+  unblock Track D entirely, and defer the math content to the
+  retirement plan below.
+
+* **Retirement target — post-R59.** Three options:
+  (i) **Upstream.** Monitor Mathlib for a `borell_tis` PR landing
+      (timeline unknown).
+  (ii) **From-scratch local closure (Route A).** Build LSI + Herbst
+      from the Bakry-Émery / Ornstein-Uhlenbeck semigroup, ~800-1200
+      LOC over 5-8 dedicated rounds; replaces Axiom #9 with a Full
+      proof.
+  (iii) **Mathlib contribution.** Same content as (ii), packaged as
+       a Mathlib PR (highest community benefit, multi-week effort).
+
+* **Math references.** Borell 1975 ("The Brunn-Minkowski inequality
+  in Gauss space," Invent. Math. 30); Tsirelson-Ibragimov-Sudakov
+  1974/1976 ("Norms of Gaussian sample functions," Springer LNM 550);
+  Adler-Taylor, *Random Fields and Geometry* (Springer 2007/2010),
+  Theorem 2.1.2; Boucheron-Lugosi-Massart, *Concentration
+  Inequalities* (OUP 2013), Theorems 5.6 / 5.8.
+
+* **Consumers.** Single call site at `borell_tis` (line 341 below,
+  TD2 Path B′ Full closure). Axiomatization preserves the chain:
+  BTIS theorem `borell_tis` is Full (Chernoff + bridge, no `sorry`),
+  conditional on Axiom #9.
+
+────── Historical record (TD3 + TD4 docstring, preserved unchanged) ──────
 
 For a Fintype-indexed centered Gaussian process `X : T → Ω → ℝ` with
 variance budget `sigma2 = sup_t Var(X_t)`, the centered supremum
@@ -266,7 +310,7 @@ even on abort):
 Total: 360 LOC. Cf. Grok Q1 estimate of 150-250 LOC — third TD3
 underestimate; documented in T1.1 audit §D.
 -/
-theorem lipschitz_sup_finite_gaussian
+axiom lipschitz_sup_finite_gaussian
     {Ω T : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     [Fintype T] [Nonempty T]
     (X : T → Ω → ℝ)
@@ -276,8 +320,7 @@ theorem lipschitz_sup_finite_gaussian
     (_hM_int : Integrable (fun ω => ⨆ t, X t ω) ℙ) :
     HasSubgaussianMGF
       (fun ω => (⨆ s, X s ω) - ∫ ω', (⨆ s, X s ω') ∂ℙ)
-      sigma2.toNNReal ℙ := by
-  sorry  -- TAG: TrackD-LipschitzSup
+      sigma2.toNNReal ℙ
 
 /- ## Main theorem — Borell-Tsirelson-Ibragimov-Sudakov -/
 
