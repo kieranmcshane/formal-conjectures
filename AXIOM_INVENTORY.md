@@ -19,6 +19,29 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R42 V2 round 4 — Slepian diagnostic strengthening, audit-aligned lower outcome)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone, 2026-05-02).
+* **Mathematical content (R42 update):** ships the audit-aligned lower
+  outcome. Strengthens the `slepian_comparison_finite` TAG'd Stub
+  diagnostic in `Helpers/PhaseAUpperBound.lean:299-372` with explicit
+  Mathlib API + failed-tactic citations (5 named missing symbols + 3
+  failed tactics), satisfying the R42 brief's 50%-cap clause for
+  "concrete sign-analysis diagnostic." Status doc
+  `Helpers/PhaseV2R42Status.md` reconciles the round brief's optimistic
+  single-turn-Slepian-close target (200-300 LOC per the brief) with the
+  load-bearing R41 cold audit's grounded estimate (~1080 LOC across
+  R43-R45). R42 elects the audit's R43+ trajectory: MGE/MGI signatures
+  → CDF diff body → Slepian body, with R59 ceiling preservation
+  (8 rounds slack).
+* **Net debt change R41 → R42:** axioms 5 → 5, sorries 11 → 11
+  (zero formal-debt change; quality upgrade via diagnostic precision).
+* **All build targets remain green** (`lake env lean` clean on
+  PhaseAUpperBound + MultivariateGaussianCDF; only expected sorry
+  warnings); R38 + R39 + R40 + R41 milestones preserved. See
+  `Helpers/PhaseV2R42Status.md` for the round status doc.
+
 ## Build status (R41 V2 round 3 — chain composition advance)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
@@ -94,7 +117,7 @@ content deferred to V2 R49-R53 cluster (bundled with axiom #3
 retirement). See `Helpers/AxiomFoundationAudit.md` "R39 — V2 round 1"
 section.
 
-## 11 TAG'd `sorry` sites (post-R41)
+## 11 TAG'd `sorry` sites (post-R42 — same count as post-R41, R42 zero net change)
 
 * **3 R33-C / R33-D Mathlib version-skew gaps** — orthogonal to ENat,
   documented as upstream-Mathlib-pending.

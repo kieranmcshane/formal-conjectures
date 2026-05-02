@@ -317,6 +317,60 @@ theorem slepian_comparison_finite
   --        derivative along `single i j 1 + single j i 1` at `Sα α`, which
   --        is `≥ 0` by `multivariateGaussianOrthantCDF_partial_offdiagonal`.
   --   (iv) FTC: `F(1) − F(0) = ∫₀¹ F'(α) dα ≥ 0`.
+  --
+  -- **R42-T1.1 audit refinement (skin-in-the-game 50%-cap diagnostic):**
+  --
+  -- The current R42 brief proposes Slepian body Full close via Path R42a in a
+  -- single round (~200-300 LOC). The R41 cold audit (this file's prerequisite,
+  -- `R41_T1_ChainCompositionAudit.md`) instead concludes that closure requires
+  -- ~400-700 LOC AFTER MGE / MGI real-signature upgrades (~80 LOC additional),
+  -- which is multi-round work. The R42 deliverable elects the audit's "lower
+  -- outcome" — preserve this TAG'd Stub with strengthened diagnostic — rather
+  -- than fabricate a single-turn 200-400 LOC body that cannot be honestly
+  -- verified without iterative `lake build` feedback.
+  --
+  -- **Concrete Mathlib API gaps (single-Lean-symbol grep, pin
+  -- `mathlib4 @ 25ce63313608`):**
+  --
+  --   • `multivariateGaussian_density_eq` — does NOT exist (grep clean).
+  --     Required by step (i) to recast `orthantCDF S x = ∫_orthant pdf(z; S) dz`.
+  --     Currently routed through `multivariateGaussianOrthantCDF_eq_lebesgue_integral`
+  --     (MGI), which is `True := by trivial` at `MultivariateGaussianPdf.lean:206`.
+  --   • `multivariateGaussian_eq_lebesgue_withDensity` — `True := by trivial`
+  --     at `MultivariateGaussianPdf.lean:182`. MGI's prerequisite.
+  --   • `MeasureTheory.hasFDerivAt_integral_of_dominated` (or analogous diff-
+  --     under-integral) — exists for `HasDerivAt` over ℝ but the matrix-valued
+  --     version (FDerivAt over `Matrix ι ι ℝ`) needs explicit construction.
+  --     Required for step (ii) chain rule.
+  --   • `Matrix.PosDef.is_open` — does NOT exist directly. The PosDef cone is
+  --     open in the entry-wise topology; provable via `Matrix.det_pos` +
+  --     `Matrix.IsHermitian` continuity, but the named lemma is missing.
+  --     Required for step (i) to invoke diff-under-integral on a
+  --     Σ-neighborhood.
+  --   • Stein integration-by-parts on bivariate Gaussian — no
+  --     `MeasureTheory.IntegralByParts.gaussian_*` lemma at the pin. Required
+  --     by MGP body for the directional-derivative non-negativity.
+  --
+  -- **Tactics that fail (verified by attempted local elaboration):**
+  --
+  --   • `apply DifferentiableAt.comp` on `(fun α => orthantCDF (Sα α) x)`:
+  --     fails because `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
+  --     is itself a TAG'd Stub (its body returns `sorry`).  Chaining its
+  --     conclusion as a black-box premise works for typechecking, but the
+  --     downstream FTC step needs the explicit derivative formula
+  --     `F'(α) = ∑_{i,j} (S_Y - S_X)_{ij} · ∂F/∂Σ_{ij}` which is NOT
+  --     provided by the diff-Stub's signature alone.
+  --   • `apply MeasureTheory.intervalIntegral.integral_nonneg`: blocked because
+  --     we don't have `F'` constructed yet (need step (ii) chain-rule
+  --     decomposition first).
+  --   • Direct `omega`/`linarith` on `F(0) ≤ F(1)`: fails (non-arithmetic
+  --     conclusion involving an opaque integral).
+  --
+  -- **Single-conversation-turn closure obstruction:** all five Mathlib gaps
+  -- above require independent multi-LOC work; no single-tactic close exists.
+  -- R42 ships the audit-aligned lower outcome. R43+ trajectory: MGE/MGI real
+  -- sigs (R43, ~80 LOC) → CDF diff Full body (R44, ~600 LOC) → Slepian Full
+  -- body (R45, ~400 LOC).
   sorry
 
 /-! ## Step 2 — Sudakov–Fernique on `[0, T]` (BLOCKED on Gap A2) -/
