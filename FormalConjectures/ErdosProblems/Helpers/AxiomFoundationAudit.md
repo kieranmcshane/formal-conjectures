@@ -1090,3 +1090,86 @@ TAG'd sorry) rather than algorithmic (axiom → real proof) — the
 mathematical content (KMT-pinned-law argument) is deferred to the V2
 R49-R53 1D KMT formalization cluster, where it bundles naturally with
 axiom #3 (`kmt_aided_gaussian_process`) retirement.
+
+---
+
+## R40 — V2 round 2 (differentiability infrastructure, 2026-05-02)
+
+### Scope
+
+R40 lands the differentiability infrastructure scaffolds (Q1 a/b/c per
+Grok R40 pre-flight) for Phase A upper Option B (Slepian + SF + BTIS via
+covariance interpolation), and closes the R35 mechanical scaffold sorry
+(`sup_continuous_eq_sup_dense`) with a real density-of-rationals + ε–δ
+proof.
+
+R40 is **infrastructure**, not closure. No axiom retirement (axioms
+remain at 5). Net sorry count: 9 → 11 (T2.4 closes 1, T2.1+T2.2 add 3
+TAG'd Stub scaffolds with concrete diagnostics).
+
+### New files (T1.1 + T2.1 + T2.2 + T2.3)
+
+* `Helpers/R40_T1_DifferentiabilityAudit.md` — Mathlib re-audit confirming
+  Grok Q1(a/b/c) verdicts. 279 LOC.
+* `Helpers/MatrixDetDifferentiable.lean` — TAG'd Stub scaffolds for
+  `Matrix.det.hasFDerivAt`, `Matrix.det.differentiable` (wrapper),
+  `Matrix.PosDef.inv_hasFDerivAt`. ~205 LOC.
+* `Helpers/MultivariateGaussianPdf.lean` — full PDF definition + nonneg /
+  pos lemmas (real proofs) + pushforward equality bridge signature
+  (placeholder body). ~215 LOC.
+
+### Modified file (T2.4)
+
+`Helpers/PhaseAUpperBound.lean`: 84 LOC of new code closing
+`sup_continuous_eq_sup_dense`. Argument: `B ⊆ A` for the easy direction;
+ε–δ continuity + `exists_rat_btwn` on a verifiably nonempty interval
+`(max 0 (u - δ), min 1 (u + δ))` for the hard direction. Sorry retired:
+`R35-T2.3-density-mechanical`.
+
+### Build verification (T2.5)
+
+| Target | Status | Sorry warnings |
+|---|---|---|
+| `FormalConjectures.ErdosProblems.Helpers.MatrixDetDifferentiable` | ✅ green | 3 (R40-T2.1 × 2 + R40-T2.2 × 1) |
+| `FormalConjectures.ErdosProblems.Helpers.MultivariateGaussianPdf` | ⚠ green (2 unused-vars lints, non-blocking) | 0 (placeholder bridge uses `True`) |
+| `FormalConjectures.ErdosProblems.Helpers.PhaseAUpperBound` | ✅ green | 1 (slepian_comparison_finite, was 2) |
+| `FormalConjectures.ErdosProblems.«524»` | ✅ green | unchanged R33-D bridge sorry |
+| `FormalConjectures.ErdosProblems.Helpers.GLWLowerProof` + `.GLWUpperProof` | ✅ green | unchanged R39 V2 sorries |
+
+R38 + R39 milestones preserved.
+
+### Net residual sorry count after R40
+
+| # | Sorry / TAG | Status post-R40 |
+|---|---|-----------------|
+| 1 | R33-C T2.4 — `IndepFun(Yplus, Yminus)` on linear-combo | unchanged |
+| 2 | R33-C T2.5 — `?ha'.iIndepFun` on Ω × Ω | unchanged |
+| 3 | R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form` | unchanged |
+| 4 | R35 T2.1 — `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` | unchanged |
+| 5 | R35 T2.2 — `slepian_comparison_finite` body | unchanged |
+| ~6~ | R35 T2.3 — `sup_continuous_eq_sup_dense` body | **RETIRED in R40-T2.4** |
+| 6 | V2-R39 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus` | unchanged |
+| 7 | V2-R39 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus` | unchanged |
+| 8 | V2-R39 — `gao_li_wellner_small_ball_upper_isGLWProcess_Yplus` | unchanged |
+| 9 | **V2-R40 — `Matrix.det.hasFDerivAt`** | **NEW** (TAG'd Stub, R40-T2.1) |
+| 10 | **V2-R40 — `Matrix.det.differentiable` (wrapper)** | **NEW** (TAG'd Stub, R40-T2.1) |
+| 11 | **V2-R40 — `Matrix.PosDef.inv_hasFDerivAt`** | **NEW** (TAG'd Stub, R40-T2.2) |
+
+Net count: **11 TAG'd sorries** (up from R39's 9 by net +2: +3 R40-T2.1+T2.2 stubs, −1 R35-T2.3 close).
+
+### Final 5-axiom inventory (post-R40, unchanged from R39)
+
+| # | Axiom | Justification | R40 status |
+|---|---|---|---|
+| 1 | `Cp_T_explicit_pointwise_axiom` (D2) | upstream Mathlib gap | unchanged |
+| 2 | `one_dim_KMT_coupling` | upstream Mathlib gap | unchanged |
+| 3 | `kmt_aided_gaussian_process` (stepping-stone) | upstream Mathlib gap | unchanged |
+| 4 | `gao_li_wellner_small_ball_lower` | upstream Mathlib gap | unchanged (R43-R44 retirement target) |
+| 5 | `gao_li_wellner_small_ball_upper` | upstream Mathlib gap | unchanged (R43-R44 retirement target) |
+
+R40 is the second round of V2; differentiability infrastructure now lives
+in-tree as TAG'd Stubs ready for R41+ body close. R41 picks up MVG-CDF
+differentiability body (T3.1 from R40 stretch) + Slepian body (T3.2).
+R42 adds Sudakov-Fernique + Borell-TIS-axiomatize (+1 axiom temporary
+to 6). R43-R44 closes Slepian + SF + BTIS composition to retire A4 + A5
+(axioms 6 → 4).

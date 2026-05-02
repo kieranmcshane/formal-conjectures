@@ -278,16 +278,90 @@ theorem sup_continuous_eq_sup_dense
     ∀ᵐ ω ∂(ℙ : Measure Ω),
       sSup ((fun u => Y u ω) '' Set.Icc (0 : ℝ) 1) =
         sSup ((fun u => Y u ω) '' ((↑) '' (Set.Icc (0 : ℚ) 1))) := by
-  filter_upwards [hY_cont] with ω _hω
-  -- Standard density argument: continuity on the compact `[0,1]` plus
-  -- density of `Rat.cast '' Icc 0 1` in `Set.Icc 0 1` gives equality of
-  -- the two suprema. The detailed Mathlib glue (continuous image of a
-  -- compact set is compact, attains its sup, plus density transfer) is
-  -- mechanical but has several distinct API shapes depending on which
-  -- closure operator one invokes. Deferred to R36 alongside the
-  -- Sudakov-Fernique body that consumes this lemma.
-  -- TAG[R35-T2.3-density-mechanical] : ~20 LOC, no Mathlib gap, body deferred.
-  sorry
+  -- **R40-T2.4 — body close.** Continuous-on-compact + density-of-rationals
+  -- gives equality of the two suprema. Argument:
+  -- (≥) `B ⊆ A` so `sSup B ≤ sSup A`.
+  -- (≤) For each `u ∈ Icc 0 1` and `ε > 0`, by continuity at `u`, find
+  -- δ > 0 with |x - u| < δ → |f x - f u| < ε. Pick a rational
+  -- `q ∈ Icc 0 1` with |q - u| < δ via `exists_rat_btwn` on the
+  -- nonempty open interval `(max 0 (u - δ), min 1 (u + δ))`. Then
+  -- f q ∈ B and f q > f u - ε, so sSup B ≥ f u - ε. Take ε → 0.
+  filter_upwards [hY_cont] with ω hω
+  set f : ℝ → ℝ := fun u => Y u ω with hf_def
+  have hf_cont : Continuous f := hω
+  set A : Set ℝ := f '' Set.Icc (0 : ℝ) 1 with hA_def
+  set B : Set ℝ := f '' ((↑) '' (Set.Icc (0 : ℚ) 1)) with hB_def
+  -- B ⊆ A via the cast Set.Icc (0:ℚ) 1 → Set.Icc (0:ℝ) 1.
+  have hB_sub_A : B ⊆ A := by
+    rintro y ⟨_, ⟨q, hq, rfl⟩, rfl⟩
+    refine ⟨(q : ℝ), ?_, rfl⟩
+    refine ⟨?_, ?_⟩
+    · exact_mod_cast hq.1
+    · exact_mod_cast hq.2
+  -- A nonempty: 0 ∈ Icc (0:ℝ) 1.
+  have h0_in : (0 : ℝ) ∈ Set.Icc (0 : ℝ) 1 := ⟨le_refl _, by norm_num⟩
+  have hA_ne : A.Nonempty := ⟨f 0, 0, h0_in, rfl⟩
+  -- B nonempty via the same point cast from ℚ.
+  have h0_in_q : ((0 : ℚ) : ℝ) ∈ ((↑) : ℚ → ℝ) '' Set.Icc (0 : ℚ) 1 :=
+    ⟨0, ⟨le_refl _, by norm_num⟩, rfl⟩
+  have hB_ne : B.Nonempty := ⟨f ((0 : ℚ) : ℝ), ((0 : ℚ) : ℝ), h0_in_q, rfl⟩
+  -- A is compact (continuous image of compact Icc).
+  have hA_compact : IsCompact A := isCompact_Icc.image hf_cont
+  have hA_bdd : BddAbove A := hA_compact.bddAbove
+  have hB_bdd : BddAbove B := hA_bdd.mono hB_sub_A
+  -- Easy direction: sSup B ≤ sSup A (B ⊆ A).
+  have hBA : sSup B ≤ sSup A := csSup_le_csSup hA_bdd hB_ne hB_sub_A
+  -- Hard direction: sSup A ≤ sSup B via continuity + density.
+  have hAB : sSup A ≤ sSup B := by
+    refine csSup_le hA_ne ?_
+    rintro y ⟨u, hu, rfl⟩
+    -- Show f u ≤ sSup B for any u ∈ Icc 0 1.
+    refine le_of_forall_pos_lt_add fun ε hε => ?_
+    -- Continuity at u.
+    obtain ⟨δ, hδ_pos, hδ_close⟩ :=
+      Metric.continuousAt_iff.mp hf_cont.continuousAt ε hε
+    -- Find rational q ∈ (max 0 (u - δ), min 1 (u + δ)).
+    obtain ⟨hu0, hu1⟩ := hu
+    have h_lb_lt_u : max (0 : ℝ) (u - δ) < u + δ := by
+      rcases le_or_gt (u - δ) 0 with h | h
+      · rw [max_eq_left h]; linarith
+      · rw [max_eq_right h.le]; linarith
+    have h_u_lt_ub : u - δ < min (1 : ℝ) (u + δ) := by
+      rcases le_or_gt 1 (u + δ) with h | h
+      · rw [min_eq_left h]; linarith
+      · rw [min_eq_right h.le]; linarith
+    have h_lb_lt_ub : max (0 : ℝ) (u - δ) < min (1 : ℝ) (u + δ) := by
+      refine max_lt ?_ ?_
+      · refine lt_min ?_ ?_
+        · linarith
+        · linarith
+      · refine lt_min (by linarith) (by linarith)
+    obtain ⟨q, hq_lb, hq_ub⟩ := exists_rat_btwn h_lb_lt_ub
+    -- q ∈ Icc 0 1.
+    have hq0 : (0 : ℝ) ≤ (q : ℝ) := le_of_lt (lt_of_le_of_lt (le_max_left _ _) hq_lb)
+    have hq1 : (q : ℝ) ≤ 1 := le_of_lt (lt_of_lt_of_le hq_ub (min_le_left _ _))
+    -- |q - u| < δ.
+    have hq_close : dist ((q : ℝ)) u < δ := by
+      rw [Real.dist_eq, abs_lt]
+      refine ⟨?_, ?_⟩
+      · have := lt_of_le_of_lt (le_max_right (0 : ℝ) (u - δ)) hq_lb
+        linarith
+      · have := lt_of_lt_of_le hq_ub (min_le_right (1 : ℝ) (u + δ))
+        linarith
+    -- |f q - f u| < ε.
+    have hfq_close : dist (f (q : ℝ)) (f u) < ε := hδ_close hq_close
+    -- f q ∈ B.
+    have hq_in : ((q : ℚ) : ℝ) ∈ ((↑) : ℚ → ℝ) '' Set.Icc (0 : ℚ) 1 :=
+      ⟨q, ⟨by exact_mod_cast hq0, by exact_mod_cast hq1⟩, rfl⟩
+    have hfq_in_B : f ((q : ℚ) : ℝ) ∈ B := ⟨((q : ℚ) : ℝ), hq_in, rfl⟩
+    -- sSup B ≥ f q.
+    have hsB_ge : f ((q : ℚ) : ℝ) ≤ sSup B := le_csSup hB_bdd hfq_in_B
+    -- f u < f q + ε.
+    have hfu_lt : f u < f ((q : ℚ) : ℝ) + ε := by
+      rw [Real.dist_eq, abs_lt] at hfq_close
+      linarith
+    linarith
+  exact le_antisymm hAB hBA
 
 /-! ## Step 4 — Phase A assembly (depends on steps 1–3) -/
 
