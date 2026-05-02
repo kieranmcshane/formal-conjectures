@@ -261,18 +261,70 @@ theorem multivariateGaussian_eq_lebesgue_withDensity
   -- the R40 `True := by trivial` placeholder. Body remains a TAG'd Stub
   -- after R44 work (single `sorry`, debt-neutral).
   --
-  -- **R46-T2.1 advance (this round):** Sub-gap (a) `det_CFC_sqrt_eq_sqrt_det`
+  -- **R46-T2.1 advance (last round):** Sub-gap (a) `det_CFC_sqrt_eq_sqrt_det`
   -- now lands as a Full sub-lemma (line ~158 above) via the recipe
   -- audited in `R46_T1_GrepAuditAndFramingVerification.md` §1. Sub-gap (c)
   -- (constant-Jacobian linear pushforward) is verified to be a DIRECT
   -- application of Mathlib's `map_linearMap_addHaar_eq_smul_addHaar`
   -- (`Mathlib/MeasureTheory/Measure/Lebesgue/EqHaar.lean:234`) — no
   -- separate sub-lemma needed; the application happens inline in the
-  -- composition step. Sub-gap (b) `stdGaussian_eq_lebesgue_withDensity`
-  -- remains the bottleneck (~80-120 LOC, deferred to R47+).
+  -- composition step.
   --
-  -- The single MGE `sorry` here is therefore narrowed to the (b)
-  -- composition gap.
+  -- **R47-T1.1 audit revision (this round):** the single 80-120 LOC
+  -- estimate for sub-gap (b) `stdGaussian_eq_lebesgue_withDensity` is
+  -- INCORRECT. T1.1 grep audit
+  -- (`R47_T1_GrepAuditAndFramingVerification.md` §2) verified at pin
+  -- `mathlib4 @ 25ce63313608` that sub-gap (b) decomposes into THREE
+  -- intermediate Mathlib bridges, each unpackaged:
+  --
+  --   (b.A) **n-ary `Measure.pi.withDensity` factorization**:
+  --         `Measure.pi (μ.withDensity f) =
+  --            (Measure.pi μ).withDensity (∏ i, f i (x i))`.
+  --         Mathlib has the BINARY version (`prod_withDensity` at
+  --         `Mathlib/MeasureTheory/Measure/WithDensity.lean:683`); n-ary
+  --         generalisation via `Measure.pi_eq` characterisation +
+  --         `restrict_pi_pi` (`Pi.lean:434`) + n-ary Pi-Tonelli for
+  --         products of factors (`lmarginal_insert` induction at
+  --         `Marginal.lean:164`) is NOT packaged. R47 attempted this as
+  --         T2.1 but discovered non-trivial typeclass-inference issues
+  --         for the `SigmaFinite` constraint on `withDensity` factors,
+  --         plus `lintegral_mul_const` finiteness side-conditions in
+  --         the inductive step that require an
+  --         AEMeasurable-vs-Measurable hypothesis split.
+  --         Estimated bridge LOC: **~80-120**.
+  --
+  --   (b.B) **`Measure.map.withDensity` through measurable equiv**:
+  --         `(μ.withDensity f).map e = (μ.map e).withDensity (f ∘ e.symm)`
+  --         for `e : α ≃ᵐ β`. Closest packaged form is
+  --         `MeasurableEmbedding.withDensity_map` (one-sided embedding
+  --         only). The `MeasurableEquiv` specialisation is derivable
+  --         but not packaged. Estimated bridge LOC: **~30-50**.
+  --
+  --   (b.C) **Lebesgue-on-EuclideanSpace identification**:
+  --         `(volume : Measure (EuclideanSpace ℝ ι)) =
+  --           ((Measure.pi (fun _ ↦ (volume : Measure ℝ))).map (toLp 2))`.
+  --         The `EuclideanSpace.volume_preserving` family exists in
+  --         `Mathlib/MeasureTheory/Measure/Lebesgue/EuclideanSpace.lean`
+  --         but the exact pushforward identity through `toLp 2` requires
+  --         verification + possibly custom unwinding.
+  --         Estimated bridge LOC: **~20-100**.
+  --
+  -- **Revised total LOC for sub-gap (b) Full close: ~150-280** (NOT
+  -- 80-120 as previously estimated). This exceeds R47's T2.1 budget by
+  -- 1.5-2.5× and is not a single-round close target.
+  --
+  -- **Future-round closure path (R48+):**
+  --
+  --   * R48 candidate: close Bridge (b.A) as a standalone Full helper
+  --     (most reusable across the project — Track C 1D KMT product
+  --     constructions, independent-coordinate Pi-Gaussian arguments).
+  --     LOC ~80-120.
+  --   * R49 candidate: close (b.B) + (b.C) and compose, retiring this
+  --     MGE main Stub. LOC ~50-150. Net retirement: 1 sorry.
+  --
+  -- The single MGE `sorry` here is narrowed in DIAGNOSTIC PRECISION
+  -- (three precise bridges identified) but not retired. R47 net
+  -- retirement: 0 sorries.
   --
   -- **R44 verification (this round, post-investigation):** the brief's
   -- Grok Q1/Q2 pre-flight described MGE as a "Jacobi formula" close
