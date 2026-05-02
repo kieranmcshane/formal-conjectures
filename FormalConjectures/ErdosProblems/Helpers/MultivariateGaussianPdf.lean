@@ -47,14 +47,21 @@ explicit density of `stdGaussian` on `EuclideanSpace ℝ ι`. The R40 deliverabl
 is the PDF definition (full) + the bridge signature + a concrete TAG'd Stub
 diagnostic for the bridge body.
 
-## R40 status
+## Status (R51 — γ-floor axiomatization)
 
 * `multivariateGaussianPdf` — **Full definition.** Direct formula; no
   Mathlib gap.
-* `multivariateGaussian_eq_lebesgue_withDensity` — **TAG'd Stub.** Body
-  deferred to R41–R44 alongside Phase A upper Option B closure work.
-  Mathlib gaps cited concretely below (Jacobian-of-CFC.sqrt, explicit
-  density of stdGaussian on EuclideanSpace).
+* `multivariateGaussian_eq_lebesgue_withDensity` — **Axiom (Axiom #7,
+  γ-floor).** Per BACKGROUND.md post-R50 user-confirmed audit-redirect,
+  R51 axiomatized this Stub to free R52-R58 mainline budget for
+  retirements elsewhere. Sole Lean call site
+  (`multivariateGaussianOrthantCDF_eq_lebesgue_integral`, this file)
+  preserved by identical-signature swap. Retirement target R55-R59
+  post-gate via Mathlib pin bump (preferred) or from-scratch closure
+  ~150-300 LOC (sub-gap (a) already closed at R46; (b) + (c) +
+  composition pending). See `AXIOM_INVENTORY.md` "Axiom #7" and
+  `Helpers/Round51_T1_MGEAxiomatization.md` for retirement plan +
+  Claims Verification Table.
 
 ## Mathlib gaps for the equality bridge
 
@@ -200,206 +207,84 @@ theorem det_CFC_sqrt_pos_of_posDef
 
 /-! ## Pushforward equality bridge -/
 
-/-- **R40-T2.3 (continued) — Bridge: `multivariateGaussian 0 S` admits
-`multivariateGaussianPdf S` as Lebesgue density.**
+/-- **R51 — γ-floor MGE axiomatization (Path A, post-R50 audit-redirect).**
 
 For positive-definite `S`, the centered multivariate Gaussian measure on
-`ι → ℝ` (via the `EuclideanSpace.basisFun` identification with
-`EuclideanSpace ℝ ι`) is absolutely continuous with respect to the Lebesgue
-measure, with Radon–Nikodym derivative `multivariateGaussianPdf S`.
+`EuclideanSpace ℝ ι` admits `multivariateGaussianPdf S` as Lebesgue
+density (modulo the canonical `EuclideanSpace ℝ ι ↔ (ι → ℝ)` coordinate
+identification):
 
-The identification `EuclideanSpace ℝ ι ≃ (ι → ℝ)` is via `EuclideanSpace.equiv`
-(or `PiLp.equiv`); the precise statement uses the Lebesgue measure on
-`ι → ℝ` (i.e. the product Lebesgue measure under the canonical product
-structure).
+    `multivariateGaussian 0 S = volume.withDensity (ENNReal.ofReal ∘ pdf)`
 
-**R40 status: TAG'd Stub.**
+This is the **pushforward equality bridge** introduced in R40-T2.3 and
+upgraded to its real signature in R43-T2.1 (TAG
+`R43-T2.1-MGE-pushforward-jacobian-body`). R44–R47 narrowed the closure
+diagnostic to three measure-theoretic sub-gaps:
 
-**Proof outline (deferred to R41–R44):**
+* (a) `det_CFC_sqrt_eq_sqrt_det` — closed at R46 as a Full sub-lemma in
+  this file (composes `CFC.sqrt_mul_sqrt_self` + `Matrix.det_mul` +
+  `Real.sqrt_eq_iff_mul_self_eq`).
+* (b) `stdGaussian_eq_lebesgue_withDensity` on `EuclideanSpace ℝ ι` — R47
+  audit decomposed into three Mathlib bridges (n-ary
+  `Measure.pi.withDensity` factorization, `Measure.map.withDensity`
+  through `MeasurableEquiv`, Lebesgue-on-`EuclideanSpace` identification)
+  totalling ~150-280 LOC, none packaged at pin
+  `mathlib4 @ 25ce63313608`.
+* (c) Constant-Jacobian linear pushforward — R46 grep audit identified
+  `map_linearMap_addHaar_eq_smul_addHaar` (Mathlib
+  `MeasureTheory/Measure/Lebesgue/EqHaar.lean:234`) as a direct
+  application; no separate sub-lemma needed.
 
-1. `multivariateGaussian 0 S` is by definition the pushforward of
-   `stdGaussian` by `x ↦ toEuclideanCLM (CFC.sqrt S) x`.
-2. `stdGaussian` on `EuclideanSpace ℝ ι` admits the standard density
-   `(2π)^{-n/2} exp(-‖x‖²/2)` with respect to Lebesgue (provable from
-   the `Measure.pi` definition and product Gaussian densities).
-3. Apply the change-of-variables formula for the linear map
-   `T = toEuclideanCLM (CFC.sqrt S)`. Since `T` is linear, the Jacobian
-   is constant: `|det T| = |det (CFC.sqrt S)| = Real.sqrt (det S)`
-   (since `(CFC.sqrt S)² = S` and det is multiplicative).
-4. The pushforward density at `y` is `(stdGaussian density at T⁻¹ y) /
-   |det T|`. Substituting `T⁻¹ y = (CFC.sqrt S)⁻¹ y` and
-   `‖T⁻¹ y‖² = y^T (CFC.sqrt S)⁻² y = y^T S⁻¹ y`, and combining with
-   `1 / |det T| = (det S)^{-1/2}`, yields exactly
-   `multivariateGaussianPdf S y`.
+**γ-floor strategy (R51).** Per BACKGROUND.md user-confirmed post-R50
+audit-redirect ("γ floor + β R58 extension"), the MGE Stub is replaced
+with an axiom of identical signature to free R52-R58 mainline budget for
+retirements elsewhere (Q1a/b/c track consolidation, Track C/D parallel
+work, Matrix.det.differentiable γ-axiomatization candidate at R52). This
+is debt-conversion: -1 sorry, +1 axiom, items unchanged at the R52 gate
+(sorry-to-axiom swap).
 
-**Mathlib gap diagnostic (concrete):**
+**Classical justification.** Standard pdf-pushforward result for the
+multivariate normal: see Tong (1990) "The Multivariate Normal
+Distribution" §5.1; Anderson (2003) "An Introduction to Multivariate
+Statistical Analysis" §2.3; Bogachev (2007) "Gaussian Measures" Chapter
+1. The proof composes (a)+(b)+(c) above with the change-of-variables
+formula for the linear map `T = toEuclideanCLM (CFC.sqrt S)` (Jacobian
+constant `|det T| = sqrt(det S)` from sub-gap (a); inverse pushforward
+density `(stdGaussian density at T⁻¹ y) / |det T|`).
 
-* `Measure.map_eq_withDensity` for linear pushforwards with constant Jacobian
-  — Mathlib has the general form
-  `MeasureTheory.integral_image_eq_integral_abs_det_jacobian_smul_of_injOn`
-  but the constant-Jacobian linear specialisation requires unwinding.
-* `det_CFC_sqrt_eq_sqrt_det : (CFC.sqrt S).det = Real.sqrt S.det` for
-  PosDef `S` — **not packaged**. Provable via
-  `(CFC.sqrt S) * (CFC.sqrt S) = S` (`CFC.sqrt_mul_sqrt_self`) and
-  multiplicativity of det, but no standalone lemma exists.
-* `stdGaussian_eq_lebesgue_withDensity` — implicit in the `Measure.pi`
-  + `gaussianReal` structure but **not packaged** as a single equality
-  with `(2π)^{-n/2} exp(-‖·‖²/2)`. -/
-theorem multivariateGaussian_eq_lebesgue_withDensity
+**Retirement target — R55-R59 post-gate** (two-path sub-plan):
+
+1. *Mathlib pin bump (preferred).* Monitor Mathlib for landings of
+   n-ary `Measure.pi.withDensity` factorization,
+   `Measure.map.withDensity` through `MeasurableEquiv`, and
+   `stdGaussian_eq_lebesgue_withDensity` on `EuclideanSpace`.
+   Post-`v4.27` toolchain bump may package some of these via the
+   `BrownianMotion.Gaussian` chain. Direct chain composition retires
+   this axiom in ~30-80 LOC of consumer wrapper.
+2. *From-scratch closure (fallback).* Build the missing pieces in-tree
+   over R55-R59 — ~150-300 LOC across 2-3 rounds (sub-gap (a) already
+   closed; (b.A) Pi-withDensity bridge ~80-120 LOC, (b.B) MeasurableEquiv
+   pushforward ~30-50 LOC, (b.C) Lebesgue-EuclideanSpace identification
+   ~20-100 LOC, composition ~30-50 LOC).
+
+Retirement is **not required for the R52 gate** (gate measures item
+count; sorry-to-axiom is a wash). Strategic value of the γ-floor
+axiomatization is the freed mainline budget for OTHER retirements.
+
+**Consumers (Lean code).**
+* `multivariateGaussianOrthantCDF_eq_lebesgue_integral` (this file,
+  line ~466) — `rw [multivariateGaussian_eq_lebesgue_withDensity S _hS]`
+  to convert measure-of-orthant to integral-of-pdf-over-orthant. Single
+  Lean call site; positional arity preserved by the axiom swap.
+
+See `Helpers/Round51_T1_MGEAxiomatization.md` for the T1.1 Claims
+Verification Table + signature audit. -/
+axiom multivariateGaussian_eq_lebesgue_withDensity
     (S : Matrix ι ι ℝ) (_hS : S.PosDef) :
-    -- **R43-T2.1 signature upgrade (per Grok R43 pre-flight Q1).**
-    -- The multivariate Gaussian measure on `EuclideanSpace ℝ ι` equals the
-    -- canonical (Lebesgue) volume measure weighted by the explicit PDF.
-    -- The PDF is evaluated at `fun i => y i`, applying the standard
-    -- `EuclideanSpace ℝ ι ↔ (ι → ℝ)` coordinate identification at the
-    -- consumer site. Body remains TAG'd Stub (R44 Phase 2 scope).
     (multivariateGaussian (0 : EuclideanSpace ℝ ι) S) =
       (volume : Measure (EuclideanSpace ℝ ι)).withDensity
         (fun y : EuclideanSpace ℝ ι =>
-          ENNReal.ofReal (multivariateGaussianPdf S (fun i => y i))) := by
-  -- TAG[R43-T2.1-MGE-pushforward-jacobian-body] : Real-signature upgrade of
-  -- the R40 `True := by trivial` placeholder. Body remains a TAG'd Stub
-  -- after R44 work (single `sorry`, debt-neutral).
-  --
-  -- **R46-T2.1 advance (last round):** Sub-gap (a) `det_CFC_sqrt_eq_sqrt_det`
-  -- now lands as a Full sub-lemma (line ~158 above) via the recipe
-  -- audited in `R46_T1_GrepAuditAndFramingVerification.md` §1. Sub-gap (c)
-  -- (constant-Jacobian linear pushforward) is verified to be a DIRECT
-  -- application of Mathlib's `map_linearMap_addHaar_eq_smul_addHaar`
-  -- (`Mathlib/MeasureTheory/Measure/Lebesgue/EqHaar.lean:234`) — no
-  -- separate sub-lemma needed; the application happens inline in the
-  -- composition step.
-  --
-  -- **R47-T1.1 audit revision (this round):** the single 80-120 LOC
-  -- estimate for sub-gap (b) `stdGaussian_eq_lebesgue_withDensity` is
-  -- INCORRECT. T1.1 grep audit
-  -- (`R47_T1_GrepAuditAndFramingVerification.md` §2) verified at pin
-  -- `mathlib4 @ 25ce63313608` that sub-gap (b) decomposes into THREE
-  -- intermediate Mathlib bridges, each unpackaged:
-  --
-  --   (b.A) **n-ary `Measure.pi.withDensity` factorization**:
-  --         `Measure.pi (μ.withDensity f) =
-  --            (Measure.pi μ).withDensity (∏ i, f i (x i))`.
-  --         Mathlib has the BINARY version (`prod_withDensity` at
-  --         `Mathlib/MeasureTheory/Measure/WithDensity.lean:683`); n-ary
-  --         generalisation via `Measure.pi_eq` characterisation +
-  --         `restrict_pi_pi` (`Pi.lean:434`) + n-ary Pi-Tonelli for
-  --         products of factors (`lmarginal_insert` induction at
-  --         `Marginal.lean:164`) is NOT packaged. R47 attempted this as
-  --         T2.1 but discovered non-trivial typeclass-inference issues
-  --         for the `SigmaFinite` constraint on `withDensity` factors,
-  --         plus `lintegral_mul_const` finiteness side-conditions in
-  --         the inductive step that require an
-  --         AEMeasurable-vs-Measurable hypothesis split.
-  --         Estimated bridge LOC: **~80-120**.
-  --
-  --   (b.B) **`Measure.map.withDensity` through measurable equiv**:
-  --         `(μ.withDensity f).map e = (μ.map e).withDensity (f ∘ e.symm)`
-  --         for `e : α ≃ᵐ β`. Closest packaged form is
-  --         `MeasurableEmbedding.withDensity_map` (one-sided embedding
-  --         only). The `MeasurableEquiv` specialisation is derivable
-  --         but not packaged. Estimated bridge LOC: **~30-50**.
-  --
-  --   (b.C) **Lebesgue-on-EuclideanSpace identification**:
-  --         `(volume : Measure (EuclideanSpace ℝ ι)) =
-  --           ((Measure.pi (fun _ ↦ (volume : Measure ℝ))).map (toLp 2))`.
-  --         The `EuclideanSpace.volume_preserving` family exists in
-  --         `Mathlib/MeasureTheory/Measure/Lebesgue/EuclideanSpace.lean`
-  --         but the exact pushforward identity through `toLp 2` requires
-  --         verification + possibly custom unwinding.
-  --         Estimated bridge LOC: **~20-100**.
-  --
-  -- **Revised total LOC for sub-gap (b) Full close: ~150-280** (NOT
-  -- 80-120 as previously estimated). This exceeds R47's T2.1 budget by
-  -- 1.5-2.5× and is not a single-round close target.
-  --
-  -- **Future-round closure path (R48+):**
-  --
-  --   * R48 candidate: close Bridge (b.A) as a standalone Full helper
-  --     (most reusable across the project — Track C 1D KMT product
-  --     constructions, independent-coordinate Pi-Gaussian arguments).
-  --     LOC ~80-120.
-  --   * R49 candidate: close (b.B) + (b.C) and compose, retiring this
-  --     MGE main Stub. LOC ~50-150. Net retirement: 1 sorry.
-  --
-  -- The single MGE `sorry` here is narrowed in DIAGNOSTIC PRECISION
-  -- (three precise bridges identified) but not retired. R47 net
-  -- retirement: 0 sorries.
-  --
-  -- **R44 verification (this round, post-investigation):** the brief's
-  -- Grok Q1/Q2 pre-flight described MGE as a "Jacobi formula" close
-  -- (`HasFDerivAt det`); see `R44_T1_BodyCloseAudit.md` for the brief-vs-
-  -- reality reconciliation. The actual closure prerequisites for THIS
-  -- theorem (pushforward measure equality) are the three measure-theoretic
-  -- gaps (a)–(c) below, all confirmed missing at `mathlib4 @ 25ce63313608`
-  -- + `brownian-motion` HEAD via search of:
-  --   * `det_CFC_sqrt`, `det_sqrt`, `Matrix.det.*sqrt` — 0 hits.
-  --     **R46 update**: Now PROVED here as `det_CFC_sqrt_eq_sqrt_det`
-  --     Full sub-lemma (composes `CFC.sqrt_mul_sqrt_self` +
-  --     `Matrix.det_mul` + `Real.sqrt_eq_iff_mul_self_eq`).
-  --   * `stdGaussian.*=.*withDensity`, `stdGaussian.*lebesgue` — 0 hits in
-  --     `BrownianMotion/Gaussian/`. Only special-case lemma is
-  --     `multivariateGaussian_zero_one` (`MultivariateGaussian.lean:325`).
-  --   * `map_linearMap_addHaar_eq_smul_addHaar` — **R46 grep audit FOUND**
-  --     at `Mathlib/MeasureTheory/Measure/Lebesgue/EqHaar.lean:234`. This
-  --     is the exact constant-Jacobian linear pushforward identity
-  --     (sub-gap (c)); no separate sub-lemma needed.
-  -- The remaining novel gap is therefore (b) only, ~80-120 LOC instead
-  -- of the original ~150-200 LOC estimate.
-  --
-  -- The R44 brief's Grok-derived 80-120 LOC estimate (and P~0.75 Full
-  -- close) was based on the misframed Jacobi-formula scope and does not
-  -- apply to this theorem.
-  --
-  -- **Closure prerequisites (R45+ scope, decomposed):**
-  --
-  --   (a) `det_CFC_sqrt_eq_sqrt_det : (CFC.sqrt S).det = Real.sqrt S.det`
-  --       for PosDef `S`. **Recipe**: `(CFC.sqrt S) * (CFC.sqrt S) = S`
-  --       (`CFC.sqrt_mul_sqrt_self` from brownian-motion's spectral
-  --       calculus chain) ⟹ `(CFC.sqrt S).det^2 = S.det` via
-  --       `Matrix.det_mul`; combined with `0 ≤ (CFC.sqrt S).det` (from
-  --       PSD of `CFC.sqrt S`, which inherits via continuous functional
-  --       calculus) gives `(CFC.sqrt S).det = Real.sqrt S.det` by
-  --       `Real.sqrt_eq_iff_sq_eq`. Estimated ~30-50 LOC.
-  --
-  --   (b) `stdGaussian_eq_lebesgue_withDensity` on `EuclideanSpace ℝ ι`.
-  --       **Recipe**: `stdGaussian (EuclideanSpace ℝ ι)` is defined as
-  --       `(Measure.pi (fun _ ↦ gaussianReal 0 1)).map (basis-sum)`. For
-  --       `EuclideanSpace ℝ ι = PiLp 2 (fun _ : ι => ℝ)`, the basis-sum
-  --       `fun x => ∑ i, x i • basisFun i` reduces (after `simp`) to the
-  --       `WithLp.equiv`-conjugated identity since `EuclideanSpace.basisFun`
-  --       is the canonical basis. Then by `Measure.pi`-on-product +
-  --       `gaussianReal_of_var_ne_zero` (Mathlib
-  --       `Probability/Distributions/Gaussian/Real.lean:204`) +
-  --       `Measure.pi_withDensity` chain, the result is
-  --       `volume.withDensity ((2π)^(-n/2) · exp(-‖·‖²/2))`. Estimated
-  --       ~80-120 LOC. Subsidiary gap: `Measure.pi_withDensity` may need
-  --       custom unwinding for `gaussianPDF` factor.
-  --
-  --   (c) Change-of-variables for constant-Jacobian linear pushforward
-  --       on `EuclideanSpace ℝ ι`. **Recipe**: for an invertible linear
-  --       map `T : E ≃L[ℝ] E` with `|det T| = c > 0`, the pushforward of
-  --       `volume.withDensity ρ` by `T` is `volume.withDensity (ρ ∘ T⁻¹ * c⁻¹)`
-  --       — derivable from `MeasureTheory.MeasurePreserving.set_lintegral_comp`
-  --       + the `addHaar_smul` family on `E`'s Haar measure. Estimated
-  --       ~40-80 LOC. The `T = toEuclideanCLM (CFC.sqrt S)` specialisation
-  --       takes `|det T| = sqrt S.det` from gap (a).
-  --
-  -- **Composition** (~30-50 LOC):
-  --   * Apply gap (b) to rewrite `stdGaussian = volume.withDensity ρ_std`.
-  --   * Apply gap (c) with `T = toEuclideanCLM (CFC.sqrt S)` to compute
-  --     the pushforward `T_*(volume.withDensity ρ_std) = volume.withDensity ρ'`.
-  --   * Use gap (a) to identify `|det T|⁻¹ = (Real.sqrt S.det)⁻¹` and
-  --     simplify `ρ_std (T⁻¹ y) · |det T|⁻¹ = multivariateGaussianPdf S y`.
-  --   * Conclude.
-  --
-  -- **Total estimate**: ~180-300 LOC across (a)+(b)+(c)+composition.
-  -- Per Q5 BTIS-merge compression option in R59 ceiling check, this can
-  -- absorb into a multi-round closure (R45 + R46) if needed.
-  --
-  -- See `Helpers/R44_T1_BodyCloseAudit.md` §2 (R44 reconciliation) +
-  -- `R43_T1_SignatureUpgradeAudit.md` §2.1 (R43 baseline).
-  sorry
+          ENNReal.ofReal (multivariateGaussianPdf S (fun i => y i)))
 
 /-- **R40-T2.3 ledger — alternative spelling.** The half-space (orthant)
 probability of `multivariateGaussian 0 S` admits the Lebesgue integral
