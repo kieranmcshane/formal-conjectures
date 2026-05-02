@@ -842,3 +842,117 @@ dispatch matrix.
 4. **Move** `/tmp/td4_pin_bump_backup_lakefile.toml` evidence file
    retention: keep until next session for diagnostic reference, then
    discard.
+
+---
+
+# Round 5 PREP (TD5-prep) — Q3.1 / Q3.2 / Q3.3 path-feasibility audit
+
+**Format**: Variante 1, single-round, audit-only. NO body work.
+**Wall-clock**: T+0:15 worktree+cache → T+1:30 audit → T+1:45 push.
+**HEAD pre-round**: `c6369bd` (TD4 T2.2).
+**Net debt change**: **0 sorries / 0 axioms** on track-d. Mainline + track-c untouched.
+
+## TD5-prep scope and outcome
+
+* Scope: pre-flight verdict on Grok Q3.1 / Q3.2 / Q3.3 paths for retiring
+  sub-lemma 3 (`lipschitz_sup_finite_gaussian`, `BTISHonestProof.lean:280`,
+  TAG `TrackD-LipschitzSup`) **without a Mathlib pin bump**.
+* Audit doc: `Helpers/TrackD_round5_prep_T1_Q31Audit.md` (full Claims
+  Verification Table + per-path findings + path decision).
+* Outcome: **all three paths BLOCKED at pin**. TD5 main = pin bump
+  coordination only path.
+
+## TD5-prep verdict matrix (one-line summary)
+
+| Path | Verdict | Blocker |
+|------|---------|---------|
+| Q3.1 Borell-TIS direct | **BLOCKED** | Zero Borell-TIS / CIS / Lipschitz-functional-Gaussian primitives in Mathlib at pin (grep across `.lake/packages/mathlib/`); SLT chain (sub-lemmas 1+2) deleted as orphans in TD3 T2.2; from-scratch derivation 600-1500+ LOC, out of single-round scope |
+| Q3.2 TD2 Path B′ generalization | **BLOCKED** | Same Lipschitz-functional-Gaussian primitive needed as Q3.1 — generalization is sub-lemma 3 itself rephrased, not a bypass |
+| Q3.3 GLW determinant strengthening | **BLOCKED** | GLW 2010 paper not in repo (R50 blocker preserved); R50 explicitly SKIPPED Q3.3 attempt (R50 audit row #8: "exploratory, not scoped tightly enough to attempt") |
+
+## TD5 main — recommended scope (forward-looking, not commitments)
+
+Per audit §D.4:
+
+1. **TD5 T1 (audit)**: identify the Mathlib commit / PR that introduces a
+   Borell-TIS-equivalent or Lipschitz-functional-Gaussian sub-Gaussian-MGF
+   primitive. Done from a temporary fresh worktree without touching project
+   pins; ~1 h.
+2. **TD5 T2 (FS-exclusive, gated)**: with user-confirmed FS window on
+   `~/Documents/formal-conjectures/.lake/packages/`, run `lake update mathlib`
+   to that target pin (or a bump-batch including it); rebuild affected files;
+   verify `BTISHonestProof.lean` still builds; only then re-attempt sub-lemma 3
+   close. Estimated wall-clock: 2-4 h.
+3. **Fallback** (if no Mathlib commit yet introduces the primitive): defer
+   Track D to "post-Mathlib-Borell-TIS-PR" milestone; close
+   `track-d-btis-honest` at TD4 state (already at acceptable terminal: 1 sorry,
+   chain consolidated, Path B′ closure of `borell_tis` Full body intact modulo
+   sub-lemma 3).
+
+## TD5-prep cluster status snapshot
+
+* Track D cluster commits on this branch (cumulative through TD5-prep):
+  - TD1: `3b75bde` (signature + audit + portability).
+  - TD2: `bb31686` + `41ad28b` + `6abc40b` (BTIS body Path B′).
+  - TD3: `b01898d` + `3f677e0` + `46c21b1` + `a354c29` (sub-lemma 3
+    SLT pivot, Prokhorov drift, sub-lemmas 1+2 retired).
+  - TD4: `537c2b1` + `f5117f4` + `b9dcad1` + `c6369bd` (probe BLOCKED,
+    Path B forced, sub-lemma 3 sub-Stub with citation, build
+    verification).
+  - **TD5-prep (this commit)**: audit-only, no `.lean` mutation, single doc
+    add (`TrackD_round5_prep_T1_Q31Audit.md`) + this `TrackDStatus.md`
+    addendum.
+* Track D state post-TD5-prep: unchanged code-wise; **decisional state**
+  shifted from "TD5 attempts sub-lemma 3 close via Q3.x" → "TD5 main = pin
+  bump coordination only path" with concrete blocker citations.
+
+## TD5-prep mismatch ledger entry #17
+
+* **Spec claim** (round brief, §"TD5-prep scope" Priority 2): Grok Q3.1
+  "300-500 LOC using SubGaussian + Fernique + Gaussian tail tools, no pin
+  bump required".
+* **On-the-ground reality**: SubGaussian + Fernique are scaffolding only;
+  zero Borell-TIS / CIS / Lipschitz-functional-Gaussian primitives at pin;
+  honest derivation routes are 600-1500+ LOC.
+* **Pattern**: third Track D upstream estimate substantially below
+  on-the-ground reality (Q1 = 150-250 LOC vs. 360 actual; Q3.1 = 300-500 LOC
+  vs. 600-1500+ actual). Future Grok Q-claims must be grep-verified before
+  acceptance per `feedback_track_c_round_process` discipline.
+
+## TD5-prep Brier-honest scoring (binding)
+
+Per round-spec §"Confidence predictions" + §"Skin-in-the-game":
+
+| Outcome | Predicted P(Full) | Actual | Δ |
+|---------|-------------------|--------|---|
+| Worktree setup + cache | 0.95 | DONE (cache hit, ~30s decompress) | +0.05 |
+| T1.1 Q3.1 audit | 0.85 | DONE (BLOCKED verdict with concrete grep) | +0.15 |
+| T1.2 Q3.2+Q3.3 audit | 0.85 | DONE (Q3.2 = Q3.1 in disguise; Q3.3 BLOCKED via R50 re-read) | +0.15 |
+| T1.3 path decision + push | 0.90 | DONE | +0.10 |
+| Joint mandatory floor | 0.65 | LANDED | +0.35 |
+| Distribution slot | upper P~0.20 (Q3.1 VIABLE), mid P~0.40 (partial), mid-low P~0.30 (all blocked), lower P~0.10 (cache miss) | **mid-low (P~0.30) — all three blocked** | within distribution |
+
+Calibration: outcome landed in the mid-low bucket (P~0.30), consistent with
+upstream Grok-Q-claim underestimate pattern documented in mismatch entries
+#15 (TD3) and #16 (TD4).
+
+## TD5-prep anti-patterns avoided
+
+* ✅ Worktree setup + `lake exe cache get` first (per binding rule).
+* ✅ Claims Verification Table provided (10 rows, all with citations).
+* ✅ NO body work attempted (audit-only round respected).
+* ✅ NO mainline / track-c modifications.
+* ✅ NO push to wrong branch.
+* ✅ Grok Q3.1 LOC estimate grep-verified before reporting (rejected as
+   substantial underestimate).
+* ✅ NO new TAG'd sorry added (Q3.1 not VIABLE → no signature lockdown).
+
+## TD5-prep close
+
+* Single-doc-add commit on `track-d-btis-honest` from worktree
+  `~/Documents/formal-conjectures-track-d`.
+* Files added: `Helpers/TrackD_round5_prep_T1_Q31Audit.md` (audit doc, ~280 lines).
+* Files modified: `Helpers/TrackDStatus.md` (this addendum).
+* `BTISHonestProof.lean` UNCHANGED (no signature lockdown; Q3.1 not VIABLE).
+* `AXIOM_INVENTORY.md` UNCHANGED.
+* Push: `track-d-btis-honest` to origin.
