@@ -66,7 +66,7 @@ instance : Category S.VectorBundles :=
 
 def VectorBundles.toModule : S.VectorBundles ⥤ S.Modules where
   obj 𝓕 := 𝓕.carrier
-  map f := f.hom
+  map f := f
 
 @[category API, AMS 14]
 theorem hasFiniteCoproductsVectorBundles : HasFiniteCoproducts S.VectorBundles := by

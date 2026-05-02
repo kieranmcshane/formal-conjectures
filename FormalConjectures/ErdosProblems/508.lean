@@ -96,6 +96,6 @@ This is proven by considering an equilateral triangle in the plane. -/
 @[category high_school, AMS 5]
 theorem HadwigerNelsonAtLeastThree : 3 ≤ χ(ℝ²) :=
   le_chromaticNumber_of_pairwise_adj (by simp) ![!₂[0, 0], !₂[1, 0], !₂[0.5, Real.sqrt 3 / 2]] <| by
-    simp [pairwise_fin_succ_iff_of_isSymm, Fin.forall_fin_succ]
+    simp [pairwise_fin_succ_iff, Fin.forall_fin_succ]
     simp [UnitDistancePlaneGraph, PiLp.dist_eq_of_L2, Real.dist_eq, div_pow]
     norm_num
