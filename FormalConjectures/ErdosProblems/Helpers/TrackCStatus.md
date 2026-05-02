@@ -1241,3 +1241,153 @@ Both are infrastructure-level adjustments, NOT math content; misframing ledger u
 * **Track C cluster status:** Round 8 of ~10 complete. TC9 (Carter-Pollard polynomial bound assembly) NOW UNBLOCKED — all three prelude pieces (Mills _pos + Mills truncation + Mills _antitone, Real-Beta, Stirling Robbins) are Full closures.
 * **R52 hybrid (c) gate contribution:** TC8 is +0 retirement at gate-relevant scale (Mills _antitone + Stirling Robbins close Track C-internal Stubs, NOT mainline TAG'd-sorries/axioms). TC8 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC9+ forecast: +1 mainline-relevant if Carter-Pollard polynomial bound assembly lands and `tusnady_base_polynomial` retires.
 * **Cumulative misframing ledger:** 8 (unchanged from TC7).
+
+---
+
+# Track C round 9 (Carter-Pollard Step 1: Beta tail integral representation)
+
+**Format**: Variante 1, single round, parallel track. Q7 iterative micro-step binding (Step 1 ONLY).
+**Branch**: `track-c-1dkmt`. **Worktree**: `~/Documents/formal-conjectures-track-c`.
+**Pre-round HEAD**: `10e379d` (TC8 closure: Mills `_antitone` Full + Stirling Robbins Full).
+
+**Outcome**: **Best-distribution** — Step 1 Full closure on first attempt. New Helpers file `BinomialTailBeta.lean` (~312 LOC) lands the Carter-Pollard 2004 §3 incomplete-Beta-as-binomial-tail identity in real-polynomial form, with **zero sorries**.
+
+## TC9.1 Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Cache check + Claims Verification Table audit + Pascal+IBP recipe | **Full** | `Helpers/TrackC_round9_T1_BetaTailAudit.md` | All 10 claims verified at TC8 HEAD `10e379d`. Mathlib API located: `intervalIntegral.integral_hasDerivAt_right` (FTC right), `eq_of_has_deriv_right_eq` (derivative-matching), `Nat.add_one_mul_choose_eq` + `Nat.choose_mul_succ_eq` (Pascal-adjacent), `HasDerivAt.pow` (Nat-exponent power). **Strategy decision**: derivative-matching, NOT Pascal+IBP induction (single induction on telescoping sum vs double on `(m, k)`). |
+| T2.1 — `binomial_tail_beta_integral` Full close | **Full** | `Helpers/BinomialTailBeta.lean:266-307` (theorem body) | Closed via 7-helper architecture: `natCast_j_mul_choose_eq` + `natCast_sub_mul_choose_eq` (algebraic ℕ→ℝ casts), `hasDerivAt_oneSub_pow` + `hasDerivAt_term` (termwise derivative), `sum_Ico_sub_telescope` (standard telescoping identity), `hasDerivAt_choose_term_eq_telescope` + `hasDerivAt_binomialPolyTail` (LHS derivative collapse), `hasDerivAt_betaPartialIntegral` (RHS derivative via FTC right), `binomialPolyTail_zero` + `betaPartialIntegral_zero` (initial conditions), final lift via `eq_of_has_deriv_right_eq` on `[0, 1]`. ~312 LOC, within calibrated 160-300 band (slight over due to ℕ→ℝ cast lemmas being more verbose than expected). |
+| T2.2 — Build verification + status doc | **Full** | This document + `lake build` output below. | Single-target build of `BinomialTailBeta.lean` succeeds in 65s (clean, no warnings). |
+| T2.3 — Push `track-c-1dkmt` | **Full** | (commit + push log below) | Commits TC9 round artefacts (audit doc, new Lean file, status doc update) to `track-c-1dkmt` only. |
+
+All four mandatory-floor outcomes Full. Track C round 9 caps at 0 condition triggered: **none**.
+
+## TC9.2 Build verification log (verbatim)
+
+```
+$ lake exe cache get
+Current branch: HEAD
+Using cache (Azure) from origin: leanprover-community/mathlib4
+No files to download
+Decompressing 7753 file(s)
+Unpacked in 1783 ms
+Completed successfully!
+
+$ lake build FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta
+✔ [2616/2616] Built FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta (65s)
+Build completed successfully (2616 jobs).
+```
+
+## TC9.3 Net debt change (project ledger update)
+
+### Sorries (Helpers, TC8 baseline)
+
+| File | TC8 baseline | TC9 close | Change |
+|---|---|---|---|
+| `BinomialTailBeta.lean` | (did not exist) | **0** | **+0** (NEW Full file) |
+| `OneDimKMT.lean` `tusnady_base_polynomial` | 1 (Carter-Pollard sub-sorry) | 1 | +0 (TC11+ scope; Step 1 alone insufficient to retire) |
+| **Total Helpers (TC8→TC9)** | **6** | **6** | **+0** (no regression; +1 NEW Full theorem) |
+
+### Axioms
+
+| Source | TC8 baseline | TC9 close | Change |
+|---|---|---|---|
+| Track C internal | 0 | 0 | +0 |
+| **Total** | **5** | **5** | **+0** |
+
+### Mathlib gaps (this round)
+
+None. All required API surfaces (FTC right, IBP, Pascal identities, ℕ-exponent power derivative, derivative-matching) located at pin and used cleanly.
+
+## TC9.4 Math-content close documentation
+
+**Theorem statement** (`Helpers/BinomialTailBeta.lean:266`):
+
+```
+theorem binomial_tail_beta_integral
+    (m k : ℕ) (hk : 1 ≤ k) (hkm : k ≤ m)
+    {p : ℝ} (hp0 : 0 ≤ p) (hp1 : p ≤ 1) :
+    binomialPolyTail m k p =
+      ((m : ℝ) * ((m - 1).choose (k - 1) : ℝ)) * betaPartialIntegral m k p
+```
+
+where `binomialPolyTail m k p := Σ_{j=k}^m C(m,j) · p^j · (1-p)^(m-j)` and
+`betaPartialIntegral m k p := ∫_0^p x^(k-1) (1-x)^(m-k) dx`. The factor
+`m · C(m-1, k-1)` equals `m! / ((k-1)! · (m-k)!) = 1 / B(k, m-k+1)`.
+
+**Proof architecture** (derivative-matching):
+
+1. **Algebraic identities** (`natCast_j_mul_choose_eq`, `natCast_sub_mul_choose_eq`):
+   `j · C(m,j) = m · C(m-1, j-1)` and `(m-j) · C(m,j) = m · C(m-1, j)` cast to ℝ.
+2. **Termwise derivative** (`hasDerivAt_term`):
+   `(d/dp) [p^j (1-p)^(m-j)] = j · p^(j-1) · (1-p)^(m-j) - (m-j) · p^j · (1-p)^(m-j-1)`.
+3. **Telescoping form** (`hasDerivAt_choose_term_eq_telescope`):
+   `(d/dp) [C(m,j) · p^j · (1-p)^(m-j)] = telescopeS m j p - telescopeS m (j+1) p`,
+   where `telescopeS m j p := m · C(m-1, j-1) · p^(j-1) · (1-p)^(m-j)`. The substitution
+   uses identities (1).
+4. **Sum collapse** (`hasDerivAt_binomialPolyTail`):
+   By `HasDerivAt.fun_sum` + standard telescoping (`sum_Ico_sub_telescope`),
+   `(d/dp) [binomialPolyTail m k p] = telescopeS m k p - telescopeS m (m+1) p`.
+   The boundary `telescopeS m (m+1) p = 0` since `C(m-1, m) = 0`. Result:
+   `m · C(m-1, k-1) · p^(k-1) · (1-p)^(m-k)`.
+5. **RHS derivative** (`hasDerivAt_betaPartialIntegral`):
+   FTC right (`integral_hasDerivAt_right`) + integrand continuity gives
+   `(d/dp) [betaPartialIntegral m k p] = p^(k-1) · (1-p)^(m-k)`.
+6. **Initial conditions** (`binomialPolyTail_zero`, `betaPartialIntegral_zero`):
+   Both vanish at `p = 0` (since `k ≥ 1` makes `0^j = 0` for all `j ≥ k ≥ 1`;
+   and `∫_0^0 = 0`).
+7. **Final equality** via `eq_of_has_deriv_right_eq` on `[0, 1]`.
+
+**Surprises**: none. Iteration count: 2 (`linarith` failed on the first ℕ→ℝ cast pair due
+to `push_cast` not being applied to the hypothesis; fixed by adding `have h_R : ...
+exact_mod_cast h; push_cast at h_R`. Plus `Nat.add_sub_cancel` was the wrong API for
+`j + 1 - 1 = j` — `omega` works. Plus `linear_combination` ran into `ring_nf`
+normalization mismatch — replaced with explicit `rw [show ... from h.symm]` then `ring`.
+Plus `.continuous.continuousOn` was incorrect API — replaced with
+`continuous_iff_continuousAt.mpr`).
+
+## TC9.5 Cluster trajectory update (post-TC9)
+
+| Round | Target | Status post-TC9 |
+|---|---|---|
+| TC1-TC6 | Layer 1-4 + Mills truncation + Real-Beta sigs | ✅ Closed (per prior status) |
+| TC7 | Mills `_pos` Full + Real-Beta Full | ✅ Mid-distribution Full |
+| TC8 | Mills `_antitone` Full + Stirling Robbins Full | ✅ Best-distribution Full |
+| **TC9** | **Carter-Pollard Step 1 (Beta tail integral representation) Full** | **✅ Best-distribution Full closure (this round) — `binomial_tail_beta_integral` Full, ~312 LOC, zero sorries** |
+| TC10 | Carter-Pollard Step 2 (Stirling prefactor for binomial-coefficient asymptotic) | open, TC9 Step 1 unblocks `PMF.binomial`-bridge corollary + Step 2 |
+| TC11+ | Carter-Pollard Steps 3-6 (Taylor + bulk/tail split + envelope) → close `tusnady_base_polynomial` body | open |
+
+**Cluster trajectory**: TC9 hits the Best-distribution outcome (P~0.30 prior, P~0.55 calibrated post-T1.1). Step 1 Full close in single round. Cluster size estimate per Q7 was 22-25 rounds total; TC9 success may compress this slightly (Step 1 was the highest-uncertainty primitive — it required novel derivative+telescope architecture that downstream Steps 2-6 don't depend on).
+
+## TC9.6 Honesty / framing notes
+
+* **Round outcome**: Best-distribution. Mandatory floor Full on all 4 outcomes; T2.1 math-content closure Full. Net Helpers sorry +0 (NEW theorem, no existing Stub retired). Net axiom unchanged at 5. **+1 Full theorem added to Carter-Pollard assembly chain.**
+* **Mismatch ledger**: 8 (unchanged). T1.1 audit confirmed Mathlib pin state for derivative-matching path; T2.1 implementation surfaced four infrastructure-level adjustments (cast `linarith` chain, `Nat.add_sub_cancel` form, `linear_combination` vs explicit `rw`, `.continuous.continuousOn` vs `continuous_iff_continuousAt`). All are infrastructure-level, not math content; misframing ledger unchanged.
+* **Skin-in-the-game compliance check**:
+  - Worktree used ✓ (no cross-track collision).
+  - Claims Verification Table produced with all 10 rows VERIFIED ✓.
+  - T2.1 committed (Full Lean code, NOT plan doc) ✓.
+  - T2.2 + T2.3 committed ✓.
+  - Track C work pushed only to `track-c-1dkmt` branch ✓.
+  - No mainline OR track-d files modified ✓.
+  - No TC1-TC8 Full theorems modified ✓.
+  - Cache freshness check at session start; `lake exe cache get` succeeded ✓.
+  - **Q7 iterative micro-step binding respected** — Step 1 ONLY attempted; Step 2 (Stirling prefactor), Steps 3-6 (Taylor + bulk/tail + envelope) NOT attempted ✓.
+  - **No multi-step Carter-Pollard assembly attempted** ✓.
+* **Active math engagement**: T2.1 required understanding the derivative-matching strategy (vs Pascal+IBP induction); the algebraic identity `j · C(m, j) = m · C(m-1, j-1)` and its companion as the *engine* of the telescoping; the substitution that converts the termwise derivative `j · C(m,j) · p^(j-1) · (1-p)^(m-j) - (m-j) · C(m,j) · p^j · (1-p)^(m-j-1)` into `S_j - S_{j+1}` form; the boundary observation that `C(m-1, m) = 0` makes the upper telescope endpoint vanish; FTC right matching the LHS derivative; and the `eq_of_has_deriv_right_eq` lift over `[0, 1]`. The Q7 micro-step formulation (real-polynomial form, deferring `PMF.binomial` bridge to TC10 corollary) was the key architectural decision that made Step 1 closeable in a single round.
+* **What did NOT happen in TC9**:
+  - Carter-Pollard Step 2 (Stirling prefactor for binomial-coefficient asymptotic; TC10 scope per Q7).
+  - Carter-Pollard Steps 3-6 (Taylor + bulk/tail split + envelope; TC11+ scope per Q7).
+  - `tusnady_base_polynomial` body sub-sorry retirement (line 506 of `OneDimKMT.lean`; TC11+ scope after full assembly).
+  - `PMF.binomial`-to-real-polynomial bridge corollary (TC10 scope; one-line `simp` with `PMF.binomial_apply`).
+  - Layer 3 Hungarian dyadic step body close (TC11+ scope).
+  - Layer 4 SupError attempt (TC11+ scope).
+  - Axiom retirement (still 5).
+
+## TC9.7 Status label
+
+* **Track C round 9 outcome**: **Best-distribution** (mandatory floor Full; T2.1 Full Lean code closure of Carter-Pollard Step 1; +1 Full theorem; net branch sorry +0; net axiom unchanged).
+* **Track C cluster status**: Round 9 of ~22-25 complete. TC10 (Carter-Pollard Step 2 Stirling prefactor + `PMF.binomial` bridge corollary) NOW UNBLOCKED — Step 1 polynomial-form identity is a Full closure, available as `binomial_tail_beta_integral`.
+* **R52 hybrid (c) gate contribution**: TC9 is +0 retirement at gate-relevant scale (`binomial_tail_beta_integral` is a NEW Track C-internal Full theorem, NOT a mainline TAG'd-sorry/axiom retirement). TC9 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC10+ forecast: +1 mainline-relevant if full Carter-Pollard assembly lands across TC10-TC11+ and `tusnady_base_polynomial` retires.
+* **Cumulative misframing ledger**: 8 (unchanged from TC8).
