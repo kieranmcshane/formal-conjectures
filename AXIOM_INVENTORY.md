@@ -19,6 +19,101 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R51 V2 round 13 — γ-floor MGE axiomatization, mechanical)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). All R50-relevant critical build targets remain green
+  post-R51 axiom replacement.
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R51 (T1.1 audit
+  `<commit-T1>`, T2.1 axiom replacement `<commit-T2.1>`, T2.2 this
+  entry).
+* **Round type:** Variante 1, single round, mainline. **γ-floor
+  mechanical axiomatization**, not a math content close. Replaces MGE
+  Stub at `Helpers/MultivariateGaussianPdf.lean:248` with axiom of
+  identical signature per the post-R50 user-confirmed audit-redirect
+  ("γ floor + β R58 extension" trajectory).
+* **Net debt change:**
+  * Sorries: **13 → 12** (-1, MGE Stub `multivariateGaussian_eq_lebesgue_withDensity`
+    retired via debt-conversion at `Helpers/MultivariateGaussianPdf.lean:248`).
+  * User-defined axioms: **6 → 7** (+1, Axiom #7 added — see "Axiom #7"
+    section below).
+  * Items at gate: **19 → 19** (no change; sorry-to-axiom is a wash for
+    gate counting). Strategic value: freed R52-R58 mainline budget for
+    actual retirement work elsewhere.
+* **Total mainline debt:** 7 user-defined axioms + 12 TAG'd sorries =
+  19 items.
+* **Cumulative R40-R51 retirement rate:** ~0.4 sorry/round (sorry count
+  went 13 → 12 this round; cumulative decline R39→R51 = 14 → 12 across
+  12 rounds, ~0.17 sorry/round when counting only R39-R51 against R39
+  baseline 14, but ~0.4 if counting R40 onwards across the same
+  retire/upgrade ledger). γ-floor swap is part of the R55-R59
+  retirement plan: -1 sorry now in exchange for +1 axiom now, but the
+  axiom retirement at R55-R59 then nets the original retirement at
+  one-time cost.
+* **Three deliverables this round:**
+  * **R51-T1.1 Claims Verification Table + MGE Stub signature
+    extraction** (`Helpers/Round51_T1_MGEAxiomatization.md`, ~194
+    lines). All 8 claims VERIFIED (mandatory floor for T2.1 dispatch).
+    Sole non-comment Lean caller of MGE confirmed at
+    `Helpers/MultivariateGaussianPdf.lean:466` (`rw
+    [multivariateGaussian_eq_lebesgue_withDensity S _hS]` inside
+    `multivariateGaussianOrthantCDF_eq_lebesgue_integral`); identical-
+    signature axiom swap preserves this caller. R49 axiom #6 + A1-A5 +
+    R50 deferred-paper sub-Stubs all re-confirmed intact at HEAD
+    `e682be7`.
+  * **R51-T2.1 MGE Stub → axiom replacement.** In
+    `Helpers/MultivariateGaussianPdf.lean:248`:
+    * Deleted the 143-line `:= by ... sorry` body block (TAG
+      `R43-T2.1-MGE-pushforward-jacobian-body`).
+    * Replaced `theorem` with `axiom` keyword; preserved the exact
+      signature including binders `(S : Matrix ι ι ℝ) (_hS : S.PosDef)`
+      and section variables `{ι : Type*} [Fintype ι] [DecidableEq ι]`
+      auto-bound from the namespace `variable` block.
+    * New 75-line Lean docstring above the axiom documenting the γ-floor
+      strategy, the three sub-gaps (a)+(b)+(c) decomposed (with sub-gap
+      (a) noted as already closed at R46), the two-path R55-R59
+      retirement plan (Mathlib pin bump preferred / from-scratch
+      ~150-300 LOC fallback), and the consumer site at line 466.
+    * Top-of-file docstring updated (lines 38-58) to reflect the
+      axiomatization status.
+    * `lake env lean
+      FormalConjectures/ErdosProblems/Helpers/MultivariateGaussianPdf.lean`
+      clean.
+    * Net diff: -199 / +84 LOC (the 143-LOC body comment block + ~50
+      LOC of mid-signature comments removed; +75 LOC γ-floor docstring +
+      6 LOC axiom declaration + 9 LOC top-of-file docstring update).
+  * **R51-T2.2 AXIOM_INVENTORY.md update + R51-T2.3 build verification +
+    status doc + push** (this entry; `Helpers/PhaseV2R51Status.md`).
+* **R52 milestone gate trajectory (post-R51):** items at 19, gate
+  threshold ≤ 8. Mainline R52-R58 trajectory must contribute ~11
+  retirements across 7 rounds = ~1.6/round, which remains above the
+  cumulative ~0.4/round rate. **R52 gate fails decisively under hybrid
+  (c)** without major Track C/D contribution (BACKGROUND.md confirmed
+  commitment to γ floor + β R58 extension). R52 candidate: either
+  (i) Q1a/b/c track consolidation (close one of the 3 named sorries in
+  `MultivariateSmallBallUpper.lean:73, :238, :616`), OR
+  (ii) γ-floor `Matrix.det.differentiable` Stub axiomatization
+  (item-neutral but frees more budget), OR
+  (iii) γ-floor MGI Stub axiomatization (already Full per R44; not
+  needed).
+* **Cumulative T1.1 audit ledger:** 8 distinct misframings caught
+  pre-dispatch via T1.1 audit pipeline (unchanged from R50 — R51 was a
+  mechanical axiomatization round with no Grok dispatch, just the
+  Claims Verification Table audit confirming MGE signature + caller
+  preservation).
+* **Anti-mismatch hygiene 8/8:**
+  type signature verbatim (binders + conclusion); `_hS` underscore
+  preserved at consumer site; section variables `{ι} [Fintype ι]
+  [DecidableEq ι]` auto-bound identically; positional arity 2 (S, _hS)
+  unchanged; sole Lean caller `MultivariateGaussianPdf.lean:466`
+  verified to use positional form; no other consumer in mainline; R49
+  axiom #6 + A1-A5 + R50 sub-Stubs unaffected; track branches not
+  touched.
+
+See `Helpers/PhaseV2R51Status.md` and
+`Helpers/Round51_T1_MGEAxiomatization.md` for the round status doc +
+T1.1 Claims Verification Table.
+
 ## Build status (R50 V2 round 12 — GLW determinant shortcut audit + deferred-paper sub-Stubs)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
@@ -556,7 +651,7 @@ for the round status doc + audit.
   `Helpers/R39_T1_AlphaConversionAudit.md` for the cold re-audit and
   `Helpers/PhaseV2R39Status.md` for the round status.
 
-## 6 user-defined axioms (technical debt — must retire)
+## 7 user-defined axioms (technical debt — must retire)
 
 | # | Axiom | Source round | Provisional retire-path |
 |---|---|---|---|
@@ -566,9 +661,10 @@ for the round status doc + audit.
 | 4 | `gao_li_wellner_small_ball_lower` | R34 | V2 R40-R48 (Slepian + SF + BTIS composition) |
 | 5 | `gao_li_wellner_small_ball_upper` | R36 | V2 R40-R48 (parallel to #4) |
 | 6 | `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` | R49 (Path A switch) | V2 R55-R59 post-gate (Mathlib pin bump preferred; from-scratch ~150-300 LOC fallback) |
+| 7 | `multivariateGaussian_eq_lebesgue_withDensity` | R51 (γ-floor switch) | V2 R55-R59 post-gate (Mathlib pin bump preferred; from-scratch ~150-300 LOC fallback — sub-gap (a) closed R46, (b) + (c) + composition pending) |
 
-All six are classically correct (see the audit doc + Axiom #6 detail
-below for classical-justification chains).
+All seven are classically correct (see the audit doc + Axiom #6 / #7
+detail below for classical-justification chains).
 
 ### Axiom #6 detail: `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
 
@@ -645,32 +741,123 @@ below for classical-justification chains).
     with three arguments; signature preserved verbatim so the call site
     is unchanged.
 
+### Axiom #7 detail: `multivariateGaussian_eq_lebesgue_withDensity`
+
+* **Added:** R51 (V2 round 13, 2026-05-02), γ-floor switch (post-R50
+  audit-redirect; user-confirmed "γ floor + β R58 extension" trajectory
+  per BACKGROUND.md).
+* **File:** `FormalConjectures/ErdosProblems/Helpers/MultivariateGaussianPdf.lean:248`.
+* **Lean signature:**
+  ```lean
+  axiom multivariateGaussian_eq_lebesgue_withDensity
+      {ι : Type*} [Fintype ι] [DecidableEq ι]
+      (S : Matrix ι ι ℝ) (_hS : S.PosDef) :
+      (multivariateGaussian (0 : EuclideanSpace ℝ ι) S) =
+        (volume : Measure (EuclideanSpace ℝ ι)).withDensity
+          (fun y : EuclideanSpace ℝ ι =>
+            ENNReal.ofReal (multivariateGaussianPdf S (fun i => y i)))
+  ```
+  (Section variables `{ι}`, `[Fintype ι]`, `[DecidableEq ι]` are
+  auto-bound from the surrounding `namespace
+  Erdos524.Helpers.MultivariateGaussianPdf` `variable` block at line 84.)
+* **Mathematical content (plain English):** for a positive-definite
+  covariance matrix `S` on `ι`-indexed coordinates, the centered
+  multivariate Gaussian measure on `EuclideanSpace ℝ ι` (defined via
+  `brownian-motion`'s `multivariateGaussian 0 S` as the pushforward of
+  `stdGaussian` by `x ↦ toEuclideanCLM (CFC.sqrt S) x`) is absolutely
+  continuous with respect to Lebesgue measure, with Radon–Nikodym
+  derivative `multivariateGaussianPdf S` (the explicit
+  `(2π)^{-n/2} (det S)^{-1/2} exp(-x^T S^{-1} x / 2)` formula). The PDF
+  is evaluated at `fun i => y i`, applying the canonical
+  `EuclideanSpace ℝ ι ↔ (ι → ℝ)` coordinate identification at the
+  consumer site. Reference: Tong (1990) "The Multivariate Normal
+  Distribution" §5.1; Anderson (2003) "An Introduction to Multivariate
+  Statistical Analysis" §2.3; Bogachev (2007) "Gaussian Measures"
+  Chapter 1.
+* **Why axiomatized at R51 (γ-floor switch):** The R44-R47 closure
+  diagnostic decomposed the Stub body into three measure-theoretic
+  sub-gaps:
+  * (a) `det_CFC_sqrt_eq_sqrt_det` for PosDef `S` — **closed R46** as a
+    Full sub-lemma in this file (composes `CFC.sqrt_mul_sqrt_self` +
+    `Matrix.det_mul` + `Real.sqrt_eq_iff_mul_self_eq`).
+  * (b) `stdGaussian_eq_lebesgue_withDensity` on `EuclideanSpace ℝ ι` —
+    R47 audit decomposed into THREE further Mathlib bridges (n-ary
+    `Measure.pi.withDensity` factorization ~80-120 LOC,
+    `Measure.map.withDensity` through `MeasurableEquiv` ~30-50 LOC,
+    Lebesgue-on-`EuclideanSpace` identification ~20-100 LOC), totalling
+    ~150-280 LOC — none packaged at pin `mathlib4 @ 25ce63313608`.
+  * (c) Constant-Jacobian linear pushforward — R46 grep audit found
+    `map_linearMap_addHaar_eq_smul_addHaar` (Mathlib
+    `MeasureTheory/Measure/Lebesgue/EqHaar.lean:234`) as a direct
+    application; no separate sub-lemma needed.
+
+  The R52 milestone gate (items ≤ 8) is decisively failing under hybrid
+  (c) per the R50 build-status block. The user-confirmed γ-floor + β
+  R58 extension trajectory accepts axiomatization of (a)+(b)+(c)
+  composition into a single γ-floor axiom to free 3-5 mainline rounds
+  for retirement work elsewhere — Q1a/b/c track consolidation,
+  Track C/D parallel work, or Matrix.det.differentiable γ-axiomatization
+  candidate at R52. Like Axiom #6 (Path A at R49), this trades -1
+  sorry for +1 axiom (item count unchanged at gate).
+* **Retirement target: R55-R59 (post-gate), two-path sub-plan:**
+  1. *Mathlib pin bump (preferred):* monitor Mathlib for landings of
+     n-ary `Measure.pi.withDensity` factorization, `Measure.map.withDensity`
+     through `MeasurableEquiv`, and `stdGaussian_eq_lebesgue_withDensity`
+     on `EuclideanSpace`. Post-`v4.27` toolchain bump may also package
+     some of these via the `BrownianMotion.Gaussian` chain. Direct chain
+     composition retires this axiom in ~30-80 LOC of consumer wrapper.
+  2. *From-scratch closure (fallback):* build the missing pieces
+     in-tree over R55-R59 — ~150-300 LOC across 2-3 rounds. Sub-gap (a)
+     already closed at R46; (b.A) Pi-withDensity bridge ~80-120 LOC,
+     (b.B) MeasurableEquiv pushforward ~30-50 LOC, (b.C) Lebesgue-
+     EuclideanSpace identification ~20-100 LOC, composition ~30-50 LOC.
+
+  Retirement is **not required for the R52 gate** (gate measures item
+  count; +1 axiom / -1 sorry is a wash there). Strategic value of the
+  γ-floor axiomatization is the freed mainline budget for OTHER
+  retirements.
+* **Status:** ACTIVE (placeholder, math content provable from the
+  classical Tong–Anderson Lebesgue-density route; sub-gap (a) already
+  closed at R46).
+* **Consumers (Lean code):**
+  * `Helpers/MultivariateGaussianPdf.lean:466` (post-R51 line number)
+    — inside the proof body of
+    `multivariateGaussianOrthantCDF_eq_lebesgue_integral`,
+    `rw [multivariateGaussian_eq_lebesgue_withDensity S _hS]` converts
+    measure-of-orthant to integral-of-pdf-over-orthant. Sole non-comment
+    Lean caller; positional arity 2 preserved by the axiom swap.
+
 **R39 retired axioms 6-8** (the 3 IsGLWProcess β-axioms) by α-tighten:
 sound tightened signatures requiring KMT-coupling-rate hypothesis;
 content deferred to V2 R49-R53 cluster (bundled with axiom #3
 retirement). See `Helpers/AxiomFoundationAudit.md` "R39 — V2 round 1"
 section.
 
-## 13 TAG'd `sorry` sites (post-R43 — +2 over post-R42 from MGE/MGI signature upgrades)
+## 12 TAG'd `sorry` sites (post-R51 — -1 from post-R50 via MGE γ-floor axiomatization)
 
-(Same 11 sites listed below from post-R42, plus 2 new sites:)
+(Post-R51 baseline: same 11 sites listed below from post-R42, plus the 2
+R50 deferred-paper sub-Stubs added in `GLWSmallBallShortcut.lean`, minus
+the MGE Stub at `MultivariateGaussianPdf.lean:248` retired in R51-T2.1
+via γ-floor axiomatization (now Axiom #7). Net post-R51 sorries: 11 + 2
+- 1 = 12. The R44-Full MGI theorem `multivariateGaussianOrthantCDF_eq_lebesgue_integral`
+remains in the codebase as a Full theorem and is unaffected by R51.)
 
-* **2 V2-R43 MGE/MGI real-signature upgrades** (added in R43-T2.1):
-  * `FormalConjectures/ErdosProblems/Helpers/MultivariateGaussianPdf.lean:183`
-    (`multivariateGaussian_eq_lebesgue_withDensity`,
-    TAG `R43-T2.1-MGE-pushforward-jacobian-body`,
-    upgraded from R40 `True := by trivial` to real
-    `multivariateGaussian 0 S = volume.withDensity (ofReal ∘ pdf)`
-    signature with TAG'd Stub body. Closure prerequisites: (a)
-    det_CFC_sqrt_eq_sqrt_det, (b) stdGaussian_eq_lebesgue_withDensity,
-    (c) constant-Jacobian linear-pushforward change-of-variables.)
-  * `FormalConjectures/ErdosProblems/Helpers/MultivariateGaussianPdf.lean:226`
-    (`multivariateGaussianOrthantCDF_eq_lebesgue_integral`,
-    TAG `R43-T2.1-MGI-orthant-via-MGE-body`,
-    upgraded from R40 `True := by trivial` to real orthant-CDF =
-    Lebesgue-integral signature with TAG'd Stub body. Closure
-    prerequisite: MGE body + standard withDensity-to-set-integral
-    transfer.)
+* **R51-T2.1 MGE retirement (γ-floor axiomatization, this round):**
+  the MGE Stub at `MultivariateGaussianPdf.lean:248`
+  (`multivariateGaussian_eq_lebesgue_withDensity`, TAG
+  `R43-T2.1-MGE-pushforward-jacobian-body`, signature upgraded R43-T2.1)
+  has been replaced with **Axiom #7** of identical signature. See
+  "Axiom #7 detail" section above. Net debt: -1 sorry, +1 axiom, items
+  unchanged at 19.
+
+* **R50 deferred-paper sub-Stubs** (added in R50-T2.1+T2.2; un-imported
+  file, no consumer build impact):
+  * `FormalConjectures/ErdosProblems/Helpers/GLWSmallBallShortcut.lean:226`
+    (`glw_lemma_4_1_deferred_paper`, Jacobi-style first-order
+    determinant expansion along scalar path)
+  * `FormalConjectures/ErdosProblems/Helpers/GLWSmallBallShortcut.lean:256`
+    (`glw_lemma_4_2_deferred_paper`, existence of structured matrix
+    with `per(A) = 1` and `det(A) = 32·m·(240·e⁻³)^m`)
 
 R43 also adds two **fully proved** lemmas (no `sorry`):
   * `Helpers.Sα_path_hasDerivAt` — Phase 1A linear path differentiability.
