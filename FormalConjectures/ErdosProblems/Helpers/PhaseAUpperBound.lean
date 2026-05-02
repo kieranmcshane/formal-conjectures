@@ -199,6 +199,141 @@ theorem posDef_convex_combination
         · exact absurd h h1
       exact (hX.smul h1').add_posSemidef (hY.smul h0').posSemidef
 
+/-! ### R43 — Phase 1A and Phase 1B: differentiability along the linear path
+
+R43-T2.2 (Phase 1A) and R43-T2.3 (Phase 1B), per Grok R43 pre-flight Q4
+verdict (b) — signatures + Phase 1A + Phase 1B in a single round, with
+Phase 2 (explicit derivative formula via diff-under-integral + chain-rule
+decomposition) deferred to R44.
+
+* **Phase 1A.** `Sα_path_hasDerivAt` — the convex-interpolation path
+  `α ↦ (1 - α) • S_X + α • S_Y` has constant derivative `S_Y - S_X`.
+  Pure-real-analysis lemma; no Mathlib gaps. Uses the `linftyOp` normed
+  structure on `Matrix ι ι ℝ`.
+* **Phase 1B.** `multivariateGaussianOrthantCDF_differentiableAt_along_Sα_path`
+  — the composite `α ↦ orthantCDF (Σ_path α) x` is `DifferentiableAt`.
+  Composes Phase 1A + R35-T2.1 Stub (real signature) +
+  `posDef_convex_combination` via `DifferentiableAt.fun_comp'`. The
+  *explicit* derivative formula `F'(α) = ⟨fderiv ℝ orthantCDF, S_Y - S_X⟩`
+  is R44 scope.
+
+These two together close the R43 mandatory floor for chain-rule
+infrastructure on `slepian_comparison_finite`'s body. -/
+
+/-- **R43-T2.2 / Phase 1A — Linear interpolation path differentiability.**
+
+For two matrices `S_X, S_Y : Matrix ι ι ℝ` and any `α : ℝ`, the convex-
+interpolation path `α ↦ (1 - α) • S_X + α • S_Y` has constant Fréchet
+derivative `S_Y - S_X` at `α`, in the sense of `HasDerivAt`.
+
+Companion to `posDef_convex_combination` (R41 helper, gives
+PosDef-preservation on `[0, 1]`). This lemma gives differentiability on
+all of `ℝ`; together they support the chain rule along the path in
+`slepian_comparison_finite`'s body.
+
+The proof is mechanical: `(α ↦ 1 - α) ↦ HasDerivAt _ (-1)` via
+`HasDerivAt.sub` of constant + identity; `(α ↦ α) ↦ HasDerivAt _ 1` via
+`hasDerivAt_id`; then `HasDerivAt.smul_const` lifts each to a
+matrix-valued path; `HasDerivAt.add` combines; the resulting derivative
+`(-1) • S_X + 1 • S_Y` simplifies to `S_Y - S_X` via `neg_one_smul` /
+`one_smul` / `abel`.
+
+Local `letI` instances activate the `linftyOp` normed structure on
+`Matrix ι ι ℝ` (Mathlib does not pick a canonical matrix norm globally;
+the `linftyOp` choice is the one used by R41-T2.2 closure of
+`Matrix.PosDef.inv_hasFDerivAt`). -/
+theorem Sα_path_hasDerivAt
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (S_X S_Y : Matrix ι ι ℝ) (α : ℝ) :
+    HasDerivAt (fun α : ℝ => (1 - α) • S_X + α • S_Y)
+      (S_Y - S_X) α := by
+  letI : NormedAddCommGroup (Matrix ι ι ℝ) := Matrix.linftyOpNormedAddCommGroup
+  letI : NormedSpace ℝ (Matrix ι ι ℝ) := Matrix.linftyOpNormedSpace
+  -- (α ↦ 1 - α) has scalar derivative -1 at α: const sub identity.
+  have h1 : HasDerivAt (fun α : ℝ => (1 : ℝ) - α) (-1 : ℝ) α := by
+    have hconst : HasDerivAt (fun _ : ℝ => (1 : ℝ)) 0 α := hasDerivAt_const α 1
+    have hid : HasDerivAt (fun α : ℝ => α) 1 α := hasDerivAt_id α
+    have := hconst.sub hid
+    simpa using this
+  -- (α ↦ α) has scalar derivative 1 at α.
+  have h2 : HasDerivAt (fun α : ℝ => α) (1 : ℝ) α := hasDerivAt_id α
+  -- Lift to matrix-valued paths via `smul_const`.
+  have h3 : HasDerivAt (fun α : ℝ => (1 - α) • S_X) ((-1 : ℝ) • S_X) α :=
+    h1.smul_const S_X
+  have h4 : HasDerivAt (fun α : ℝ => α • S_Y) ((1 : ℝ) • S_Y) α :=
+    h2.smul_const S_Y
+  -- Combine; the resulting derivative is (-1) • S_X + 1 • S_Y = S_Y - S_X.
+  have h5 := h3.add h4
+  have h_simp : ((-1 : ℝ) • S_X + (1 : ℝ) • S_Y) = (S_Y - S_X) := by
+    rw [neg_one_smul, one_smul]; abel
+  rw [← h_simp]; exact h5
+
+/-- **R43-T2.3 / Phase 1B — Composite differentiability along Σ_path.**
+
+For positive-definite matrices `S_X, S_Y : Matrix ι ι ℝ` and `α ∈ (0, 1)`,
+the composite `α ↦ multivariateGaussianOrthantCDF ((1 - α) • S_X + α • S_Y) x`
+is `DifferentiableAt ℝ` at `α`.
+
+Composition recipe (chain rule):
+1. `Sα_path_hasDerivAt` (Phase 1A) gives differentiability of the inner
+   path `α ↦ (1 - α) • S_X + α • S_Y` at every `α : ℝ`.
+2. `posDef_convex_combination` (R41 helper) ensures the inner path stays
+   PosDef on `[0, 1]`, so in particular at `α ∈ (0, 1)`.
+3. `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
+   (R35-T2.1, real signature with TAG'd Stub body) gives differentiability
+   of the outer map `S ↦ orthantCDF S x` at every PosDef `S`.
+4. `DifferentiableAt.fun_comp'` chains them.
+
+**R43 status:** `DifferentiableAt` only. The explicit derivative formula
+`F'(α) = ⟨fderiv ℝ (orthantCDF · x) (Σ_path α), S_Y - S_X⟩` — required for
+the entry-by-entry sign analysis in `slepian_comparison_finite`'s body —
+is **R44 Phase 2 scope** (depends on the CDF Full body via diff-under-
+integral). Per Grok Q4 (b), R43 ends at this `DifferentiableAt`
+checkpoint without exposing the explicit-formula sub-Stub.
+
+This lemma chains through the R35-T2.1 Stub as a black-box assumption:
+its conclusion is `DifferentiableAt`, which the consumer only uses for
+chain-rule composition, NOT for an explicit derivative formula. -/
+theorem multivariateGaussianOrthantCDF_differentiableAt_along_Sα_path
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (S_X S_Y : Matrix ι ι ℝ) (h_pdX : S_X.PosDef) (h_pdY : S_Y.PosDef)
+    (x : ι → ℝ) (α : ℝ) (hα : α ∈ Set.Ioo (0 : ℝ) 1) :
+    DifferentiableAt ℝ
+      (fun α : ℝ =>
+        Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+          ((1 - α) • S_X + α • S_Y) x) α := by
+  letI : NormedAddCommGroup (Matrix ι ι ℝ) := Matrix.linftyOpNormedAddCommGroup
+  letI : NormedSpace ℝ (Matrix ι ι ℝ) := Matrix.linftyOpNormedSpace
+  -- Step 1: PosDef preservation along the path at α ∈ (0, 1) ⊆ [0, 1].
+  have h_pd_α : ((1 - α) • S_X + α • S_Y).PosDef :=
+    posDef_convex_combination h_pdX h_pdY (le_of_lt hα.1) (le_of_lt hα.2)
+  -- Step 2: outer differentiability of S ↦ orthantCDF S x at the PosDef matrix
+  -- (R35-T2.1 real signature, TAG'd Stub body — chained as black-box).
+  have h_outer :
+      DifferentiableAt ℝ
+        (fun S : Matrix ι ι ℝ =>
+          Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+            S x) ((1 - α) • S_X + α • S_Y) :=
+    Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF_differentiable_wrt_covariance
+      ((1 - α) • S_X + α • S_Y) h_pd_α x
+  -- Step 3: inner differentiability of α ↦ Σ_path α at α (Phase 1A).
+  have h_inner : DifferentiableAt ℝ
+      (fun α : ℝ => (1 - α) • S_X + α • S_Y) α :=
+    (Sα_path_hasDerivAt S_X S_Y α).differentiableAt
+  -- Step 4: chain rule via DifferentiableAt.fun_comp' (lambda form).
+  -- Note: in `Mathlib.Analysis.Calculus.FDeriv.Comp` the section variable
+  -- `(x : E)` is explicit, so we pass `α` as the first positional argument.
+  -- We must explicitly name `g` (the outer function) to prevent Lean from
+  -- unfolding `multivariateGaussianOrthantCDF` past the chain-rule split
+  -- (it expands to `(measure ...).real (orthant x) = (measure ...).toReal`,
+  -- which would refactor `g` as `ENNReal.toReal` and demand a normed
+  -- structure on `ENNReal` — which does not exist).
+  exact DifferentiableAt.fun_comp'
+    (g := fun S : Matrix ι ι ℝ =>
+      Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+        S x)
+    α h_outer h_inner
+
 /-- **R35 T2.2 — Slepian's comparison lemma (finite-index, half-space form).**
 
 For two `n × n` positive-definite covariance matrices `S_X, S_Y` with
