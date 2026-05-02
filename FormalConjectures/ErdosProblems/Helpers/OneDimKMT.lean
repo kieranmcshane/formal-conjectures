@@ -384,43 +384,59 @@ constants `A, C > 0`.
   bound.
 -/
 
-/-- **Tusnády base case (`TrackC-Layer3-Tusnady-base-polynomial`, TC3 sub-Stub).**
+/-- **Tusnády base case (`TrackC-Layer3-Tusnady-base-polynomial`, TC5
+signature tightening — universal Carter-Pollard constants).**
 
-The polynomial-form per-step Tusnády lemma. For `n ≥ 1`, there exists a
-coupled probability space carrying paired random variables `B Z : Ω' → ℝ`
-with the laws `B ~ Bin(2n, 1/2)` (on ℝ) and `Z ~ N(0, n/2)`, satisfying
-the per-step polynomial bound `|B - n - Z| ≤ A + C · Z²/n` for explicit
-constants `A, C > 0`.
+The polynomial-form per-step Tusnády lemma in **universal-constants
+form**. For `n ≥ 1`, there exists a coupled probability space carrying
+paired random variables `B Z : Ω' → ℝ` with the laws `B ~ Bin(2n, 1/2)`
+(on ℝ) and `Z ~ N(0, n/2)`, satisfying the per-step polynomial bound
+`|B - n - Z| ≤ 0.6 + Z²/n` µ'-almost surely.
 
-This is the *correct literature form* (Bretagnolle–Massart 1989 / Carter–
-Pollard 2004); the pure `O(log n)` per-step form circulated in many
-informal expositions does **not** hold uniformly without further almost-
-sure tail control (which is Layer 4 work).
+The sharp universal constants `A = 0.6`, `C = 1` are due to Carter–
+Pollard 2004 (*Ann. Statist.* 32, Theorem 1); the original Tusnády 1977
+form `|B - n - Z| ≤ 1 + Z²/n` is also covered. The pure `O(log n)`
+per-step form circulated in many informal expositions does **not** hold
+uniformly without further almost-sure tail control (which is Layer 4
+work).
 
-**Concrete blockers (TC3 sub-Stub diagnostic):**
+**TC5 tightening (post-TC4 weakness W1):** the prior TC3/TC4 form
+existentially-quantified `(A, C)` with `A = (n : ℝ) + 1`, `C = 1`
+chosen *per `n`* to absorb the trivial `ω' ∉ Ioc 0 1` case. Per-`n` `A`
+does NOT compose into a uniform Layer 4 envelope, so TC5 hard-codes the
+universal Carter-Pollard pair and switches `∀ ω'` → `∀ᵐ ω' ∂μ'` (the
+trivial off-support branch becomes a null set under
+`volume.restrict (Ioc 0 1)`).
+
+**Concrete blockers (TC4-residual sub-sorry, unchanged at TC5):**
 1. `PMF.binomial`-to-`Measure ℝ` pushforward needs `Fin.val`-cast
-   measurability; standard but not packaged. Workaround inline.
+   measurability; standard but not packaged. Workaround inline (TC4).
 2. Coupling construction via shared uniform: pair the inverse-CDFs of
-   `μ_B` and `μ_Z` through TC2's `quantile_transform_finite_moment`.
-3. Polynomial bound: requires Stirling precision (partial in Mathlib)
-   plus Mills-ratio control for the Gaussian PDF tail; explicit
-   constants per Bretagnolle–Massart 1989. -/
+   `μ_B` and `μ_Z` through TC2's `quantile_transform_finite_moment`
+   (TC4 Path A, retained).
+3. Polynomial bound: requires Stirling precision (partial in Mathlib),
+   Mills-ratio control for the Gaussian PDF tail (ABSENT at pin —
+   provided locally in TC5), and real Beta-integral comparison
+   (complex-only at pin). TC6+ assembly target. -/
 theorem tusnady_base_polynomial (n : ℕ) (_hn : 1 ≤ n) :
     ∃ (Ω' : Type) (_ : MeasurableSpace Ω') (μ' : Measure Ω')
-      (B Z : Ω' → ℝ) (A C : ℝ),
-      IsProbabilityMeasure μ' ∧ 0 < A ∧ 0 < C ∧
+      (B Z : Ω' → ℝ),
+      IsProbabilityMeasure μ' ∧
       Measurable B ∧ Measurable Z ∧
       μ'.map B = (PMF.binomial (1 / 2 : ℝ≥0) (by norm_num) (2 * n)).toMeasure.map
                    (fun (i : Fin (2 * n + 1)) => (i.val : ℝ)) ∧
       μ'.map Z = gaussianReal 0 ((n : ℝ≥0) / 2) ∧
-      ∀ ω', |B ω' - (n : ℝ) - Z ω'| ≤ A + C * (Z ω') ^ 2 / (n : ℝ) := by
+      ∀ᵐ ω' ∂μ', |B ω' - (n : ℝ) - Z ω'| ≤
+        (0.6 : ℝ) + (Z ω') ^ 2 / (n : ℝ) := by
   classical
-  -- TC4 Path A: probability space construction via comonotonic coupling on
-  -- Ω' = ℝ with μ' = volume.restrict (Ioc 0 1). Pointwise polynomial bound
-  -- (Carter-Pollard 2004 / Bretagnolle-Massart 1989) is the single
-  -- remaining sub-sorry; see `TrackC_round4_T1_TusnadyAudit.md` for the
-  -- full diagnostic.  The `O(log n)` per-step form (8th misframing) is NOT
-  -- what literature proves; signature + body lock the polynomial form.
+  -- TC5 form (universal Carter-Pollard A=0.6, C=1, almost-everywhere on
+  -- the probability-measure support):
+  -- Probability space construction via comonotonic coupling on
+  -- Ω' = ℝ with μ' = volume.restrict (Ioc 0 1), as in TC4 Path A.
+  -- Universal-constants polynomial bound (Carter-Pollard 2004) is the
+  -- single remaining sub-sorry; see `TrackC_round4_T1_TusnadyAudit.md`
+  -- for the residual-blocker diagnostic and `TrackC_round5_T1_TighteningAudit.md`
+  -- for the universal-constants rationale.
   -- Step 1: Fin.val cast is measurable (Fin (2n+1) has discrete σ-algebra).
   have h_meas_Fin_val : Measurable (fun (i : Fin (2 * n + 1)) => (i.val : ℝ)) := by
     fun_prop
@@ -436,31 +452,26 @@ theorem tusnady_base_polynomial (n : ℕ) (_hn : 1 ≤ n) :
   obtain ⟨q_Z, hq_Z_meas, _hq_Z_Galois, hq_Z_push⟩ :=
     quantile_transform_finite_moment (gaussianReal 0 ((n : ℝ≥0) / 2))
   -- Step 4: assemble witnesses (Ω' = ℝ, μ' = volume.restrict (Ioc 0 1),
-  -- B = q_B, Z = q_Z, A = n + 1, C = 1).  Constants A, C chosen to also
-  -- absorb the trivial ω' ∉ Ioc 0 1 case (where q_B = q_Z = 0 by the
-  -- TC2 piecewise definition, so the bound reduces to n ≤ A = n + 1 ✓).
+  -- B = q_B, Z = q_Z). Universal constants 0.6, 1 hard-coded in the
+  -- conclusion (no existential to provide).
   refine ⟨ℝ, (inferInstance : MeasurableSpace ℝ),
     volume.restrict (Set.Ioc (0 : ℝ) 1),
-    q_B, q_Z, ((n : ℝ) + 1), 1, ?_, ?_, ?_, hq_B_meas, hq_Z_meas,
+    q_B, q_Z, ?_, hq_B_meas, hq_Z_meas,
     hq_B_push, hq_Z_push, ?_⟩
   · -- IsProbabilityMeasure (volume.restrict (Ioc 0 1)).
     refine ⟨?_⟩
     rw [Measure.restrict_apply MeasurableSet.univ, Set.univ_inter, Real.volume_Ioc]
     simp
-  · -- 0 < (n : ℝ) + 1.
-    have h0 : (0 : ℝ) ≤ n := Nat.cast_nonneg _
-    linarith
-  · -- 0 < 1.
-    norm_num
-  · -- TAG[TrackC-Layer3-Tusnady-base-polynomial-bound]: TC5+ sub-sorry.
-    -- Pointwise polynomial bound `|q_B u - n - q_Z u| ≤ (n+1) + (q_Z u)²/n`.
-    -- Carter-Pollard 2004 / BM 1989 give the sharper `0.6 + Z²/n` form;
-    -- our looser `(n+1) + Z²/n` envelopes it (existential A,C per n).
-    -- Mathlib gaps blocking close (per `TrackC_round4_T1_TusnadyAudit.md`):
-    -- (i) Stirling explicit upper bound (~30-50 LOC, asymptotic-only at pin),
-    -- (ii) Mills ratio (~40-60 LOC, ABSENT in pinned Mathlib),
-    -- (iii) real Beta-integral comparison (~20-40 LOC, complex-only at pin).
-    intro ω'
+  · -- TAG[TrackC-Layer3-Tusnady-base-polynomial-bound]: TC6+ sub-sorry.
+    -- ∀ᵐ ω' ∂(volume.restrict (Ioc 0 1)),
+    --   |q_B ω' - n - q_Z ω'| ≤ 0.6 + (q_Z ω')² / n   (Carter-Pollard 2004).
+    -- Mathlib gaps blocking close (TC5 — TC6+ closure target):
+    -- (i) Stirling explicit upper bound (~30-50 LOC, asymptotic-only at
+    --     pin; needed for binomial-coefficient asymptotics).
+    -- (ii) Mills ratio (~40-60 LOC, ABSENT in pinned Mathlib — local
+    --      `Real.gaussianMillsRatioReal` def + lemmas provided in TC5).
+    -- (iii) real Beta-integral comparison (~20-40 LOC, complex-only at
+    --       pin — TC6 scope).
     sorry
 
 /-! ### Layer 3 — Hungarian dyadic decomposition + recursive coupling
