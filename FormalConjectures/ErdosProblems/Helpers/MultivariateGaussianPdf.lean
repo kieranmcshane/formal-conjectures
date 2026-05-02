@@ -13,6 +13,8 @@ limitations under the License.
 
 import BrownianMotion.Gaussian.MultivariateGaussian
 import Mathlib.LinearAlgebra.Matrix.PosDef
+import Mathlib.Analysis.Matrix.PosDef
+import Mathlib.Analysis.Matrix.Order
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.MeasureTheory.Measure.Lebesgue.EqHaar
 import Mathlib.MeasureTheory.Measure.WithDensity
@@ -77,7 +79,7 @@ See also `Helpers/R40_T1_DifferentiabilityAudit.md` §3 for the full audit.
 namespace Erdos524.Helpers.MultivariateGaussianPdf
 
 open MeasureTheory ProbabilityTheory Matrix
-open scoped ENNReal NNReal Real
+open scoped ENNReal NNReal Real MatrixOrder
 
 variable {ι : Type*} [Fintype ι] [DecidableEq ι]
 
@@ -132,6 +134,69 @@ theorem multivariateGaussianPdf_pos
     exact inv_pos.mpr h_det_pos
   have h3 : (0 : ℝ) < Real.exp (-(1 / 2) * (x ⬝ᵥ S⁻¹ *ᵥ x)) := Real.exp_pos _
   exact mul_pos (mul_pos h1 h2) h3
+
+/-! ## R46-T2.1 — Sub-lemma (a): Determinant of CFC.sqrt
+
+**R46 Track A advance.** `det (CFC.sqrt S) = √(det S)` for positive
+semidefinite `S`. This is sub-gap (a) of the three-piece MGE composition
+identified in `R44_T1_BodyCloseAudit.md` and `R45_T1_FramingVerificationAudit.md`.
+
+**Closure recipe (per R46-T1.1 grep audit, all citations verified at pin
+`mathlib4 @ 25ce63313608`):**
+
+1. `CFC.sqrt S * CFC.sqrt S = S` — from `CFC.sqrt_mul_sqrt_self`
+   (`Analysis/SpecialFunctions/ContinuousFunctionalCalculus/Rpow/Basic.lean:259`),
+   re-exposed in matrix form as `Matrix.PosSemidef.sqrt_mul_self`
+   (`Analysis/Matrix/Order.lean:140`, deprecated alias for
+   `CFC.sqrt_mul_sqrt_self`).
+2. `Matrix.det_mul` (`LinearAlgebra/Matrix/Determinant/Basic.lean:138`):
+   `det (M * N) = det M * det N`.
+3. From (1) + (2): `(CFC.sqrt S).det * (CFC.sqrt S).det = S.det`.
+4. `(CFC.sqrt S).PosSemidef` from `(CFC.sqrt_nonneg S).posSemidef`
+   (`Analysis/Matrix/Order.lean:51` `nonneg_iff_posSemidef` + standard CFC
+   lemma `CFC.sqrt_nonneg`).
+5. `0 ≤ (CFC.sqrt S).det` from `PosSemidef.det_nonneg`
+   (`Analysis/Matrix/PosDef.lean:51`).
+6. `Real.sqrt_eq_iff_mul_self_eq` (`Data/Real/Sqrt.lean:150`):
+   `√x = y ↔ x = y * y` (given `0 ≤ x` and `0 ≤ y`). Apply with
+   `x := S.det`, `y := (CFC.sqrt S).det`.
+
+This is a fully-proved Full sub-lemma (no Stubs). Companion: `Real.sqrt`
+of `S.det` is well-defined (≥ 0) for any matrix; for non-PSD `S` it is
+zero by Mathlib's convention `Real.sqrt_eq_zero_of_nonpos`. -/
+
+/-- **R46-T2.1 sub-lemma (a) — Full.** For positive-semidefinite `S`, the
+determinant of the spectral square root `CFC.sqrt S` equals the real
+square root of `det S`. -/
+theorem det_CFC_sqrt_eq_sqrt_det
+    {S : Matrix ι ι ℝ} (hS : S.PosSemidef) :
+    (CFC.sqrt S).det = Real.sqrt S.det := by
+  -- Step 1: 0 ≤ S in the matrix-order sense (from PosSemidef).
+  have h_nn_S : (0 : Matrix ι ι ℝ) ≤ S := hS.nonneg
+  -- Step 2: CFC.sqrt S * CFC.sqrt S = S.
+  have h_sqrt_sq : CFC.sqrt S * CFC.sqrt S = S := CFC.sqrt_mul_sqrt_self S h_nn_S
+  -- Step 3: det multiplicativity ⟹ (CFC.sqrt S).det^2 = S.det.
+  have h_det_sq : (CFC.sqrt S).det * (CFC.sqrt S).det = S.det := by
+    rw [← Matrix.det_mul, h_sqrt_sq]
+  -- Step 4: 0 ≤ (CFC.sqrt S).det from PSD of CFC.sqrt S.
+  have h_psd_sqrt : (CFC.sqrt S).PosSemidef := (CFC.sqrt_nonneg (a := S)).posSemidef
+  have h_det_sqrt_nn : 0 ≤ (CFC.sqrt S).det := h_psd_sqrt.det_nonneg
+  -- Step 5: 0 ≤ S.det from PSD of S.
+  have h_det_S_nn : 0 ≤ S.det := hS.det_nonneg
+  -- Step 6: apply Real.sqrt_eq_iff_mul_self_eq (in reverse direction).
+  -- Goal: (CFC.sqrt S).det = √S.det.
+  rw [eq_comm, Real.sqrt_eq_iff_mul_self_eq h_det_S_nn h_det_sqrt_nn]
+  exact h_det_sq.symm
+
+/-- **R46-T2.1 sub-lemma (a), positivity refinement** — for PosDef `S`,
+`(CFC.sqrt S).det = √(det S)` and both are positive. Direct corollary of
+`det_CFC_sqrt_eq_sqrt_det`; useful when consumers need positivity of the
+Jacobian factor. -/
+theorem det_CFC_sqrt_pos_of_posDef
+    {S : Matrix ι ι ℝ} (hS : S.PosDef) :
+    0 < (CFC.sqrt S).det := by
+  rw [det_CFC_sqrt_eq_sqrt_det hS.posSemidef]
+  exact Real.sqrt_pos.mpr hS.det_pos
 
 /-! ## Pushforward equality bridge -/
 
@@ -196,6 +261,19 @@ theorem multivariateGaussian_eq_lebesgue_withDensity
   -- the R40 `True := by trivial` placeholder. Body remains a TAG'd Stub
   -- after R44 work (single `sorry`, debt-neutral).
   --
+  -- **R46-T2.1 advance (this round):** Sub-gap (a) `det_CFC_sqrt_eq_sqrt_det`
+  -- now lands as a Full sub-lemma (line ~158 above) via the recipe
+  -- audited in `R46_T1_GrepAuditAndFramingVerification.md` §1. Sub-gap (c)
+  -- (constant-Jacobian linear pushforward) is verified to be a DIRECT
+  -- application of Mathlib's `map_linearMap_addHaar_eq_smul_addHaar`
+  -- (`Mathlib/MeasureTheory/Measure/Lebesgue/EqHaar.lean:234`) — no
+  -- separate sub-lemma needed; the application happens inline in the
+  -- composition step. Sub-gap (b) `stdGaussian_eq_lebesgue_withDensity`
+  -- remains the bottleneck (~80-120 LOC, deferred to R47+).
+  --
+  -- The single MGE `sorry` here is therefore narrowed to the (b)
+  -- composition gap.
+  --
   -- **R44 verification (this round, post-investigation):** the brief's
   -- Grok Q1/Q2 pre-flight described MGE as a "Jacobi formula" close
   -- (`HasFDerivAt det`); see `R44_T1_BodyCloseAudit.md` for the brief-vs-
@@ -204,14 +282,18 @@ theorem multivariateGaussian_eq_lebesgue_withDensity
   -- gaps (a)–(c) below, all confirmed missing at `mathlib4 @ 25ce63313608`
   -- + `brownian-motion` HEAD via search of:
   --   * `det_CFC_sqrt`, `det_sqrt`, `Matrix.det.*sqrt` — 0 hits.
+  --     **R46 update**: Now PROVED here as `det_CFC_sqrt_eq_sqrt_det`
+  --     Full sub-lemma (composes `CFC.sqrt_mul_sqrt_self` +
+  --     `Matrix.det_mul` + `Real.sqrt_eq_iff_mul_self_eq`).
   --   * `stdGaussian.*=.*withDensity`, `stdGaussian.*lebesgue` — 0 hits in
   --     `BrownianMotion/Gaussian/`. Only special-case lemma is
   --     `multivariateGaussian_zero_one` (`MultivariateGaussian.lean:325`).
-  --   * `integral_image_eq_integral_abs_det_jacobian_smul_of_injOn` packaged
-  --     as the general non-linear C¹ form; no constant-Jacobian linear
-  --     specialization for `toEuclideanCLM (CFC.sqrt S)` is exposed.
-  -- Each gap is independently a multi-LOC formalisation in its own right;
-  -- joint MGE body close is genuinely ~150–200 LOC novel work.
+  --   * `map_linearMap_addHaar_eq_smul_addHaar` — **R46 grep audit FOUND**
+  --     at `Mathlib/MeasureTheory/Measure/Lebesgue/EqHaar.lean:234`. This
+  --     is the exact constant-Jacobian linear pushforward identity
+  --     (sub-gap (c)); no separate sub-lemma needed.
+  -- The remaining novel gap is therefore (b) only, ~80-120 LOC instead
+  -- of the original ~150-200 LOC estimate.
   --
   -- The R44 brief's Grok-derived 80-120 LOC estimate (and P~0.75 Full
   -- close) was based on the misframed Jacobi-formula scope and does not
