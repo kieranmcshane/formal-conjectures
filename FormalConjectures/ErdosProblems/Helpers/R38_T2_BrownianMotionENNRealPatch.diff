@@ -1,0 +1,37 @@
+FormalConjectures/ErdosProblems/Helpers/R38_T2_BrownianMotionENNReal_PRE.bak.lean → .lake/packages/brownian-motion/BrownianMotion/Auxiliary/ENNReal.lean
+   +10 added, -24 removed, ~0 modified
+
+-  39 @[norm_cast]
++  39 -- R38 T2.1 local-patch (mirrors upstream brownian-motion `4fa8fc0 bump`):
+-  40 lemma ENat.toENNReal_iSup {ι : Sort*} (f : ι → ℕ∞) : ⨆ i, f i = ⨆ i, (f i : ℝ≥0∞) := by
++  40 -- the lemma `ENat.toENNReal_iSup` was upstreamed to Mathlib at
+-  41   refine eq_of_forall_ge_iff fun c ↦ ⟨fun h ↦ ?_, fun h ↦ ?_⟩
++  41 -- `Mathlib/Algebra/Order/Floor/Extended.lean:211` (rev 25ce6331…),
+-  42   · exact iSup_le fun i ↦ le_trans (ENat.toENNReal_le.2 (le_iSup f i)) h
++  42 -- so retaining it here causes a duplicate-declaration import collision
+-  43   · obtain rfl | hc := eq_or_ne c ⊤
++  43 -- when consumers transitively import both modules. Removed locally to
+-  44     · exact le_top
++  44 -- unblock `formal_conjectures` consumer build (FormalConjectures/ErdosProblems/524).
+-  45     lift c to ℝ≥0 using hc
++  45 -- See FormalConjectures/ErdosProblems/Helpers/R38_T1_ENatDiagnostic.md.
+-  46     have (i : ι) : f i ≤ Nat.floor c := by
++  46 
+-  47       have := (le_iSup _ i).trans h
++  47 @[gcongr]
+-  48       have h' : f i ≠ ⊤ := by
++  48 alias ⟨_, ENat.toENNReal_le'⟩ := ENat.toENNReal_le
+-  49         rw [← ENat.toENNReal_ne_top]
+-  50         exact this.trans_lt ENNReal.coe_lt_top |>.ne
+-  51       lift f i to ℕ using h' with k
+-  52       norm_cast
+-  53       change ((k : ℝ≥0) : ℝ≥0∞) ≤ c at this
+-  54       exact Nat.le_floor_iff (zero_le _) |>.2 <| ENNReal.coe_le_coe.1 this
+-  55     calc
+-  56     (↑(⨆ i, f i) : ℝ≥0∞) ≤ Nat.floor c := by
+-  57       change (↑(⨆ i, f i) : ℝ≥0∞) ≤ ((Nat.floor c : ENat) : ℝ≥0∞)
+-  58       exact ENat.toENNReal_le.2 (iSup_le this)
+-  59     _ ≤ c := by norm_cast; exact Nat.floor_le (zero_le _)
+-  60 
+-  61 @[gcongr]
+-  62 alias ⟨_, ENat.toENNReal_le'⟩ := ENat.toENNReal_le

@@ -835,3 +835,117 @@ within R37. Net axioms at projected R38 closure: **8 user-defined**
 (`Cp_T_explicit_pointwise_axiom`, `one_dim_KMT_coupling`,
 `kmt_aided_gaussian_process`, `gao_li_wellner_small_ball_{lower,upper}`,
 3 × IsGLWProcess) + 3 R33-C/D Mathlib gaps + 3 R35 Phase A scaffolds.
+
+## R38 — consumer-build-green milestone (ENat resolution, NOT Phase A closure)
+
+### Framing
+
+R38 is a **build-infrastructure milestone**. It resolves the ENat
+import collision so the consumer build of `524.lean` is green; it
+does **not** retire any axiom or close any sorry. The 8-axiom
+inventory below is **technical debt** carried into R39+.
+
+User priority #1 (sorry-free + axiom-free 524.lean) is **OPEN**.
+
+### Outcome: consumer-build-green (build infra only)
+
+The pre-R38 ENat blocker (`GLWUpperProof.lean:14` import collision
+between `Mathlib.Algebra.Order.Floor.Extended.ENat.toENNReal_iSup`
+and `BrownianMotion.Auxiliary.ENNReal.ENat.toENNReal_iSup`) is
+**resolved** via a single surgical local-patch on the pinned
+`brownian-motion` checkout (P2 path of T1.1). All four critical
+targets compile cleanly under `lake env lean`:
+
+| Target | Pre-R38 | Post-R38 |
+|---|---|---|
+| `GLWLowerProof.lean` | ✅ green | ✅ green (no regression) |
+| `PhaseAUpperBound.lean` | ✅ green (2 R35 PhaseA sorries) | ✅ green (same 2 sorries, no regression) |
+| `GLWUpperProof.lean` | ❌ ENat-blocked | ✅ green |
+| `524.lean` (consumer) | ❌ ENat-blocked | ✅ green (1 consumer sorry, no regression) |
+
+See `R38_T1_ENatDiagnostic.md`, `R38_T2_ConsumerBuildLog.md`,
+`R38_T2_BrownianMotionENNRealPatch.diff`,
+`R38_T2_BrownianMotionENNReal_PRE.bak.lean` for verbatim build
+output and patch artifact.
+
+### Resolution path: P2 (local-patch mirroring upstream `4fa8fc0`)
+
+The upstream `brownian-motion` master commit `4fa8fc0 bump`
+deletes the duplicate `ENat.toENNReal_iSup` lemma (file shrinks 81→42
+lines) because Mathlib upstreamed an identically-stated lemma to
+`Algebra/Order/Floor/Extended.lean`. P1 (toolchain-level upstream-bump
+to `4fa8fc0`) was rejected as out-of-budget because it requires Lean
+v4.27.0-rc1 → v4.28.0 + Mathlib `25ce6331…` → `55c8532e…`, which
+would force re-verification of all R29–R37 content. P2 mirrors
+`4fa8fc0`'s deletion as a one-line surgery on the pinned checkout
+plus a one-line `import Mathlib.Algebra.Order.Floor.Extended` added
+to `BrownianMotion/Continuity/CoveringNumber.lean` (the only
+intra-bm consumer of the deleted lemma).
+
+### Final 8-axiom inventory (unchanged from R37)
+
+No axioms were added, retired, or modified in R38. R38 is
+**infrastructure-tier**, not math-tier — the math content is locked
+at R37.
+
+| # | Axiom | Justification |
+|---|---|---|
+| 1 | `Cp_T_explicit_pointwise_axiom` (D2) | upstream Mathlib gap |
+| 2 | `one_dim_KMT_coupling` | upstream Mathlib gap |
+| 3 | `kmt_aided_gaussian_process` (stepping-stone) | upstream Mathlib gap |
+| 4 | `gao_li_wellner_small_ball_lower` | upstream Mathlib gap |
+| 5 | `gao_li_wellner_small_ball_upper` | upstream Mathlib gap |
+| 6 | `IsGLWProcess` β-path lower-Yplus | R37 audit catch |
+| 7 | `IsGLWProcess` β-path lower-Yminus | R37 audit catch |
+| 8 | `IsGLWProcess` β-path upper-Yplus | R37 audit catch (was missed by R36 brief) |
+
+### TAG'd sorries inventory (unchanged from R37)
+
+* 3 R33-C / R33-D Mathlib gaps (orthogonal to ENat).
+* 3 R35 Phase A scaffolds (orphan-preserved Option (a)) — directly
+  visible at `PhaseAUpperBound.lean:199, 290` and `524.lean:3889`.
+
+### Dependency-status graph (post-R38)
+
+```
+Build infrastructure             : GREEN (R38 milestone)
+Mathematical content (R37 lock)  : DECLARED tier from R37 — UNCHANGED in R38
+8 user-defined axioms            : DEBT (R39+ retire targets)
+3 R33-C/D TAG'd sorries          : DEBT (Mathlib version-skew)
+3 R35 Phase A TAG'd sorries      : DEBT (Option (a) preserved scaffolds)
+ENat duplicate-declaration       : RESOLVED (local-patch on pinned bm)
+User-priority-#1 (sorry+axiom-0) : OPEN (R39+ program)
+```
+
+### Durability caveat for the local patch
+
+The patch lives inside `.lake/packages/brownian-motion/`. A future
+`lake update` reverts it. The patch artifact and original file are
+checked into `Helpers/R38_T2_BrownianMotionENNRealPatch.diff` and
+`Helpers/R38_T2_BrownianMotionENNReal_PRE.bak.lean` so future
+contributors can reapply. The durable fix is to bump our project's
+toolchain to Lean v4.28.0 (matching upstream `4fa8fc0`), at which
+point the local-patch becomes obsolete — that is V2 / future-work
+territory, NOT a R38 deliverable.
+
+### Total project budget retrospective (visible portion)
+
+| Phase | Rounds | Outcome |
+|---|---|---|
+| R29–R33-D | 5 rounds | Helpers consolidation + consumer migration |
+| R34 (Phase A entry) | 1 round | Lower-side axiom regression |
+| R35 (Phase A pre-flight) | 1 round | Differentiability scaffolding |
+| R36 (Phase A redux) | 1 round | Upper-side axiom regression |
+| R37 (Phase A code-level) | 1 round | β-path + §11 verification, +1 audit catch |
+| R38 (consumer-build-green) | 1 round | ENat resolution → build-green milestone |
+| R39+ | TBD | Axiom-retirement program (debt reduction) |
+
+Visible total to date: **10 rounds** (R29–R38), all build-infrastructure
+work. The mathematical mission (axiom-free + sorry-free 524.lean)
+re-enters as the explicit focus from R39 onward.
+
+Initial project projection: 2–3 rounds. Calibration off by ~3–5× on the
+build-infra portion alone; the math-content axiom-retirement program
+is a separate budget yet to be bounded.
+
+100% mandatory floor land rate maintained across all 10 rounds to date.
