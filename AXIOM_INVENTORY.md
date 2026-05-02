@@ -19,6 +19,105 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R57 V2 round 19 — Q1c full close attempt, math-content)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). All 8 R50-relevant critical build targets remain green
+  post-R57; R52's CharFunCrossBlock + R53's MatrixDetDifferentiable +
+  R54's MVGaussianDensityBound + R55's alternate-track build state +
+  R56's companion `Matrix.det.hasFDerivAt` axiomatization preserved.
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R57 (T1.1 audit, T2.1
+  Q1c full close, T2.2 + T2.3 + AXIOM_INVENTORY + status doc bundled
+  per R57 round commits).
+* **Round type:** Variante 1, single round, mainline. Math-content full
+  close attempt on Q1c alternate-track per R52-T2.1 recipe. **First
+  successful post-batch math-content close attempt** on the project.
+  Per-distance-class re-indexing via Mathlib `sum_geometric_two_le` +
+  `Finset.sum_range_reflect` + `Finset.sum_Ico_eq_sum_range`, ~100 LOC.
+* **Net debt change:**
+  * Sorries (alternate-track): **2 → 1** (-1, `geomSeries_offDiag_le`
+    Stub at `MultivariateSmallBallUpper.lean:267-275` retired via Full
+    close). Remaining `multivariate_small_ball_upper` Stub at
+    `MultivariateSmallBallUpper.lean:765` (was line 656 pre-R57)
+    flagged R58+ scope per R52 audit (multivariate Fourier infrastructure
+    Mathlib gap).
+  * User-defined axioms (mainline): **9 → 9** (0; no axiom touched).
+  * Sorries (mainline): **10 → 10** (0; alternate-track close, not
+    gate retirement).
+  * Items at gate: **19 → 19** (0; alternate-track close, not gate
+    retirement).
+  * Project total: **40 → 39** (-1, alternate-track sorry retired).
+  * Strategic value: proves Q1c-track engineering tractability
+    post-R51 γ-floor pivot, demonstrates pure-arithmetic Q1c-track
+    sorries are within R57+ math-content close budget. Pattern
+    establishes recipe for next math-content close target (line 765
+    multivariate Fourier Stub remains R58+ scope per audit; closure
+    requires Mathlib infrastructure).
+* **Total mainline debt:** 9 user-defined axioms + 10 TAG'd sorries =
+  19 items (unchanged from R56 close).
+* **Cumulative R40-R57 retirement rate:** ~0.31 sorry/round (R57
+  contributes 1 alternate-track close; mainline unchanged).
+* **Three deliverables this round:**
+  * **R57-T1.1 Claims Verification Table + recipe extraction**
+    (`Helpers/Round57_T1_Q1cFullCloseAttempt.md`). All 8 claims
+    VERIFIED. Stub signature extracted verbatim from
+    `MultivariateSmallBallUpper.lean:267-275` (line shifted from R52
+    audit due to R52-T2.1 docstring expansion). R52 recipe confirmed:
+    per-distance-class re-indexing via `Finset.sum_geometric_two_le` +
+    sum reflection + Ico-shift.
+  * **R57-T2.1 full close** (~100 LOC in
+    `Helpers/MultivariateSmallBallUpper.lean`). Full proof:
+    1. Term-rewrite helper `(2:ℝ)^(-(|a-b|:ℤ)) = (1/2:ℝ)^(a-b).natAbs`
+       via `Int.natCast_natAbs` + `_root_.zpow_neg` + `zpow_natCast`
+       + `inv_pow`.
+    2. Per-row bound via `Fin.sum_univ_eq_sum_range` (Fin M → range M),
+       split at `p.val` into `range (p.val + 1)` + `Ico (p.val + 1) M`,
+       reindex left via `Finset.sum_range_reflect`, reindex right via
+       `Finset.sum_Ico_eq_sum_range`, both bounded by 2 via
+       `sum_geometric_two_le` (Mathlib `SpecificLimits/Basic.lean:351`).
+       Total per row: ≤ 2 + 1 = 3 ≤ 4.
+    3. Main: relax `offDiag ⊆ univ ×ˢ univ` via
+       `Finset.sum_le_sum_of_subset_of_nonneg`, factor as nested sum
+       via `Finset.sum_product`, apply per-row bound, multiply by `M`
+       cardinality.
+  * **R57-T2.2 build verification + AXIOM_INVENTORY + status doc + push**
+    (this entry; `Helpers/PhaseV2R57Status.md`). Build verified:
+    8 critical targets + `MultivariateSmallBallUpper` + `524.lean` all
+    green; only pre-existing copyright-style + module-docstring linter
+    warnings (unchanged from R56).
+* **R52 milestone gate trajectory (post-R57):** items at 19, gate
+  threshold ≤ 8. R58-R59 trajectory must contribute **~11 retirements
+  across 2 rounds = ~5.5/round**, well above the cumulative
+  ~0.31/round rate. **R52 gate fails decisively under hybrid (c)** —
+  γ floor + β R58 extension trajectory binding per BACKGROUND.md.
+  R58 candidates (priority order):
+  1. **Q1c follow-on full close attempt** — `multivariate_small_ball_upper`
+     Stub at line 765 (was 656 pre-R57); blocked on multivariate Fourier
+     infrastructure Mathlib gap per R52 audit; may require Mathlib pin
+     bump or local development. Likely Type B (Mathlib gap), not Type A.
+  2. **Continued alternate-track API drift fixes** — Errors C
+     (508.lean Pairwise simp drift), D (26.lean lia/grind tactic drift),
+     E (HartshorneConjecture SheafOfModules.Hom.hom field rename) per
+     R55 catalog §"Build error catalog"; Type B/C.
+  3. **TD5 close attempt** — track-d sub-lemma 3 close (depends on pin
+     bump window per BACKGROUND.md TD4 note); item-positive on track-d
+     if Full.
+* **Cumulative T1.1 audit ledger:** 8 distinct misframings caught
+  pre-dispatch (unchanged from R50-R56 — R57 is math-content close on
+  pre-audited recipe, no Grok dispatch).
+* **Anti-mismatch hygiene 8/8:**
+  Stub signature verbatim including `(M : ℕ)` parameter + bound
+  `≤ 4 * M`; only `:= by ... sorry` body replaced with full proof; no
+  imports added (proof uses `Finset` + `Real.zpow` Mathlib API +
+  `SpecificLimits/Basic`); no other lemma in file modified
+  (`multivariate_small_ball_upper` Stub at line 765 untouched);
+  R49 + R51 + R53 + R56 axioms preserved; A1-A5 axioms preserved;
+  track branches not touched (mainline only).
+
+See `Helpers/PhaseV2R57Status.md` and
+`Helpers/Round57_T1_Q1cFullCloseAttempt.md` for the round status doc +
+T1.1 Claims Verification Table.
+
 ## Build status (R56 V2 round 18 — companion `Matrix.det.hasFDerivAt` γ-floor axiomatization, mechanical)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
