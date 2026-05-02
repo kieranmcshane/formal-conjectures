@@ -19,6 +19,41 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R43 V2 round 5 — MGE/MGI signatures + Phase 1A/1B chain rule)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone, 2026-05-02).
+* **Mathematical content (R43 update):** lands per Grok R43 pre-flight
+  Q4 verdict (b): signatures + Phase 1A + Phase 1B in a single round.
+  * **MGE / MGI signature upgrade.** `multivariateGaussian_eq_lebesgue_withDensity`
+    (MGE) + `multivariateGaussianOrthantCDF_eq_lebesgue_integral` (MGI)
+    upgraded from R40 `True := by trivial` placeholders to real Lean
+    signatures with TAG'd Stub bodies (TAG[R43-T2.1-MGE-pushforward-jacobian-body]
+    + TAG[R43-T2.1-MGI-orthant-via-MGE-body]) in
+    `Helpers/MultivariateGaussianPdf.lean`.
+  * **Phase 1A** (`Sα_path_hasDerivAt`) — Full Lean proof of
+    `HasDerivAt (fun α => (1-α) • S_X + α • S_Y) (S_Y - S_X) α` in
+    `Helpers/PhaseAUpperBound.lean:245`.
+  * **Phase 1B** (`multivariateGaussianOrthantCDF_differentiableAt_along_Sα_path`)
+    — Full Lean chain-rule composition giving `DifferentiableAt ℝ` for
+    the composite `α ↦ orthantCDF (Σ_path α) x` at `α ∈ (0, 1)` in
+    `Helpers/PhaseAUpperBound.lean:297`. No deferred R44 sub-Stub.
+  * R43 elects the audit's R44 trajectory: Phase 2 (MGE/MGI body close +
+    CDF diff Full body) lands in R44, then Slepian Full body in R45.
+* **Net debt change R42 → R43:** axioms 5 → 5 (unchanged); sorries 11 → 13
+  (+2 from MGE/MGI signature upgrades — quality upgrade replacing
+  uninformative `True` placeholders with TAG'd Stubs carrying real
+  mathematical content).
+* **All build targets remain green** (`lake env lean` clean on
+  `MultivariateGaussianPdf.lean`, `PhaseAUpperBound.lean`,
+  `MultivariateGaussianCDF.lean`, `524.lean`).
+* **R59 ceiling check:** preserved with 1 round buffer via Grok Q5
+  BTIS-merge compression option. R43 mid-distribution outcome → 17
+  remaining rounds for pure axiom-free target.
+
+See `Helpers/PhaseV2R43Status.md` and `Helpers/R43_T1_SignatureUpgradeAudit.md`
+for the round status doc + audit.
+
 ## Build status (R42 V2 round 4 — Slepian diagnostic strengthening, audit-aligned lower outcome)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
@@ -117,7 +152,33 @@ content deferred to V2 R49-R53 cluster (bundled with axiom #3
 retirement). See `Helpers/AxiomFoundationAudit.md` "R39 — V2 round 1"
 section.
 
-## 11 TAG'd `sorry` sites (post-R42 — same count as post-R41, R42 zero net change)
+## 13 TAG'd `sorry` sites (post-R43 — +2 over post-R42 from MGE/MGI signature upgrades)
+
+(Same 11 sites listed below from post-R42, plus 2 new sites:)
+
+* **2 V2-R43 MGE/MGI real-signature upgrades** (added in R43-T2.1):
+  * `FormalConjectures/ErdosProblems/Helpers/MultivariateGaussianPdf.lean:183`
+    (`multivariateGaussian_eq_lebesgue_withDensity`,
+    TAG `R43-T2.1-MGE-pushforward-jacobian-body`,
+    upgraded from R40 `True := by trivial` to real
+    `multivariateGaussian 0 S = volume.withDensity (ofReal ∘ pdf)`
+    signature with TAG'd Stub body. Closure prerequisites: (a)
+    det_CFC_sqrt_eq_sqrt_det, (b) stdGaussian_eq_lebesgue_withDensity,
+    (c) constant-Jacobian linear-pushforward change-of-variables.)
+  * `FormalConjectures/ErdosProblems/Helpers/MultivariateGaussianPdf.lean:226`
+    (`multivariateGaussianOrthantCDF_eq_lebesgue_integral`,
+    TAG `R43-T2.1-MGI-orthant-via-MGE-body`,
+    upgraded from R40 `True := by trivial` to real orthant-CDF =
+    Lebesgue-integral signature with TAG'd Stub body. Closure
+    prerequisite: MGE body + standard withDensity-to-set-integral
+    transfer.)
+
+R43 also adds two **fully proved** lemmas (no `sorry`):
+  * `Helpers.Sα_path_hasDerivAt` — Phase 1A linear path differentiability.
+  * `Helpers.multivariateGaussianOrthantCDF_differentiableAt_along_Sα_path`
+    — Phase 1B chain rule composition.
+
+## 11 TAG'd `sorry` sites (post-R42 — pre-R43 baseline)
 
 * **3 R33-C / R33-D Mathlib version-skew gaps** — orthogonal to ENat,
   documented as upstream-Mathlib-pending.
