@@ -13,6 +13,7 @@ limitations under the License.
 
 import FormalConjectures.ErdosProblems.Helpers.GLWProcess
 import FormalConjectures.ErdosProblems.Helpers.GLWProcessPredicate
+import FormalConjectures.ErdosProblems.Helpers.RademacherSequence
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
@@ -305,63 +306,78 @@ KMT space). Closing this sorry needs either (a) extending
 space, or (c) accepting this as a stepping-stone helper analogous to
 `Y_GLW_exists` itself. -/
 
-/-! ### R37 audit-honesty migration (Phase A code-level closure)
+/-! ### R39 V2 cold re-audit migration (axiom → tightened-signature TAG'd sorry)
 
-Per `Helpers/R37_T1_ClosureAudit.md` §A, both lower-side IsGLWProcess
-helpers were promoted from `theorem ... := by sorry` to user-defined
-`axiom` for symmetric audit-honesty closure of Phase A.
+Per `Helpers/R39_T1_AlphaConversionAudit.md`, the cold re-audit found that
+the R37 axiom form `(_hY_meas : ∀ u, Measurable Y) → IsGLWProcess Y` is
+**unsound**: the constant-zero process `Y ≡ 0` is measurable but
+`IsGLWProcess.cov 0 0 = K_GLW 0 0 = 1` contradicts `∫ 0 · 0 = 0`. R37's
+β-needed verdict (Grok-α-recipe inputs absent from the legacy-Ω 13-tuple)
+remains correct as far as it goes but missed this signature-level
+soundness issue.
 
-The R36-postdated Grok pre-flight conjectured an α-path closure under
-the assumption that the helpers had access to a decomposition
-`Yplus = Y_e + Y_o` with `Y_e ⊥ Y_o`, halved kernels
-`K_{Y_e}(s,t) = (1/2)·K_GLW(s,t)`, and individually-Gaussian Y_e, Y_o.
-T1.1.A (R37) verified that none of inputs (1)–(5) of Grok's recipe is
-exposed at the helper signature OR at the upstream
-`two_dim_KMT_coupling_legacy_Ω_form` 13-tuple destructure. The
-upstream's `IndepFun` is between the OUTER pair (Yplus ⊥ Yminus from
-R33-D linear-combo Form β), NOT the inner Y_e ⊥ Y_o decomposition that
-Grok's recipe needs. The kernel-halving identity is also absent from
-the public output.
+R39 elects **α-tighten**: tighten the helper signature to admit only the
+call-site context that pins the law of Y uniquely to GLW — specifically,
+the Rademacher sequence `a`, the rate-bound `Δ ≤ log(n+1)/√n`, and the
+KMT coupling rate `|n^{-1/2} Σ_k a_k(ω) · ker_k(u/n) - Y u ω| ≤ Δ n`. With
+these hypotheses the conclusion `IsGLWProcess Y` is sound (1D KMT +
+scaling limit theorem pin Y uniquely as the GLW process), and the
+counterexample `Y ≡ 0` is excluded (it does not satisfy the KMT bound for
+the unscaled partial sums in the limit n → ∞).
 
-This is the R34-projected resolution path (a) — extending
-`two_dim_KMT_coupling_legacy_Ω_form` to expose the inner Y_e/Y_o + their
-joint Gaussianity + K_{Y_e} = (1/2)·K_GLW kernel formulas — that R34
-audit estimated at 1-2 additional rounds. R37 elects symmetric β-path
-axiomatization on both lower-side helpers (and the upper-side helper at
-`Helpers/GLWUpperProof.lean:281`) with TAGs, preserving the call-sites'
-`(..._isGLWProcess_Yplus hYp_meas)` syntax. The user-defined axiom count
-post-R37 is **8** total (D2 + 1D KMT + stepping-stone + GLW lower +
-GLW upper + 3 IsGLWProcess) — the +1 over the R36-projected 7 reflects
-the symmetric upper-side helper, a parallel sorry that the R36 sorry
-inventory had missed. -/
+R37's axioms are converted from `axiom` to `theorem ... := by sorry` with
+TAG[V2-R39-tighten]. This reduces the user-defined-axiom count
+8 → 5, recategorizing the 3 IsGLWProcess obligations from "axiom"
+(irreducible black box) to "TAG'd sorry" (Mathlib-infra-pending closure).
+The remaining proof obligation lives in the R49-R53 V2 cluster (1D KMT
+formalization + scaling limit theorem). -/
 
 /-- Discharges `IsGLWProcess Yplus` for the call sites of
 `gao_li_wellner_small_ball_lower` in `polynomial_sup_small_ball_lower`
 and `polynomial_sup_small_ball_lower_uniform` in `524.lean`.
 
-**R37 status: user-defined `axiom` (Phase A code-level closure,
-β-path).** Per `Helpers/R37_T1_ClosureAudit.md` §A, the Grok α-path
-recipe's required inputs are absent from the upstream KMT coupling
-output; symmetric β-axiomatization with the lower-Yminus and upper-Yplus
-helpers. Retirement path identical to R34 audit (a) — extend
-`two_dim_KMT_coupling_legacy_Ω_form` to expose Y_e/Y_o + their joint
-Gaussianity + halved kernels, then close all three IsGLWProcess axioms
-into theorems. -/
-axiom gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
+**R39 V2 status: TAG'd sorry with α-tightened signature.** Sound modulo
+{axiom #1 (D2/Komlós), axiom #2 (1D KMT), Mathlib-side scaling-limit
+theorem}. Closure scheduled for R49-R53 (V2 1D KMT cluster). See
+`Helpers/R39_T1_AlphaConversionAudit.md` for the cold-audit derivation. -/
+theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    {Yplus : ℝ → Ω → ℝ} (_hYp_meas : ∀ u, Measurable (Yplus u)) :
-    IsGLWProcess Yplus
+    {a : ℕ → Ω → ℝ} (_ha : Erdos524.IsRademacherSequence a)
+    {Δ : ℕ → ℝ}
+    (_hΔ_bd : ∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n)
+    {Yplus : ℝ → Ω → ℝ}
+    (_hYp_meas : ∀ u, Measurable (Yplus u))
+    (_hKMT_p : ∀ n : ℕ, 1 ≤ n → ∀ ω : Ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n, a k ω * Real.exp (-u * k / n)) -
+          Yplus u ω| ≤ Δ n) :
+    IsGLWProcess Yplus := by
+  -- TAG[V2-R39-tighten-Yplus-lower]: sound modulo {#1, #2, scaling-limit};
+  -- closure deferred to R49-R53 (1D KMT formalization cluster).
+  sorry
 
 /-- Discharges `IsGLWProcess Yminus` for the call sites of
 `gao_li_wellner_small_ball_lower` in `polynomial_sup_small_ball_lower`
 and `polynomial_sup_small_ball_lower_uniform` in `524.lean`.
 
-**R37 status: user-defined `axiom` (Phase A code-level closure,
-β-path).** Same closure-round migration as the `_Yplus` helper above;
-identical retirement path. -/
-axiom gao_li_wellner_small_ball_lower_isGLWProcess_Yminus
+**R39 V2 status: TAG'd sorry with α-tightened signature** — identical
+treatment to the `_Yplus` helper above; the only difference is the
+KMT-coupling kernel (`(-Real.exp (-u/n))^k` vs `Real.exp (-u·k/n)`),
+which is the second component of the legacy-Ω 13-tuple. -/
+theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yminus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    {Yminus : ℝ → Ω → ℝ} (_hYm_meas : ∀ u, Measurable (Yminus u)) :
-    IsGLWProcess Yminus
+    {a : ℕ → Ω → ℝ} (_ha : Erdos524.IsRademacherSequence a)
+    {Δ : ℕ → ℝ}
+    (_hΔ_bd : ∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n)
+    {Yminus : ℝ → Ω → ℝ}
+    (_hYm_meas : ∀ u, Measurable (Yminus u))
+    (_hKMT_m : ∀ n : ℕ, 1 ≤ n → ∀ ω : Ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n, a k ω * (-Real.exp (-u / n)) ^ k) -
+          Yminus u ω| ≤ Δ n) :
+    IsGLWProcess Yminus := by
+  -- TAG[V2-R39-tighten-Yminus-lower]: sound modulo {#1, #2, scaling-limit};
+  -- closure deferred to R49-R53.
+  sorry
 
 end Erdos524.Helpers

@@ -16,6 +16,7 @@ import FormalConjectures.ErdosProblems.Helpers.GLWHierApprox
 import FormalConjectures.ErdosProblems.Helpers.GLWDiscretization
 import FormalConjectures.ErdosProblems.Helpers.GLWProcess
 import FormalConjectures.ErdosProblems.Helpers.GLWProcessPredicate
+import FormalConjectures.ErdosProblems.Helpers.RademacherSequence
 import Mathlib.MeasureTheory.Measure.MeasureSpace
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
@@ -262,39 +263,42 @@ The stub keeps the call sites compiling. -/
 namespace Erdos524.Helpers
 open MeasureTheory ProbabilityTheory
 
-/-! ### R37 audit-honesty migration (Phase A code-level closure)
+/-! ### R39 V2 cold re-audit migration (axiom → tightened-signature TAG'd sorry)
 
-Per `Helpers/R37_T1_ClosureAudit.md` §A, this upper-side IsGLWProcess
-helper was promoted from `theorem ... := by sorry` to user-defined
-`axiom` symmetrically with the two lower-side helpers in
-`Helpers/GLWLowerProof.lean`. The R36 sorry inventory at
-`Helpers/AxiomFoundationAudit.md` (R36 section) listed only the two
-lower-side helpers; the upper-side helper here is a parallel
-structurally-identical sorry that the R36 audit missed. R37 catches the
-discrepancy and treats all three consistently.
-
-See `Helpers/R37_T1_ClosureAudit.md` for the full Grok-α-path-vs-actual-
-upstream-output kernel-mismatch diagnostic. The KMT-coupling output
-exposes only the OUTER pair `(Yplus, Yminus)` with `IndepFun` between
-them; the inner Y_e/Y_o decomposition + halved kernels +
-individual-Gaussianity that Grok's α-path needs are private internals of
-`two_dim_KMT_coupling_via_LS_reduction` not propagated to the legacy-Ω
-public surface. -/
+Per `Helpers/R39_T1_AlphaConversionAudit.md`, the cold re-audit found that
+the R37 axiom form `(_hY_meas : ∀ u, Measurable Y) → IsGLWProcess Y` is
+**unsound** (counterexample `Y ≡ 0`, contradicting
+`IsGLWProcess.cov 0 0 = K_GLW 0 0 = 1`). R39 elects α-tighten on this
+upper-side helper symmetrically with the two lower-side helpers in
+`GLWLowerProof.lean`: take the full KMT-derived hypothesis set
+(Rademacher `a`, rate-bound `_hΔ_bd`, KMT coupling rate `_hKMT_p`) so
+that the conclusion is sound (Y is uniquely the GLW process by 1D KMT +
+scaling limit). Conversion `axiom` → `theorem ... := by sorry` with
+TAG[V2-R39-tighten-Yplus-upper]; user-defined-axiom count drops 8 → 5.
+Closure deferred to R49-R53 (V2 1D KMT formalization cluster). -/
 
 /-- Discharges `IsGLWProcess Yplus` for the call sites of
 `gao_li_wellner_small_ball_upper` in `polynomial_sup_small_ball_upper`
 and `polynomial_sup_small_ball_upper_uniform` in `524.lean`.
 
-**R37 status: user-defined `axiom` (Phase A code-level closure,
-β-path).** Symmetric to the lower-side `_isGLWProcess_{Yplus, Yminus}`
-helpers in `GLWLowerProof.lean`. Retirement path: extend
-`two_dim_KMT_coupling_legacy_Ω_form` to expose Y_e/Y_o + joint
-Gaussianity + halved K_{Y_e/Y_o} kernels, then promote the three
-IsGLWProcess axioms to theorems via `covariance_add_indep` + kernel
-halving + continuity inheritance (Grok's α-path recipe). -/
-axiom gao_li_wellner_small_ball_upper_isGLWProcess_Yplus
+**R39 V2 status: TAG'd sorry with α-tightened signature.** Sound modulo
+{axiom #1 (D2/Komlós), axiom #2 (1D KMT), Mathlib-side scaling-limit
+theorem}. Symmetric to the lower-side `_isGLWProcess_{Yplus, Yminus}`
+helpers in `GLWLowerProof.lean`. -/
+theorem gao_li_wellner_small_ball_upper_isGLWProcess_Yplus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
-    {Yplus : ℝ → Ω → ℝ} (_hYp_meas : ∀ u, Measurable (Yplus u)) :
-    IsGLWProcess Yplus
+    {a : ℕ → Ω → ℝ} (_ha : Erdos524.IsRademacherSequence a)
+    {Δ : ℕ → ℝ}
+    (_hΔ_bd : ∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n)
+    {Yplus : ℝ → Ω → ℝ}
+    (_hYp_meas : ∀ u, Measurable (Yplus u))
+    (_hKMT_p : ∀ n : ℕ, 1 ≤ n → ∀ ω : Ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n, a k ω * Real.exp (-u * k / n)) -
+          Yplus u ω| ≤ Δ n) :
+    IsGLWProcess Yplus := by
+  -- TAG[V2-R39-tighten-Yplus-upper]: sound modulo {#1, #2, scaling-limit};
+  -- closure deferred to R49-R53.
+  sorry
 
 end Erdos524.Helpers

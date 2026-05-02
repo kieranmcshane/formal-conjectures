@@ -19,34 +19,40 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
-## Build status (R38 milestone, NOT closure)
+## Build status (R39 V2 round 1 — α-tighten / α-redirect)
 
-* **Build infrastructure:** consumer-build-green (R38, 2026-05-02).
-* **Mathematical content:** locked at R37; **no axiom retired** in
-  R38, **no sorry closed** in R38.
-* **All four critical compile targets:** green via
-  `lake env lean <file>` (see `R38_T2_ConsumerBuildLog.md` and
-  `R38_T5_FinalBuildVerification.md`).
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone, 2026-05-02).
+* **Mathematical content (R39 update):** R37 cold re-audit revealed the
+  3 IsGLWProcess axioms (A6/A7/A8) were unsound as stated (signature
+  `Y measurable → IsGLWProcess Y` falsifiable on `Y ≡ 0`). R39
+  converted them to `theorem ... := by sorry` with α-tightened
+  signatures (now sound modulo {axioms #1, #2, scaling-limit theorem}).
+* **All build targets remain green** (Helpers + 524 consumer); R38
+  consumer-build-green milestone preserved. See
+  `Helpers/R39_T1_AlphaConversionAudit.md` for the cold re-audit and
+  `Helpers/PhaseV2R39Status.md` for the round status.
 
-## 8 user-defined axioms (technical debt — must retire)
+## 5 user-defined axioms (technical debt — must retire)
 
 | # | Axiom | Source round | Provisional retire-path |
 |---|---|---|---|
-| 1 | `Cp_T_explicit_pointwise_axiom` (D2) | pre-Phase-A | Mathlib-PR pipeline (1D KMT explicit constant) |
-| 2 | `one_dim_KMT_coupling` | pre-Phase-A | Mathlib-PR pipeline (1D KMT statement) |
-| 3 | `kmt_aided_gaussian_process` | pre-Phase-A | derive from #1+#2 once those land |
-| 4 | `gao_li_wellner_small_ball_lower` | R34 | Mathlib-PR pipeline (GLW lower-side) |
-| 5 | `gao_li_wellner_small_ball_upper` | R36 | Mathlib-PR pipeline (GLW upper-side) |
-| 6 | `IsGLWProcess` β-path lower-Yplus | R37 | retroactive α-attempt once IndepFun/Gaussian-decomposition kit lands |
-| 7 | `IsGLWProcess` β-path lower-Yminus | R37 | retroactive α-attempt (parallel to #6) |
-| 8 | `IsGLWProcess` β-path upper-Yplus | R37 | retroactive α-attempt (parallel to #6/#7) |
+| 1 | `Cp_T_explicit_pointwise_axiom` (D2) | pre-Phase-A | V2 R54-R55 (Komlós explicit constant via decomposition + #2) |
+| 2 | `one_dim_KMT_coupling` | pre-Phase-A | V2 R49-R53 (in-scope 1D KMT formalization) |
+| 3 | `kmt_aided_gaussian_process` | pre-Phase-A | V2 R49-R53 (derive from #1+#2 + scaling-limit theorem; also closes V2-R39 sorries 7-9) |
+| 4 | `gao_li_wellner_small_ball_lower` | R34 | V2 R40-R48 (Slepian + SF + BTIS composition) |
+| 5 | `gao_li_wellner_small_ball_upper` | R36 | V2 R40-R48 (parallel to #4) |
 
-All eight are classically correct (see the audit doc for the
-classical-justification chain). The retire-paths above are
-**provisional** — R39 is scheduled to harden them into a binding
-roadmap (R38 stretch T3.1, deferred → R39 mandatory floor).
+All five are classically correct (see the audit doc for the
+classical-justification chain).
 
-## 6 TAG'd `sorry` sites
+**R39 retired axioms 6-8** (the 3 IsGLWProcess β-axioms) by α-tighten:
+sound tightened signatures requiring KMT-coupling-rate hypothesis;
+content deferred to V2 R49-R53 cluster (bundled with axiom #3
+retirement). See `Helpers/AxiomFoundationAudit.md` "R39 — V2 round 1"
+section.
+
+## 9 TAG'd `sorry` sites
 
 * **3 R33-C / R33-D Mathlib version-skew gaps** — orthogonal to ENat,
   documented as upstream-Mathlib-pending.
@@ -55,6 +61,14 @@ roadmap (R38 stretch T3.1, deferred → R39 mandatory floor).
   * `FormalConjectures/ErdosProblems/Helpers/PhaseAUpperBound.lean:199`
   * `FormalConjectures/ErdosProblems/Helpers/PhaseAUpperBound.lean:290`
   * `FormalConjectures/ErdosProblems/524.lean:3889`
+* **3 V2-R39 IsGLWProcess α-tightened theorems** (axiom→sorry
+  conversion with sound signature):
+  * `FormalConjectures/ErdosProblems/Helpers/GLWLowerProof.lean:343`
+    (`gao_li_wellner_small_ball_lower_isGLWProcess_Yplus`)
+  * `FormalConjectures/ErdosProblems/Helpers/GLWLowerProof.lean:367`
+    (`gao_li_wellner_small_ball_lower_isGLWProcess_Yminus`)
+  * `FormalConjectures/ErdosProblems/Helpers/GLWUpperProof.lean:288`
+    (`gao_li_wellner_small_ball_upper_isGLWProcess_Yplus`)
 
 ## ENat duplicate-declaration import collision
 

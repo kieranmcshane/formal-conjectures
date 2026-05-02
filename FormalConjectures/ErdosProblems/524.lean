@@ -4092,7 +4092,8 @@ theorem polynomial_sup_small_ball_upper (glw : GaoLiWellnerConstants)
   -- Step 2: get the GLW upper bound on Y⁺.
   obtain ⟨εGLW, T, hεGLW_pos, hGLW_upper⟩ :=
     gao_li_wellner_small_ball_upper glw Yplus
-      (Erdos524.Helpers.gao_li_wellner_small_ball_upper_isGLWProcess_Yplus hYp_meas)
+      (Erdos524.Helpers.gao_li_wellner_small_ball_upper_isGLWProcess_Yplus
+        ha hΔ_bd hYp_meas hKMT_p)
   -- Step 3: pick ε₀ := εGLW/2.
   refine ⟨εGLW / 2, by linarith, ?_⟩
   intro ε hε_pos hε_le
@@ -4249,7 +4250,8 @@ theorem polynomial_sup_small_ball_upper_uniform (glw : GaoLiWellnerConstants)
     two_dim_KMT_coupling_legacy_Ω_form a ha
   obtain ⟨εGLW, T, hεGLW_pos, hGLW_upper⟩ :=
     gao_li_wellner_small_ball_upper glw Yplus
-      (Erdos524.Helpers.gao_li_wellner_small_ball_upper_isGLWProcess_Yplus hYp_meas)
+      (Erdos524.Helpers.gao_li_wellner_small_ball_upper_isGLWProcess_Yplus
+        ha hΔ_bd hYp_meas hKMT_p)
   -- Uniform `N₀`: `log(n+1)/√n ≤ εGLW/2` for all `n ≥ N₀`.
   obtain ⟨N₀, hN₀_ge_1, hN₀_bound⟩ :
       ∃ N : ℕ, 1 ≤ N ∧ ∀ n : ℕ, N ≤ n →
@@ -4404,10 +4406,12 @@ theorem polynomial_sup_small_ball_lower (glw : GaoLiWellnerConstants)
     two_dim_KMT_coupling_legacy_Ω_form a ha
   obtain ⟨εGLW_p, hεGLW_p_pos, hGLW_lower_p⟩ :=
     gao_li_wellner_small_ball_lower glw Yplus
-      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus hYp_meas)
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
+        ha hΔ_bd hYp_meas hKMT_p)
   obtain ⟨εGLW_m, hεGLW_m_pos, hGLW_lower_m⟩ :=
     gao_li_wellner_small_ball_lower glw Yminus
-      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yminus hYm_meas)
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yminus
+        ha hΔ_bd hYm_meas hKMT_m)
   -- The effective threshold is the smaller of the two GLW thresholds (and
   -- we halve it so there is room for the KMT error `Δ n ≤ log(n+1)/√n`).
   set εGLW : ℝ := min εGLW_p εGLW_m with hεGLW_def
@@ -4782,10 +4786,12 @@ theorem polynomial_sup_small_ball_lower_uniform (glw : GaoLiWellnerConstants)
     two_dim_KMT_coupling_legacy_Ω_form a ha
   obtain ⟨εGLW_p, hεGLW_p_pos, hGLW_lower_p⟩ :=
     gao_li_wellner_small_ball_lower glw Yplus
-      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus hYp_meas)
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
+        ha hΔ_bd hYp_meas hKMT_p)
   obtain ⟨εGLW_m, hεGLW_m_pos, hGLW_lower_m⟩ :=
     gao_li_wellner_small_ball_lower glw Yminus
-      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yminus hYm_meas)
+      (Erdos524.Helpers.gao_li_wellner_small_ball_lower_isGLWProcess_Yminus
+        ha hΔ_bd hYm_meas hKMT_m)
   set εGLW : ℝ := min εGLW_p εGLW_m with hεGLW_def
   have hεGLW_pos : 0 < εGLW := lt_min hεGLW_p_pos hεGLW_m_pos
   -- Uniform `N₀`: `log(n+1)/√n ≤ εGLW/2` for all `n ≥ N₀`.

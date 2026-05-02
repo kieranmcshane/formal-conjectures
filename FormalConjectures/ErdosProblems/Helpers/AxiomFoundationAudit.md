@@ -949,3 +949,144 @@ build-infra portion alone; the math-content axiom-retirement program
 is a separate budget yet to be bounded.
 
 100% mandatory floor land rate maintained across all 10 rounds to date.
+
+## R39 — V2 round 1: IsGLWProcess α-conversion (cold re-audit + α-tighten/redirect)
+
+### Framing
+
+R39 is the **first round of V2** (axiom-reduction program). Per user
+directive ("priorité #1 reste un sorry-free, axiom free solution of
+problem 524"), R39 targets the 3 IsGLWProcess axioms (A6 / A7 / A8 from
+the R38 inventory) and attempts retirement.
+
+### Cold re-audit finding (T1.1)
+
+R37's β-needed verdict on the 3 IsGLWProcess helpers was correct as far
+as it went (Grok-α-recipe inputs Y_e/Y_o + halved kernels + IndepFun
+absent from the legacy-Ω 13-tuple) but **missed a basic
+signature-level soundness issue**: the axiom shape `(_hY_meas :
+∀ u, Measurable Y) → IsGLWProcess Y` is unsound — counterexample
+`Y ≡ 0` (`IsGLWProcess.cov 0 0 = K_GLW 0 0 = 1` contradicts
+`∫ 0 · 0 = 0`).
+
+R39 cold re-audit also tested Grok's 4-bridge cascade taxonomy
+((b) scaling-factor 80% prior, (d) definitional 20%, (a) block-restriction
+10%, (c) joint-independence 5%):
+
+| Bridge | Prior | Verified |
+|--------|-------|----------|
+| (b) scaling-factor | 80% | **FALSE.** `kernel_even_plus = √(1/2) · exp(-u·k/m)` already has the √(1/2) scaling correctly inserted at `Helpers/TwoDimKMTFromOneDim.lean:154-155`. |
+| (d) definitional mismatch | 20% | **TRUE.** Consumer Yplus is from `two_dim_KMT_coupling_legacy_Ω_form` whose body has the R33-D-T2.2 sorry-bridge (`524.lean:3920`). Not the actual via_LS_reduction Y_e + Y_o on Ω × Ω. |
+| (a) block-restriction | 10% | **FALSE.** No `ite`-restricted kernels. |
+| (c) independence weakness | 5% | Indirectly relevant; `?indep` case in via_LS_reduction is itself a TAG'd sorry. |
+
+Additional finding: even at the via_LS_reduction internal level (setting
+aside the consumer / actual mismatch), α-direct is **blocked by axiom
+#3 design**. `kmt_aided_gaussian_process` (`Helpers/StochasticProcessAxiom.lean:100-115`)
+does not expose joint Gaussianity, K_GLW covariance, centeredness, or
+integrability conjuncts — only measurability, continuous paths, tail
+decay, and KMT coupling rate. Grok's `covariance_add_indep` recipe
+needs the missing 4 conjuncts; they're not derivable from axiom #3's
+output alone.
+
+See `Helpers/R39_T1_AlphaConversionAudit.md` for the full cold re-audit.
+
+### Axiom additions / revisions (T2.1)
+
+R39 elects **α-tighten / α-redirect**: tighten the 3 axiom signatures to
+require the call-site KMT-coupling-rate hypothesis (in addition to
+Rademacher `_ha`, rate-bound `_hΔ_bd`, measurability `_hY_meas`). With
+these hypotheses the conclusion is sound (KMT bound + Rademacher pin
+the law uniquely as the GLW process by 1D KMT + scaling limit). The 3
+axioms are converted from `axiom` to `theorem ... := by sorry` with
+TAG[V2-R39-tighten-{Yplus,Yminus}-{lower,upper}].
+
+This is **structurally distinct from Grok's α-direct via decomposition**
+— it bypasses the Y_e + Y_o decomposition entirely (which is doubly
+blocked: at the consumer site by the legacy-Ω sorry-bridge, and at the
+internal via_LS_reduction level by axiom #3's missing Gaussianity / K
+conjuncts), and instead leverages the KMT coupling rate as the
+law-pinning hypothesis directly at the consumer site.
+
+| Helper                                                          | Pre-R39        | Post-R39 |
+|-----------------------------------------------------------------|-----------------|---------|
+| `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus`            | `axiom` (unsound, weak hypothesis) | `theorem ... := by sorry` (tightened, sound modulo {#1, #2, scaling-limit}) |
+| `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus`           | `axiom` (unsound)               | `theorem ... := by sorry` (tightened, sound modulo same) |
+| `gao_li_wellner_small_ball_upper_isGLWProcess_Yplus`            | `axiom` (unsound)               | `theorem ... := by sorry` (tightened, sound modulo same) |
+
+User-defined axiom count: **8 → 5**. TAG'd sorry count: **6 → 9**. Total
+{axioms + sorries}: **14 → 14** (categorical refactor: opaque axioms →
+Mathlib-infra-pending sorries with sound signatures).
+
+### IsGLWProcess helpers — R39 audit-honest call-site signature
+
+The new tightened signature for each helper:
+
+```lean
+theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    {a : ℕ → Ω → ℝ} (_ha : Erdos524.IsRademacherSequence a)
+    {Δ : ℕ → ℝ}
+    (_hΔ_bd : ∀ n : ℕ, 1 ≤ n → Δ n ≤ Real.log (n + 1) / Real.sqrt n)
+    {Yplus : ℝ → Ω → ℝ}
+    (_hYp_meas : ∀ u, Measurable (Yplus u))
+    (_hKMT_p : ∀ n : ℕ, 1 ≤ n → ∀ ω : Ω, ∀ u ≥ (0 : ℝ),
+        |((1 : ℝ) / Real.sqrt n) *
+            (∑ k ∈ Finset.Icc 1 n, a k ω * Real.exp (-u * k / n)) -
+          Yplus u ω| ≤ Δ n) :
+    IsGLWProcess Yplus := by sorry
+```
+
+(Yminus uses the kernel `(-Real.exp (-u/n))^k` instead of
+`Real.exp (-u·k/n)`; upper-side Yplus is structurally identical to
+lower-side Yplus.)
+
+The 6 call sites in `524.lean` (4095, 4253, 4409, 4413, 4789, 4793 —
+6 total because Yplus + Yminus at lower-side base + `_uniform`) were
+updated to pass `ha`, `hΔ_bd`, `hKMT_p`/`hKMT_m` in addition to the
+existing measurability hypothesis.
+
+### Build verification (T2.2)
+
+`lake build` for the affected modules:
+
+| Target | Status | Sorry warnings |
+|---|---|---|
+| `FormalConjectures.ErdosProblems.Helpers.GLWLowerProof` | ✅ green | 2 (lines 343, 367 — the new TAG'd sorries) |
+| `FormalConjectures.ErdosProblems.Helpers.GLWUpperProof` | ✅ green | 1 (line 288 — the new TAG'd sorry) |
+| `FormalConjectures.ErdosProblems.«524»` | ✅ green | unchanged R33-D bridge sorry at 3889 |
+
+R38 milestone preserved (consumer-build-green).
+
+### Net residual sorry count after R39
+
+| # | Sorry / TAG                                                                | Status post-R39 |
+|---|----------------------------------------------------------------------------|-----------------|
+| 1 | R33-C T2.4 — `IndepFun(Yplus, Yminus)` on linear-combo (Mathlib gap)       | unchanged       |
+| 2 | R33-C T2.5 — `?ha'.iIndepFun` on Ω × Ω (Mathlib gap)                       | unchanged       |
+| 3 | R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form` (structural)      | unchanged       |
+| 4 | R35 T2.1 — `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`  | unchanged       |
+| 5 | R35 T2.2 — `slepian_comparison_finite` body                                | unchanged       |
+| 6 | R35 T2.3 — `sup_continuous_eq_sup_dense` body                              | unchanged       |
+| 7 | **R39 V2 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus` (was A6 axiom)** | **NEW** (tightened-signature, sound modulo {#1, #2, scaling-limit}) |
+| 8 | **R39 V2 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus` (was A7 axiom)** | **NEW** (same)  |
+| 9 | **R39 V2 — `gao_li_wellner_small_ball_upper_isGLWProcess_Yplus` (was A8 axiom)** | **NEW** (same)  |
+
+Net count: **9 TAG'd sorries** (up from R38's 6 by +3 V2-R39 conversions).
+
+### Final 5-axiom inventory (post-R39)
+
+| # | Axiom | Justification | R39 status |
+|---|---|---|---|
+| 1 | `Cp_T_explicit_pointwise_axiom` (D2) | upstream Mathlib gap | unchanged |
+| 2 | `one_dim_KMT_coupling` | upstream Mathlib gap | unchanged |
+| 3 | `kmt_aided_gaussian_process` (stepping-stone) | upstream Mathlib gap | unchanged |
+| 4 | `gao_li_wellner_small_ball_lower` | upstream Mathlib gap | unchanged |
+| 5 | `gao_li_wellner_small_ball_upper` | upstream Mathlib gap | unchanged |
+
+A6, A7, A8 retired (converted to TAG'd sorries with sound tightened
+signatures). The retirement is categorical (opaque axiom → Mathlib-infra
+TAG'd sorry) rather than algorithmic (axiom → real proof) — the
+mathematical content (KMT-pinned-law argument) is deferred to the V2
+R49-R53 1D KMT formalization cluster, where it bundles naturally with
+axiom #3 (`kmt_aided_gaussian_process`) retirement.
