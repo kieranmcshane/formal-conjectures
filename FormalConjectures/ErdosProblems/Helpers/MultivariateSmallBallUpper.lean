@@ -247,7 +247,7 @@ the **per-distance-class re-indexing**:
   with each class of cardinality exactly `2·(M-d)`. Mathlib has
   `Finset.offDiag_card = M·M - M` (`Mathlib/Data/Finset/Prod.lean:295`)
   but no fibre-by-distance decomposition.
-* (b) `Finset.sum_geometric_two_le_one`: `∑_{d=1}^{N} (1/2)^d ≤ 1` for
+* (b) `sum_geometric_two_le_one`: `∑_{d=1}^{N} (1/2)^d ≤ 1` for
   any `N : ℕ`. Mathlib has `geom_sum_eq` and `tsum_geometric_of_lt_one`
   but the finite-partial-sum bound requires assembly.
 * (c) Composition glue between (a) and (b) plus an extra `2·M` factor —
@@ -267,12 +267,121 @@ the **per-distance-class re-indexing**:
 lemma geomSeries_offDiag_le (M : ℕ) :
     ∑ pq ∈ (Finset.univ : Finset (Fin M)).offDiag,
       (2 : ℝ) ^ (-(|(pq.2.val : ℤ) - (pq.1.val : ℤ)| : ℤ)) ≤ 4 * M := by
-  -- Diagnostic-quality upgrade only (R52-T2.1 mid-distribution outcome).
-  -- The general `4M` bound requires per-distance-class fibre cardinality
-  -- (Mathlib gap (a)) plus finite-partial geometric sum (gap (b)) — see
-  -- the docstring above. Crude term-wise bounds (≤ 1 per term, ≤ 1/2 per
-  -- offDiag term) only suffice for `M ≤ 5` and `M ≤ 9` respectively.
-  sorry
+  -- R57-T2.1 close. Strategy: relax `offDiag ⊆ univ ×ˢ univ`, factor as
+  -- nested sum, then per-row bound by 4 via split into `i ≤ p.val` (≤ 2)
+  -- and `i > p.val` (≤ 1) parts using `sum_geometric_two_le`.
+  -- Term-rewrite helper: (2:ℝ)^(-(|x|:ℤ)) = (1/2:ℝ)^x.natAbs.
+  have h_term : ∀ a b : ℤ,
+      (2 : ℝ) ^ (-(|a - b| : ℤ)) = (1 / 2 : ℝ) ^ ((a - b).natAbs) := by
+    intro a b
+    rw [← Int.natCast_natAbs (a - b), _root_.zpow_neg, zpow_natCast]
+    rw [show (1 / 2 : ℝ) = (2 : ℝ)⁻¹ from by norm_num, inv_pow]
+  -- Per-row bound.
+  have h_row : ∀ p : Fin M,
+      ∑ q : Fin M, (2 : ℝ) ^ (-(|((q.val : ℤ) - (p.val : ℤ))| : ℤ)) ≤ 4 := by
+    intro p
+    have hpv : p.val < M := p.isLt
+    -- Step A. Rewrite each term and convert Fin M sum to range M sum.
+    have h_eq_range :
+        ∑ q : Fin M, (2 : ℝ) ^ (-(|((q.val : ℤ) - (p.val : ℤ))| : ℤ))
+        = ∑ i ∈ Finset.range M, (1 / 2 : ℝ) ^ (((i : ℤ) - (p.val : ℤ)).natAbs) := by
+      rw [← Fin.sum_univ_eq_sum_range
+        (fun i => (1 / 2 : ℝ) ^ (((i : ℤ) - (p.val : ℤ)).natAbs)) M]
+      exact Finset.sum_congr rfl (fun q _ => h_term (q.val : ℤ) (p.val : ℤ))
+    rw [h_eq_range]
+    -- Step B. Split range M into range (p.val + 1) and Ico (p.val + 1) M.
+    have h_range_split : Finset.range M
+        = Finset.range (p.val + 1) ∪ Finset.Ico (p.val + 1) M := by
+      ext i
+      simp only [Finset.mem_range, Finset.mem_union, Finset.mem_Ico]
+      omega
+    have h_disj : Disjoint (Finset.range (p.val + 1)) (Finset.Ico (p.val + 1) M) := by
+      rw [Finset.disjoint_left]
+      intro i hi1 hi2
+      simp only [Finset.mem_range, Finset.mem_Ico] at hi1 hi2
+      omega
+    rw [h_range_split, Finset.sum_union h_disj]
+    -- Step C. Left part ≤ 2.
+    have h_left :
+        ∑ i ∈ Finset.range (p.val + 1),
+            (1 / 2 : ℝ) ^ (((i : ℤ) - (p.val : ℤ)).natAbs) ≤ 2 := by
+      -- For i ∈ range (p.val + 1), i ≤ p.val, so ((i : ℤ) - p.val).natAbs = p.val - i.
+      have h_natAbs_left : ∀ i ∈ Finset.range (p.val + 1),
+          (((i : ℤ) - (p.val : ℤ)).natAbs : ℕ) = p.val - i := by
+        intro i hi
+        simp only [Finset.mem_range] at hi
+        rw [show ((i : ℤ) - (p.val : ℤ)) = -((p.val : ℤ) - (i : ℤ)) by ring,
+            Int.natAbs_neg]
+        rw [Int.natAbs_eq_iff]; left; omega
+      rw [Finset.sum_congr rfl (fun i hi => by rw [h_natAbs_left i hi])]
+      -- ∑ i ∈ range (p.val + 1), (1/2)^(p.val - i) = ∑ k ∈ range (p.val + 1), (1/2)^k
+      -- via sum_range_reflect: replaces (n - 1 - i) with i.
+      have h_reflect : ∀ i ∈ Finset.range (p.val + 1),
+          (p.val - i : ℕ) = ((p.val + 1) - 1 - i : ℕ) := by
+        intro i _; omega
+      rw [Finset.sum_congr rfl (fun i hi => by rw [h_reflect i hi])]
+      rw [show (∑ i ∈ Finset.range (p.val + 1),
+                  (1 / 2 : ℝ) ^ ((p.val + 1) - 1 - i : ℕ))
+            = ∑ i ∈ Finset.range (p.val + 1), (1 / 2 : ℝ) ^ i from
+        Finset.sum_range_reflect (fun i => (1 / 2 : ℝ) ^ i) (p.val + 1)]
+      exact sum_geometric_two_le (p.val + 1)
+    -- Step D. Right part ≤ 1.
+    have h_right :
+        ∑ i ∈ Finset.Ico (p.val + 1) M,
+            (1 / 2 : ℝ) ^ (((i : ℤ) - (p.val : ℤ)).natAbs) ≤ 1 := by
+      -- For i ∈ Ico (p.val + 1) M, i > p.val, so ((i : ℤ) - p.val).natAbs = i - p.val.
+      have h_natAbs_right : ∀ i ∈ Finset.Ico (p.val + 1) M,
+          (((i : ℤ) - (p.val : ℤ)).natAbs : ℕ) = i - p.val := by
+        intro i hi
+        simp only [Finset.mem_Ico] at hi
+        rw [Int.natAbs_eq_iff]; left; omega
+      rw [Finset.sum_congr rfl (fun i hi => by rw [h_natAbs_right i hi])]
+      -- Reindex: i ↦ k = i - (p.val + 1), so i = (p.val + 1) + k and i - p.val = k + 1.
+      rw [Finset.sum_Ico_eq_sum_range]
+      -- Now: ∑ k ∈ range (M - (p.val + 1)), (1/2)^(((p.val + 1) + k) - p.val)
+      have h_simp : ∀ k ∈ Finset.range (M - (p.val + 1)),
+          (((p.val + 1) + k) - p.val : ℕ) = k + 1 := by
+        intro k _; omega
+      rw [Finset.sum_congr rfl (fun k hk => by rw [h_simp k hk])]
+      -- ∑ k ∈ range N, (1/2)^(k+1) = (1/2) · ∑ k ∈ range N, (1/2)^k.
+      have h_pull :
+          ∑ k ∈ Finset.range (M - (p.val + 1)), (1 / 2 : ℝ) ^ (k + 1)
+          = (1 / 2 : ℝ) * ∑ k ∈ Finset.range (M - (p.val + 1)), (1 / 2 : ℝ) ^ k := by
+        rw [Finset.mul_sum]
+        apply Finset.sum_congr rfl
+        intro k _; rw [pow_succ]; ring
+      rw [h_pull]
+      have h_geom_le : ∑ k ∈ Finset.range (M - (p.val + 1)), (1 / 2 : ℝ) ^ k ≤ 2 :=
+        sum_geometric_two_le (M - (p.val + 1))
+      linarith
+    linarith
+  -- Step 1 (main): relax offDiag ⊆ univ ×ˢ univ, factor as nested sum,
+  -- then apply per-row bound.
+  have h_relax :
+      ∑ pq ∈ (Finset.univ : Finset (Fin M)).offDiag,
+          (2 : ℝ) ^ (-(|(pq.2.val : ℤ) - (pq.1.val : ℤ)| : ℤ))
+      ≤ ∑ pq ∈ ((Finset.univ : Finset (Fin M)) ×ˢ (Finset.univ : Finset (Fin M))),
+          (2 : ℝ) ^ (-(|(pq.2.val : ℤ) - (pq.1.val : ℤ)| : ℤ)) := by
+    apply Finset.sum_le_sum_of_subset_of_nonneg
+    · intro pq hpq
+      rw [Finset.mem_offDiag] at hpq
+      exact Finset.mk_mem_product hpq.1 hpq.2.1
+    · intros; exact zpow_nonneg (by norm_num) _
+  have h_nested :
+      ∑ pq ∈ ((Finset.univ : Finset (Fin M)) ×ˢ (Finset.univ : Finset (Fin M))),
+          (2 : ℝ) ^ (-(|(pq.2.val : ℤ) - (pq.1.val : ℤ)| : ℤ))
+      = ∑ p : Fin M, ∑ q : Fin M,
+          (2 : ℝ) ^ (-(|(q.val : ℤ) - (p.val : ℤ)| : ℤ)) := by
+    rw [Finset.sum_product]
+  have h_row_sum :
+      ∑ p : Fin M, ∑ q : Fin M,
+          (2 : ℝ) ^ (-(|(q.val : ℤ) - (p.val : ℤ)| : ℤ))
+      ≤ ∑ _p : Fin M, (4 : ℝ) :=
+    Finset.sum_le_sum (fun p _ => h_row p)
+  have h_const : (∑ _p : Fin M, (4 : ℝ)) = 4 * M := by
+    rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+    ring
+  linarith [h_relax, h_nested, h_row_sum, h_const]
 
 /-- **Step 2 (CF block decoupling via Q1b).** Direct re-export of
 `abs_cosProd_M_scale_swap`: the joint cosine-product is bounded by the
