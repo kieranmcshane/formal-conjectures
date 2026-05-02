@@ -154,3 +154,58 @@ Per R46 mainline T3.1 (`53ac58a`), the helper file `GaussianParametricAnalysis.l
 * Grok L2 signature: **EDGE CASE FLAGGED** — Galois iff requires restriction to `Ioc 0 1`. Correction is single-token, consumer-transparent.
 
 T2.1 proceeds with the corrected signature and the section-3.3 proof structure.
+
+## 7. T2.0 sync (TC2 resumption, post-`db53be1`)
+
+**Date:** 2026-05-02 (TC2 resumption after API stream timeout).
+**Audit reuse:** §§0-6 above are the committed `db53be1` content; **not redone**. Section §7 is a sync update only.
+
+### 7.1. Refinement of the Galois restriction (§3 audit error correction)
+
+**§3 audit asserted Galois iff holds on `Ioc 0 1`.** On post-resumption review, this is too generous. For `p = 1` and unbounded-support μ (e.g., Gaussian, exponential), `cdf μ y < 1` for ALL `y`, so `{y : 1 ≤ cdf μ y} = ∅`, hence `sInf ∅ = 0` (Mathlib convention) and the iff `q 1 ≤ x ↔ 1 ≤ cdf μ x` becomes `0 ≤ x ↔ False`, which fails for `x ≥ 0`.
+
+**Correction:** the universal restriction is **`Set.Ioo (0 : ℝ) 1`** (open both ends). For `p ∈ Ioo 0 1`:
+* `p < 1`: `cdf → 1` ⟹ `∃ y, cdf μ y > p`, set is non-empty.
+* `p > 0`: `cdf → 0` at `-∞` ⟹ set is bounded below.
+* Right-continuity of `cdf μ` ⟹ set is `[a, ∞)` (closed), `sInf = a`, Galois iff holds.
+
+**Consumer impact:** identical to the §3 plan. Pushforward conjunct is unchanged: `volume (Ioc 0 1)` differs from `volume (Ioo 0 1)` by the singleton `{1}` (volume 0), so the pushforward identity statement is invariant. The Galois conjunct restricts strictly: `Ioc 0 1 → Ioo 0 1`. T2.1 implements the `Ioo` form.
+
+### 7.2. GaussianParametricAnalysis.lean — repeat verification
+
+`ls FormalConjectures/ErdosProblems/Helpers/GaussianParametricAnalysis.lean` returns "No such file or directory" on `track-c-1dkmt` HEAD `db53be1`. Same verdict as §4 audit: not on branch, not needed for L2. T2.1 proceeds without it.
+
+### 7.3. Mathlib API key entry points (carried from §2)
+
+T2.1 implementation will use exactly these (verified on pin in §2 audit):
+
+| Lemma | File:line | Signature |
+| --- | --- | --- |
+| `ProbabilityTheory.cdf` | `Mathlib/Probability/CDF.lean:55` | `Measure ℝ → StieltjesFunction ℝ` |
+| `ProbabilityTheory.cdf_nonneg` | `CDF.lean:62` | `0 ≤ cdf μ x` |
+| `ProbabilityTheory.cdf_le_one` | `CDF.lean:65` | `cdf μ x ≤ 1` |
+| `ProbabilityTheory.monotone_cdf` | `CDF.lean:68` | `Monotone (cdf μ)` |
+| `ProbabilityTheory.tendsto_cdf_atBot` | `CDF.lean:71` | `Tendsto (cdf μ) atBot (𝓝 0)` |
+| `ProbabilityTheory.tendsto_cdf_atTop` | `CDF.lean:74` | `Tendsto (cdf μ) atTop (𝓝 1)` |
+| `ProbabilityTheory.ofReal_cdf` | `CDF.lean:76` | `ENNReal.ofReal (cdf μ x) = μ (Iic x)` |
+| `StieltjesFunction.right_continuous` | `Stieltjes.lean:141` | `ContinuousWithinAt f (Ici x) x` |
+| `MeasureTheory.Measure.ext_of_Iic` | `BorelSpace/Order.lean:494` | `(∀ a, μ (Iic a) = ν (Iic a)) → μ = ν` (with `IsFiniteMeasure μ`) |
+| `Monotone.measurable` | `BorelSpace/Order.lean:737` | `Monotone f → Measurable f` |
+| `IsClosed.csInf_mem` | `Topology/Order/Monotone.lean:394` | `IsClosed s → s.Nonempty → BddBelow s → sInf s ∈ s` |
+| `Real.sInf_empty` | `Data/Real/Archimedean.lean:196` | `sInf (∅ : Set ℝ) = 0` |
+| `Real.sInf_of_not_bddBelow` | `Data/Real/Archimedean.lean:207` | `¬BddBelow s → sInf s = 0` |
+| `Measure.map_apply` | `Measure/Map.lean:160` | `Measurable f → MeasurableSet s → μ.map f s = μ (f ⁻¹' s)` |
+| `Measure.restrict_apply` | `Measure/Restrict.lean:74` | `MeasurableSet t → μ.restrict s t = μ (t ∩ s)` |
+| `Real.volume_Ioc` | `Lebesgue/Basic.lean:109` | `volume (Ioc a b) = ofReal (b - a)` |
+
+**Anti-mismatch hygiene:** all lemma names verified against pin via grep before T2.1 invocation. No Grok-recipe extrapolation.
+
+### 7.4. T2.0 verdicts
+
+* T1.1 audit: ✅ recovered, reused.
+* §3 Galois restriction: corrected from `Ioc 0 1` to `Ioo 0 1` (universal-μ form).
+* GaussianParametricAnalysis.lean: ✅ confirmed absent on branch, not needed.
+* Mathlib API surface: ✅ pinned via §7.3 table, sufficient for T2.1.
+
+T2.1 proceeds with `Ioo 0 1` Galois restriction and the §3.3 proof structure (with §7.1 refinement applied).
+
