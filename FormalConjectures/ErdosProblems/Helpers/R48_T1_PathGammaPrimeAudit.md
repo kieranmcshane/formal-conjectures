@@ -235,24 +235,32 @@ chain dependencies.
 
 ---
 
-## §5 — Audit summary: 6th consecutive Grok pre-flight misframing
+## §5 — Audit summary: 7 distinct Grok pre-flight misframings caught
 
 ### Pattern
 
-| Round | Misframing caught by T1.1 | File:line cite |
-|---|---|---|
-| R40 | (various — pre-discipline rounds) | various |
-| R44 | "Jacobi formula" framing for MGE | `R44_T1_BodyCloseAudit.md` §2 |
-| R45 | Path γ "300-350 LOC" understated by ~2× | `R45_T1_FramingVerificationAudit.md` |
-| R46 | "Matrix.PosDef.isOpen globally" — false (PosDef ⊂ closed Hermitian subspace) | `R46_T1_GrepAuditAndFramingVerification.md` §4 |
-| TC2 | "Gauss inverse iff for all p" — false outside Ioc 0 1 | TC2 commit `db53be1` |
-| R47 | sub-gap (b) "80-120 LOC" — three intermediate bridges, ~150-280 LOC | `R47_T1_GrepAuditAndFramingVerification.md` §2 |
-| **R48** | **(this round) Path γ' "MGI provides density differentiability" — Lean MGI is integral rewrite, NOT differentiability; tail bound theorem does not exist** | this audit §2-§3 |
+R48 contributes TWO distinct misframings to the T1.1-audit ledger,
+counted separately because each rests on an independent factual claim
+about the Lean state (semantic identity of MGI vs. existence of the
+tail-bound theorem):
+
+| # | Round | Misframing caught by T1.1 | File:line cite |
+|---|---|---|---|
+| 1 | R44 | "Jacobi formula" framing for MGE | `R44_T1_BodyCloseAudit.md` §2 |
+| 2 | R45 | Path γ "300-350 LOC" understated by ~2× | `R45_T1_FramingVerificationAudit.md` |
+| 3 | R46 | "Matrix.PosDef.isOpen globally" — false (PosDef ⊂ closed Hermitian subspace) | `R46_T1_GrepAuditAndFramingVerification.md` §4 |
+| 4 | TC2 | "Gauss inverse iff for all p" — false outside Ioc 0 1 | TC2 commit `db53be1` |
+| 5 | R47 | sub-gap (b) "80-120 LOC" — three intermediate bridges, ~150-280 LOC | `R47_T1_GrepAuditAndFramingVerification.md` §2 |
+| 6 | **R48 (M1)** | **Lean MGI ≠ literature MGI: `multivariateGaussianOrthantCDF_eq_lebesgue_integral` is the integral rewrite, NOT a Gaussian-suprema chaining envelope; pdf S-differentiability requires the R40 Stub chain (~80-150 LOC, NOT 20-30)** | this audit §2 |
+| 7 | **R48 (M2)** | **`GaussianParametricAnalysis.lean` exposes only R46 helper re-exports; the tail bound `multivariateGaussianPdf_uniform_tail_bound_on_compact_posDef` lives inside a docstring code block (lines 168-192), NOT as a Lean theorem** | this audit §3 |
 
 The Q4 ii Local Claude grep audit pipeline continues to be the primary
-defense against scope misalignment. R48 is the 6th distinct Grok
-pre-flight misframing caught at the T1.1 stage, **before** scope
-commitment.
+defense against scope misalignment. R48 is the round at which TWO
+independent Grok pre-flight misframings were caught in a single audit
+pass, bringing the cumulative T1.1-audit ledger to **7 distinct
+misframings caught before scope commitment**. Each entry rests on a
+file:line cite verified against `mathlib4 @ 25ce63313608` +
+`brownian-motion` HEAD.
 
 ### Confidence calibration
 
@@ -271,11 +279,27 @@ composition blocker, per brief abort rules): **0.95**.
 
 ## §6 — R48 scope decision (post-audit)
 
-### T2.1 outcome (recommended, brief-aligned)
+### T2.1 outcome (post-user course correction)
 
-Land Phase 2 body Stub at `MultivariateGaussianCDF.lean:160-313` as
-**honest TAG'd sub-Stub** with concrete chain-composition diagnostic
-citing:
+**Per user instruction at T+0:45**: T2.1 code attempt **aborted** per
+brief abort rules. The Lean Stub body at
+`MultivariateGaussianCDF.lean:160-313` remains unchanged from the
+R47-T2.2 close (`03699d8`). T1.1 audit (this document) is the
+T2.1-substitute deliverable: it ships Full with concrete file:line
+citations of both misframings, and Cowork Claude must reassess Path γ'
+actual feasibility before any future scope commitment based on the Q3
+recipe.
+
+The "Recommended T2.1 outcome" originally drafted in this audit (a
+diagnostic-quality enhancement to the Phase 2 body Stub body, in the
+R45-R47 pattern) was attempted as Lean code modification at T+0:40 but
+reverted at T+0:50 per user directive. The retained R48 deliverables
+are: (i) this T1.1 audit shipped Full, (ii) T2.2 build verification on
+unchanged code, (iii) T2.3 status doc + AXIOM_INVENTORY update flagging
+0 retirements + 7 misframings caught.
+
+The original T2.1 recommendation framing (kept here for the cross-
+round audit ledger) was:
 
 1. **Misframing #1 disambiguation.** Lean MGI
    (`multivariateGaussianOrthantCDF_eq_lebesgue_integral`) is the
@@ -342,12 +366,22 @@ Track D round 3 + Track C round 2 + parallel cleanup.
 
 ## §7 — R48 process discipline notes
 
-* T1.1 audit COMPLETED at T+~0:30 per sub-checkpoint timing.
-* T2.1 commits a diagnostic-quality enhancement to Phase 2 body Stub
-  at `MultivariateGaussianCDF.lean:160-313` citing this audit's
-  findings (no Full close attempt; chain blocker concrete).
-* T2.2 build verification immediately after T2.1.
-* T2.3 status doc + AXIOM_INVENTORY update at T+2:15.
+* T1.1 audit COMPLETED at T+~0:45.
+* T2.1 code attempt aborted per user course correction at T+0:50;
+  Lean Stub body at `MultivariateGaussianCDF.lean:160-313` unchanged
+  from R47-T2.2 close (`03699d8`).
+* T2.2 build verification on **unchanged code** (no T2.1 changes).
+* T2.3 status doc + AXIOM_INVENTORY update flags **0 mainline
+  retirements + 7 cumulative misframings caught at T1.1**, with the
+  R48 round contributing two of them (M1 + M2).
 * Stretch T3.1 + T3.2 if landed by T+2:30 hard-stop.
+
+The `Path γ' actual feasibility` reassessment is delegated to Cowork
+Claude / next-round pre-flight: the verdict from this round is that
+the brief's Q3 ~80-100 LOC framing is **off by a factor of 4-7×**,
+the dominant cost is in chain dependencies (R40 Stub + missing tail-
+bound helper) that are **independent of the MGE axiom-equivalent
+treatment**, and any future Path γ' attempt must first land the
+tail-bound helper Full + close R40 Stub.
 
 **End R48-T1.1 audit.**
