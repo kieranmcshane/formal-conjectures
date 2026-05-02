@@ -142,7 +142,7 @@ Mathlib gap audit), `Helpers/OneDimKMTSketch.md` (R17 exploratory sketch),
 namespace Erdos524.Helpers
 
 open MeasureTheory ProbabilityTheory
-open scoped Topology
+open scoped Topology NNReal
 
 /-! ### Layer 1 — Skorokhod embedding for single sums
 

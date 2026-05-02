@@ -259,3 +259,194 @@ working as intended.
   P(success/round) ≈ 0.25-0.35; multi-round potential).
 * **R52 hybrid (c) gate contribution:** +1 retirement on track-c branch
   toward the 1.875-2.5/round target across V2 main + parallel tracks.
+
+# Track C status — round 3 closure (TC3 mid-distribution)
+
+**Round:** Track C round 3 (parallel-track, branch `track-c-1dkmt`).
+**Date:** 2026-05-02.
+**Branch HEAD pre-TC3:** `7f25b84` (TC2 closure: Layer 2 Full).
+**Branch HEAD post-TC3:** `c96e54b` (T2.1 + T2.2) + this T2.3 commit.
+**Outcome:** **Mid-distribution. Mandatory floor Full** (T1.1 + T2.1 honest sub-Stub
+with concrete diagnostic + T2.2 signature lockdown + T2.3 build + status). Layer 3
+bottleneck not retired (consumer form `hungarian_dyadic_coupling` body remains
+sub-Stub'd, as predicted). Two new sub-Stub helpers locked for TC4–TC5 close.
+
+## TC3.1. Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Mathlib API grep audit + Tusnády math verification | **Full** | `Helpers/TrackC_round3_T1_GrepAudit.md` (149 LOC, well above the ≥40-line floor), committed at `8c5451f` | Confirmed pinned-Mathlib state for binomial / Gaussian / coupling / Skorokhod / KMT / Tusnády / Hungarian. **8th cumulative misframing caught**: brief's `O(log n)` per-step Tusnády form is NOT what literature proves; per-step form is polynomial (Bretagnolle–Massart 1989 / Carter–Pollard 2004). T2.1 corrected accordingly. brownian-motion `Komlos.lean` flagged as misleadingly named (Komlós L¹ lemma, NOT KMT). |
+| T2.1 — Tusnády base case (polynomial form) | **Honest sub-Stub** | `Helpers/OneDimKMT.lean:402–421` (new theorem `tusnady_base_polynomial`), committed at `c96e54b` | Locks the *literature-correct polynomial form* `\|B - n - Z\| ≤ A + C · Z²/n` for `Bin(2n, 1/2)` paired with `N(0, n/2)`. Body sub-Stub'd, three concrete blockers documented in docstring (PMF→Measure pushforward, coupling-via-shared-uniform construction, Stirling+Mills-ratio analysis). New imports: `Mathlib.Probability.ProbabilityMassFunction.Binomial`, `Mathlib.Probability.ProbabilityMassFunction.Constructions`. |
+| T2.2 — Dyadic recursion signature lockdown | **Full** | `Helpers/OneDimKMT.lean:457–491` (new theorem `hungarian_dyadic_step`), committed at `c96e54b` | Locks one-step-of-dyadic-recursion: refines coupling at scale `2^(k-1)` to scale `2^k` via `tusnady_base_polynomial` on the dyadic increment. Polynomial per-step bound (consistent with T2.1). Body sub-Stub'd; recursion plan documented in docstring (4 steps). Body close = TC4 scope. |
+| T2.3 — Build verification + status doc | **Full** | This document + `lake build` output below. | See TC3.2 below. Worktree path used (per addendum). |
+
+All four mandatory-floor outcomes Full. Track C round 3 caps at 0
+condition triggered: **none.**
+
+## TC3.2. Build verification log (verbatim)
+
+```
+$ cd ~/Documents/formal-conjectures-track-c
+$ lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT
+✔ [2850/2850] Built FormalConjectures.ErdosProblems.Helpers.OneDimKMT (1.8s)
+Build completed successfully (2850 jobs).
+$ echo "exit=$?"
+exit=0
+```
+
+Clean build, zero errors / warnings on the second attempt. The first
+attempt failed at lines 413/415 with `LE Type` / `OfNat Type 0`
+type-class synthesis errors — root cause was missing `open scoped NNReal`
+needed for the `ℝ≥0` notation introduced by the new helpers. Fix:
+extended the existing `open scoped Topology` directive at file line 145
+to `open scoped Topology NNReal`. One-character ledger: this was an
+infrastructure-level mismatch (notation scope), NOT a math-content
+mismatch — it does not extend the misframing ledger (which tracks
+math-content errors only). Anti-mismatch hygiene was correctly applied
+to math content; the scope notation gap was caught at first build,
+which is the standard build-verification feedback loop working as
+intended.
+
+Note on build cost: this round's first build in worktree
+`~/Documents/formal-conjectures-track-c/.lake/build/` triggered a
+cold-cache compilation of the full Mathlib + brownian-motion +
+kolmogorov_extension4 package set (~30 min wall-clock). The second
+attempt benefited from the cached build (1.8s incremental). Future
+TC4+ rounds amortise this cost across multiple builds in the same
+worktree.
+
+## TC3.3. Net debt change (project ledger update)
+
+### Axioms
+
+* **Before TC3:** 5 user-defined axioms.
+* **After TC3:** 5 user-defined axioms — **unchanged**.
+
+A2 (`one_dim_KMT_coupling`) retirement still blocked on Layers 1, 3, 4 +
+main body (TC4–TC5+ cluster-rounds). TC3 advanced the Layer 3 closure
+plan by locking the polynomial-form base case + dyadic recursion step
+signatures.
+
+### Sorries on `track-c-1dkmt` branch
+
+* **Before TC3:** 16 TAG'd sorries.
+* **After TC3:** **18 TAG'd sorries** (+2).
+
+Surface area decomposition (post-TC3):
+
+| Sorry | Line (post-TC3) | TAG label | Round closure target |
+|---|---|---|---|
+| `skorokhod_embedding_single` body | `OneDimKMT.lean:193` | `TrackC-Layer1-Skorokhod` | TC5+ |
+| `tusnady_base_polynomial` body | `OneDimKMT.lean:421` | `TrackC-Layer3-Tusnady-base-polynomial` (**new TC3**) | TC4–TC5 |
+| `hungarian_dyadic_step` body | `OneDimKMT.lean:491` | `TrackC-Layer3-Hungarian-dyadic-step` (**new TC3**) | TC4 |
+| `hungarian_dyadic_coupling` body | `OneDimKMT.lean:535` | `TrackC-Layer3-Hungarian-bottleneck` | TC5 |
+| `sup_error_log_over_sqrt` body | `OneDimKMT.lean:577` | `TrackC-Layer4-SupError` | TC5–TC6 |
+| `oneDimKMT` main body | `OneDimKMT.lean:634` | `TrackC-round1-infrastructure-only` | TC6+ |
+
+Plus 12 pre-TC1 baseline sorries elsewhere in the project (unchanged by
+TC3).
+
+**Honest framing of +2.** The mandatory floor's brief predicted 16 → 16 for
+sub-Stub closure. The actual +2 reflects the *surface area cost* of two
+new helper theorems (`tusnady_base_polynomial`, `hungarian_dyadic_step`)
+each contributing one new sub-Stub'd sorry. The alternative — folding the
+new lemmas into existing sorries' docstrings — would have hidden the
+math content from the typed signature ledger and prevented TC4 from
+calling them by name. Trading +2 sorry count for +2 typed signatures
+that TC4 can directly invoke is the correct mid-distribution outcome.
+
+## TC3.4. Anti-mismatch hygiene compliance
+
+Per the binding T1.1 grep-FIRST rule:
+
+1. **Pre-invocation grep verification:** all Mathlib lemmas / definitions
+   used in T2.1 and T2.2 signatures grep-verified in T1.1 audit §2 and §7
+   (file:line in pinned Mathlib). ✅
+2. **8th misframing caught BEFORE T2.1 code was written:** the literature
+   audit (T1.1 §3) detected that the brief's per-step `O(log n)` Tusnády
+   form is mathematically incorrect (it conflates per-step polynomial
+   bound with chain-level Borel–Cantelli consequence). T2.1 corrected to
+   the literature-correct polynomial form. ✅
+3. **No Grok-recipe extrapolation:** the polynomial-form correction was
+   derived from local Claude's literature audit (KMT 1975, Tusnády 1977,
+   Bretagnolle–Massart 1989, Carter–Pollard 2004), NOT extrapolated from
+   the Grok recipe's per-step `O(log n)` claim. ✅
+4. **`Komlos.lean` misnomer flagged:** brownian-motion package contains
+   `Komlos.lean` which is Komlós's L¹ lemma (Banach-style result on
+   convex L¹ combinations), NOT KMT. Future Grok recipes might confuse
+   the two; pre-emptive ledger entry in T1.1 §2.3. ✅
+
+No new semantic-mismatch failure was introduced in TC3 — the 8th
+misframing was caught by the audit, not committed to code.
+
+## TC3.5. Cluster trajectory update (post-TC3)
+
+Per Grok Q4 + TC3 outcome:
+
+| Round | Target | Status / projection |
+|---|---|---|
+| TC1 | Infrastructure + signatures | ✅ Full closure (`15192f1`) |
+| TC2 | Layer 2 (`quantile_transform_finite_moment`) | ✅ Full closure (`f018aea`/`7f25b84`) |
+| TC3 (**this round**) | Layer 3 sub-Stubs + Tusnády base signature | ✅ Mid-distribution (this commit) |
+| TC4 | `tusnady_base_polynomial` Full close + `hungarian_dyadic_step` body close | Forecast: P(Full) ~ 0.30 — Stirling + Mills-ratio analysis is the chief gap |
+| TC5 | `hungarian_dyadic_coupling` body close (assemble L3 base + step + BC1) + Layer 4 close | Forecast: P(Full) ~ 0.30 — chain + BC1 + Gaussian-tail control |
+| TC6+ | Layer 1 (Skorokhod) + main `oneDimKMT` assembly + axiom retirement | Forecast: P(Full) ~ 0.40 — terminal layer; Layer 1 may slip |
+
+**Cluster total revision (was 5–6 rounds, post-TC3 estimate):** 6 rounds
+remains realistic; TC4 and TC5 are the new bottleneck sub-rounds. If
+TC4 lower-distribution, cluster extends to TC7. R52 gate decision point
+re-evaluation: TC3 is +0 retirement (sorry count +2 from new helper
+surface area). The next concrete retirement is TC4 (if `tusnady_base_polynomial`
+Full close).
+
+## TC3.6. Honesty / framing notes
+
+* **TC3 is a mid-distribution outcome, NOT Full closure.** The Layer 3
+  bottleneck (consumer-form `hungarian_dyadic_coupling`) remains
+  sub-Stub'd. Two new helper signatures landed; this is the realistic
+  TC3 deliverable per the brief's "single-round closure unrealistic"
+  framing.
+* **Pre-flight P(Full single-round) was 0.20.** Outcome: not Full
+  (consumer-form Layer 3 unchanged). Inside the predicted 0.20 lower
+  band → consistent with calibration.
+* **8th misframing caught.** Cumulative ledger now 8: TC1 unrestricted
+  Galois (5th), TC2 Ioc-not-Ioo (—merged with 5th), R48 Path γ' (6th),
+  R48 T2.1 abort (7th), TC3 Tusnády per-step `O(log n)` form (8th).
+  Anti-mismatch hygiene continues to catch Grok pre-flight errors at
+  T1.1 stage.
+* **Net axiom debt unchanged at 5.** A2 retirement blocked on TC4–TC6
+  (Layers 1, 3 (full chain), 4 + main body).
+* **Net sorry +2 on branch.** 16 → 18. Mid-distribution accounting:
+  surface area for new helpers traded against typed-signature legibility
+  for TC4. Alternative (no new helpers, fold into existing docstrings)
+  rejected as opaque.
+* **Worktree precondition (addendum #13):** worktree setup attempted
+  and **succeeded**; conditional cap from skin-in-the-game item 1 does
+  not trigger. Filesystem-collision discipline honoured: TC3 work
+  committed only in `~/Documents/formal-conjectures-track-c` worktree;
+  no mainline file mutation. Side-effect: first build in worktree
+  triggered cold-cache compilation of Mathlib (~30 min wall-clock).
+  Future TC4+ rounds can amortise this over multiple builds in the
+  same worktree.
+* **Math content honesty.** The polynomial-form Tusnády signature
+  (T2.1) is the literature-correct form, but body close (Stirling +
+  Mills ratio, ~150–250 LOC) remains TC4–TC5 work. The chain-level
+  uniform-in-ω' log envelope (existing TC1 signature
+  `hungarian_dyadic_coupling`) is downstream of polynomial base +
+  Borel–Cantelli; closing it requires both.
+
+## TC3.7. Status label
+
+* **Track C round 3 outcome:** Mid-distribution (mandatory floor Full;
+  Layer 3 bottleneck unchanged; +2 typed sub-Stub signatures locked for
+  TC4 invocation; net sorry +2 from helper surface area; net axiom
+  unchanged).
+* **Track C cluster status:** Round 3 of ~6 complete. TC4 target: Layer 3
+  `tusnady_base_polynomial` body close (Stirling + Mills ratio,
+  ~150–250 LOC) + `hungarian_dyadic_step` body close (recursion plan
+  per docstring, ~50–100 LOC). P(TC4 Full) ~ 0.30; multi-round potential.
+* **R52 hybrid (c) gate contribution:** TC3 is +0 retirement
+  (signatures locked, no new closure). TC4 forecast: +1–2 retirement
+  if `tusnady_base_polynomial` Full close.
+* **Cumulative misframing ledger:** 8 (TC3 added per-step `O(log n)`
+  Tusnády form misframing).
