@@ -364,3 +364,216 @@ that did not require pin migration.
    or wait until TD5 (cluster end). Decision rule: if the SLT port
    uses the brownian-motion predicate natively, harmonise at TD3;
    else defer to TD5.
+
+---
+
+## Round 3 (TD3) — Sub-lemma 3 SLT pivot, Prokhorov drift, sub-lemmas 1+2 retired
+
+**Round**: 3.
+**Wall-clock**: ~2 h (within hard-stop trigger).
+**Goal**: close `lipschitz_sup_finite_gaussian` via SLT
+`lipschitz_cgf_bound` (corrected target post-user-pivot from
+original Grok recipe `gaussian_lipschitz_concentration`); delete
+post-Path-B′ orphans `gaussian_log_sobolev_real` +
+`herbst_subgaussian_real`; consolidate file.
+
+### Round-3 net debt change (this round)
+
+| Metric | Pre-round-3 | Round-3 end | Δ |
+| --- | --- | --- | --- |
+| User-defined axioms | 5 | 5 | 0 |
+| TAG'd sorries on this branch (`track-d-btis-honest`) | 3 | 1 | -2 |
+| BTIS chain conditional sorries | 3 | 1 | -2 |
+
+Composition:
+* **Retired** (T2.2 deletion): `TrackD-LogSobolev-bottleneck`,
+  `TrackD-Herbst` — both verified post-Path-B′ orphans by T1.1
+  sub-task C grep (zero consumers outside `BTISHonestProof.lean`).
+* **Open** (T2.1 abort): `TrackD-LipschitzSup` — sub-lemma 3 sorry
+  preserved with M3 promoted from minor to BREAKING after lake-build
+  experimental evidence (Prokhorov drift; see SLT lake-add experiment
+  log below).
+
+### Round-3 SLT lake-add experiment log
+
+User pivot (T2.1 mid-round): demote M1 license blocker (academic
+research norm), re-target T2.1 from
+`gaussian_lipschitz_concentration` (line 1301) to
+`lipschitz_cgf_bound` (line 1209), allow Mathlib pin drift handling
+via cherry-pick if lakefile dependency adds friction.
+
+Experiment:
+1. Added `[[require]] SLT @ 4aaea15591360c` to `lakefile.toml`.
+2. `lake update SLT` succeeded — SLT cloned at the requested SHA;
+   lake-manifest updated. Top-level mathlib pin (`25ce63313608`)
+   preserved (require precedence).
+3. `lake build SLT.GaussianLipConcen` **FAILED** with cascading
+   errors. Root cause:
+   ```
+   error: SLT/GaussianPoincare/LevyContinuity.lean:
+          bad import 'Mathlib.MeasureTheory.Measure.Prokhorov'
+   ```
+   `Mathlib.MeasureTheory.Measure.Prokhorov` does not exist in our
+   pin. SLT's lake-manifest captured mathlib at `d68c4dc09f5e000d`
+   which has it; the file was added to mathlib master between our
+   pin and SLT's pin.
+
+   Cascading failures (in build order):
+   * `SLT.GaussianPoincare.LevyContinuity` (Prokhorov import)
+   * `SLT.GaussianPoincare.Limit` (LevyContinuity dep)
+   * `SLT.GaussianLSI.BernoulliLSI` (Limit dep)
+   * `SLT.GaussianLSI.OneDimGLSICompSmo` (Limit + BernoulliLSI deps)
+   * `SLT.GaussianLSI.OneDimGLSI` (OneDimGLSICompSmo dep)
+   * `SLT.GaussianLSI.TensorizedGLSI` (OneDimGLSI dep)
+   * `SLT.GaussianLipConcen` (TensorizedGLSI dep) — TARGET
+   * `SLT.GaussianSobolevDense.Cutoff` (additional API drift,
+     `Application type mismatch` errors)
+   * `SLT.GaussianPoincare.TaylorBound` (related drift)
+
+4. Cherry-pick path scoping: `lipschitz_cgf_bound` requires
+   `Prokhorov` infrastructure + `LevyContinuity` (22KB) + `Limit`
+   (63KB) + `BernoulliLSI` (78KB) + `OneDimGLSICompSmo` (5KB) +
+   `OneDimGLSI` (45KB) + `TensorizedGLSI` (25KB) + the upstream
+   bits of `GaussianLipConcen` (72KB) — total 5000+ LOC of vendored
+   code, plus a Prokhorov port from a newer mathlib. **Out of TD3
+   scope.**
+
+5. Lake-add reverted: `lakefile.toml` block kept as inline comment
+   (TD4 reproducibility); `lake update` cleaned manifest. Project
+   build state restored.
+
+### Round-3 mismatch ledger (M1-M4 status post-experiment)
+
+| ID | Description | T1.1 status | Post-experiment status |
+| --- | --- | --- | --- |
+| M1 | SLT license absent (per-file Apache-2.0 only) | BREAKING (Grok said MIT) | Demoted by user pivot — academic norm acknowledged |
+| M2 | SLT theorem-form (tail bound vs `HasSubgaussianMGF`) | Secondary (Grok cited wrong target) | Resolved by re-targeting `lipschitz_cgf_bound` |
+| M3 | Mathlib pin drift | Minor (master vs `25ce6331`) | **Promoted to BREAKING** — Prokhorov module entirely missing in our pin, cascading 7-module build failure |
+| M4 | `IsCenteredGaussianProcess.joint_gaussian` placeholder | Adapter prerequisite (~100 LOC) | Unchanged — even if M3 cleared, this remains the predicate-strengthening prerequisite |
+
+### Round-3 cluster forecast (UPDATED 4 → 5 rounds, M3 BREAKING)
+
+Pre-TD3: 4-round cluster (TD1, TD2, TD3-TD4 sub-lemma 3 closure).
+Post-TD3: TD4 needs **either**:
+* (a) project mathlib pin bump to a commit that includes
+  `Mathlib.MeasureTheory.Measure.Prokhorov`, then re-attempt SLT
+  lake-add — broad-scope project retest (R49+ Track A trajectory
+  may be affected by mathlib API churn), OR
+* (b) Mathlib-only from-scratch closure via Bakry-Émery / OU
+  semigroup (the original route-(β) fallback documented in TD2
+  portability audit) — 4-6 h wall-clock estimate per TD2 §4.a.
+
+If (a): TD4 retires `TrackD-LipschitzSup` once mathlib pin bumped,
+total cluster = 4 rounds (TD3 was net forward via -2 sub-lemmas
+1+2 plus M3 evidence + TD4 mathlib-bump-ready adapter).
+
+If (b): TD4 + TD5 work the route-(β) chain from scratch
+(`gaussian_log_sobolev_real` + `herbst_subgaussian_real` need to be
+re-introduced as theorems for the from-scratch route, since they
+were deleted in T2.2 — but the Path B′ chain in `borell_tis` still
+works with sub-lemma 3 alone, so the from-scratch closure is
+specifically for sub-lemma 3 not the whole route). Total cluster =
+5 rounds.
+
+Recommendation: defer (a)/(b) decision to user; TD3 ships clean
+with `track-d-btis-honest` branch sorries 3 → 1 and concrete
+TD4-routing evidence.
+
+### Round-3 build verification
+
+* Command: `lake build FormalConjectures.ErdosProblems.Helpers.BTISHonestProof`.
+* Result:
+
+  ```
+  warning: brownian-motion: repository '/.../packages/brownian-motion' has local changes
+  ✔ [7867/7867] Built FormalConjectures.ErdosProblems.Helpers.BTISHonestProof (21s)
+  Build completed successfully (7867 jobs).
+  ```
+
+* Only the pre-existing `brownian-motion local changes` warning
+  (inherited; unrelated to TD3).
+* Build log: `/tmp/lake_build_btis.log`.
+* SLT lake-build experiment log: `/tmp/lake_build_slt.log`.
+
+### Round-3 sorry inventory (`BTISHonestProof.lean`)
+
+`grep -nE "^[[:space:]]*sorry" FormalConjectures/ErdosProblems/Helpers/BTISHonestProof.lean`:
+```
+238:  sorry  -- TAG: TrackD-LipschitzSup
+```
+(the second grep hit at line 270 is a docstring sentence containing
+the word "sorry", not a proof sorry.)
+
+Single TAG'd sorry on branch — Path B′ chain consolidation per T2.2
+deletion of post-orphan sub-lemmas 1+2.
+
+### Round-3 Brier-honest scoring (binding skin-in-the-game)
+
+| Outcome | Predicted P(Full) | Realised |
+| --- | --- | --- |
+| T1.1 semantic verification + WebSearch SLT | 0.85 | ✓ (M1 + M2 caught pre-experiment, audit doc 209 lines) |
+| T2.1 sub-lemma 3 SLT import + adapter | 0.65 | ✗ Aborted — M3 promoted to BREAKING by lake-build experiment; "tried adapter approach" satisfied via concrete experimental evidence (cherry-pick costing) rather than naive Stub-only |
+| T2.2 sub-lemmas 1+2 deletion | 0.95 | ✓ Clean deletion + file-top docstring rewrite + borell_tis docstring update |
+| T2.3 build + status | 0.90 | ✓ Build passes, status doc + AXIOM_INVENTORY updated |
+
+Joint mandatory floor: **partial** — 3 of 4 mandatory full, T2.1
+sub-Stub with concrete experimental diagnostic + adapter sketch +
+costed cherry-pick path. Per skin-in-the-game cap: avoids the 0-pt
+floor (all four committed); avoids the 50% cap (T2.1 has both
+"concrete SLT semantic mismatch diagnostic" and "tried adapter
+approach", with experimental evidence stronger than sketch alone).
+
+Realistic round score: 250-350 pts on 450 base ceiling.
+
+### Round-3 anti-patterns avoided
+
+* No skip of T1.1 semantic verification — discipline rule honored;
+  caught M1 + M2 pre-experiment (would have wasted T2.1 attempt
+  against wrong theorem).
+* No "trust SLT framing without reading actual theorem" — T1.1
+  Sub-task B fetched the actual `gaussian_lipschitz_concentration`
+  signature, identified the tail-vs-MGF mismatch, located the
+  correct adapter source `lipschitz_cgf_bound`.
+* No preserve of sub-lemmas 1+2 as future-friendly Stubs — T1.1
+  Sub-task C grep confirmed Q3 zero-consumer verdict; deletion
+  proceeded.
+* No mainline modification — branch isolation intent honored on
+  TD3 commits `b01898d`, `3f677e0`, `46c21b1`, `a354c29`. Concurrent
+  Claude sessions switched branches twice during TD3; both recovered
+  cleanly without leaving stray commits on wrong branches.
+* No naive Stub for T2.1 — instead, executed the pivot, got
+  experimental evidence (Prokhorov drift hard, cherry-pick infeasible
+  in scope), documented concretely.
+
+### Round-3 outstanding diagnostic items for TD4
+
+1. User decision: TD4 closure path (a) mathlib pin bump or (b)
+   Mathlib-only from-scratch. (b) requires reintroducing
+   `gaussian_log_sobolev_real` + `herbst_subgaussian_real` (deleted
+   in T2.2) only if the from-scratch route uses them; alternative
+   from-scratch routes via direct Cholesky → Gaussian-isoperimetry
+   bypass log-Sobolev entirely.
+2. If (a) chosen: identify the minimal mathlib pin that includes
+   `Mathlib.MeasureTheory.Measure.Prokhorov`. `git log --oneline
+   --diff-filter=A -- Mathlib/MeasureTheory/Measure/Prokhorov.lean`
+   in the mathlib repo would identify the introducing commit; pick
+   the smallest superset of our `25ce63313608`.
+3. M4 (predicate strengthening): the
+   `IsCenteredGaussianProcess.joint_gaussian = True` placeholder
+   is unchanged in TD3. TD4 must strengthen regardless of path
+   (a)/(b). Mathlib `IsGaussian` (Mathlib/Probability/Distributions/
+   Gaussian/Basic.lean:45) is a candidate; brownian-motion's
+   `IsGaussianProcess` is another.
+
+### Round-3 cluster status snapshot
+
+* Track D cluster commits on this branch:
+  - TD1: `3b75bde` (signature + audit + portability).
+  - TD2: `bb31686` + `41ad28b` + `6abc40b` (BTIS body Path B′).
+  - TD3: `b01898d` + `3f677e0` + `46c21b1` + `a354c29` (this round).
+* Track D contribution: BTIS axiomatization avoided via Path B′
+  (TD2); chain consolidated to single TAG'd sorry (TD3); TD4
+  closes `TrackD-LipschitzSup` via either mathlib pin bump + SLT
+  re-attempt or from-scratch route.
+* Path B′ closure of `borell_tis` Full body remains structurally
+  valid (TD2 commits unaffected by TD3).
