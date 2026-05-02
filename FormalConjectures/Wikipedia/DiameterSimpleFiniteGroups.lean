@@ -40,6 +40,16 @@ bound in $n$.
 
 namespace BabaiSeressConjectures
 
+/-- A simple graph equals the complete graph iff every pair of distinct vertices is adjacent.
+
+Inline R55-T2.1 substitute for `SimpleGraph.eq_top_iff_forall_ne_adj`, which was added to
+Mathlib in PR #30129 (commit `eae0ea4f18`) ahead of our pinned Mathlib HEAD `25ce633136`.
+The proof matches the upstream Mathlib body verbatim. -/
+@[category API, AMS 5]
+private theorem eq_top_iff_forall_ne_adj' {V : Type*} {G : SimpleGraph V} :
+    G = ⊤ ↔ ∀ a b : V, a ≠ b → G.Adj a b := by
+  simp [← top_le_iff, SimpleGraph.le_iff_adj]
+
 /-- The (undirected) Cayley graph of a group $G$ with respect to a generating set $S$.
 Two elements $g, h \in G$ are adjacent iff $g \neq h$ and
 $g^{-1} h \in S$ or $h^{-1} g \in S$.
@@ -81,7 +91,7 @@ theorem groupDiam_alternating_three : groupDiam (alternatingGroup (Fin 3)) = 1 :
   have key : ∀ S : Set ↥(alternatingGroup (Fin 3)),
       Subgroup.closure S = ⊤ → cayleyGraph S = ⊤ := by
     intro S hS
-    rw [SimpleGraph.eq_top_iff_forall_ne_adj]
+    rw [eq_top_iff_forall_ne_adj']
     intro u v hne
     simp only [cayleyGraph, SimpleGraph.fromRel_adj]
     refine ⟨hne, ?_⟩
@@ -119,7 +129,7 @@ theorem groupDiam_perm_two : groupDiam (Equiv.Perm (Fin 2)) = 1 := by
   have key : ∀ S : Set (Equiv.Perm (Fin 2)),
       Subgroup.closure S = ⊤ → cayleyGraph S = ⊤ := by
     intro S hS
-    rw [SimpleGraph.eq_top_iff_forall_ne_adj]
+    rw [eq_top_iff_forall_ne_adj']
     intro u v hne
     simp only [cayleyGraph, SimpleGraph.fromRel_adj]
     refine ⟨hne, ?_⟩
