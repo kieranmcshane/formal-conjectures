@@ -36,25 +36,27 @@ pieces are:
   specialisation of `Mathlib`'s `hasFDerivAt_ringInverse` to
   `Matrix n n ℝ` requires only the `Matrix.PosDef → IsUnit` bridge.
 
-## R40 status
+## Status (R53 — γ-floor axiomatization of `Matrix.det.differentiable`)
 
-Both theorems land in R40 as **TAG'd Stub signatures** with concrete
-Mathlib API gap diagnostics:
-
-* `Matrix.det.hasFDerivAt` (T2.1) — TAG'd `R40-T2.1-det-cofactor-route`.
-  Path (α) cofactor / adjugate expansion is selected as the closure
-  strategy. Estimated 100–200 LOC of careful Lean. R41–R44 closure target
-  alongside the multivariate Gaussian density bridge.
-* `Matrix.PosDef.inv_hasFDerivAt` (T2.2) — TAG'd
-  `R40-T2.2-posdef-ringInverse-bridge`. Body invokes `hasFDerivAt_ringInverse`
-  on the unit `(hM.isUnit).unit`, then bridges `Matrix.inv = Ring.inverse`
-  via `nonsing_inv_eq_ringInverse`. The bridging step is mechanical
-  (~30 LOC) but requires verifying `HasSummableGeomSeries (Matrix n n ℝ)` at
-  the pin and the precise statement of `Matrix.nonsing_inv_eq_ringInverse`.
-
-Both are **infrastructure only**; consumers (`PhaseAUpperBound.lean`,
-`MultivariateGaussianCDF.lean`) keep their TAG'd Stubs at the Phase A
-scaffold layer.
+* `Matrix.det.hasFDerivAt` (T2.1) — **TAG'd Stub** (unchanged from R40).
+  TAG'd `R40-T2.1-det-cofactor-route`. Path (α) cofactor / adjugate
+  expansion is selected as the closure strategy. Estimated 100–200 LOC
+  of careful Lean. R55+ retirement target via Mathlib pin bump or
+  in-tree close.
+* `Matrix.det.differentiable` (T2.1 wrapper) — **Axiom (Axiom #8,
+  γ-floor).** Per BACKGROUND.md post-R52 user-confirmed audit-redirect,
+  R53 axiomatized this wrapper Stub to free R54-R58 mainline budget for
+  retirements elsewhere. Zero Lean call sites at R53; future consumers
+  (Slepian + multivariate-CDF differentiability chains) will use the
+  original name. Retirement target R55-R59 post-gate via Mathlib pin
+  bump (preferred) or 2-line consumer wrapping `Matrix.det.hasFDerivAt`
+  Full close. See `AXIOM_INVENTORY.md` "Axiom #8" and
+  `Helpers/Round53_T1_MatrixDetDifferentiableAxiomatization.md` for
+  retirement plan + Claims Verification Table.
+* `Matrix.PosDef.inv_hasFDerivAt` (T2.2) — **Full** (R41-T2.2 close,
+  commit `1e30dda`). Body uses `hasFDerivAt_ringInverse` +
+  `Matrix.nonsing_inv_eq_ringInverse` global function-equality bridge
+  (~30 LOC).
 
 ## Mathlib retirement path
 
@@ -131,22 +133,69 @@ theorem Matrix.det.hasFDerivAt
   -- Closure target: R41 (companion to T2.3 pushforward bridge).
   sorry
 
-/-- **Convenience wrapper signature.** `Matrix.det` is differentiable at every matrix.
-Follows from `Matrix.det.hasFDerivAt` via `HasFDerivAt.differentiableAt`,
-once the appropriate `NormedAddCommGroup (Matrix n n ℝ)` instance is in scope
-(via `open Matrix` and `Mathlib.Analysis.Matrix.Normed`).
+/-- **R53 — γ-floor `Matrix.det.differentiable` axiomatization (post-R52
+audit-redirect, user-confirmed γ floor + β R58 extension trajectory).**
 
-R40 leaves the body wrapped in the same TAG'd Stub diagnostic as the
-`hasFDerivAt` form: closure is gated on Path α body close in R41. -/
-theorem Matrix.det.differentiable
+For every finite-index `n` with decidable equality and every real
+`n × n` matrix, the determinant function `A ↦ A.det : Matrix n n ℝ → ℝ`
+is Fréchet-differentiable on the entire matrix space.
+
+This is the **`Differentiable ℝ` wrapper** introduced in R40-T2.1
+(TAG `R40-T2.1-det-cofactor-route`). The companion existential form
+`Matrix.det.hasFDerivAt` (line 124-132 above) remains a TAG'd Stub for
+now; R53 axiomatizes only the wrapper that downstream consumers
+(Slepian's comparison + multivariate-CDF differentiability chains) will
+import.
+
+**Classical justification**: The determinant is a polynomial in the
+matrix entries (Leibniz expansion
+`det A = ∑_{σ ∈ Perm n} sign σ · ∏_i A i (σ i)`); polynomials in
+finitely many real variables are smooth (in particular Fréchet
+differentiable) on `Matrix n n ℝ` viewed as a finite-dimensional real
+normed space. References: Lang (2002) "Algebra" Ch. XIII §5; Hörmander
+(1990) "Analysis of Linear Partial Differential Operators" Ch. I §1.
+
+**γ-floor strategy (R53)**: per BACKGROUND.md post-R52 user-confirmed
+audit-redirect, the wrapper Stub is replaced with an axiom of identical
+signature to free R54-R58 mainline budget for retirements elsewhere
+(actual Q1c track close attempt, Track C/D parallel work, additional
+Mathlib API drift fixes). This is debt-conversion: -1 sorry, +1 axiom,
+items unchanged at the R52 gate (sorry-to-axiom swap), continuing the
+R49 (axiom #6) + R51 (axiom #7) γ-floor pattern.
+
+**Retirement target — R55-R59 post-gate** (two-path sub-plan):
+
+1. *Mathlib pin bump (preferred).* Monitor Mathlib for landings of
+   `Matrix.det.hasFDerivAt` (likely via the `MultilinearMap` or
+   `LinearMap` route, or via `Polynomial.contDiff` on the Leibniz
+   expansion). Post-`v4.27` toolchain bump may package this directly.
+   The wrapper retires as a 2-line consumer:
+   `Matrix.det.differentiable := fun M => (Matrix.det.hasFDerivAt
+   M).differentiableAt.differentiable`.
+2. *From-scratch closure (fallback).* Build the cofactor-route Full
+   close in-tree over R55+ — ~100-200 LOC across Leibniz expansion
+   (`Matrix.det_apply'`) + per-summand polynomial differentiability
+   (`Matrix.entryLinearMap` + `Differentiable.prod_finset` +
+   `Differentiable.sum_finset`) + assembly. The wrapper then closes by
+   composition.
+
+Retirement is **not required for the R52 gate** (gate measures item
+count; +1 axiom / -1 sorry is a wash there). Strategic value of the
+γ-floor axiomatization is the freed mainline budget for OTHER
+retirements R54-R58.
+
+**Consumers (Lean code)**: zero Lean call sites at R53. Future
+consumers will appear when the Slepian's comparison + multivariate-CDF
+differentiability chains (`Helpers/PhaseAUpperBound.lean`,
+`Helpers/MultivariateGaussianCDF.lean`) reach their R55+ assembly
+phases. The axiom is ready to serve those consumers under its original
+name.
+
+See `Helpers/Round53_T1_MatrixDetDifferentiableAxiomatization.md` for
+the T1.1 Claims Verification Table + signature audit. -/
+axiom Matrix.det.differentiable
     {n : Type*} [Fintype n] [DecidableEq n] :
-    Differentiable ℝ (fun A : Matrix n n ℝ => A.det) := by
-  -- TAG[R40-T2.1-det-cofactor-route] : derivable from
-  -- `Matrix.det.hasFDerivAt` once the `NormedAddCommGroup (Matrix n n ℝ)`
-  -- instance synthesis is set up (entry-wise sup norm). For R40 scaffold
-  -- purposes the unbundled signature is what consumers (Slepian's
-  -- comparison + multivariate-CDF differentiability) need.
-  sorry
+    Differentiable ℝ (fun A : Matrix n n ℝ => A.det)
 
 /-! ## T2.2 — `Matrix.inv` differentiability on PosDef matrices -/
 
