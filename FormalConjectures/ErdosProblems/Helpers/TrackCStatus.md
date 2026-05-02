@@ -131,3 +131,131 @@ touched in their parallel work).
 * **Track C cluster status:** Round 1 of ~4 complete. Layer 2 (lowest
   risk) targeted for round 2. A2 (`one_dim_KMT_coupling`) retirement
   blocked on rounds 2–4.
+
+---
+
+# Track C status — round 2 closure (TC2 resumption)
+
+**Round:** Track C round 2 (parallel-track, branch `track-c-1dkmt`).
+**Date:** 2026-05-02 (resumption after API stream timeout interruption of
+TC2 first attempt).
+**Branch HEAD post-T2.1:** `f018aea`.
+**Outcome:** **Full closure of mandatory floor (T2.0 + T2.1 + T2.2).**
+
+T1.1 audit was already committed at `db53be1` from the interrupted TC2
+first attempt — reused via T2.0 sync (per process Q4 ii carry-over rule),
+not redone.
+
+## TC2.1. Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T2.0 — audit re-read + cross-synergy import check + sync section | **Full** | `Helpers/TrackC_round2_T1_GrepAudit.md` §7 (~55 lines appended to `db53be1`, committed at `ecc6600`) | Audit re-read confirmed Mathlib API surface (15 lemmas pinned at file:line). §7.1 refinement: Galois iff restriction tightened from `Ioc 0 1` (TC1 audit error) to `Ioo 0 1` (universal-μ form; p=1 fails for unbounded-support μ). §7.2: `GaussianParametricAnalysis.lean` confirmed absent on branch, not needed for L2. |
+| T2.1 — Layer 2 `quantile_transform_finite_moment` Full close | **Full** | `Helpers/OneDimKMT.lean:229-371` (~143 LOC; matches Grok Q2 estimate of 80-120 modulo 20% over for the case-split measurability proof), committed at `f018aea` | Definition: `q := if p ∈ Ioo 0 1 then sInf {y \| p ≤ cdf μ y} else 0`. Galois via right-continuity + `csInf_lt_iff` + `monotone_cdf`. Measurability via `measurable_of_Iic` + case split on `0 ≤ x`. Pushforward via `Measure.ext_of_Iic` + `restrict_congr_set` (Ioo =ᵐ Ioc / NoAtoms) + Galois + volume-of-Ioo-intersect-Iic. |
+| T2.2 — Build verification + status doc update | **Full** | This document + `lake build` output below. | `lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT` clean (2842/2842 jobs, 4.4s on first attempt; verified again post-branch-shift incident). |
+
+All three mandatory-floor outcomes Full. Track C round 2 caps at 0
+condition triggered: **none.**
+
+## TC2.2. Build verification log (verbatim)
+
+```
+$ lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT
+warning: brownian-motion: repository '/Users/kieranmcshane/Documents/formal-conjectures/.lake/packages/brownian-motion' has local changes
+✔ [2842/2842] Built FormalConjectures.ErdosProblems.Helpers.OneDimKMT (4.4s)
+Build completed successfully (2842 jobs).
+```
+
+**Side note on parallel-branch interference.** During the TC2 resumption
+session, the working-tree branch repeatedly switched to
+`track-d-btis-honest` and `track-d-pinbump-probe` (Track D parallel work)
+due to other agent activity. Each switch was followed by an explicit
+`git checkout track-c-1dkmt` to recover. The build above was performed on
+a confirmed `track-c-1dkmt` checkout (HEAD `f018aea`); a transient failure
+of a full-repo `lake build` mid-session was due to Track D's
+`lakefile.toml` pin-bump probe regressions, not TC2's content. Branch
+isolation principle (per brief §"Branch isolation strict") was preserved:
+all TC2 commits on `track-c-1dkmt` only.
+
+## TC2.3. Net debt change (project ledger update)
+
+### Axioms
+
+* **Before TC2:** 5 user-defined axioms (D2 + 1D `one_dim_KMT_coupling`
+  + stepping-stone + GLW lower + GLW upper).
+* **After TC2:** 5 user-defined axioms — **unchanged**.
+
+A2 (`one_dim_KMT_coupling`) retirement still blocked on Layers 1, 3, 4 +
+main body (TC3-TC5 cluster-rounds).
+
+### Sorries on `track-c-1dkmt` branch
+
+* **Before TC2:** 17 TAG'd sorries (12 baseline + 5 from TC1 surface area).
+* **After TC2:** **16 TAG'd sorries** (-1, Layer 2 retired).
+
+Surface area decomposition (post-TC2):
+
+| Sorry | Line (post-TC2) | TAG label | Round closure target |
+|---|---|---|---|
+| `skorokhod_embedding_single` body | `OneDimKMT.lean:191` | `TrackC-Layer1-Skorokhod` | TC4 or TC5 |
+| `hungarian_dyadic_coupling` body | `OneDimKMT.lean:410` | `TrackC-Layer3-Hungarian-bottleneck` | **TC3 (bottleneck per Grok Q4)** |
+| `sup_error_log_over_sqrt` body | `OneDimKMT.lean:452` | `TrackC-Layer4-SupError` | TC5 |
+| `oneDimKMT` main body | `OneDimKMT.lean:509` | `TrackC-round1-infrastructure-only` | TC5+ (chains L1-L4) |
+
+Plus 12 pre-TC1 baseline sorries elsewhere in the project (unchanged by
+TC2).
+
+## TC2.4. Anti-mismatch hygiene compliance
+
+Per the resumption brief's binding "Local Claude binding rule for T2.1":
+
+1. **Pre-invocation grep verification:** all 15 Mathlib lemmas used in
+   T2.1 were pinned at file:line in T1.1 §7.3 (audit committed at
+   `db53be1`). ✅
+2. **No Grok-recipe extrapolation:** the only signature extension (Galois
+   `Ioc → Ioo`) was derived from local Claude's edge-case analysis
+   (see T2.0 §7.1), NOT from Grok recipe. ✅
+3. **Multi-lemma compositions documented:** the right-continuity argument
+   composes `(cdf μ).right_continuous`, `nhdsWithin_mono`,
+   `Tendsto.mono_left`, `ge_of_tendsto`, `csInf_lt_iff`, `monotone_cdf`,
+   `self_mem_nhdsWithin` (7 lemmas); each is named in the audit table. ✅
+4. **Two minor adjustments during build:** `open scoped Topology` (for
+   `𝓝` notation) and `LT.lt.not_le → LT.lt.not_ge` (Mathlib deprecation
+   rename, not a semantic mismatch). ✅
+
+No new semantic-mismatch failure was introduced in TC2. The earlier
+Galois iff misframing (the 5th cumulative one in V2) was caught BEFORE
+T2.1 code was written, not after — the new T1.1-grep-FIRST process
+working as intended.
+
+## TC2.5. Honesty / framing notes
+
+* **TC2 is a content-side closure.** Layer 2 is the easiest layer per
+  Grok Q5 (P~0.40-0.50). Full close on first content round of the
+  cluster validates the 4-round trajectory.
+* **TC2 P(Full) prediction was 0.45.** Outcome: Full. Single observation,
+  but inside the predicted 0.40-0.50 band.
+* **Net axiom debt unchanged at 5.** A2 retirement requires TC3-TC5
+  (Layers 1, 3, 4 + main body).
+* **Net sorry debt -1 on branch.** 17 → 16. Per V2 trajectory plan, this
+  contributes one retirement to the R52 hybrid (c) gate evaluation.
+* **Carry-over efficiency:** T1.1 reuse (per process Q4 ii) compressed
+  wall-clock by ~30 minutes vs. a fresh round. Resumption brief's stated
+  benefit confirmed.
+* **Math edge case caught (Galois iff):** the TC1 signature universally
+  quantified the Galois iff over `∀ p x : ℝ`, which is provably FALSE
+  for `p ∉ Ioo 0 1`. T1.1 audit's grep-FIRST process caught this; T2.0
+  sync refined `Ioc 0 1 → Ioo 0 1` for universal-μ correctness. This is
+  the 5th consecutive Grok pre-flight misframing in the V2 cluster (R44
+  Jacobi, R45 PosSemidef.det_sqrt, R46 PosDef.isOpen-globally, TC1
+  unrestricted-Galois, TC1 audit's Ioc-not-Ioo).
+
+## TC2.6. Status label
+
+* **Track C round 2 outcome:** Full (all three mandatory-floor outcomes
+  Full; build clean; net axiom unchanged; net sorry -1).
+* **Track C cluster status:** Round 2 of ~4 complete. TC3 target: Layer 3
+  `hungarian_dyadic_coupling` (300-500 LOC, bottleneck per Grok Q4 with
+  P(success/round) ≈ 0.25-0.35; multi-round potential).
+* **R52 hybrid (c) gate contribution:** +1 retirement on track-c branch
+  toward the 1.875-2.5/round target across V2 main + parallel tracks.
