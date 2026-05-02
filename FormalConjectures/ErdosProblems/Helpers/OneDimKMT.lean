@@ -414,11 +414,54 @@ theorem tusnady_base_polynomial (n : ℕ) (_hn : 1 ≤ n) :
                    (fun (i : Fin (2 * n + 1)) => (i.val : ℝ)) ∧
       μ'.map Z = gaussianReal 0 ((n : ℝ≥0) / 2) ∧
       ∀ ω', |B ω' - (n : ℝ) - Z ω'| ≤ A + C * (Z ω') ^ 2 / (n : ℝ) := by
-  -- TAG[TrackC-Layer3-Tusnady-base-polynomial]: TC4-TC5 scope.
-  -- See docstring above + TC3 T1.1 audit `TrackC_round3_T1_GrepAudit.md` for
-  -- concrete diagnostic. The `O(log n)` per-step form (8th misframing) is
-  -- NOT what literature proves; this signature locks the polynomial form.
-  sorry
+  classical
+  -- TC4 Path A: probability space construction via comonotonic coupling on
+  -- Ω' = ℝ with μ' = volume.restrict (Ioc 0 1). Pointwise polynomial bound
+  -- (Carter-Pollard 2004 / Bretagnolle-Massart 1989) is the single
+  -- remaining sub-sorry; see `TrackC_round4_T1_TusnadyAudit.md` for the
+  -- full diagnostic.  The `O(log n)` per-step form (8th misframing) is NOT
+  -- what literature proves; signature + body lock the polynomial form.
+  -- Step 1: Fin.val cast is measurable (Fin (2n+1) has discrete σ-algebra).
+  have h_meas_Fin_val : Measurable (fun (i : Fin (2 * n + 1)) => (i.val : ℝ)) := by
+    fun_prop
+  -- Step 2: binomial-on-ℝ measure inherits IsProbabilityMeasure via map.
+  let μ_B : Measure ℝ :=
+    (PMF.binomial (1 / 2 : ℝ≥0) (by norm_num) (2 * n)).toMeasure.map
+      (fun (i : Fin (2 * n + 1)) => (i.val : ℝ))
+  haveI h_prob_μ_B : IsProbabilityMeasure μ_B :=
+    Measure.isProbabilityMeasure_map h_meas_Fin_val.aemeasurable
+  -- Step 3: extract quantile functions via TC2 (`quantile_transform_finite_moment`).
+  obtain ⟨q_B, hq_B_meas, _hq_B_Galois, hq_B_push⟩ :=
+    quantile_transform_finite_moment μ_B
+  obtain ⟨q_Z, hq_Z_meas, _hq_Z_Galois, hq_Z_push⟩ :=
+    quantile_transform_finite_moment (gaussianReal 0 ((n : ℝ≥0) / 2))
+  -- Step 4: assemble witnesses (Ω' = ℝ, μ' = volume.restrict (Ioc 0 1),
+  -- B = q_B, Z = q_Z, A = n + 1, C = 1).  Constants A, C chosen to also
+  -- absorb the trivial ω' ∉ Ioc 0 1 case (where q_B = q_Z = 0 by the
+  -- TC2 piecewise definition, so the bound reduces to n ≤ A = n + 1 ✓).
+  refine ⟨ℝ, (inferInstance : MeasurableSpace ℝ),
+    volume.restrict (Set.Ioc (0 : ℝ) 1),
+    q_B, q_Z, ((n : ℝ) + 1), 1, ?_, ?_, ?_, hq_B_meas, hq_Z_meas,
+    hq_B_push, hq_Z_push, ?_⟩
+  · -- IsProbabilityMeasure (volume.restrict (Ioc 0 1)).
+    refine ⟨?_⟩
+    rw [Measure.restrict_apply MeasurableSet.univ, Set.univ_inter, Real.volume_Ioc]
+    simp
+  · -- 0 < (n : ℝ) + 1.
+    have h0 : (0 : ℝ) ≤ n := Nat.cast_nonneg _
+    linarith
+  · -- 0 < 1.
+    norm_num
+  · -- TAG[TrackC-Layer3-Tusnady-base-polynomial-bound]: TC5+ sub-sorry.
+    -- Pointwise polynomial bound `|q_B u - n - q_Z u| ≤ (n+1) + (q_Z u)²/n`.
+    -- Carter-Pollard 2004 / BM 1989 give the sharper `0.6 + Z²/n` form;
+    -- our looser `(n+1) + Z²/n` envelopes it (existential A,C per n).
+    -- Mathlib gaps blocking close (per `TrackC_round4_T1_TusnadyAudit.md`):
+    -- (i) Stirling explicit upper bound (~30-50 LOC, asymptotic-only at pin),
+    -- (ii) Mills ratio (~40-60 LOC, ABSENT in pinned Mathlib),
+    -- (iii) real Beta-integral comparison (~20-40 LOC, complex-only at pin).
+    intro ω'
+    sorry
 
 /-! ### Layer 3 — Hungarian dyadic decomposition + recursive coupling
 
