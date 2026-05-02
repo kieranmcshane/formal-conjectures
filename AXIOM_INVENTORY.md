@@ -19,6 +19,61 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R45 V2 round 7 — Phase 2 diagnostic-quality enhancement)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone, 2026-05-02).
+* **Mathematical content (R45 update):** lands per R45-T1.1
+  framing-verification audit's mid-distribution prediction
+  ("Phase 2 partial — diagnostic enhancement only"). Three deliverables:
+  * **R45-T1.1 framing verification audit**
+    (`Helpers/R45_T1_FramingVerificationAudit.md`, ~353 lines)
+    catches two specific Grok R45 pre-flight misframings:
+    * Q1.a (`Matrix.PosSemidef.det_sqrt`) claimed in
+      `Mathlib.Analysis.Matrix.Order` — NOT in Mathlib at the
+      project pin (0 grep hits). Closure recipe revised to ~30-50
+      LOC bridge (Grok said ~20-40).
+    * Q3 (Phase 2 dependency) claimed MGI Full directly provides
+      `HasFDerivAt` of pdf — partially mis-attributed. MGI gives
+      only the rewrite; pdf differentiability requires R40/R41
+      stubs + closed-form chain rule.
+    Q1.b + Q1.c verified CORRECT. Mathlib API
+    `hasFDerivAt_integral_of_dominated_loc_of_lip` confirmed at
+    `Mathlib/Analysis/Calculus/ParametricIntegral.lean:164`.
+  * **R45-T2.1+T2.2 Phase 2 body diagnostic enhancement.** Replaces
+    stale R41/R42 comment block on `MultivariateGaussianCDF.lean:160`
+    R35-T2.1 sorry with audit-aligned Path γ skeleton documenting
+    (i) MGI rewrite (POST-R44 EXECUTABLE), (ii) diff-under-integral
+    Mathlib API target, (iii) integrand pointwise differentiability
+    chain (R40 Stub black-box + R41 Full + Mathlib chain rules),
+    and (iv) THREE engineering sub-gaps:
+    * (A) `Matrix.PosDef.isOpen` — not packaged. ~30-80 LOC.
+    * (B) Integrability of `multivariateGaussianPdf S` on
+      `orthant x`. ~50-100 LOC.
+    * (C) **Load-bearing.** `LipschitzOnWith` with integrable
+      Lipschitz envelope. ~150-300 LOC alone.
+    Single TAG'd `sorry` preserved at the same site.
+  * **MGE Full close stretch (T3.1) NOT attempted** per the brief's
+    hard-stop rule (mid-distribution outcome elected over optimistic
+    stretch).
+* **Net debt change R44 → R45:** axioms 5 → 5 (unchanged); sorries
+  12 → 12 (unchanged — diagnostic-quality progress without count
+  inflation).
+* **All build targets remain green** (`lake env lean` clean on
+  `MultivariateGaussianCDF.lean`, `MultivariateGaussianPdf.lean`,
+  `MatrixDetDifferentiable.lean`, `PhaseAUpperBound.lean`); R38 +
+  R39 + R40 + R41 + R42 + R43 + R44 milestones preserved.
+* **R59 ceiling check:** boundary case maintained via Q5 BTIS-merge
+  compression option. R45 mid-distribution outcome → 15 remaining
+  rounds for pure axiom-free target (R46-R59 with zero buffer at
+  R59 boundary). Recommendation for R46: Option C — MGE Full close
+  (~180-290 LOC) + Phase 2 sub-gap (A) `Matrix.PosDef.isOpen`
+  stretch (~30-80 LOC).
+
+See `Helpers/PhaseV2R45Status.md` and
+`Helpers/R45_T1_FramingVerificationAudit.md` for the round status
+doc + framing audit.
+
 ## Track B status (parallel to R44 Track A — Mathlib re-verification round)
 
 * **Branch:** `track-b-r33cd-gaps` (created from `r33-c-helpers-consolidation`
