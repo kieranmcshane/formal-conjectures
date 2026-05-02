@@ -36,19 +36,23 @@ pieces are:
   specialisation of `Mathlib`'s `hasFDerivAt_ringInverse` to
   `Matrix n n ℝ` requires only the `Matrix.PosDef → IsUnit` bridge.
 
-## Status (R53 — γ-floor axiomatization of `Matrix.det.differentiable`)
+## Status (R56 — γ-floor axiomatization of companion `Matrix.det.hasFDerivAt`)
 
-* `Matrix.det.hasFDerivAt` (T2.1) — **TAG'd Stub** (unchanged from R40).
-  TAG'd `R40-T2.1-det-cofactor-route`. Path (α) cofactor / adjugate
-  expansion is selected as the closure strategy. Estimated 100–200 LOC
-  of careful Lean. R55+ retirement target via Mathlib pin bump or
-  in-tree close.
+* `Matrix.det.hasFDerivAt` (T2.1 existential form) — **Axiom (Axiom #9,
+  γ-floor).** Per BACKGROUND.md post-R55 status, R56 axiomatized the
+  companion Stub deliberately left in place at R53 to extend the
+  γ-floor + β R58 extension trajectory. The two `Matrix.det` axioms (#8
+  wrapper + #9 existential) retire as a pair under either Mathlib pin
+  bump or from-scratch closure (~100-200 LOC, single round). See
+  `AXIOM_INVENTORY.md` "Axiom #9" and
+  `Helpers/Round56_T1_HasFDerivAtAxiomatization.md` for retirement plan
+  + Claims Verification Table.
 * `Matrix.det.differentiable` (T2.1 wrapper) — **Axiom (Axiom #8,
   γ-floor).** Per BACKGROUND.md post-R52 user-confirmed audit-redirect,
   R53 axiomatized this wrapper Stub to free R54-R58 mainline budget for
   retirements elsewhere. Zero Lean call sites at R53; future consumers
   (Slepian + multivariate-CDF differentiability chains) will use the
-  original name. Retirement target R55-R59 post-gate via Mathlib pin
+  original name. Retirement target R57-R59 post-gate via Mathlib pin
   bump (preferred) or 2-line consumer wrapping `Matrix.det.hasFDerivAt`
   Full close. See `AXIOM_INVENTORY.md` "Axiom #8" and
   `Helpers/Round53_T1_MatrixDetDifferentiableAxiomatization.md` for
@@ -76,62 +80,106 @@ open Matrix
 
 /-! ## T2.1 — `Matrix.det` differentiability -/
 
-/-- **R40-T2.1 — Determinant is differentiable in matrix entries.**
+/-- **R56 — γ-floor companion `Matrix.det.hasFDerivAt` axiomatization
+(post-R55 user-confirmed γ floor + β R58 extension trajectory; extends
+the R49 (axiom #6) + R51 (axiom #7) + R53 (axiom #8 wrapper) mechanical
+pattern to the existential form Stub deliberately left in place at R53).**
 
 For every `n × n` matrix `M : Matrix n n ℝ`, the determinant function
-`A ↦ A.det` is Fréchet-differentiable at `M`, with derivative given by the
-cofactor expansion (equivalently, the adjugate `adj(M) = M⁻¹ · det(M)` for
-invertible `M`):
+`A ↦ A.det` is Fréchet-differentiable at `M`, with derivative given by
+the cofactor expansion (equivalently, the adjugate `adj(M) = M⁻¹ ·
+det(M)` for invertible `M`):
 
     `d(det A)|_{A = M} (H) = tr(adj(M) · H)`.
 
 In Mathlib's normed-space language, the Fréchet derivative is the linear
 map `H ↦ tr(adj(M) · H) : Matrix n n ℝ →L[ℝ] ℝ`.
 
-**R40 status: TAG'd Stub.** The signature lands; the body is deferred to
-R41–R44 alongside the rest of Phase A upper Option B closure work.
+This is the **existential `∃ L, HasFDerivAt … L M` form**, the companion
+of R53's `Differentiable ℝ` wrapper (axiom #8 at line 196). The
+existential form is strictly stronger: it provides the explicit Fréchet
+derivative `L` at the chosen point, from which the wrapper recovers via
+`HasFDerivAt.differentiableAt`. Both share the same TAG
+`R40-T2.1-det-cofactor-route` and the same closure path (Leibniz
+expansion + polynomial differentiability).
 
-**Closure route (path α from R40-T1.1 audit):**
+**Classical justification**: The determinant is a polynomial in the
+matrix entries (Leibniz expansion `det A = ∑_{σ ∈ Perm n} sign σ · ∏_i A
+i (σ i)`); polynomials in finitely many real variables are smooth (in
+particular Fréchet differentiable) on `Matrix n n ℝ` viewed as a
+finite-dimensional real normed space, with the cofactor / adjugate
+formula for the derivative. References: Lang (2002) "Algebra" Ch. XIII
+§5; Hörmander (1990) "Analysis of Linear Partial Differential Operators"
+Ch. I §1; Magnus & Neudecker (1999) "Matrix Differential Calculus" §8.3
+for the explicit `d(det A) = tr(adj(A) · dA)` derivation.
+
+**γ-floor strategy (R56)**: per BACKGROUND.md post-R55 status, the
+companion existential Stub is replaced with an axiom of identical
+signature to free R57+ mainline budget for retirements elsewhere
+(actual Q1c track close attempt, additional Mathlib API drift fixes,
+Track C/D parallel work merge). This is debt-conversion: -1 sorry, +1
+axiom, items unchanged at the R52 gate (sorry-to-axiom swap), continuing
+the R49 (axiom #6) + R51 (axiom #7) + R53 (axiom #8) γ-floor pattern (4×
+successful precedent).
+
+**Closure route (path α from R40-T1.1 audit, target R57-R59 post-gate):**
 
 1. Express `det A = ∑_{σ ∈ Perm n} sign σ · ∏_i A i (σ i)` via
    `Matrix.det_apply'`.
-2. Each summand is a polynomial of degree exactly `card n` in the entries
-   of `A`.
-3. Sum and product of differentiable functions is differentiable; identify
-   the entry-extraction `A ↦ A i j` as the continuous linear projection
-   `Matrix.entryLinearMap i j` (already differentiable).
+2. Each summand is a polynomial of degree exactly `card n` in the
+   entries of `A`.
+3. Sum and product of differentiable functions is differentiable;
+   identify the entry-extraction `A ↦ A i j` as the continuous linear
+   projection `Matrix.entryLinearMap i j` (already differentiable).
 4. Compute the derivative via the product rule and re-assemble into the
    adjugate / trace form.
 
-**Mathlib gap diagnostic (concrete):**
+**Retirement target — R57-R59 post-gate** (two-path sub-plan):
 
-* `Matrix.det.differentiable` — **not packaged**. Search at the pin
+1. *Mathlib pin bump (preferred).* Monitor Mathlib for landings of
+   `Matrix.det.hasFDerivAt` (likely via the `MultilinearMap` or
+   `LinearMap` route, or via `Polynomial.contDiff` on the Leibniz
+   expansion). Post-`v4.28` toolchain bump may package this directly.
+   The companion wrapper Axiom #8 (`Matrix.det.differentiable`) retires
+   simultaneously as a 2-line consumer:
+   `theorem Matrix.det.differentiable := fun M => (Matrix.det.hasFDerivAt
+   M).choose_spec.differentiableAt`. **Net retirement on pin bump: -2
+   axioms in one round (axioms #8 + #9 retire as a pair).**
+2. *From-scratch closure (fallback).* Build the cofactor-route Full
+   close in-tree over R57+ — ~100-200 LOC across Leibniz expansion
+   (`Matrix.det_apply'`) + per-summand polynomial differentiability
+   (`Matrix.entryLinearMap` + `Differentiable.prod_finset` +
+   `Differentiable.sum_finset`) + assembly into existential `L` form.
+   Wrapper axiom #8 retires by composition. Total: ~100-200 LOC for both
+   axioms, vs ~200-400 LOC if the wrapper had to be closed independently.
+
+Retirement is **not required for the R52 gate** (gate measures item
+count; +1 axiom / -1 sorry is a wash there). Strategic value of the
+γ-floor axiomatization is the freed mainline budget for OTHER
+retirements R57-R59.
+
+**Mathlib gap diagnostic (concrete, unchanged from R40-T2.1):**
+
+* `Matrix.det.hasFDerivAt` — **not packaged**. Search at the pin
   (`mathlib4 @ 25ce63313608`) for `Matrix.det.*Differentiable`,
   `Matrix.det.*HasFDeriv`, `Matrix.det.*ContDiff` returns zero matches.
 * `MultilinearMap.hasFDerivAt` — **not packaged**. Path (β) blocked by
   this absence; path (α) is the only available route at this pin.
-* The polynomial expansion route uses `Matrix.det_apply'` (packaged) +
-  `Matrix.entryLinearMap` (packaged) + standard differentiability
-  combinators. The challenge is bookkeeping over `Equiv.Perm` rather than
-  any conceptual gap.
+* `Polynomial.eval.hasFDerivAt` exists but too narrow (univariate);
+  multivariate `MvPolynomial` API not packaged for differentiability.
 
-**Tried alternatives:**
+**Consumers (Lean code)**: zero Lean call sites at R56. Future consumers
+(Slepian's comparison + multivariate-CDF differentiability chains) will
+appear when the R57+ assembly phases begin and may import either the
+existential form (this axiom #9) or the wrapper (axiom #8) depending on
+chain-rule needs.
 
-* `MultilinearMap.toContinuousLinearMap.hasFDerivAt` — does not exist;
-  multilinear maps in Mathlib do not currently expose Fréchet derivative
-  API.
-* `Polynomial.eval.hasFDerivAt` — too narrow; the Leibniz expansion is
-  multivariate polynomial, not univariate. Would need `MvPolynomial` API,
-  also unpackaged for differentiability. -/
-theorem Matrix.det.hasFDerivAt
+See `Helpers/Round56_T1_HasFDerivAtAxiomatization.md` for the T1.1
+Claims Verification Table + signature audit. -/
+axiom Matrix.det.hasFDerivAt
     {n : Type*} [Fintype n] [DecidableEq n] (M : Matrix n n ℝ) :
     ∃ L : Matrix n n ℝ →L[ℝ] ℝ,
-      HasFDerivAt (fun A : Matrix n n ℝ => A.det) L M := by
-  -- TAG[R40-T2.1-det-cofactor-route] : ~100-200 LOC, Leibniz expansion
-  -- + polynomial differentiability. Mathlib gap: no Matrix.det.hasFDerivAt
-  -- in mathlib4 @ 25ce63313608. See R40_T1_DifferentiabilityAudit.md §1.
-  -- Closure target: R41 (companion to T2.3 pushforward bridge).
-  sorry
+      HasFDerivAt (fun A : Matrix n n ℝ => A.det) L M
 
 /-- **R53 — γ-floor `Matrix.det.differentiable` axiomatization (post-R52
 audit-redirect, user-confirmed γ floor + β R58 extension trajectory).**
