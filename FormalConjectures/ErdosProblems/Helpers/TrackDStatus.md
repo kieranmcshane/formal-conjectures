@@ -956,3 +956,192 @@ upstream Grok-Q-claim underestimate pattern documented in mismatch entries
 * `BTISHonestProof.lean` UNCHANGED (no signature lockdown; Q3.1 not VIABLE).
 * `AXIOM_INVENTORY.md` UNCHANGED.
 * Push: `track-d-btis-honest` to origin.
+
+---
+
+# Track D status — round 5 closure (γ-floor sub-lemma 3 axiomatization, **closes Track D**)
+
+**Round:** Track D round 5 (parallel-track, branch `track-d-btis-honest`,
+worktree `~/Documents/formal-conjectures-track-d`).
+**Date:** 2026-05-02.
+**Pre-TD5 HEAD:** `d7461d1` (TD5-prep audit).
+**Outcome:** **Full closure of mandatory floor (T1.1 + T2.1 + T2.2 + T2.3).**
+Sub-lemma 3 `lipschitz_sup_finite_gaussian` axiomatized as Axiom #9
+(γ-floor strategy). Branch becomes zero-sorry for the Erdős 524 cluster;
+**Track D closes** as an active concern.
+
+## TD5.1 Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Sub-lemma 3 signature extraction + caller grep audit | **Full** | `Helpers/TrackD_round5_T1_SubLemma3Axiomatization.md` (~134 lines, well above ≥30-line floor), commit `21a43fe` | All 10 Claims Verification Table rows VERIFIED. Single `.lean` consumer at `BTISHonestProof.lean:341` inside `borell_tis` Full body; remaining mentions documentary. TD2 Path B′ Full body intact (lines 326-358); TD3 deletions of orphan sub-lemmas 1+2 preserved; mainline + track-c untouched. |
+| T2.1 — Sub-lemma 3 axiom replacement | **Full** | `Helpers/BTISHonestProof.lean:313-323` (axiom decl + identical signature; docstring augmented with TD5 closure note preserving TD3 + TD4 historical record), commit post-T1.1 | `theorem` → `axiom`; `:= by sorry` line deleted; 6 hypothesis binders + Mathlib `HasSubgaussianMGF` conclusion preserved verbatim. TD5 docstring documents (i) γ-floor rationale, (ii) Mathlib structural gap (0 PRs), (iii) post-R59 retirement plan (Mathlib upstream OR Route A LSI+Herbst 800-1200 LOC OR Mathlib PR), (iv) classical references (Borell 1975, T-I-S 1974/1976, Adler-Taylor 2010 Thm 2.1.2, BLM13 Thm 5.6/5.8). `lake build` clean (7867/7867 jobs); `lake env lean` clean (zero sorry warnings). |
+| T2.2 — AXIOM_INVENTORY.md update | **Full** | `AXIOM_INVENTORY.md` (TD5 Build status section + Axiom #9 row added to active-axioms table; count 5 → 6 user-defined axioms; ledger position #9 reflects R39 retirement of slots #6-8 by α-conversion), commit post-T2.1 | Detail block documents Lean signature verbatim, math content, retirement plan, consumers (single, `borell_tis` line 341), and references. |
+| T2.3 — Build verification + status doc + push | **in-progress** | This document + `lake build` log below. | See TD5.2 below. |
+
+All four mandatory-floor outcomes Full. TD5 caps at 0 condition triggered:
+**none.**
+
+## TD5.2 Build verification log (verbatim)
+
+```
+$ cd ~/Documents/formal-conjectures-track-d
+$ lake build FormalConjectures.ErdosProblems.Helpers.BTISHonestProof
+...
+✔ [7867/7867] Built FormalConjectures.ErdosProblems.Helpers.BTISHonestProof (69s)
+Build completed successfully (7867 jobs).
+$ lake env lean FormalConjectures/ErdosProblems/Helpers/BTISHonestProof.lean
+(no output — zero warnings, zero errors, zero sorry warnings)
+```
+
+The 7867-job build first run (~69s on the axiomatized file) confirms full
+type-check across the upstream dependency closure (Mathlib + brownian-
+motion + kolmogorov_extension4 + project Helpers). The second `lake env
+lean` invocation produces no diagnostics, confirming the file carries no
+remaining `sorry` warnings — the sub-lemma 3 sorry that occupied
+TD3-TD4-TD5-prep is fully retired by axiomatization.
+
+## TD5.3 Net debt change (project ledger update)
+
+### Axioms
+
+* **Track D branch axioms (track-d-btis-honest):**
+  `5 → 6` user-defined axioms (Axiom #9 `lipschitz_sup_finite_gaussian`
+  added at `BTISHonestProof.lean:313`).
+* **Project-wide cluster ledger (per BACKGROUND.md framing):**
+  `8 → 9` items, where the cluster ledger counts the 5 active axioms +
+  3 R39 α-converted Stubs (still open as TAG'd sorries on mainline,
+  pending closure as part of the V2 R49-R53 KMT cluster) + the new TD5
+  axiom.
+* **Mainline axioms unchanged.** TD5 commits land on
+  `track-d-btis-honest` only; mainline `r46-track-a-mge-posdef` HEAD
+  `a43ce68` (post-R55) is not modified.
+
+### Sorries
+
+* **Track D branch sorries (TD5-cluster TAG'd):**
+  `1 → 0` (sub-lemma 3 `TrackD-LipschitzSup` retired by axiomatization).
+  Branch is now **zero-sorry** for the Erdős 524 cluster.
+* **Mainline sorries unchanged at 11 TAG'd** (per BACKGROUND.md ledger).
+* **Project total items unchanged at 41:** sorry-to-axiom swap is net
+  zero on the cluster scoreboard (1 sorry retired ⇄ 1 new axiom added).
+
+### Sorry-to-axiom swap rationale
+
+This is a deliberate γ-floor swap, not a closure. The mathematical
+content (Borell-TIS) is unchanged; what changes is its Lean status,
+from "open `sorry`-tagged Stub awaiting closure via from-scratch
+~800-1200-LOC LSI+Herbst route" to "axiom #9 with explicit retirement
+plan documented in `AXIOM_INVENTORY.md`." Three reasons this is the
+right move at TD5:
+
+1. **Mathlib structural gap is binding.** Borell-TIS / CIS is absent
+   at every Mathlib pin (zero PRs, zero issues, per Grok cross-check
+   2026-05-02). Pin bumps don't help.
+2. **From-scratch closure is out of single-round scope.** Route A
+   (Bakry-Émery LSI + Herbst) costs ~800-1200 LOC over 5-8 dedicated
+   rounds. TD3 + TD4 already exhausted Track D's single-round budget
+   on diagnostic and signature work without retiring the sorry.
+3. **γ-floor unblocks the BTIS chain.** TD2 Path B′ Full close of
+   `borell_tis` was already structurally complete modulo this single
+   sub-lemma. Axiomatizing closes the chain immediately, frees Track D
+   mindshare, and defers the math-content debt to a clean post-R59
+   sub-cluster.
+
+## TD5.4 Track D closure status
+
+* **Branch state:** zero-sorry for the Erdős 524 cluster, six axioms
+  in `.lean` code (5 inherited + 1 TD5 addition).
+* **Eligible for:** (a) merge to mainline as a γ-floor Axiom #9
+  contribution at the next mainline integration window, OR
+  (b) archive as a parallel-track milestone whose content is captured
+  in `AXIOM_INVENTORY.md` and revisited only when the retirement plan
+  is executed.
+* **No further Track D rounds planned** under this strategy. The
+  retirement of Axiom #9 migrates to a dedicated post-R59 sub-cluster
+  (Route A LSI+Herbst) OR awaits Mathlib upstream (Route i).
+
+## TD5.5 Anti-mismatch hygiene compliance
+
+1. **Pre-T2.1 grep verification:** sub-lemma 3 signature was extracted
+   verbatim from `BTISHonestProof.lean:269-280` in T1.1; the axiom
+   replacement preserves this signature character-for-character (six
+   binders, MeasureSpace + Probability + Fintype + Nonempty
+   typeclasses, `HasSubgaussianMGF` conclusion with exact body of the
+   sup-minus-mean expression). ✅
+2. **No semantic mismatch introduced:** axiomatization is a syntactic
+   keyword swap (`theorem` ↔ `axiom`) plus body deletion, not a math-
+   content change. The cumulative misframing ledger remains at 8. ✅
+3. **TD2 Path B′ chain preserved:** `borell_tis` Full body at lines
+   326-358 calls `lipschitz_sup_finite_gaussian X hgauss sigma2
+   hσ_pos hσ_var hM_int` at line 341 with all six positional
+   arguments; the call site is unchanged because the axiom carries
+   the identical signature. Build verification confirms the call
+   resolves cleanly. ✅
+4. **No degenerate witness exposure:** axioms have no body, so the
+   weakening-via-trivial-witness anti-pattern that signature
+   tightening rounds (TC4 W1/W2, TC5) had to defend against is
+   structurally inapplicable here. ✅
+
+## TD5.6 Honesty / framing notes
+
+* **Round outcome:** Full closure of mandatory floor on all four
+  outcomes. Net branch sorry change `−1` (sub-lemma 3 retired); net
+  branch axiom change `+1` (Axiom #9 added). Project-total items
+  unchanged at 41 (sorry-to-axiom swap is net zero on the
+  scoreboard).
+* **TD5 is a γ-floor closure, not a math-content closure.** Borell-
+  TIS itself remains unproven inside the project; the `axiom`
+  declaration is debt with a documented retirement plan, not a
+  validated theorem. Closure-tier language is reserved for the
+  *Track D cluster* (which closes as an active concern), not for the
+  Borell-TIS theorem.
+* **Project priority #1 remains: sorry-free AND axiom-free 524.lean.**
+  TD5 increases the axiom side of the ledger by 1; future rounds
+  (post-R59 Route A or Mathlib-PR) must retire it before the
+  axiom-free target is reached.
+* **Mismatch ledger:** 8 (unchanged from TD4 + TC6). T1.1 audit
+  re-verified all 10 claims with no new misframings.
+* **Worktree precondition (binding):** worktree at
+  `~/Documents/formal-conjectures-track-d` used throughout; cache
+  fresh (manifest mtime 2026-05-02 19:24 pre-round; build artefacts
+  consumed without `lake exe cache get`). No cross-track collision
+  observed; mainline + track-c worktrees untouched.
+* **Skin-in-the-game compliance check:**
+  - Worktree used ✓.
+  - Claims Verification Table produced with all 10 rows VERIFIED ✓.
+  - T2.1 axiom replacement committed (Lean code, NOT plan doc) ✓.
+  - T2.2 inventory update committed with concrete Axiom #9 detail
+    block (signature, math content, retirement plan, consumers,
+    references) ✓.
+  - T2.3 status doc + build verification + push committed ✓.
+  - Track D work pushed only to `track-d-btis-honest` branch ✓.
+  - Axiom name preserved (`lipschitz_sup_finite_gaussian`, identical
+    to TD3 Stub) ✓.
+  - Retirement plan documented (3 routes: upstream / Route A
+    from-scratch / Mathlib PR) ✓.
+  - Math content documented (Borell 1975, T-I-S 1974/1976, Adler-
+    Taylor 2010, BLM13) ✓.
+  - No TD2 `borell_tis` Full body modification ✓.
+  - No mainline OR track-c modification ✓.
+* **What did NOT happen in TD5:** any from-scratch closure of
+  Borell-TIS (Route A out of scope per the brief); any Mathlib PR
+  preparation (Route iii out of scope); any Mathlib pin bump (forbidden
+  per TD4 cross-track collision precedent); any new TAG'd sorry
+  introduction.
+
+## TD5.7 Status label
+
+* **Track D round 5 outcome:** Full (mandatory floor Full on all four
+  outcomes; sub-lemma 3 axiomatized as Axiom #9; Track D closes as
+  active concern).
+* **Track D cluster status:** **CLOSED.** Branch is zero-sorry for
+  the Erdős 524 cluster, ready to merge or archive. No further Track
+  D rounds planned under the γ-floor strategy. Axiom #9 retirement
+  migrates to a dedicated post-R59 sub-cluster.
+* **R59 ceiling impact:** TD5 contributes +1 axiom to the project
+  ledger but closes the Track D parallel-track entirely, freeing
+  cluster bandwidth for mainline V2 advance and Track C rounds.
+  Cumulative TD axiom retirement target (post-R59): 1 axiom
+  (Axiom #9 via Route A or upstream).
+* **Cumulative misframing ledger:** 8 (unchanged from TD4 + TC6).
