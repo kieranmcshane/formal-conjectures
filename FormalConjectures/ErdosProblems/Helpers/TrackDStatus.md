@@ -217,3 +217,150 @@ P(Full) bias rule applies: do NOT promote round-1 confidence to
 round-2 closure timelines without an independent re-anchor at TD2.
 The honest cluster forecast carries a ~20% tail on conservative
 5-round duration; do not budget around the optimistic 2-round case.
+
+---
+
+# Round-2 closure (Path B′) — addendum
+
+**Round**: 2.
+**Wall-clock**: < 3.0 h (within hard-stop trigger).
+**HEAD at commit**: `41ad28b` (`Track D round 2 (T2.1 + T2.2): close
+borell_tis body via Chernoff`), parent `bb31686` (portability audit doc),
+parent `3b75bde` (round-1 closure).
+
+## Round-2 net debt change (this round)
+
+| Metric | Round-1 end | Round-2 end | Δ |
+| --- | --- | --- | --- |
+| User-defined axioms | 5 | 5 | 0 |
+| TAG'd sorries (file BTISHonestProof.lean) | 4 | 3 | **−1** |
+
+**One sorry retired**: `borell_tis` (was TAG'd
+`TrackD-round1-signature-only-BTIS-stub`). Replaced by a Full body that
+deduces the BTIS tail bound via:
+
+1. Sub-lemma 3 (`lipschitz_sup_finite_gaussian`) wrapped in
+   `HasSubgaussianMGF` (signature lift, body still TAG'd
+   `TrackD-LipschitzSup`).
+2. Mathlib's Chernoff bound `HasSubgaussianMGF.measure_ge_le`
+   (`Probability/Moments/SubGaussian.lean` line 704).
+3. Set translation `{ω | r ≤ Y ω} = {ω | M ω ≥ E[M] + r}` via
+   `Set.mem_setOf_eq` + `linarith`.
+4. Coercion `(sigma2.toNNReal : ℝ) = sigma2` via `Real.coe_toNNReal`.
+5. `Measure.real ↔ (· ).toReal` bridge via `measureReal_def` (rfl).
+
+**Remaining 3 sorries** (all upstream of `borell_tis`):
+
+- `gaussian_log_sobolev_real` (TAG `TrackD-LogSobolev-bottleneck`) — TD3
+  closure target, ~200-300 LOC if ported from
+  `lean-stat-learning-theory`.
+- `herbst_subgaussian_real` (TAG `TrackD-Herbst`) — TD4 closure target,
+  ~80-150 LOC mechanical Herbst iteration.
+- `lipschitz_sup_finite_gaussian` (TAG `TrackD-LipschitzSup`) — TD4
+  closure target, ~50-100 LOC after Herbst lands.
+
+## Round-2 cluster forecast (UPDATED 5 → 4 rounds)
+
+| Round | Target | Status |
+| --- | --- | --- |
+| TD1 (R1) | Signature + audit + first portability assessment | ✓ Full |
+| TD2 (this) | Path-decision (Path B′) + close `borell_tis` body | ✓ Full |
+| TD3 | Close `gaussian_log_sobolev_real` (port from SLT) | Pending |
+| TD4 | Close `herbst_subgaussian_real` + `lipschitz_sup_finite_gaussian` | Pending |
+| TD5 (BTIS axiom retirement, target 4) | Wire BTIS into `gao_li_wellner_small_ball_upper`; consumer rewrite | Pending |
+
+Compression mechanism: Path B′ achieves a **structural** closure that does
+not require log-Sobolev to land first. The `borell_tis` body is now Full
+modulo `lipschitz_sup_finite_gaussian` (sub-lemma 3), and the chain
+`Lipschitz-sup ← Herbst ← log-Sobolev` remains as a 2-round bottleneck
+(TD3 + TD4). TD5 is the BTIS-axiom retirement at the GLW consumer site.
+
+**Net cluster compression**: 5 → 4 rounds (−1 round); R52 gate evaluation
+unaffected since cluster compression is favourable.
+
+## Round-2 portability assessment outcome
+
+`Helpers/TrackD_round2_T1_PortabilityAudit.md` records the verified
+findings:
+
+- `lean-stat-learning-theory` (Yuanhe Zhang et al., Feb 2026):
+  MIT license (compatible with Apache-2.0); toolchain match
+  `leanprover/lean4:v4.27.0-rc1` (exact); Mathlib pin
+  `d68c4dc09f5e000d3c968adae8def120a0758729` (vs ours `25ce633136` —
+  different but same major series).
+- `SLT/GaussianLipConcen.lean` (~1,400 LOC) exports
+  `gaussian_lipschitz_concentration` — the direct match for our
+  BTIS-style conclusion.
+- `SLT/GaussianLSI/` directory contains tensorized log-Sobolev.
+
+**Path A (full lake-level import)**: HIGH RISK due to Mathlib pin diamond
+with `brownian-motion` / `kolmogorov_extension4`; demoted to "future
+optional" rather than "round 2".
+
+**Path B (manual port, TD3+)**: viable. 200-400 LOC across 2-3 rounds.
+The SLT proofs remain a strong reference point regardless of import
+strategy.
+
+**Cross-track**: `GaussianParametricAnalysis.lean` exists on R46 mainline
+(commit `53ac58a`) but NOT on `track-d-btis-honest`. Cherry-pick deferred;
+not blocking round-2 closure.
+
+## Round-2 build verification
+
+Command: `lake build FormalConjectures.ErdosProblems.Helpers.BTISHonestProof`
+
+Output (verbatim, after the `borell_tis` body fix iteration):
+
+```
+warning: brownian-motion: repository '...' has local changes
+✔ [7867/7867] Built FormalConjectures.ErdosProblems.Helpers.BTISHonestProof (16s)
+Build completed successfully (7867 jobs).
+```
+
+Captured at `/tmp/trackd_round2_build.log`. The `brownian-motion` warning
+is pre-existing (not introduced by Track D).
+
+## Round-2 Brier-honest scoring (binding)
+
+| Mandatory-floor item | Predicted P(Full) | Realised | Comment |
+| --- | --- | --- | --- |
+| T1.1 Re-grep + WebSearch + cross-track | 0.85 | Full | KL-divergence found (irrelevant to round-2 path); SLT MIT + `v4.27.0-rc1` confirmed; cross-track GPA not on this branch |
+| T2.1 Path decision + first commit | 0.55 | Full | Path B′ chosen; build clean after one fix iteration (Set.mem_setOf_eq unfold, NNReal coercion, μ.real bridge) |
+| T2.2 Path completion (docstring update) | 0.55 | Full | File-top docstring updated; build re-verified clean |
+| T2.3 Build + status + cluster forecast | 0.95 | Full (this addendum) | Build log captured; cluster forecast updated 5 → 4 rounds |
+
+**Joint mandatory floor**: 4/4 = Full. Predicted joint P(Full) ≈ 0.45;
+realised Full. Modest favourable surprise from the SLT portability check
+(MIT + exact toolchain match) plus a structural-closure path (Path B′)
+that did not require pin migration.
+
+## Round-2 anti-patterns avoided
+
+* No closure attempt of log-Sobolev or Herbst under round budget (would
+  have eaten the 3.5h hard-stop with no robust outcome).
+* No full lake-level SLT import (would have triggered Mathlib pin
+  diamond, breaking project build for unrelated tracks).
+* No cherry-pick of `GaussianParametricAnalysis` from R46 mainline
+  without explicit user dispatch (deferred; avoids accidental cross-track
+  contamination).
+* No promotion of strong-portability evidence to a round-2 commitment
+  beyond what the SLT-API-aligned closure path actually delivers.
+* No edits to mainline files; branch isolation strict on commits
+  `bb31686` and `41ad28b` (only `BTISHonestProof.lean` and the two new
+  `TrackD_round2_*.md` files touched).
+
+## Round-2 outstanding diagnostic items for TD3
+
+1. Decide TD3 closure approach for `gaussian_log_sobolev_real`:
+   (a) port from SLT `GaussianLSI/` directory; (b) from-scratch via
+   Bakry-Émery (high cost) or direct Stein's identity (medium cost,
+   may interact with Mathlib's `KullbackLeibler`).
+2. Whether to cherry-pick `GaussianParametricAnalysis.lean` from R46
+   commit `53ac58a` for use in TD4's Lipschitz-sup body — deferred
+   pending the TD3 path choice (some Lipschitz-sup approaches don't
+   need the parametric DCT machinery).
+3. Whether to harmonise `IsCenteredGaussianProcess` with
+   `BrownianMotion.Gaussian.IsGaussianProcess` at TD3 (early bridge)
+   or wait until TD5 (cluster end). Decision rule: if the SLT port
+   uses the brownian-motion predicate natively, harmonise at TD3;
+   else defer to TD5.
