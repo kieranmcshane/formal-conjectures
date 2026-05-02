@@ -19,6 +19,95 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R54 V2 round 16 — MVGaussianDensityBound API drift fix, mechanical)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). All 8 R50-relevant critical build targets remain green
+  post-R54; R52's CharFunCrossBlock + MultivariateSmallBallUpper +
+  R53's MatrixDetDifferentiable build state preserved. **In addition,
+  `MVGaussianDensityBound.lean` now builds green** for the first time
+  since R52's "remaining failures" identification — this is an
+  alternate-track build unblock, not a mainline-gate item retirement.
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R54 (T1.1 audit +
+  T2.1 fix + T2.2 status + AXIOM_INVENTORY: bundled in this R54 close
+  commit per R52 precedent for ≤ 5 LOC mechanical fixes).
+* **Round type:** Variante 1, single round, mainline. Mechanical
+  API-drift fix routing through R46 helper `det_CFC_sqrt_eq_sqrt_det`
+  at `Helpers/MultivariateGaussianPdf.lean:178`. Replaces the
+  deprecated `Matrix.PosSemidef.det_sqrt` Mathlib dot-notation call at
+  `Helpers/MVGaussianDensityBound.lean:199` (inside the Full theorem
+  `realMatrixSqrt_det`) with a direct application of the in-tree R46
+  helper. Pattern match R52 CharFunCrossBlock 1-line precedent.
+* **Net debt change:**
+  * Sorries: **11 → 11** (0; line 199 was a Full proof attempt broken
+    by Mathlib API drift, not a TAG'd sorry).
+  * User-defined axioms: **8 → 8** (0; no axiom touched).
+  * Items at gate: **19 → 19** (0; alternate-track unblock, not gate
+    retirement). Strategic value: 4 downstream Full theorems in
+    `MVGaussianDensityBound.lean` (`realMatrixSqrt_det_pos`,
+    `realMatrixSqrt_det_ne_zero`, `realMatrixSqrt_isUnit`,
+    `volume_realMatrixSqrt_mulVec_preimage`) become available as
+    green dependencies for R55+ rounds.
+* **Total mainline debt:** 8 user-defined axioms + 11 TAG'd sorries =
+  19 items (unchanged from R53 close).
+* **Cumulative R40-R54 retirement rate:** ~0.30 sorry/round (sorry
+  count R39→R54: 14 → 11 across 15 rounds gross, with 4 axioms-via-γ-floor
+  swaps and one alternate-track unblock along the way).
+* **Three deliverables this round (bundled commit):**
+  * **R54-T1.1 Claims Verification Table + line 199 context extraction**
+    (`Helpers/Round54_T1_MVGaussianDensityBoundFix.md`, ~140 lines).
+    All 8 claims VERIFIED. Sole status: build error reproduced verbatim
+    (`error(lean.invalidField): Invalid field 'det_sqrt'` at 199:9
+    + unsolved goal `(CFC.sqrt M).det = √M.det` at 197:48); R46 helper
+    signature confirmed compatible (after `unfold realMatrixSqrt`,
+    goal exactly matches helper conclusion); fix scope ≤ 4 net LOC;
+    cycle-check on new import passed.
+  * **R54-T2.1 fix application** (`Helpers/MVGaussianDensityBound.lean`,
+    +8/-5 LOC, single file). Three edits: line 16 (new import of
+    `MultivariateGaussianPdf`), lines 187-194 (docstring revision
+    citing R46 helper), lines 198-200 (proof body replaced
+    `rw [hM.det_sqrt]; exact RCLike.sqrt_real` with
+    `exact MultivariateGaussianPdf.det_CFC_sqrt_eq_sqrt_det hM`).
+    `lake env lean` clean post-fix; `lake build` 3029/3029 on
+    modified file.
+  * **R54-T2.2 build verification + AXIOM_INVENTORY + status doc + push**
+    (this entry; `Helpers/PhaseV2R54Status.md`). Build verified: 8 critical
+    targets all green (7924/7924 helpers + 7931/7931 «524»); only
+    pre-existing copyright-style warning on `GLWUpperProof.lean:1:0`
+    (unchanged from R53).
+* **R52 milestone gate trajectory (post-R54):** items at 19, gate
+  threshold ≤ 8. R55-R58 trajectory must contribute **~11 retirements
+  across 4 rounds = ~2.75/round**, well above the cumulative
+  ~0.30/round rate. **R52 gate fails decisively under hybrid (c)** —
+  γ floor + β R58 extension trajectory binding per BACKGROUND.md.
+  R55 candidates (priority order, post-R54 retirement of R53's
+  candidate #3):
+  1. **Companion Stub `Matrix.det.hasFDerivAt` axiomatization** (R55
+     γ-floor extension) — same TAG, same closure path as R53; +1
+     axiom -1 sorry, items unchanged. Mechanical, P(Full) ~0.95.
+  2. **Q1c track full close attempt** — `geomSeries_offDiag_le`
+     per-distance-class re-indexing per R52-T2.1 recipe, ~100-180 LOC,
+     P(Full)/round ~0.55, item-positive on alternate-track if Full.
+  3. **Continued alternate-track API drift fixes** — other pre-existing
+     failures (HartshorneConjecture, ErdosProblems 26/508/1141,
+     DiameterSimpleFiniteGroups) per R53 status §"Other pre-existing
+     failures" list; mostly outside the Erdős 524 dependency cone.
+* **Cumulative T1.1 audit ledger:** 8 distinct misframings caught
+  pre-dispatch (unchanged from R50/R51/R52/R53 — R54 is mechanical
+  pattern-match, no Grok dispatch).
+* **Anti-mismatch hygiene 8/8:**
+  only `MVGaussianDensityBound.lean` touched (single file, +8/-5 LOC);
+  R46 helper signature pinned and re-verified pre-edit; import-cycle
+  check passed (`MultivariateGaussianPdf` imports only Mathlib +
+  brownian-motion); no Mathlib API guesswork (routes through in-tree
+  R46 helper); track branches not touched (mainline only); R49 axiom
+  #6 + R51 axiom #7 + R53 axiom #8 + A1-A5 + R50 sub-Stubs untouched;
+  R46 helper itself untouched; mainline-only modification.
+
+See `Helpers/PhaseV2R54Status.md` and
+`Helpers/Round54_T1_MVGaussianDensityBoundFix.md` for the round
+status doc + T1.1 Claims Verification Table.
+
 ## Build status (R53 V2 round 15 — γ-floor `Matrix.det.differentiable` axiomatization, mechanical)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38

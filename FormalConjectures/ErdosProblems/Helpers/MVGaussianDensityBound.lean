@@ -13,6 +13,7 @@ limitations under the License.
 
 import FormalConjectures.ErdosProblems.Helpers.GaussianBoxBounds
 import FormalConjectures.ErdosProblems.Helpers.MVGaussianRotation
+import FormalConjectures.ErdosProblems.Helpers.MultivariateGaussianPdf
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 
 /-!
@@ -187,17 +188,19 @@ theorem smul_one_PosDef [DecidableEq n] {c : ℝ} (hc : 0 < c) :
 /-! ## Round 9 — Determinant of the symmetric square root
 
 For a PosDef matrix `M`, the symmetric square root `realMatrixSqrt M` (= `CFC.sqrt M`)
-has determinant `Real.sqrt (det M)`. This follows from
-`Matrix.PosSemidef.det_sqrt` (Mathlib `Analysis/Matrix/Order.lean`), specialised
-to the field `ℝ`: `RCLike.sqrt` of a real argument is `Real.sqrt`.
+has determinant `Real.sqrt (det M)`. This is routed through the R46 helper
+`det_CFC_sqrt_eq_sqrt_det` at `Helpers/MultivariateGaussianPdf.lean:178`, which
+proves `(CFC.sqrt S).det = Real.sqrt S.det` for any `S.PosSemidef` directly from
+`CFC.sqrt_mul_sqrt_self` + `Matrix.det_mul` + `Real.sqrt_eq_iff_mul_self_eq`,
+without depending on `Matrix.PosSemidef.det_sqrt` (a Mathlib API that drifted
+underneath the original R9 proof).
 -/
 
 theorem realMatrixSqrt_det [DecidableEq n]
     {M : Matrix n n ℝ} (hM : M.PosSemidef) :
     (realMatrixSqrt M).det = Real.sqrt M.det := by
   unfold realMatrixSqrt
-  rw [hM.det_sqrt]
-  exact RCLike.sqrt_real
+  exact MultivariateGaussianPdf.det_CFC_sqrt_eq_sqrt_det hM
 
 theorem realMatrixSqrt_det_pos [DecidableEq n]
     {M : Matrix n n ℝ} (hM : M.PosDef) :
