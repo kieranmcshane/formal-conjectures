@@ -164,70 +164,223 @@ theorem abs_log_factorial_sub_stirling_le {n : ℕ} (hn : 1 ≤ n) :
   rw [abs_of_nonneg hlog_lo]
   exact hlog_hi
 
+/-- **Refined log-Stirling-diff bound (Robbins-grade).**
+
+Strengthens Mathlib's `Stirling.log_stirlingSeq_diff_le_geo_sum` by extracting the
+`1 / 3` factor from `1/(2(k+1)+1) ≤ 1/3` for k ≥ 0. The resulting bound
+`1 / (12 (n+1) (n+2))` is the precise form needed for Robbins' antitonicity. -/
+private lemma log_stirlingSeq_diff_le_robbins (n : ℕ) :
+    Real.log (stirlingSeq (n + 1)) - Real.log (stirlingSeq (n + 2)) ≤
+      1 / (12 * (↑(n + 1) : ℝ) * (↑(n + 2) : ℝ)) := by
+  have h_nonneg : (0 : ℝ) ≤ ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 := sq_nonneg _
+  have hq_sq_lt_one : ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 < 1 := by
+    rw [one_div, inv_pow]
+    exact inv_lt_one_of_one_lt₀
+      (one_lt_pow₀ (lt_add_of_pos_left _ <| by positivity) two_ne_zero)
+  -- Geometric series: ∑ k≥0, q²^(k+1) = q²/(1-q²)
+  have g : HasSum (fun k : ℕ => (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2) ^ (k + 1))
+      (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 /
+        (1 - ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2)) := by
+    have h_geo := (hasSum_geometric_of_lt_one h_nonneg hq_sq_lt_one).mul_left
+      (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2)
+    -- h_geo : HasSum (fun k => q² * (q²)^k) (q² * (1-q²)⁻¹)
+    have hfun :
+        (fun k : ℕ => ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 *
+          (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2) ^ k) =
+        (fun k : ℕ => (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2) ^ (k + 1)) := by
+      funext k
+      exact (pow_succ' _ _).symm
+    have hval : ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 *
+        (1 - ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2)⁻¹ =
+      ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 /
+        (1 - ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2) :=
+      (div_eq_mul_inv _ _).symm
+    rw [← hval, ← hfun]
+    exact h_geo
+  -- Term-by-term: 1/(2(k+1)+1) ≤ 1/3
+  have hab (k : ℕ) :
+      (1 : ℝ) / (2 * ↑(k + 1) + 1) *
+          ((1 / (2 * ↑(n + 1) + 1)) ^ 2) ^ ↑(k + 1) ≤
+        (1 / 3 : ℝ) * (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2) ^ (k + 1) := by
+    refine mul_le_mul_of_nonneg_right ?_ (pow_nonneg h_nonneg _)
+    have h2k1_pos : (0 : ℝ) < 2 * (↑(k + 1) : ℝ) + 1 := by positivity
+    rw [div_le_div_iff₀ h2k1_pos (by norm_num : (0 : ℝ) < 3)]
+    push_cast
+    linarith [(Nat.zero_le k : 0 ≤ k)]
+  -- Use Mathlib's series for stirling diff (form ↑(k+1)), which is = (k+1)
+  have h_dom : HasSum
+      (fun k : ℕ => (1 / 3 : ℝ) *
+        (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2) ^ (k + 1))
+      ((1 / 3) * (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 /
+          (1 - ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2))) := g.mul_left _
+  have h_sum_bd : Real.log (stirlingSeq (n + 1)) - Real.log (stirlingSeq (n + 2)) ≤
+      (1 / 3) * (((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2 /
+        (1 - ((1 : ℝ) / (2 * ↑(n + 1) + 1)) ^ 2)) :=
+    hasSum_le hab (Stirling.log_stirlingSeq_diff_hasSum n) h_dom
+  -- Algebraic identity: (1/3) · q² / (1 - q²) = 1/(12(n+1)(n+2))
+  refine h_sum_bd.trans (le_of_eq ?_)
+  have h2n1 : (0 : ℝ) < 2 * (↑(n + 1) : ℝ) + 1 := by positivity
+  have h2n1_ne : (2 * (↑(n + 1) : ℝ) + 1) ≠ 0 := h2n1.ne'
+  have h2n1_sq_pos : (0 : ℝ) < (2 * (↑(n + 1) : ℝ) + 1) ^ 2 := pow_pos h2n1 _
+  have h2n1_sq_ne : (2 * (↑(n + 1) : ℝ) + 1) ^ 2 ≠ 0 := h2n1_sq_pos.ne'
+  have h_alg : (2 * (↑(n + 1) : ℝ) + 1) ^ 2 - 1 = 4 * (↑(n + 1) : ℝ) * (↑(n + 2) : ℝ) := by
+    push_cast; ring
+  have h_alg_pos : (0 : ℝ) < (2 * (↑(n + 1) : ℝ) + 1) ^ 2 - 1 := by rw [h_alg]; positivity
+  have h_alg_ne : (2 * (↑(n + 1) : ℝ) + 1) ^ 2 - 1 ≠ 0 := h_alg_pos.ne'
+  rw [div_pow, one_pow]
+  -- Step 1: rewrite 1 - 1/(2(n+1)+1)^2 = ((2(n+1)+1)^2 - 1)/(2(n+1)+1)^2
+  have h_one_sub : (1 : ℝ) - 1 / (2 * (↑(n + 1) : ℝ) + 1) ^ 2 =
+      ((2 * (↑(n + 1) : ℝ) + 1) ^ 2 - 1) / (2 * (↑(n + 1) : ℝ) + 1) ^ 2 := by
+    rw [sub_div, div_self h2n1_sq_ne]
+  rw [h_one_sub]
+  -- Step 2: cancel via div_div_div_cancel_right₀
+  rw [div_div_div_cancel_right₀ h2n1_sq_ne]
+  -- Goal: 1/3 * (1 / ((2(n+1)+1)^2 - 1)) = 1/(12(n+1)(n+2))
+  rw [mul_one_div, div_div, h_alg]
+  -- Goal: 1/(3 * (4 * (n+1) * (n+2))) = 1/(12 * (n+1) * (n+2))
+  congr 1
+  ring
+
+/-- **Robbins-corrected log Stirling sequence.**
+
+`robbinsCorr n := log(stirlingSeq (n+1)) - 1/(12·(n+1))`. This sequence is
+*monotone increasing* in n with limit `log √π`, by the refined log-diff bound. -/
+private noncomputable def robbinsCorr (n : ℕ) : ℝ :=
+  Real.log (stirlingSeq (n + 1)) - 1 / (12 * (↑(n + 1) : ℝ))
+
+/-- **Robbins-corrected sequence is monotone increasing.**
+
+For n ≤ m, `robbinsCorr n ≤ robbinsCorr m`. Proven via `monotone_nat_of_le_succ`
+and the refined log-diff bound. -/
+private lemma robbinsCorr_monotone : Monotone robbinsCorr := by
+  apply monotone_nat_of_le_succ
+  intro n
+  have h_diff := log_stirlingSeq_diff_le_robbins n
+  -- h_diff : log(stirlingSeq (n+1)) - log(stirlingSeq (n+2)) ≤ 1/(12(n+1)(n+2))
+  -- Goal: robbinsCorr n ≤ robbinsCorr (n+1)
+  -- i.e., log(stirlingSeq (n+1)) - 1/(12(n+1)) ≤ log(stirlingSeq (n+2)) - 1/(12(n+2))
+  -- i.e., log(stirlingSeq (n+1)) - log(stirlingSeq (n+2)) ≤ 1/(12(n+1)) - 1/(12(n+2))
+  -- RHS = 1/(12(n+1)(n+2)) ✓
+  unfold robbinsCorr
+  have h_pos_n1 : (0 : ℝ) < ↑(n + 1) := by positivity
+  have h_pos_n2 : (0 : ℝ) < ↑(n + 2) := by positivity
+  have h_eq : (1 : ℝ) / (12 * (↑(n + 1) : ℝ)) - 1 / (12 * (↑(n + 2) : ℝ)) =
+      1 / (12 * (↑(n + 1) : ℝ) * (↑(n + 2) : ℝ)) := by
+    field_simp
+    push_cast
+    ring
+  -- Goal: log(stirlingSeq (n+1)) - 1/(12(n+1)) ≤ log(stirlingSeq ((n+1)+1)) - 1/(12((n+1)+1))
+  show Real.log (stirlingSeq (n + 1)) - 1 / (12 * (↑(n + 1) : ℝ)) ≤
+       Real.log (stirlingSeq (n + 1 + 1)) - 1 / (12 * (↑(n + 1 + 1) : ℝ))
+  have h_succ : n + 1 + 1 = n + 2 := rfl
+  rw [h_succ]
+  linarith [h_diff, h_eq]
+
+/-- **Limit of robbinsCorr is `log √π`.** -/
+private lemma robbinsCorr_tendsto :
+    Filter.Tendsto robbinsCorr Filter.atTop (nhds (Real.log (Real.sqrt Real.pi))) := by
+  unfold robbinsCorr
+  -- log(stirlingSeq (n+1)) → log √π
+  have h1 : Filter.Tendsto (fun n : ℕ => Real.log (stirlingSeq (n + 1)))
+      Filter.atTop (nhds (Real.log (Real.sqrt Real.pi))) := by
+    have hsp : Real.sqrt Real.pi > 0 := Real.sqrt_pos.mpr Real.pi_pos
+    have hss : Filter.Tendsto (fun n : ℕ => stirlingSeq (n + 1))
+        Filter.atTop (nhds (Real.sqrt Real.pi)) := by
+      have := Stirling.tendsto_stirlingSeq_sqrt_pi
+      exact this.comp (Filter.tendsto_add_atTop_nat 1)
+    exact (Real.continuousAt_log hsp.ne').tendsto.comp hss
+  -- 1/(12·(n+1)) → 0
+  have h2 : Filter.Tendsto (fun n : ℕ => (1 : ℝ) / (12 * (↑(n + 1) : ℝ)))
+      Filter.atTop (nhds 0) := by
+    -- Build via composition: (n+1 → ∞) ⟹ (12·(n+1) → ∞) ⟹ (1/(12·(n+1)) → 0)
+    have h_step : Filter.Tendsto (fun n : ℕ => 12 * ((n + 1 : ℕ) : ℝ))
+        Filter.atTop Filter.atTop := by
+      have h_n_atTop : Filter.Tendsto (fun n : ℕ => ((n + 1 : ℕ) : ℝ))
+          Filter.atTop Filter.atTop :=
+        tendsto_natCast_atTop_atTop.comp (Filter.tendsto_add_atTop_nat 1)
+      exact h_n_atTop.const_mul_atTop (by norm_num : (0 : ℝ) < 12)
+    have h_inv : Filter.Tendsto (fun n : ℕ => (12 * ((n + 1 : ℕ) : ℝ))⁻¹)
+        Filter.atTop (nhds 0) := tendsto_inv_atTop_zero.comp h_step
+    refine h_inv.congr fun n => ?_
+    rw [one_div]
+  have := h1.sub h2
+  simpa using this
+
+/-- **`robbinsCorr n ≤ log √π` for all n.** -/
+private lemma robbinsCorr_le_log_sqrt_pi (n : ℕ) :
+    robbinsCorr n ≤ Real.log (Real.sqrt Real.pi) :=
+  robbinsCorr_monotone.ge_of_tendsto robbinsCorr_tendsto n
+
+/-- **Stirling-Robbins upper bound on the Stirling sequence.**
+
+For all n, `stirlingSeq (n+1) ≤ √π · exp(1/(12·(n+1)))`. -/
+private lemma stirlingSeq_le_sqrt_pi_robbins (n : ℕ) :
+    stirlingSeq (n + 1) ≤ Real.sqrt Real.pi * Real.exp (1 / (12 * (↑(n + 1) : ℝ))) := by
+  have h_sp_pos : (0 : ℝ) < Real.sqrt Real.pi := Real.sqrt_pos.mpr Real.pi_pos
+  have h_ss_pos : (0 : ℝ) < stirlingSeq (n + 1) := Stirling.stirlingSeq'_pos n
+  have h_corr := robbinsCorr_le_log_sqrt_pi n
+  -- h_corr : log(stirlingSeq (n+1)) - 1/(12(n+1)) ≤ log √π
+  -- ⟹ log(stirlingSeq (n+1)) ≤ log √π + 1/(12(n+1)) = log(√π · exp(1/(12(n+1))))
+  unfold robbinsCorr at h_corr
+  have h_log_le : Real.log (stirlingSeq (n + 1)) ≤
+      Real.log (Real.sqrt Real.pi) + 1 / (12 * (↑(n + 1) : ℝ)) := by linarith
+  have h_rhs_pos : (0 : ℝ) <
+      Real.sqrt Real.pi * Real.exp (1 / (12 * (↑(n + 1) : ℝ))) := by positivity
+  have h_log_rhs : Real.log (Real.sqrt Real.pi * Real.exp (1 / (12 * (↑(n + 1) : ℝ)))) =
+      Real.log (Real.sqrt Real.pi) + 1 / (12 * (↑(n + 1) : ℝ)) := by
+    rw [Real.log_mul h_sp_pos.ne' (Real.exp_pos _).ne', Real.log_exp]
+  rw [← h_log_rhs] at h_log_le
+  exact (Real.log_le_log_iff h_ss_pos h_rhs_pos).mp h_log_le
+
 /-- **Robbins 1955 sharp upper bound.**
 
 For all `n ≥ 1`, `n! ≤ √(2π n) · (n/e)^n · exp(1/(12n))`.
 
 This is the *sharp* form of Stirling's upper bound: the constant `exp(1/(12n))` decays to `1`,
-matching the Mathlib lower bound `√(2π n) · (n/e)^n ≤ n!` asymptotically. The looser
-`factorial_le_stirling` above uses an absolute constant `exp 1 / √(2π) ≈ 1.0844` instead.
+matching the Mathlib lower bound `√(2π n) · (n/e)^n ≤ n!` asymptotically.
 
-Mathlib pin status (`mathlib4 @ 25ce633136`, verified TC6 T1.1 + TC7 T1.1): NOT formalised.
-Mathlib explicitly comments at `Mathlib/Analysis/SpecialFunctions/Stirling.lean:264, 280` that
-*"Sharper bounds due to Robbins are available, but are not yet formalised."*
-
-**TC7 T2.2B refined diagnostic — Mathlib gap binding.**
-
-This Stub will NOT close in TC7. The closure path is genuine Robbins-trapezoidal
-machinery (~120-200 LOC) which requires deriving the log-correction antitonicity
-of `log(stirlingSeq n) - 1/(12n)` from scratch, since Mathlib provides only the
-weaker `Stirling.stirlingSeq'_antitone` (without the `1/(12n)` quantitative rate).
-
-**Closure plan for TC8+ (deferred):**
-
-1. *Log-correction antitonicity (Robbins 1955).* Define
-   `robbinsCorr n : ℝ := Real.log (Stirling.stirlingSeq n) - 1 / (12 * n)`
-   for `n ≥ 1`. Show `Antitone robbinsCorr` via the trapezoidal-rule remainder:
-   `log(n+1) - log(n) ≥ 1/(2n) + 1/(2(n+1)) - 1/(12n²) + 1/(12(n+1)²)` for `n ≥ 1`.
-   This is the integral-comparison estimate `∫_n^{n+1} log t dt ≥ trapezoid - error`.
-   ~60-80 LOC.
-
-2. *Limit at infinity.* From `Stirling.tendsto_stirlingSeq_sqrt_pi : stirlingSeq → √π`
-   (`Stirling.lean:228`) and `1/(12n) → 0` we get `robbinsCorr n → log √π`.
-   Combined with antitonicity (step 1): `robbinsCorr n ≥ log √π` for all `n ≥ 1`.
-   ~10-20 LOC.
-
-3. *Unfold to factorial form.* From `robbinsCorr n ≥ log √π`:
-   `log(stirlingSeq n) ≥ log √π + 1/(12n)`,
-   `stirlingSeq n ≥ √π · exp(1/(12n))`. Wait — this gives a LOWER bound, not upper.
-   The correct direction for the *upper* Robbins bound uses an antitonicity of
-   `log(stirlingSeq n) + 1/(12n)` (the *positive* correction term), giving an upper
-   limit. Need to flip the trapezoid argument: `log(n+1) - log(n) ≤ trapezoid + error`
-   for the OTHER side of the integral comparison.
-   ~30-50 LOC.
-
-4. *Final algebra.* From `stirlingSeq n ≤ √π · exp(1/(12n))` and the unfold
-   `stirlingSeq n = n! / (√(2n) · (n/e)^n)`, derive the desired bound by
-   multiplying through and using `√(2n) · √π = √(2π n)`.
-   ~20-30 LOC.
-
-Total: ~120-180 LOC. **Only step 4 is mechanical**; steps 1-3 require explicit
-trapezoidal-remainder analysis. TC7 budget cannot accommodate this within the
-4h round; deferred to TC8 as a dedicated Stirling-Robbins close round.
-
-**Carter-Pollard composition impact**: this Stub is ONE of the three TC7 prelude
-gaps (Mills _antitone, Stirling Robbins, Real-Beta) needed for full Carter-Pollard
-polynomial bound assembly. With Real-Beta closed (TC7 T2.2A) and Mills _pos closed
-(TC7 T2.1A), the *tail case* of Carter-Pollard becomes provable using the looser
-`factorial_le_stirling` (TC6, with constant `exp 1/√(2π) ≈ 1.0844`). The *bulk
-case* (where binomial-Gaussian comparison is sharp) requires Robbins. -/
+**TC8 close** via refined log-diff bound + `Monotone.ge_of_tendsto` machinery —
+bypasses the explicit trapezoidal-rule path documented in TC7's deferred plan. -/
 theorem factorial_le_stirling_robbins {n : ℕ} (hn : 1 ≤ n) :
     (n.factorial : ℝ) ≤ Real.sqrt (2 * Real.pi * n) * (n / Real.exp 1) ^ n *
         Real.exp (1 / (12 * (n : ℝ))) := by
-  -- TAG[TrackC-Layer3-Stirling-robbins]: TC8+ close target.
-  -- See Mathlib comment at Stirling.lean:264, 280: "Sharper bounds due to Robbins
-  -- are available, but are not yet formalised." TC7 T1.1 confirmed gap binding.
-  sorry
+  obtain ⟨m, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (Nat.one_le_iff_ne_zero.mp hn)
+  -- Goal: ((m+1)! : ℝ) ≤ √(2π(m+1)) · ((m+1)/e)^(m+1) · exp(1/(12(m+1)))
+  have h_seq_le := stirlingSeq_le_sqrt_pi_robbins m
+  -- h_seq_le : stirlingSeq (m+1) ≤ √π · exp(1/(12(m+1)))
+  -- stirlingSeq (m+1) = (m+1)! / (√(2(m+1)) · ((m+1)/e)^(m+1))
+  have h_pos_2m1 : (0 : ℝ) < 2 * (↑(m + 1) : ℝ) := by positivity
+  have h_pos_sqrt : (0 : ℝ) < Real.sqrt (2 * (↑(m + 1) : ℝ)) := Real.sqrt_pos.mpr h_pos_2m1
+  have h_pos_pow : (0 : ℝ) < ((↑(m + 1) : ℝ) / Real.exp 1) ^ (m + 1) := by positivity
+  have h_pos_den : (0 : ℝ) <
+      Real.sqrt (2 * (↑(m + 1) : ℝ)) * ((↑(m + 1) : ℝ) / Real.exp 1) ^ (m + 1) :=
+    mul_pos h_pos_sqrt h_pos_pow
+  -- Multiply h_seq_le by denominator
+  have h_unfold : stirlingSeq (m + 1) =
+      ((m + 1).factorial : ℝ) /
+        (Real.sqrt (2 * (↑(m + 1) : ℝ)) * ((↑(m + 1) : ℝ) / Real.exp 1) ^ (m + 1)) := by
+    show ((m + 1).factorial : ℝ) /
+      (Real.sqrt (2 * ((m + 1 : ℕ) : ℝ)) * (((m + 1 : ℕ) : ℝ) / Real.exp 1) ^ (m + 1)) = _
+    rfl
+  rw [h_unfold] at h_seq_le
+  rw [div_le_iff₀ h_pos_den] at h_seq_le
+  -- h_seq_le : (m+1)! ≤ (√π · exp(1/(12(m+1)))) · (√(2(m+1)) · ((m+1)/e)^(m+1))
+  -- Goal: (m+1)! ≤ √(2π(m+1)) · ((m+1)/e)^(m+1) · exp(1/(12(m+1)))
+  have h_sqrt_combine :
+      Real.sqrt Real.pi * Real.sqrt (2 * (↑(m + 1) : ℝ)) =
+        Real.sqrt (2 * Real.pi * (↑(m + 1) : ℝ)) := by
+    rw [← Real.sqrt_mul Real.pi_pos.le]
+    congr 1
+    ring
+  refine h_seq_le.trans (le_of_eq ?_)
+  -- Reorder LHS to extract √π · √(2(m+1)) factor
+  have h_lhs_reorder :
+      Real.sqrt Real.pi * Real.exp (1 / (12 * (↑(m + 1) : ℝ))) *
+        (Real.sqrt (2 * (↑(m + 1) : ℝ)) * ((↑(m + 1) : ℝ) / Real.exp 1) ^ (m + 1)) =
+        (Real.sqrt Real.pi * Real.sqrt (2 * (↑(m + 1) : ℝ))) *
+          ((↑(m + 1) : ℝ) / Real.exp 1) ^ (m + 1) *
+          Real.exp (1 / (12 * (↑(m + 1) : ℝ))) := by ring
+  rw [h_lhs_reorder, h_sqrt_combine]
 
 end Helpers
 end Erdos524

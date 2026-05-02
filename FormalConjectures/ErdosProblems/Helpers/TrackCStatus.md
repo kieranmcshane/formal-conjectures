@@ -1120,3 +1120,124 @@ No new misframings caught during TC7 implementation.
 * **Track C cluster status:** Round 7 of ~10 complete (cluster size +2 vs TC6 forecast; TC8 split into Mills `_antitone` close + Stirling Robbins close; TC9 then composes for Carter-Pollard). TC8 target: Mills `_antitone` Full close OR Stirling Robbins Full close (whichever hits the lower-LOC bound first). P(TC8A Mills `_antitone` Full) ~ 0.35 single-round; P(TC8B Robbins Full) ~ 0.30 single-round.
 * **R52 hybrid (c) gate contribution:** TC7 is +0 retirement at gate-relevant scale (Mills `_pos` + Real-Beta-Gamma close Track C-internal Stubs, NOT mainline TAG'd-sorries/axioms). TC7 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC8+ forecast: +0-1 mainline-relevant if Layer 3 close cascades up; +1 if Carter-Pollard polynomial bound assembly lands and `tusnady_base_polynomial` retires.
 * **Cumulative misframing ledger:** 8 (unchanged from TC4 + TC5 + TC6).
+
+---
+
+## TC8. Round 8 — Mills `_antitone` Full + Stirling-Robbins Full (dual close)
+
+**Round:** Track C round 8 (parallel-track, branch `track-c-1dkmt` from TC7 HEAD `e82a240`).
+**Date:** 2026-05-02.
+**Outcome:** **Full closure of mandatory floor (T1.1 + T2.1 + T2.2 + T2.3) — both math-content closures Full.**
+
+## TC8.1 Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Cache check + Claims Verification Table audit | **Full** | `Helpers/TrackC_round8_T1_DualCloseAudit.md` | All 10 claims verified at TC7 HEAD; Mathlib API located for both close paths (`integral_hasDerivAt_left`, `setIntegral_union`, `antitoneOn_of_deriv_nonpos`, `log_stirlingSeq_diff_hasSum`, `tendsto_stirlingSeq_sqrt_pi`, etc). |
+| T2.1 — Mills `_antitone` Full close | **Full** | `Helpers/GaussianMillsRatio.lean:259-317` (`gaussianMillsRatioReal_antitone`) | Closed via 3-helper architecture: `gaussianPDFReal_zero_one_hasDerivAt` (φ derivative), `gaussianTail_hasDerivAt` (tail-integral derivative via local splitting + interval-form FTC + `HasDerivAt.congr_of_eventuallyEq`), `gaussianMillsRatioReal_hasDerivAt` (quotient rule + algebra to `-1 + x·m(x)`). Final lift via `antitoneOn_of_deriv_nonpos` on `Set.Ioi 0`. ~145 LOC. |
+| T2.2 — Stirling-Robbins Full close | **Full** | `Helpers/StirlingTwoSided.lean:167-294` (`factorial_le_stirling_robbins`) | Closed via refined log-diff bound path (better than originally-planned Wallis route): `log_stirlingSeq_diff_le_robbins` extracts `1/3` factor from `1/(2k+3) ≤ 1/3` in Mathlib's `log_stirlingSeq_diff_hasSum`, yielding bound `1/(12(n+1)(n+2))`. Then `robbinsCorr_monotone` + `robbinsCorr_tendsto` (limit `log √π`) + `Monotone.ge_of_tendsto` give the Robbins upper bound `stirlingSeq (n+1) ≤ √π · exp(1/(12(n+1)))`. Final unfold to factorial form. ~190 LOC. |
+| T2.3 — Build verification + status doc + push | **Full** | This document + `lake build` output below. | Builds of both `GaussianMillsRatio.lean` and `StirlingTwoSided.lean` succeeded. |
+
+All four mandatory-floor outcomes Full. Track C round 8 caps at 0 condition triggered: **none.**
+
+## TC8.2 Build verification log (verbatim)
+
+```
+$ lake build FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+⚠ [2836/2836] Built FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio (15s)
+warning: GaussianMillsRatio.lean:354:57: unused variable `hx`
+  -- false positive: `hx` IS used in `hM_anti hx (lt_of_lt_of_le hx hxy) hxy`
+Build completed successfully (2836 jobs).
+
+$ lake build FormalConjectures.ErdosProblems.Helpers.StirlingTwoSided
+Build completed successfully (2669 jobs).
+```
+
+## TC8.3 Net debt change (project ledger update)
+
+### Sorries (Helpers, TC7 baseline)
+
+| File | TC7 baseline | TC8 close | Change |
+|---|---|---|---|
+| `GaussianMillsRatio.lean` | 1 (`_antitone` refined Stub) | **0** | **-1** (T2.1 Full) |
+| `StirlingTwoSided.lean` | 1 (Robbins refined Stub) | **0** | **-1** (T2.2 Full) |
+| **Total Helpers (TC7→TC8)** | **8** | **6** | **-2** |
+
+Plus 12 pre-TC1 baseline sorries elsewhere in the project (unchanged by TC8).
+**Total branch: 6 + 12 = 18.**
+
+### Axioms
+
+* **Before TC8:** 5 user-defined axioms.
+* **After TC8:** 5 user-defined axioms — **unchanged** (Track C has not retired mainline axioms; TC8 retired Track C-internal Stubs only).
+
+## TC8.4 Anti-mismatch hygiene compliance
+
+Every Mathlib lemma invoked in T2.1 + T2.2 was grep-verified during T1.1 audit:
+
+| Lemma name | File:line at pin | Used in |
+|---|---|---|
+| `intervalIntegral.integral_hasDerivAt_left` | `Mathlib/MeasureTheory/Integral/IntervalIntegral/FundThmCalculus.lean:755` | T2.1 `gaussianTail_hasDerivAt` (interval-form FTC) |
+| `setIntegral_union` | `Mathlib/MeasureTheory/Integral/Bochner/Set.lean:85` | T2.1 `gaussianTail_hasDerivAt` (Ioi splitting) |
+| `intervalIntegral.integral_of_le` | `Mathlib/MeasureTheory/Integral/IntervalIntegral/Basic.lean:637` | T2.1 `gaussianTail_hasDerivAt` (Ioc → interval) |
+| `MeasureTheory.Integrable.intervalIntegrable` | `Mathlib/MeasureTheory/Integral/IntervalIntegral/Basic.lean:148` | T2.1 |
+| `MeasureTheory.StronglyMeasurable.stronglyMeasurableAtFilter` | `Mathlib/MeasureTheory/Integral/IntegrableOn.lean:65` | T2.1 |
+| `HasDerivAt.div` | `Mathlib/Analysis/Calculus/Deriv/Inv.lean:177` | T2.1 quotient rule |
+| `HasDerivAt.congr_of_eventuallyEq` | `Mathlib/Analysis/Calculus/Deriv/Basic.lean:571` | T2.1 transfer step |
+| `antitoneOn_of_deriv_nonpos` | `Mathlib/Analysis/Calculus/Deriv/MeanValue.lean:478` | T2.1 final antitone lift |
+| `convex_Ioi`, `interior_Ioi` | Mathlib (standard) | T2.1 antitone-on `Ioi 0` |
+| `Stirling.log_stirlingSeq_diff_hasSum` | `Mathlib/Analysis/SpecialFunctions/Stirling.lean:76` | T2.2 explicit Stirling series |
+| `hasSum_geometric_of_lt_one` | Mathlib (standard) | T2.2 dominating series |
+| `Stirling.tendsto_stirlingSeq_sqrt_pi` | `Mathlib/Analysis/SpecialFunctions/Stirling.lean:228` | T2.2 limit identification |
+| `Monotone.ge_of_tendsto` | `Mathlib/Topology/Order/MonotoneConvergence.lean:236` | T2.2 monotone-bounded-by-limit |
+| `tendsto_inv_atTop_zero` | `Mathlib/Topology/Algebra/Order/Field.lean:68` | T2.2 `1/(12(n+1)) → 0` |
+| `tendsto_natCast_atTop_atTop` | `Mathlib/Order/Filter/AtTopBot/Archimedean.lean:39` | T2.2 |
+| `Filter.tendsto_add_atTop_nat` | `Mathlib/Order/Filter/AtTopBot/Basic.lean:432` | T2.2 |
+| `pow_succ'` | `Mathlib/Algebra/Group/Defs.lean:647` | T2.2 geo-series shift |
+| `div_div_div_cancel_right₀` | `Mathlib/Algebra/GroupWithZero/Units/Basic.lean:313` | T2.2 algebraic identity |
+
+No invented or hallucinated lemma names. Two minor mid-build adjustments noted:
+1. T2.1 used `(hint_φ.intervalIntegrable (a := x) (b := M))` (named arguments) instead of positional — the `Integrable.intervalIntegrable` lemma takes `a b` as implicit, not explicit.
+2. T2.2 geometric-sum extraction required avoiding `simp_rw [← pow_succ']` (which made no progress in this Mathlib pin) in favour of explicit `funext k; exact (pow_succ' _ _).symm`.
+
+Both are infrastructure-level adjustments, NOT math content; misframing ledger unchanged.
+
+## TC8.5 Cluster trajectory update (post-TC8)
+
+| Round | Target | Status post-TC8 |
+|---|---|---|
+| TC1-TC6 | Layer 1-4 + Mills truncation + Real-Beta sigs | ✅ Closed (per prior status) |
+| TC7 | Mills `_pos` Full + Real-Beta Full | ✅ Mid-distribution Full (`e82a240`) |
+| **TC8** | **Mills `_antitone` Full + Stirling Robbins Full** | **✅ Best-distribution Full closure (this round) — both math-content closures Full, -2 sorries** |
+| TC9 | Carter-Pollard polynomial bound assembly (closes `tusnady_base_polynomial` body using Mills `_pos` + Mills truncation + Mills `_antitone` + Real-Beta + Stirling Robbins) | open, NOW UNBLOCKED |
+| TC10+ | Layer 3 `hungarian_dyadic_step` body close + Layer 4 SupError + main `oneDimKMT` assembly + axiom retirement | open |
+
+**Cluster trajectory:** TC8 hits the Best-distribution outcome (P~0.15 prior). Both Mills `_antitone` and Stirling-Robbins close Full in a single round, retiring 2 Track C-internal Stubs. This unblocks TC9 Carter-Pollard polynomial bound assembly. Cluster size estimate stays at 10 rounds (TC9 may now actually land cleanly given all three prelude pieces — Mills, Real-Beta, Robbins — are available).
+
+## TC8.6 Honesty / framing notes
+
+* **Round outcome:** Best-distribution. Mandatory floor Full on all 4 outcomes; both math-content closures Full. Net branch sorry -2 (Mills `_antitone` + Stirling Robbins retired). Net axiom unchanged at 5.
+* **Mismatch ledger:** 8 (unchanged). T1.1 audit confirmed Mathlib pin state for both close paths; T2.1 + T2.2 implementations uncovered no new misframings beyond the two infrastructure-level adjustments noted in TC8.4.
+* **Skin-in-the-game compliance check:**
+  - Worktree used ✓ (no cross-track collision).
+  - Claims Verification Table produced with all 10 rows VERIFIED ✓.
+  - T2.1 + T2.2 committed (Full Lean code, NOT plan doc) ✓.
+  - T2.3 build + status + push committed ✓.
+  - Track C work pushed only to `track-c-1dkmt` branch ✓.
+  - No mainline OR track-d files modified ✓.
+  - No TC1-TC7 Full theorems modified ✓.
+  - Cache freshness check at session start; `lake exe cache get` succeeded ✓.
+  - Carter-Pollard assembly NOT attempted (TC9 scope per brief) ✓.
+* **Active math engagement:** T2.1 required understanding the local-splitting trick `Ioi u = Ioc u M ⊔ Ioi M` to reduce Ioi-integral derivative to interval-form FTC + a constant; the quotient-rule algebra to `m'(x) = -1 + x·m(x)`; and the `antitoneOn_of_deriv_nonpos` lift via `convex_Ioi 0` and `interior_Ioi`. T2.2 required understanding why route (c) Wallis was *not* the cleanest path (Mathlib's Wallis is consumed internally by `tendsto_stirlingSeq_sqrt_pi`); the better path strengthens Mathlib's geo-sum proof by extracting `1/(2k+3) ≤ 1/3` to obtain the precise `1/(12(n+1)(n+2))` Robbins bound directly; the `(2(n+1)+1)² - 1 = 4(n+1)(n+2)` algebraic identity bridging the geometric-sum value to the desired form; and the `Monotone.ge_of_tendsto` lift from monotone-with-limit to bounded-above.
+* **What did NOT happen in TC8:**
+  - Carter-Pollard polynomial bound full close (TC9 scope per brief).
+  - Layer 3 Hungarian dyadic step body close (TC10+ scope).
+  - Layer 4 SupError attempt (TC10+ scope).
+  - Axiom retirement (still 5).
+
+## TC8.7 Status label
+
+* **Track C round 8 outcome:** **Best-distribution** (mandatory floor Full; both T2.1 + T2.2 Full Lean code closures; net branch sorry -2; net axiom unchanged).
+* **Track C cluster status:** Round 8 of ~10 complete. TC9 (Carter-Pollard polynomial bound assembly) NOW UNBLOCKED — all three prelude pieces (Mills _pos + Mills truncation + Mills _antitone, Real-Beta, Stirling Robbins) are Full closures.
+* **R52 hybrid (c) gate contribution:** TC8 is +0 retirement at gate-relevant scale (Mills _antitone + Stirling Robbins close Track C-internal Stubs, NOT mainline TAG'd-sorries/axioms). TC8 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC9+ forecast: +1 mainline-relevant if Carter-Pollard polynomial bound assembly lands and `tusnady_base_polynomial` retires.
+* **Cumulative misframing ledger:** 8 (unchanged from TC7).

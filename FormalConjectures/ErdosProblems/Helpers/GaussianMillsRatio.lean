@@ -256,6 +256,125 @@ theorem gaussianMillsRatioReal_truncation {x : ℝ} (hx : 0 < x) :
   rw [div_le_div_iff₀ hφx_pos hx]
   linarith
 
+/-- **Derivative of the standard-Gaussian PDF.**
+
+For all real `x`, `(d/dx) gaussianPDFReal 0 1 x = -x · gaussianPDFReal 0 1 x`.
+Standard fact via the chain rule applied to `c · exp(-x²/2)` with
+`c := (√(2π))⁻¹`. (TC8 helper for Mills antitone close.) -/
+private lemma gaussianPDFReal_zero_one_hasDerivAt (x : ℝ) :
+    HasDerivAt (gaussianPDFReal 0 1) (-x * gaussianPDFReal 0 1 x) x := by
+  set c : ℝ := (Real.sqrt (2 * Real.pi))⁻¹ with hc_def
+  have hpdf_unfold : ∀ t : ℝ, gaussianPDFReal 0 1 t = c * Real.exp (-t ^ 2 / 2) := by
+    intro t
+    show (Real.sqrt (2 * Real.pi * ((1 : ℝ≥0) : ℝ)))⁻¹ *
+         Real.exp (-(t - 0) ^ 2 / (2 * ((1 : ℝ≥0) : ℝ))) = c * Real.exp (-t ^ 2 / 2)
+    rw [hc_def, NNReal.coe_one]
+    ring_nf
+  have h_sq : HasDerivAt (fun s : ℝ => s ^ 2) (2 * x) x := by
+    simpa using hasDerivAt_pow 2 x
+  have h_in : HasDerivAt (fun s : ℝ => -s ^ 2 / 2) (-x) x := by
+    have h1 := (h_sq.neg).div_const 2
+    have heq2 : -(2 * x) / 2 = -x := by ring
+    rw [heq2] at h1
+    exact h1
+  have h_exp : HasDerivAt (fun s : ℝ => Real.exp (-s ^ 2 / 2))
+      (Real.exp (-x ^ 2 / 2) * (-x)) x := h_in.exp
+  have h_cexp : HasDerivAt (fun s : ℝ => c * Real.exp (-s ^ 2 / 2))
+      (c * (Real.exp (-x ^ 2 / 2) * (-x))) x := h_exp.const_mul c
+  have hderiv_eq : c * (Real.exp (-x ^ 2 / 2) * (-x)) = -x * gaussianPDFReal 0 1 x := by
+    rw [hpdf_unfold x]; ring
+  rw [← hderiv_eq]
+  exact h_cexp.congr_of_eventuallyEq
+    (Filter.Eventually.of_forall fun t => hpdf_unfold t)
+
+/-- **Derivative of the standard-Gaussian tail integral.**
+
+For all real `x`, the function `u ↦ ∫ t in Ioi u, gaussianPDFReal 0 1 t`
+has derivative `-gaussianPDFReal 0 1 x` at `x`.
+
+Proof via local splitting: pick `M := x + 1`. For `u` in a neighborhood
+of `x` with `u ≤ M`, `Ioi u = Ioc u M ⊔ Ioi M` (disjoint), so
+`∫ t in Ioi u, φ t = ∫ t in u..M, φ t + ∫ t in Ioi M, φ t`. The
+interval-integral term has derivative `-φ x` at `x` by
+`integral_hasDerivAt_left`; the `Ioi M` term is constant in `u`.
+Transfer via `HasDerivAt.congr_of_eventuallyEq`. (TC8 helper.) -/
+private lemma gaussianTail_hasDerivAt (x : ℝ) :
+    HasDerivAt (fun u : ℝ => ∫ t in Set.Ioi u, gaussianPDFReal 0 1 t)
+      (-gaussianPDFReal 0 1 x) x := by
+  set M : ℝ := x + 1 with hM_def
+  have hxM : x < M := by simp [hM_def]
+  set φ : ℝ → ℝ := gaussianPDFReal 0 1 with hφ_def
+  have hint_φ : Integrable φ := integrable_gaussianPDFReal 0 1
+  have hsplit : ∀ u : ℝ, u ≤ M →
+      ∫ t in Set.Ioi u, φ t = (∫ t in Set.Ioc u M, φ t) + ∫ t in Set.Ioi M, φ t := by
+    intro u huM
+    have hdisj : Disjoint (Set.Ioc u M) (Set.Ioi M) := by
+      rw [Set.disjoint_left]
+      rintro t ⟨_, htM⟩ htM'
+      exact absurd htM' (not_lt_of_ge htM)
+    have hunion : Set.Ioc u M ∪ Set.Ioi M = Set.Ioi u := by
+      ext t
+      simp only [Set.mem_union, Set.mem_Ioc, Set.mem_Ioi]
+      refine ⟨?_, ?_⟩
+      · rintro (⟨h1, _⟩ | h2)
+        · exact h1
+        · exact lt_of_le_of_lt huM h2
+      · intro ht
+        by_cases h : t ≤ M
+        · left; exact ⟨ht, h⟩
+        · right; exact lt_of_not_ge h
+    rw [← hunion]
+    exact setIntegral_union hdisj measurableSet_Ioi hint_φ.integrableOn hint_φ.integrableOn
+  have hev_uM : ∀ᶠ u in nhds x, u ≤ M := by
+    have h1 : Set.Iio M ∈ nhds x := IsOpen.mem_nhds isOpen_Iio hxM
+    filter_upwards [h1] with u hu using le_of_lt hu
+  have hev : (fun u : ℝ => ∫ t in Set.Ioi u, φ t) =ᶠ[nhds x]
+      (fun u : ℝ => (∫ t in u..M, φ t) + ∫ t in Set.Ioi M, φ t) := by
+    filter_upwards [hev_uM] with u hu
+    rw [hsplit u hu, intervalIntegral.integral_of_le hu]
+  have hcont_φ_x : ContinuousAt φ x :=
+    (gaussianPDFReal_zero_one_hasDerivAt x).continuousAt
+  have hsm_φ : StronglyMeasurableAtFilter φ (𝓝 x) volume :=
+    (stronglyMeasurable_gaussianPDFReal 0 1).stronglyMeasurableAtFilter
+  have h_int_deriv : HasDerivAt (fun u => ∫ t in u..M, φ t) (-φ x) x :=
+    intervalIntegral.integral_hasDerivAt_left
+      (hint_φ.intervalIntegrable (a := x) (b := M)) hsm_φ hcont_φ_x
+  have h_add : HasDerivAt
+      (fun u => (∫ t in u..M, φ t) + ∫ t in Set.Ioi M, φ t)
+      (-φ x) x := by
+    have := h_int_deriv.add_const (∫ t in Set.Ioi M, φ t)
+    simpa using this
+  exact h_add.congr_of_eventuallyEq hev
+
+/-- **Derivative of the Mills ratio on `(0, ∞)`.**
+
+For `x > 0`, `(d/dx) gaussianMillsRatioReal x = -1 + x · gaussianMillsRatioReal x`.
+Quotient rule applied to `m = F / φ` with `F u := ∫ t in Ioi u, φ t`,
+`F'(x) = -φ(x)`, `φ'(x) = -x · φ(x)`, `φ(x) > 0`. (TC8 helper.) -/
+private lemma gaussianMillsRatioReal_hasDerivAt {x : ℝ} (hx : 0 < x) :
+    HasDerivAt gaussianMillsRatioReal (-1 + x * gaussianMillsRatioReal x) x := by
+  have hφ_pos : 0 < gaussianPDFReal 0 1 x := gaussianPDFReal_pos 0 1 x (by norm_num)
+  have hφ_ne : gaussianPDFReal 0 1 x ≠ 0 := ne_of_gt hφ_pos
+  have h_num := gaussianTail_hasDerivAt x
+  have h_den := gaussianPDFReal_zero_one_hasDerivAt x
+  have h_div := h_num.div h_den hφ_ne
+  -- h_div : HasDerivAt
+  --   ((fun u => ∫ t in Set.Ioi u, gaussianPDFReal 0 1 t) / gaussianPDFReal 0 1)
+  --   ((-φ x * φ x - F x * (-x * φ x)) / φ x ^ 2) x
+  -- Goal: HasDerivAt gaussianMillsRatioReal (-1 + x * gaussianMillsRatioReal x) x
+  have hfun_eq :
+      (fun u => ∫ t in Set.Ioi u, gaussianPDFReal 0 1 t) / gaussianPDFReal 0 1 =
+        gaussianMillsRatioReal := by
+    funext u
+    rfl
+  rw [hfun_eq] at h_div
+  -- Now h_div has the right function; reconcile derivative values.
+  convert h_div using 1
+  -- Show: -1 + x * m(x) = (-φ x * φ x - F x * (-x * φ x)) / (φ x)^2
+  unfold gaussianMillsRatioReal
+  field_simp
+  ring
+
 /-- **Monotonicity of the Mills ratio on `(0, ∞)`.**
 
 For `0 < x ≤ y`, `gaussianMillsRatioReal y ≤ gaussianMillsRatioReal x`.
@@ -268,48 +387,31 @@ Standard proof: differentiate `m(x) · φ(x) = 1 - Φ(x)`; obtain
 `m'(x) = -1 - m(x) · (φ'(x) / φ(x)) = -1 + x · m(x)`. Then
 `m'(x) ≤ 0` iff `x · m(x) ≤ 1`, which is the truncation bound
 above. So monotonicity follows from `gaussianMillsRatioReal_truncation`
-plus a sign-of-derivative argument. -/
-theorem gaussianMillsRatioReal_antitone {x y : ℝ} (_hx : 0 < x) (_hxy : x ≤ y) :
+plus a sign-of-derivative argument. (TC8 close via
+`antitoneOn_of_deriv_nonpos` on `Ioi 0`.) -/
+theorem gaussianMillsRatioReal_antitone {x y : ℝ} (hx : 0 < x) (hxy : x ≤ y) :
     gaussianMillsRatioReal y ≤ gaussianMillsRatioReal x := by
-  -- TAG[TrackC-Layer3-Mills-antitone]: TC8+ close target.
-  -- TC7 outcome: refined Stub (T2.1B refined diagnostic) — derivative chain
-  -- requires FTC for Ioi-integrals which Mathlib at pin `25ce633136` does
-  -- not provide directly (only `integral_hasDerivAt_left` for interval
-  -- form). Workaround sketch:
-  --
-  --   1. Localise: pick anchor `M := y + 1`. For x ∈ Ioo 0 M, write
-  --      `F(x) := ∫ t in Ioi x, φ t = (∫ t in x..M, φ t) + (∫ t in Ioi M, φ t)`
-  --      via `integral_Iic_add_Ioi` (`IntervalIntegral/Basic.lean:1082`)
-  --      and the Iic/Ioi splitting on Ioi x = Ioc x M ∪ Ioi M.
-  --
-  --   2. HasDerivAt the localised first term at `x₀ ∈ Ioo 0 M`:
-  --      `HasDerivAt (fun u => ∫ t in u..M, φ t) (-φ x₀) x₀`
-  --      via `integral_hasDerivAt_left` (`FundThmCalculus.lean:755`),
-  --      with `IntervalIntegrable` from `integrable_gaussianPDFReal 0 1`
-  --      and `ContinuousAt` from gaussianPDFReal continuity.
-  --      Second term is constant in `x` (depends only on `M`).
-  --
-  --   3. HasDerivAt of denominator `φ(x) = (√(2π))⁻¹ · exp(-x²/2)`:
-  --      derivative `-x · φ(x)`, via the same `hderivG` chain used in
-  --      `gaussianTailFirstMomentEq` (lines 126-149). Hoist that block
-  --      to a private named lemma `gaussianPDFReal_hasDerivAt_neg_x`.
-  --
-  --   4. Quotient rule via `HasDerivAt.div` (positivity of denominator
-  --      from `gaussianPDFReal_pos 0 1 x₀ one_ne_zero`). After algebra:
-  --      `m'(x₀) = -1 + x₀ · m(x₀)`.
-  --
-  --   5. Sign via truncation: `gaussianMillsRatioReal_truncation` (TC6)
-  --      gives `m(x₀) ≤ 1/x₀` for `x₀ > 0`, i.e. `x₀ · m(x₀) ≤ 1`,
-  --      hence `m'(x₀) ≤ 0`.
-  --
-  --   6. Lift to AntitoneOn (Ioi 0) via `antitoneOn_of_deriv_nonpos`
-  --      (`Mathlib/Analysis/Calculus/Deriv/MeanValue.lean:478`),
-  --      `Convex.Ioi := convex_Ioi`. Then apply at `x ≤ y` both in Ioi 0.
-  --
-  -- LOC estimate: ~120-180 LOC (heavier than initial ~50-80 estimate
-  -- because step 1 splitting + step 3 PDF derivative chain are both
-  -- non-trivial and Mathlib lacks a direct `HasDerivAt.intervalIntegral`
-  -- variant for the half-line Ioi form). TC8 scope.
-  sorry
+  have hM_anti : AntitoneOn gaussianMillsRatioReal (Set.Ioi 0) := by
+    apply antitoneOn_of_deriv_nonpos (convex_Ioi 0)
+    · -- ContinuousOn gaussianMillsRatioReal (Ioi 0)
+      intro x₀ hx₀
+      exact (gaussianMillsRatioReal_hasDerivAt hx₀).continuousAt.continuousWithinAt
+    · -- DifferentiableOn ℝ gaussianMillsRatioReal (interior (Ioi 0))
+      rw [interior_Ioi]
+      intro x₀ hx₀
+      exact (gaussianMillsRatioReal_hasDerivAt hx₀).differentiableAt.differentiableWithinAt
+    · -- ∀ x ∈ interior (Ioi 0), deriv gaussianMillsRatioReal x ≤ 0
+      rw [interior_Ioi]
+      intro x₀ hx₀
+      have hx₀' : 0 < x₀ := hx₀
+      have h_deriv := gaussianMillsRatioReal_hasDerivAt hx₀'
+      rw [h_deriv.deriv]
+      have htrunc := gaussianMillsRatioReal_truncation hx₀'
+      have hx₀_ne : x₀ ≠ 0 := ne_of_gt hx₀'
+      have hmm : x₀ * gaussianMillsRatioReal x₀ ≤ x₀ * (1 / x₀) :=
+        mul_le_mul_of_nonneg_left htrunc (le_of_lt hx₀')
+      rw [mul_one_div, div_self hx₀_ne] at hmm
+      linarith
+  exact hM_anti hx (lt_of_lt_of_le hx hxy) hxy
 
 end Erdos524.Helpers
