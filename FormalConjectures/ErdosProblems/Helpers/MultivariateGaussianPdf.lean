@@ -193,26 +193,78 @@ theorem multivariateGaussian_eq_lebesgue_withDensity
         (fun y : EuclideanSpace ℝ ι =>
           ENNReal.ofReal (multivariateGaussianPdf S (fun i => y i))) := by
   -- TAG[R43-T2.1-MGE-pushforward-jacobian-body] : Real-signature upgrade of
-  -- the R40 `True := by trivial` placeholder. Body still requires (a)–(c)
-  -- below; closure target R44 Phase 2 alongside CDF differentiability body.
+  -- the R40 `True := by trivial` placeholder. Body remains a TAG'd Stub
+  -- after R44 work (single `sorry`, debt-neutral).
   --
-  -- **Closure prerequisites (R44 scope):**
+  -- **R44 verification (this round, post-investigation):** the brief's
+  -- Grok Q1/Q2 pre-flight described MGE as a "Jacobi formula" close
+  -- (`HasFDerivAt det`); see `R44_T1_BodyCloseAudit.md` for the brief-vs-
+  -- reality reconciliation. The actual closure prerequisites for THIS
+  -- theorem (pushforward measure equality) are the three measure-theoretic
+  -- gaps (a)–(c) below, all confirmed missing at `mathlib4 @ 25ce63313608`
+  -- + `brownian-motion` HEAD via search of:
+  --   * `det_CFC_sqrt`, `det_sqrt`, `Matrix.det.*sqrt` — 0 hits.
+  --   * `stdGaussian.*=.*withDensity`, `stdGaussian.*lebesgue` — 0 hits in
+  --     `BrownianMotion/Gaussian/`. Only special-case lemma is
+  --     `multivariateGaussian_zero_one` (`MultivariateGaussian.lean:325`).
+  --   * `integral_image_eq_integral_abs_det_jacobian_smul_of_injOn` packaged
+  --     as the general non-linear C¹ form; no constant-Jacobian linear
+  --     specialization for `toEuclideanCLM (CFC.sqrt S)` is exposed.
+  -- Each gap is independently a multi-LOC formalisation in its own right;
+  -- joint MGE body close is genuinely ~150–200 LOC novel work.
   --
-  --   (a) `det_CFC_sqrt_eq_sqrt_det : (CFC.sqrt S).det = Real.sqrt S.det` for
-  --       PosDef `S`. Provable from `(CFC.sqrt S) * (CFC.sqrt S) = S` and
-  --       `det_mul`. NOT packaged at `mathlib4 @ 25ce63313608`.
-  --   (b) `stdGaussian_eq_lebesgue_withDensity` on `EuclideanSpace ℝ ι` —
-  --       implicit in the `Measure.pi` + `gaussianReal` structure but no
-  --       single-equality lemma packaged. Requires unwinding
-  --       `BrownianMotion.Gaussian.MultivariateGaussian.lean` line 160
-  --       (`stdGaussian = (Measure.pi (fun _ ↦ gaussianReal 0 1)).map …`).
-  --   (c) Change-of-variables for linear pushforward with constant Jacobian
-  --       — Mathlib has the general
-  --       `MeasureTheory.integral_image_eq_integral_abs_det_jacobian_smul_of_injOn`
-  --       but no specialisation to `T = toEuclideanCLM (CFC.sqrt S)` with
-  --       `|det T| = sqrt S.det`.
+  -- The R44 brief's Grok-derived 80-120 LOC estimate (and P~0.75 Full
+  -- close) was based on the misframed Jacobi-formula scope and does not
+  -- apply to this theorem.
   --
-  -- See `Helpers/R40_T1_DifferentiabilityAudit.md` §3 + `R43_T1_SignatureUpgradeAudit.md` §2.1.
+  -- **Closure prerequisites (R45+ scope, decomposed):**
+  --
+  --   (a) `det_CFC_sqrt_eq_sqrt_det : (CFC.sqrt S).det = Real.sqrt S.det`
+  --       for PosDef `S`. **Recipe**: `(CFC.sqrt S) * (CFC.sqrt S) = S`
+  --       (`CFC.sqrt_mul_sqrt_self` from brownian-motion's spectral
+  --       calculus chain) ⟹ `(CFC.sqrt S).det^2 = S.det` via
+  --       `Matrix.det_mul`; combined with `0 ≤ (CFC.sqrt S).det` (from
+  --       PSD of `CFC.sqrt S`, which inherits via continuous functional
+  --       calculus) gives `(CFC.sqrt S).det = Real.sqrt S.det` by
+  --       `Real.sqrt_eq_iff_sq_eq`. Estimated ~30-50 LOC.
+  --
+  --   (b) `stdGaussian_eq_lebesgue_withDensity` on `EuclideanSpace ℝ ι`.
+  --       **Recipe**: `stdGaussian (EuclideanSpace ℝ ι)` is defined as
+  --       `(Measure.pi (fun _ ↦ gaussianReal 0 1)).map (basis-sum)`. For
+  --       `EuclideanSpace ℝ ι = PiLp 2 (fun _ : ι => ℝ)`, the basis-sum
+  --       `fun x => ∑ i, x i • basisFun i` reduces (after `simp`) to the
+  --       `WithLp.equiv`-conjugated identity since `EuclideanSpace.basisFun`
+  --       is the canonical basis. Then by `Measure.pi`-on-product +
+  --       `gaussianReal_of_var_ne_zero` (Mathlib
+  --       `Probability/Distributions/Gaussian/Real.lean:204`) +
+  --       `Measure.pi_withDensity` chain, the result is
+  --       `volume.withDensity ((2π)^(-n/2) · exp(-‖·‖²/2))`. Estimated
+  --       ~80-120 LOC. Subsidiary gap: `Measure.pi_withDensity` may need
+  --       custom unwinding for `gaussianPDF` factor.
+  --
+  --   (c) Change-of-variables for constant-Jacobian linear pushforward
+  --       on `EuclideanSpace ℝ ι`. **Recipe**: for an invertible linear
+  --       map `T : E ≃L[ℝ] E` with `|det T| = c > 0`, the pushforward of
+  --       `volume.withDensity ρ` by `T` is `volume.withDensity (ρ ∘ T⁻¹ * c⁻¹)`
+  --       — derivable from `MeasureTheory.MeasurePreserving.set_lintegral_comp`
+  --       + the `addHaar_smul` family on `E`'s Haar measure. Estimated
+  --       ~40-80 LOC. The `T = toEuclideanCLM (CFC.sqrt S)` specialisation
+  --       takes `|det T| = sqrt S.det` from gap (a).
+  --
+  -- **Composition** (~30-50 LOC):
+  --   * Apply gap (b) to rewrite `stdGaussian = volume.withDensity ρ_std`.
+  --   * Apply gap (c) with `T = toEuclideanCLM (CFC.sqrt S)` to compute
+  --     the pushforward `T_*(volume.withDensity ρ_std) = volume.withDensity ρ'`.
+  --   * Use gap (a) to identify `|det T|⁻¹ = (Real.sqrt S.det)⁻¹` and
+  --     simplify `ρ_std (T⁻¹ y) · |det T|⁻¹ = multivariateGaussianPdf S y`.
+  --   * Conclude.
+  --
+  -- **Total estimate**: ~180-300 LOC across (a)+(b)+(c)+composition.
+  -- Per Q5 BTIS-merge compression option in R59 ceiling check, this can
+  -- absorb into a multi-round closure (R45 + R46) if needed.
+  --
+  -- See `Helpers/R44_T1_BodyCloseAudit.md` §2 (R44 reconciliation) +
+  -- `R43_T1_SignatureUpgradeAudit.md` §2.1 (R43 baseline).
   sorry
 
 /-- **R40-T2.3 ledger — alternative spelling.** The half-space (orthant)
