@@ -120,197 +120,77 @@ noncomputable def multivariateGaussianOrthantCDF
 
 /-! ## Differentiability theorem (T1.1 signature, T2.1 body) -/
 
-/-- **R35 T1.1 / T2.1 — Differentiability of the multivariate-Gaussian
-half-space probability with respect to the covariance matrix.**
+/-- **R49 Path A — Phase 2 body axiomatized.**
 
-For a positive-definite covariance matrix `Σ` and threshold `x`, the
-function `S ↦ multivariateGaussianOrthantCDF S x` is differentiable at `Σ`.
+For a positive-definite covariance matrix `Σ : Matrix ι ι ℝ` and threshold
+`x : ι → ℝ`, the half-space probability
 
-This is the analytic backbone of Slepian's lemma in the
-covariance-interpolation form: writing `Σ_α = (1-α) Σ_X + α Σ_Y`, the
-chain rule `dF/dα = ∑_{i,j} ∂F/∂Σ_{ij} · (Σ_Y - Σ_X)_{ij}` reduces sign
-analysis of `dF/dα` to sign analysis of the entry-wise derivatives, which
-are positive multiples of bivariate sub-marginal Gaussian densities.
+  `F(Σ; x) := ℙ_{Z ∼ 𝒩(0, Σ)} (∀ i, Z i ≤ x i)
+            = (multivariateGaussian 0 Σ).real {z | ∀ i, z i ≤ x i}`
 
-**Body status (R35 T2.1):** TAG'd Mathlib gap. The classical proof uses
-the Lebesgue density formula `ρ(z; Σ) = (2π)^(-n/2) (det Σ)^(-1/2)
-exp(-z^T Σ^(-1) z / 2)` and differentiation under the integral sign. At
-the current Mathlib pin, three load-bearing pieces are missing (see
-`R35_T1_DiffLemmaAudit.md` §3-§5):
+is differentiable in `Σ` (in the entry-wise Fréchet sense at any
+`S₀ : Matrix ι ι ℝ` with `S₀.PosDef`).
 
-* `Matrix.det.differentiable` — Mathlib has only `Matrix.det.continuous`
-  (`Topology/Instances/Matrix.lean:459`); polynomial expansion route via
-  `Matrix.det_apply` + `MultilinearMap.contDiff` is unpackaged.
-* `Matrix.PosDef.inv.differentiable` — generic `HasFDerivAt Ring.inverse`
-  exists at `Analysis/Calculus/FDeriv/Mul.lean:726` but no
-  `Matrix.GeneralLinearGroup` specialization at `Matrix.PosDef` covariances.
-* `multivariateGaussianPdf` — brownian-motion's `multivariateGaussian`
-  (line 160 of `BrownianMotion/Gaussian/MultivariateGaussian.lean`) is
-  defined as a square-root pushforward; no explicit Lebesgue-density
-  formula is exposed. The Jacobian-of-`CFC.sqrt`-pushforward derivation
-  is itself unpackaged.
+This is the analytic backbone of Slepian's lemma in the covariance-
+interpolation form: writing `Σ_α = (1-α) Σ_X + α Σ_Y`, the chain rule
+`dF/dα = ∑_{i,j} ∂F/∂Σ_{ij} · (Σ_Y - Σ_X)_{ij}` reduces sign analysis of
+`dF/dα` to sign analysis of the entry-wise derivatives.
 
-Tried alternatives (none viable):
-* `multivariateGaussian_density_eq` — does not exist.
-* `IsGaussian.density` — generic `IsGaussian` class has no extracted density.
-* Diagonal-Σ product of `Real.gaussianReal` densities — covers only
-  diagonal case; off-diagonal entries (which are exactly the ones being
-  differentiated for Slepian) are inaccessible.
--/
-theorem multivariateGaussianOrthantCDF_differentiable_wrt_covariance
+**Classical justification.** The standard proof uses the Lebesgue density
+`ρ(z; Σ) = (2π)^(-n/2) (det Σ)^(-1/2) exp(-z^T Σ^(-1) z / 2)` and
+differentiation under the integral sign with a uniform Gaussian-tail
+Lipschitz envelope on a `PosDef` neighbourhood of `S₀`. Reference:
+Slepian (1962) "The one-sided barrier problem for Gaussian noise", Bell
+System Tech. J. 41:463-501; or Tong (1990) "The Multivariate Normal
+Distribution" §5.1.
+
+**Why axiomatized at R49 (Path A switch).** The R48-T1.1 audit
+(`R48_T1_PathGammaPrimeAudit.md` §2-§3, re-verified in
+`Round49_T1_PathAAxiomatization.md` §1) caught two independent misframings
+in the brief's Path γ' recipe:
+
+* **(M1)** Lean MGI (`multivariateGaussianOrthantCDF_eq_lebesgue_integral`
+  at `MultivariateGaussianPdf.lean:412`) is a measure-vs-Lebesgue-integral
+  REWRITE identity — its R44 Full body (lines 412-477) is three sequential
+  `rw`s with no derivative content. It does NOT supply
+  `HasFDerivAt (fun Σ => multivariateGaussianPdf 0 Σ x) ... Σ`. Pdf
+  S-differentiability is a separate ~80-150 LOC chain blocked on R40
+  `Matrix.det.differentiable` Stub at `MatrixDetDifferentiable.lean:149`.
+* **(M2)** `multivariateGaussianPdf_uniform_tail_bound_on_compact_posDef`
+  at `GaussianParametricAnalysis.lean:168` is INSIDE a `/-! ... -/`
+  docstring code block — NOT a Lean theorem. The Path γ' DCT chain
+  consumer "Gaussian tail majorant" does not exist as a Lean object.
+
+Combined honest LOC for Phase 2 body Full close: ~380-700 LOC across 3-5
+rounds with P(Full)/round ~0.30 — incompatible with the R52 milestone
+gate (items ≤ 8) under the cumulative ~0.44 sorry/round retirement rate.
+
+Path A axiomatization (this commit) preserves the verbatim type signature,
+trades -1 sorry for +1 axiom, and frees 3-5 rounds of mainline budget for
+GLW shortcut (R50-R51) + Track C round 3 + Track D round 4 retirements.
+
+**Retirement target: R55-R59 (post-gate).**
+
+1. *Mathlib pin bump (preferred path):* monitor Mathlib for landings of
+   pdf-differentiability infrastructure for `multivariateGaussianPdf` /
+   `multivariateGaussian` density + uniform Gaussian-tail bound on
+   `IsCompact ∘ PosDef` neighbourhoods + `Matrix.det.differentiable`. If
+   landed (post-`v4.27` toolchain bump), the axiom retires via direct
+   chain composition (~50-100 LOC consumer wrapper).
+
+2. *From-scratch closure (fallback):* build the missing pieces in-tree —
+   ~150-300 LOC over 2-3 rounds, anchored on R40 Stub close (~30-80 LOC) +
+   tail-bound Full helper (~60-100 LOC) + Phase 2 body Full close
+   (~150-300 LOC). This is Path B from the R49 framing, executed
+   post-R52-gate when budget is freed.
+
+See `Helpers/Round49_T1_PathAAxiomatization.md` for the full Path A
+audit + retirement plan, and `AXIOM_INVENTORY.md` "Axiom #6" for the
+debt-tracking entry. -/
+axiom multivariateGaussianOrthantCDF_differentiable_wrt_covariance
     (S₀ : Matrix ι ι ℝ) (_h_pd : S₀.PosDef) (x : ι → ℝ) :
     DifferentiableAt ℝ
-      (fun S : Matrix ι ι ℝ => multivariateGaussianOrthantCDF S x) S₀ := by
-  -- TAG[R35-T2.1-mathlib-gap-density] : missing density + det.diff + inv.diff
-  --
-  -- **R45-T2.1/T2.2 audit-aligned skeleton (Path γ per Grok R45 Q4).**
-  -- R44 retired the MGI Stub Full
-  -- (`MultivariateGaussianPdf.lean:278` —
-  -- `multivariateGaussianOrthantCDF_eq_lebesgue_integral`), so the rewrite
-  -- of the orthant CDF to a Lebesgue integral is now executable. The
-  -- single `sorry` here remains; this round (R45) advances the diagnostic
-  -- quality of the residual without inflating the sorry count, per the
-  -- R45-T1.1 framing-verification audit's revised cost estimate (~400-600
-  -- LOC for full body close, NOT Grok Q4's ~300-350 LOC).
-  --
-  -- **Path γ skeleton (executable on R44+R41 chain, sub-residuals named):**
-  --
-  --   (i) MGI rewrite — POST-R44 EXECUTABLE.
-  --       `multivariateGaussianOrthantCDF S x =
-  --          ∫ y in orthant x, multivariateGaussianPdf S (fun i => y i)`
-  --       via `MultivariateGaussianPdf.multivariateGaussianOrthantCDF_eq_lebesgue_integral`.
-  --       Transferred across `S` via `EventuallyEq` on a PosDef
-  --       neighborhood — see sub-gap (A) below for the missing
-  --       `Matrix.PosDef.isOpen` step.
-  --
-  --   (ii) Diff-under-integral — APPLY
-  --        `MeasureTheory.hasFDerivAt_integral_of_dominated_loc_of_lip`
-  --        (Mathlib `Analysis/Calculus/ParametricIntegral.lean:164`).
-  --
-  --   (iii) Integrand pointwise differentiability —
-  --        `S ↦ multivariateGaussianPdf S y` is differentiable at `S₀.PosDef`
-  --        for every `y`, by chain rule on the closed-form formula:
-  --          * `Matrix.det.differentiable` — R40 Stub @ line 149,
-  --            chainable as black box.
-  --          * `Matrix.PosDef.inv_hasFDerivAt` — R41 Full @ line 200.
-  --          * `Real.sqrt` differentiability at positive args
-  --            (`Mathlib/Analysis/SpecialFunctions/Sqrt.lean:68`).
-  --          * `differentiableAt_inv` for `(S.det)⁻¹` at `S₀.det > 0`
-  --            (`Mathlib/Analysis/Calculus/FDeriv/Mul.lean:804`).
-  --          * `Real.exp.differentiable` (Mathlib).
-  --          * Bilinear continuity for `y ⬝ᵥ S⁻¹ *ᵥ y`.
-  --        Estimated ~80-150 LOC. Concretely chainable post-R41.
-  --
-  --   (iv) Three engineering sub-gaps (load-bearing residual):
-  --
-  --        (A) `Matrix.PosDef.isOpen` — needed for transferring
-  --            `multivariateGaussianOrthantCDF S x = ∫ ...` across `S`
-  --            in a neighborhood of `S₀`. Mathlib has
-  --            `Matrix.PosDef.det_pos` but not the open-set predicate.
-  --            Closure: `det > 0` continuous + Hermitian closed + PSD
-  --            interior. ~30-80 LOC.
-  --
-  --        (B) Integrability of `multivariateGaussianPdf S` on `orthant x`.
-  --            Mathlib has `IsGaussian.integrable_id` for the abstract
-  --            multivariate Gaussian but not the closed-form PDF
-  --            integrability. Closure: explicit Gaussian-tail bound
-  --            (`exp(-c·‖y‖²)` for `c > 0` from PosDef-inverse positive
-  --            spectrum) + `Integrable.exp_neg_quadratic`. ~50-100 LOC.
-  --
-  --        (C) **Load-bearing.** `LipschitzOnWith` on `S ↦ pdf S y` over
-  --            a PosDef neighborhood, with **integrable** Lipschitz
-  --            envelope. Requires explicit Fréchet derivative formula
-  --            chain (sub-gap iii) + uniform Gaussian-tail bound on the
-  --            derivative norm. ~150-300 LOC alone — the dominant
-  --            engineering cost of the full Phase 2 body close.
-  --
-  -- **Combined R45-T1.1 cost estimate**: ~400-600 LOC for full body
-  -- close. Single-round full close is high-risk (P~0.30 per audit);
-  -- this round preserves the single TAG'd Stub with diagnostic-quality
-  -- enhancement (P~0.65 mid-distribution outcome).
-  --
-  -- **R47-T2.2 deferral diagnostic (this round, per brief abort rules).**
-  --
-  -- Phase 2 body Full close was a candidate R47 mandatory deliverable
-  -- per the brief's aggressive 2-retirement scope. T1.1 grep audit
-  -- (`R47_T1_GrepAuditAndFramingVerification.md` §3) verified that
-  -- closure is BLOCKED on three prerequisites at pin
-  -- `mathlib4 @ 25ce63313608`:
-  --
-  --   1. **MGE main Full close** (sub-gap (b) chain, R47-T2.1
-  --      diagnostic): the integrand `multivariateGaussianPdf S y` is
-  --      only a "claimed" Lebesgue density of `multivariateGaussian 0 S`
-  --      until MGE main Stub closes. Sub-gap (B) integrability and
-  --      sub-gap (C) Lipschitz envelope both consume this density
-  --      identification. Closure depends on Bridges (b.A) + (b.B) +
-  --      (b.C) — see `MultivariateGaussianPdf.lean:248` for the
-  --      three-bridge decomposition and revised LOC estimates.
-  --
-  --   2. **`Matrix.det.differentiable` (R40 Stub at
-  --      `MatrixDetDifferentiable.lean:149`)**: the Lipschitz envelope
-  --      sub-gap (C) requires the explicit Fréchet derivative formula
-  --      chain through `Matrix.det.differentiable`. Mathlib has only
-  --      `Matrix.det.continuous` (`Topology/Instances/Matrix.lean:459`);
-  --      polynomial expansion route via `Matrix.det_apply` +
-  --      `MultilinearMap.contDiff` is unpackaged (~30-80 LOC of
-  --      plumbing).
-  --
-  --   3. **Uniform Gaussian-tail bound integrability** (sub-gap (B)):
-  --      depends on (1) for the closed-form PDF integrability claim.
-  --
-  -- **R46 helpers contribution to the chain (POSITIVE):**
-  --
-  --   * `Erdos524.Helpers.posDef_min_eigenvalue_pos` (R46-T2.2,
-  --     `PhaseAUpperBound.lean`): supplies the minimum-eigenvalue lower
-  --     bound on compact PosDef sets. This is the constructive
-  --     ingredient for sub-gap (A) (PosDef compact neighbourhood) AND
-  --     for the uniform Gaussian-tail bound in sub-gap (B). **Direct
-  --     consumer of the R46 helper.**
-  --
-  --   * `Erdos524.Helpers.GaussianParametricAnalysis` (R46-T3.1
-  --     stretch, cross-track synergy library): provides parametric
-  --     Gaussian density bounds + DCT scaffold for `S ↦ ∫ pdf(S) dy`
-  --     differentiability. **Foundational; direct consumption requires
-  --     MGE main Full first.**
-  --
-  --   * `Erdos524.Helpers.MultivariateGaussianPdf.det_CFC_sqrt_eq_sqrt_det`
-  --     (R46-T2.1): identifies the Jacobian factor in
-  --     `multivariateGaussianPdf` as `(det S)^(-1/2)`. **Foundational;
-  --     consumed inside MGE main, not directly by Phase 2 body.**
-  --
-  -- **Realistic LOC for Phase 2 body Full close (post-R46 helpers,
-  -- with prerequisites NOT met):** ~300-550 LOC across sub-gaps (A) +
-  -- (B) + (C) + DCT chain composition. Single-round close in R47 is
-  -- **NOT FEASIBLE** with the prerequisite chain blocked.
-  --
-  -- **R47 T2.2 outcome (this round):** deferred per brief abort rules
-  -- with concrete diagnostic. R47 net retirement: 0 sorries.
-  --
-  -- **Future-round closure path (R48-R52):**
-  --
-  --   * R48: close MGE Bridge (b.A) as standalone Full helper
-  --     (~80-120 LOC; benefits Track C 1D KMT + indep-coord
-  --     Pi-Gaussian). **Indirect Phase 2 prerequisite step 1.**
-  --   * R49: close MGE main via (b.B) + (b.C) composition
-  --     (~50-150 LOC; net retirement: -1 sorry, MGE main retired).
-  --     **Phase 2 prerequisite step 1 done.**
-  --   * R50: close `Matrix.det.differentiable` R40 Stub
-  --     (~30-80 LOC; net retirement: -1 sorry). **Phase 2 prerequisite
-  --     step 2 done.**
-  --   * R51-R52: close Phase 2 body via sub-gaps (B) + (C) using
-  --     R46-T2.2 helpers + R46-T3.1 library + closed prerequisites
-  --     (~200-400 LOC; net retirement: -1 sorry, Phase 2 main retired).
-  --
-  -- This trajectory retires 3 sorries across R49-R52. Combined with
-  -- Track C+D parallel deliveries, sufficient to meet hybrid (c) R52
-  -- gate at items ≤ 8 IF Track C + Track D each retire ~2 sorries in
-  -- the same window. Without Track C+D contribution: total net
-  -- retirements R47-R52 = 3, leaving items at 17 - 3 = 14 → R52 gate
-  -- FAILS, Path A (axiomatize BTIS at R54) triggered.
-  --
-  -- See `Helpers/R47_T1_GrepAuditAndFramingVerification.md` §3-§4 +
-  -- `Helpers/PhaseV2R47Status.md` (this round) for full status.
-  sorry
+      (fun S : Matrix ι ι ℝ => multivariateGaussianOrthantCDF S x) S₀
 
 /-! ## Entry-wise partial-derivative formula (R36+ scope, signature here for
 documentation) -/
