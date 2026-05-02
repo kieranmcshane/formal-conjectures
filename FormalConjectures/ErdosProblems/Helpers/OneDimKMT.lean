@@ -20,6 +20,8 @@ import Mathlib.Probability.Moments.Variance
 import Mathlib.Probability.CDF
 import Mathlib.MeasureTheory.Measure.Stieltjes
 import Mathlib.Probability.Distributions.Gaussian.Real
+import Mathlib.Probability.ProbabilityMassFunction.Binomial
+import Mathlib.Probability.ProbabilityMassFunction.Constructions
 
 /-!
 # 1D Komlós–Major–Tusnády coupling axiom (R29 / KMT Option C)
@@ -353,21 +355,140 @@ theorem quantile_transform_finite_moment
       refine ⟨fun ⟨h, _⟩ => h, fun h => ⟨h, hc_eq ▸ h.2.le⟩⟩
     rw [h_eq2, Real.volume_Ioo, sub_zero, hc_eq]
 
+/-! ### Layer 3 base case — Tusnády polynomial coupling (TC3 sub-Stub)
+
+**Round:** Track C round 3 (TC3 — this commit).
+**Status:** signature locked + body sub-Stub'd; TC4–TC5 close.
+**Per TC3 T1.1 audit (8th misframing):** the literature Tusnády result is
+*polynomial* per-step, not pure `O(log n)`. The `O(log n)` form is a
+*chain-level consequence* via Borel–Cantelli + Gaussian-tail control on `Z`.
+
+For the binomial law `Bin(2n, 1/2)` on ℝ (pushforward of Mathlib's
+`PMF.binomial` onto ℝ via `Fin.val`-cast) and a centred Gaussian
+`Z ~ N(0, n/2)`, there exists a coupling on a joint probability space with
+the polynomial per-step bound `|B - n - Z| ≤ A + C · Z² / n` for explicit
+constants `A, C > 0`.
+
+* **Bretagnolle–Massart 1989** + **Carter–Pollard 2004**: refined explicit
+  constants (`A ≈ 0.6`, `C ≈ 1`).
+* **Tusnády 1977**: original `|B - n - Z| ≤ 1 + Z²/n` form.
+* **Mathlib status (TC3 T1.1):** `gaussianReal` ✅; `PMF.binomial` ✅;
+  measure-theoretic `binomialReal : ℕ → ℝ≥0 → Measure ℝ` ❌ (worked
+  around via `PMF.toMeasure.map (Fin.val : Fin (2n+1) → ℝ)`); Stirling
+  precision + Mills-ratio bookkeeping for the polynomial bound: partial
+  in `Mathlib.Analysis.Asymptotics`.
+* **Body LOC estimate (TC4–TC5):** ~230–330 LOC. (i) ~30 LOC: PMF→Measure
+  pushforward identities. (ii) ~50 LOC: coupling construction via shared
+  `U ~ Uniform(0,1)` paired through TC2's `quantile_transform_finite_moment`.
+  (iii) ~150–250 LOC: Stirling + Mills-ratio analysis for the polynomial
+  bound.
+-/
+
+/-- **Tusnády base case (`TrackC-Layer3-Tusnady-base-polynomial`, TC3 sub-Stub).**
+
+The polynomial-form per-step Tusnády lemma. For `n ≥ 1`, there exists a
+coupled probability space carrying paired random variables `B Z : Ω' → ℝ`
+with the laws `B ~ Bin(2n, 1/2)` (on ℝ) and `Z ~ N(0, n/2)`, satisfying
+the per-step polynomial bound `|B - n - Z| ≤ A + C · Z²/n` for explicit
+constants `A, C > 0`.
+
+This is the *correct literature form* (Bretagnolle–Massart 1989 / Carter–
+Pollard 2004); the pure `O(log n)` per-step form circulated in many
+informal expositions does **not** hold uniformly without further almost-
+sure tail control (which is Layer 4 work).
+
+**Concrete blockers (TC3 sub-Stub diagnostic):**
+1. `PMF.binomial`-to-`Measure ℝ` pushforward needs `Fin.val`-cast
+   measurability; standard but not packaged. Workaround inline.
+2. Coupling construction via shared uniform: pair the inverse-CDFs of
+   `μ_B` and `μ_Z` through TC2's `quantile_transform_finite_moment`.
+3. Polynomial bound: requires Stirling precision (partial in Mathlib)
+   plus Mills-ratio control for the Gaussian PDF tail; explicit
+   constants per Bretagnolle–Massart 1989. -/
+theorem tusnady_base_polynomial (n : ℕ) (_hn : 1 ≤ n) :
+    ∃ (Ω' : Type) (_ : MeasurableSpace Ω') (μ' : Measure Ω')
+      (B Z : Ω' → ℝ) (A C : ℝ),
+      IsProbabilityMeasure μ' ∧ 0 < A ∧ 0 < C ∧
+      Measurable B ∧ Measurable Z ∧
+      μ'.map B = (PMF.binomial (1 / 2 : ℝ≥0) (by norm_num) (2 * n)).toMeasure.map
+                   (fun (i : Fin (2 * n + 1)) => (i.val : ℝ)) ∧
+      μ'.map Z = gaussianReal 0 ((n : ℝ≥0) / 2) ∧
+      ∀ ω', |B ω' - (n : ℝ) - Z ω'| ≤ A + C * (Z ω') ^ 2 / (n : ℝ) := by
+  -- TAG[TrackC-Layer3-Tusnady-base-polynomial]: TC4-TC5 scope.
+  -- See docstring above + TC3 T1.1 audit `TrackC_round3_T1_GrepAudit.md` for
+  -- concrete diagnostic. The `O(log n)` per-step form (8th misframing) is
+  -- NOT what literature proves; this signature locks the polynomial form.
+  sorry
+
 /-! ### Layer 3 — Hungarian dyadic decomposition + recursive coupling
 
 The classical KMT proof (Komlós–Major–Tusnády 1975 *Studia Sci. Math.
-Hungar.* 32) uses Tusnády's lemma at each dyadic scale:
+Hungar.* 32) uses Tusnády's lemma (above, polynomial per-step form) at
+each dyadic scale and combines via dyadic recursion:
 
-* **Tusnády's lemma**: for binomial `B(n, 1/2)` and Gaussian `N(n/2, n/4)`,
-  there exists a coupling with error `O(log n)` on the midpoint.
-* **Dyadic recursion**: applying Tusnády at scales `n, n/2, n/4, …, 1`
-  builds the full coupling.
+* **Tusnády's lemma (polynomial per-step)**: `tusnady_base_polynomial`
+  above provides `|B - n - Z| ≤ A + C · Z²/n` for `Bin(2n, 1/2)` paired
+  with `N(0, n/2)`.
+* **Dyadic recursion**: `hungarian_dyadic_step` (below, signature locked
+  in TC3) refines a coupling at scale `2^(k-1)` to scale `2^k` via the
+  Tusnády base case applied to the binomial of the *increment count*.
+* **Chain consequence**: iterating across scales `1, 2, 4, …, 2^K` plus
+  Borel–Cantelli I + Gaussian-tail control yields the uniform-in-ω' log
+  bound exposed by `hungarian_dyadic_coupling` (TC1-locked signature).
 
 **Mathlib status (Track C T1.1):** Tusnády's lemma not in Mathlib at any
 state. Binomial-coefficient asymptotics partial in
 `Mathlib/Analysis/Asymptotics`. LOC estimate: 300–500 (bottleneck per
 Grok Q4; per-round P(success) ≈ 0.25–0.35).
 -/
+
+/-- **Hungarian dyadic step (`TrackC-Layer3-Hungarian-dyadic-step`, TC3
+signature lockdown).**
+
+Given a coupling `(S_{prev}, B_{prev})` of partial sums to a Brownian
+motion at the previous dyadic scale `2^(k-1)`, produce a refined coupling
+`(S_{cur}, B_{cur})` at scale `2^k` such that the *new* per-scale midpoint
+error remains within the polynomial Tusnády envelope. Iteration over
+`k = 1, 2, …, K` is consumed by `hungarian_dyadic_coupling` to yield the
+uniform-in-ω' log envelope.
+
+**Round-3 form**: existential over the refined coupling space + per-step
+polynomial midpoint bound. Body sub-Stub'd, TC4 close target.
+
+**Recursion plan (docstring-only, body TC4):**
+1. Apply `tusnady_base_polynomial` (above) with `n ↦ 2^(k-1)` to obtain
+   `(B_{Bin}, Z_{Gauss})` with `|B_{Bin} - 2^(k-1) - Z_{Gauss}| ≤ A + C · Z²/2^(k-1)`.
+2. Use `Z_{Gauss}` as the *Brownian-motion increment* over the dyadic
+   subblock `[2^(k-1), 2^k]`.
+3. Define `S_{cur} := S_{prev} + (sum of next 2^(k-1) summands)`,
+   `B_{cur} := B_{prev} + Z_{Gauss}`. Tusnády polynomial bound carries
+   over to the increment, summing to a polynomial-in-Z-vector running
+   error.
+4. Chain over scales: per-scale errors compose via triangle + Cauchy-
+   Schwarz on the Gaussian sum's variance (= 2^(k-1) at scale `k`). -/
+theorem hungarian_dyadic_step
+    {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
+    (a : ℕ → Ω → ℝ) (_ha_indep : ProbabilityTheory.iIndepFun a ℙ)
+    (_ha_centred : ∀ k, ∫ ω, a k ω ∂ℙ = 0)
+    (_ha_var : ∀ k, ProbabilityTheory.variance (a k) ℙ = 1)
+    (k : ℕ) (_hk : 1 ≤ k) :
+    ∃ (Ω' : Type) (_ : MeasurableSpace Ω') (μ' : Measure Ω')
+      (S_cur : ℕ → Ω' → ℝ) (B_cur : NNReal → Ω' → ℝ) (A C : ℝ),
+      IsProbabilityMeasure μ' ∧ 0 < A ∧ 0 < C ∧
+      (∀ t, Measurable (B_cur t)) ∧
+      (∀ n, Measurable (S_cur n)) ∧
+      -- S_cur tracks partial sums up to the current dyadic scale.
+      μ'.map (S_cur (2 ^ k)) = (ℙ : Measure Ω).map
+        (fun ω => ∑ j ∈ Finset.Icc 1 (2 ^ k), a j ω) ∧
+      -- Polynomial per-step midpoint bound (Tusnády base via PMF/Gaussian
+      -- pairing on the dyadic increment).
+      ∀ ω', |S_cur (2 ^ k) ω' - B_cur (2 ^ k : NNReal) ω'| ≤
+        A + C * (B_cur (2 ^ k : NNReal) ω') ^ 2 / ((2 ^ k : ℕ) : ℝ) := by
+  -- TAG[TrackC-Layer3-Hungarian-dyadic-step]: TC4 close target.
+  -- Recursion plan: see docstring above. Body composes
+  -- `tusnady_base_polynomial` (k iterations) with TC2's quantile transport
+  -- and chains via triangle + Cauchy-Schwarz on dyadic-increment Gaussians.
+  sorry
 
 /-- **Layer 3 (`TrackC-Layer3-Hungarian-bottleneck`).**
 Hungarian dyadic Tusnády-style coupling: for a partial-sum walk
@@ -398,15 +519,19 @@ theorem hungarian_dyadic_coupling
       -- Per-dyadic-scale midpoint coupling error.
       (∀ k : ℕ, 1 ≤ k → ∀ ω', |S' (2 ^ k) ω' - B (2 ^ k : NNReal) ω'| ≤
         C * Real.log ((2 ^ k : ℕ) + 1)) := by
-  -- TAG[TrackC-Layer3-Hungarian-bottleneck]: Track C round 3 target.
-  -- Construction: prove Tusnády's lemma (binomial-Gaussian coupling at
-  -- midpoint with O(log n) error) and apply at each dyadic scale via
-  -- the recursive midpoint-conditioning identity. This is the largest
-  -- and highest-risk sub-lemma of the cluster (~300-500 LOC; Grok Q4
-  -- per-round P(success) ≈ 0.25-0.35).
-  -- Mathlib gap: Tusnády's lemma (~one-page proof) requires careful
-  -- binomial-coefficient asymptotics not packaged. Adjacent infra:
-  -- gaussianReal in Mathlib; binomial CDF in Mathlib.
+  -- TAG[TrackC-Layer3-Hungarian-bottleneck]: TC4-TC5 close target.
+  -- Construction (post-TC3 plan): apply `tusnady_base_polynomial`
+  -- (polynomial per-step form, locked TC3) at each dyadic scale via
+  -- `hungarian_dyadic_step` (TC3 signature lockdown). The uniform-in-ω'
+  -- log envelope of THIS theorem's conclusion is the *chain-level
+  -- consequence* derived via Borel-Cantelli I + Gaussian-tail control on
+  -- the per-step Z's, NOT the per-step Tusnády form (8th misframing
+  -- documented in TrackC_round3_T1_GrepAudit.md).
+  -- Mathlib gap: Tusnády's lemma (~one-page literature proof) requires
+  -- careful binomial-coefficient asymptotics + Mills ratio. Adjacent
+  -- infra: gaussianReal in Mathlib; PMF.binomial in Mathlib; the
+  -- coupling pairing via shared uniform leverages TC2's
+  -- `quantile_transform_finite_moment`.
   sorry
 
 /-! ### Layer 4 — Sup-norm error O(log n / √n) via Borel–Cantelli + dyadic schedule
