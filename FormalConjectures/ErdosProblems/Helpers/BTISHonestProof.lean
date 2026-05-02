@@ -19,65 +19,61 @@ import FormalConjectures.Util.ProblemImports
 /-!
 # Track D — BTIS honest proof scaffold
 
-Round-1 infrastructure for the Borell-Tsirelson-Ibragimov-Sudakov (BTIS)
-Gaussian concentration inequality. This file lands the BTIS theorem
-signature plus three sub-lemma signatures along the route (β) — Gaussian
-log-Sobolev → Herbst → Lipschitz functional concentration → BTIS.
-
-**Round-2 closure (Path B′, this round).** The main theorem `borell_tis`
-is now a **Full** body: it deduces the BTIS tail bound from sub-lemma 3
+Infrastructure for the Borell-Tsirelson-Ibragimov-Sudakov (BTIS) Gaussian
+concentration inequality. This file lands the BTIS theorem (Path B′ Full
+body, TD2 closure) and the load-bearing sub-lemma 3
 (`lipschitz_sup_finite_gaussian`, packaging the centered sup as a
-`HasSubgaussianMGF`) plus Mathlib's Chernoff bound
-`HasSubgaussianMGF.measure_ge_le`. Sub-lemmas 1–3 retain TAG'd `sorry`
-bodies pending TD3-TD4 closure. See
-`Helpers/TrackD_round2_T1_PortabilityAudit.md` for the path-decision
-rationale.
+`HasSubgaussianMGF`).
 
-Closure at TD3-TD4 may proceed either by adapting Yuanhe Zhang et al.'s
-`lean-stat-learning-theory` (MIT-licensed, toolchain-matched at
-`v4.27.0-rc1`, Mathlib pin offset minor), or from-scratch via
-Bakry-Émery / Ornstein-Uhlenbeck semigroup methods. Path B (manual port)
-is currently favoured; see the round-2 audit doc for the full ranking.
+**Round-2 closure (Path B′).** The main theorem `borell_tis` deduces the
+BTIS tail bound from sub-lemma 3 plus Mathlib's Chernoff bound
+`HasSubgaussianMGF.measure_ge_le`. The chain is structurally locked:
+Path B′ bypassed the original route-(β) sub-lemmas 1–2
+(`gaussian_log_sobolev_real`, `herbst_subgaussian_real`), which were
+retired as orphans in round-3 (TD3 T2.2) after T1.1 grep verification
+confirmed zero consumers outside this file.
 
-See `Helpers/TrackD_T1_BTISAudit.md` for the round-1 Mathlib + brownian-motion
-audit and the route-(β) feasibility analysis, and
-`Helpers/TrackD_round2_T1_PortabilityAudit.md` for the round-2
-portability assessment.
+**Round-3 sub-lemma 3 closure (TD3 T2.1).** Sub-lemma 3 retains a TAG'd
+`sorry` (`TrackD-LipschitzSup`); see the inline docstring for the
+adapter recipe targeting SLT `lipschitz_cgf_bound`
+(`SLT/GaussianLipConcen.lean:1209`) plus the integrability lemma
+`lipschitz_exp_centered_integrable_E` (line 1229), via canonical
+Cholesky pushforward of `stdGaussianE` to the joint law of `X`. The
+TD3 T1.1 audit established the corrected SLT target (the headline
+`gaussian_lipschitz_concentration` returns a tail bound, not a
+`HasSubgaussianMGF` wrapper), the Apache-2.0 per-file licensing, the
+mathlib pin drift (SLT floats `master`), and the
+`IsCenteredGaussianProcess.joint_gaussian` placeholder gap.
 
-## Route (β) chain (Grok Q4)
+See `Helpers/TrackD_T1_BTISAudit.md` (round 1) and
+`Helpers/TrackD_round2_T1_PortabilityAudit.md` (round 2) for prior-round
+context, and `Helpers/TrackD_round3_T1_SemanticVerificationAudit.md`
+for the TD3 corrected-target derivation.
 
-1. `gaussian_log_sobolev_real` — TD3 bottleneck. Standard 1D Gaussian
-   logarithmic Sobolev inequality. Multivariate generalization deferred
-   pending Mathlib gradient + entropy infrastructure.
-2. `herbst_subgaussian_real` — TD4. Herbst's argument: log-Sobolev +
-   Lipschitz hypothesis → sub-Gaussian MGF. Light bookkeeping once (1)
-   is in scope.
-3. `lipschitz_sup_finite_gaussian` — TD4-TD5. Sup of a finite-index
-   centered Gaussian process has a sub-Gaussian MGF with parameter
-   `sup_t Var(X_t)`, packaged as `HasSubgaussianMGF`. (Round-2
-   signature change: conclusion lifted from bare MGF inequality to the
-   full `HasSubgaussianMGF` structure to feed `borell_tis` directly.)
-4. `borell_tis` — **Full at round-2 closure (Path B′)**. Deduces the
-   BTIS tail bound from sub-lemma 3 + Mathlib's
-   `HasSubgaussianMGF.measure_ge_le` (Chernoff). Body is mechanical:
-   set translation + `Real.toNNReal` coercion + `Measure.real ↔ toReal`
-   bridging.
+## Path B′ chain (closed at TD2, locked at TD3)
 
-## Round-1 design notes
+1. `lipschitz_sup_finite_gaussian` — sup of a finite-index centered
+   Gaussian process has a sub-Gaussian MGF with parameter
+   `sup_t Var(X_t)`, packaged as `HasSubgaussianMGF`. TAG'd
+   `TrackD-LipschitzSup` — TD3-TD4 closure target via SLT
+   `lipschitz_cgf_bound` adapter.
+2. `borell_tis` — Full body. Deduces the BTIS tail bound from
+   sub-lemma 1 + Mathlib's `HasSubgaussianMGF.measure_ge_le`
+   (Chernoff). Body is mechanical: set translation +
+   `Real.toNNReal` coercion + `Measure.real ↔ toReal` bridging.
+
+## Design notes
 
 * Index type `T : Fintype` keeps the supremum well-defined as a finite
   max and avoids separability/measurability technicalities. Continuous-T
   generalization is straightforward once the Fintype version lands.
 * The Gaussianity hypothesis is carried as `IsCenteredGaussianProcess` —
-  a minimal predicate defined locally to keep round-1 dependencies thin.
-  TD5 can either replace this with `BrownianMotion.Gaussian.IsGaussianProcess`
-  or harmonize with `Erdos524.Helpers.IsGLWProcess` (whichever is more
-  ergonomic for the consumer surface).
-* Sub-lemma 1 is stated for `gaussianReal 0 1` (standard 1D Gaussian)
-  rather than multivariate `EuclideanSpace ℝ n` — the multivariate form
-  follows by tensor product once 1D log-Sobolev is closed, but the 1D
-  case alone exercises every interesting feature of the proof (Herbst
-  iteration, entropy ↔ MGF transfer).
+  a minimal predicate defined locally to keep dependencies thin. The
+  `joint_gaussian` field is currently a `True` placeholder; TD4 closure
+  via the SLT adapter requires strengthening it to carry an actual
+  joint-Gaussian law (e.g. via `HasGaussianLaw` on the marginals or via
+  the `BrownianMotion.Gaussian.IsGaussianProcess` predicate already in
+  the project's dependency tree).
 -/
 
 namespace Erdos524.Helpers.BTISHonestProof
@@ -113,64 +109,7 @@ structure IsCenteredGaussianProcess
   `HasGaussianLaw` or the brownian-motion-package predicate. -/
   joint_gaussian : True
 
-/- ## Sub-lemma 1 (TD2-TD3 bottleneck) — Gaussian log-Sobolev -/
-
-/-- **Gaussian log-Sobolev inequality (1D).**
-
-For the standard real Gaussian `γ = gaussianReal 0 1`, every smooth
-`f : ℝ → ℝ` (with the obvious integrability conditions) satisfies
-the entropy bound
-`Ent_γ(f²) := 𝔼_γ[f² log f²] − 𝔼_γ[f²] · log 𝔼_γ[f²] ≤ 2 𝔼_γ[(f')²]`.
-
-This is the bottleneck of the route-(β) chain: log-Sobolev + Lipschitz
-→ sub-Gaussian MGF (Herbst), and sub-Gaussian MGF + Mathlib Chernoff →
-BTIS tail. Multivariate version follows by tensorisation once the 1D
-case is closed.
-
-**Status.** TAG'd `TrackD-LogSobolev-bottleneck` — TD2-TD3 closure target.
-Closure routes (per `TrackD_T1_BTISAudit.md` §4):
-* If `lean-stat-learning-theory` portable: import + adapt;
-* Else: from-scratch via Bakry-Émery / Ornstein-Uhlenbeck semigroup.
--/
-theorem gaussian_log_sobolev_real
-    (f : ℝ → ℝ) (_hf_diff : Differentiable ℝ f)
-    (_hf_sq_int : Integrable (fun x => f x ^ 2) (gaussianReal 0 1))
-    (_hf_sq_log_int :
-        Integrable (fun x => f x ^ 2 * Real.log (f x ^ 2)) (gaussianReal 0 1))
-    (_hf_deriv_sq_int : Integrable (fun x => deriv f x ^ 2) (gaussianReal 0 1)) :
-    (∫ x, f x ^ 2 * Real.log (f x ^ 2) ∂(gaussianReal 0 1)) -
-        (∫ x, f x ^ 2 ∂(gaussianReal 0 1)) *
-          Real.log (∫ x, f x ^ 2 ∂(gaussianReal 0 1)) ≤
-      2 * ∫ x, deriv f x ^ 2 ∂(gaussianReal 0 1) := by
-  sorry  -- TAG: TrackD-LogSobolev-bottleneck
-
-/- ## Sub-lemma 2 (TD3-TD4) — Herbst's argument -/
-
-/-- **Herbst's argument: log-Sobolev + Lipschitz → sub-Gaussian MGF.**
-
-Given the log-Sobolev inequality on `gaussianReal 0 1` and an `L`-Lipschitz
-`f : ℝ → ℝ` with `𝔼_γ[f] = 0`, the Herbst iteration on the entropy of
-`exp(t f / 2)` yields the sub-Gaussian moment-generating-function bound
-`𝔼_γ[exp(t f)] ≤ exp(L² t² / 2)` for all `t : ℝ`.
-
-This is the standard Herbst-iteration corollary; once
-`gaussian_log_sobolev_real` is closed, the proof is mechanical
-(differentiate `t ↦ log 𝔼[exp(t f)] / t` and apply log-Sobolev to
-`exp(t f / 2)`).
-
-**Status.** TAG'd `TrackD-Herbst` — TD3-TD4 closure target.
--/
-theorem herbst_subgaussian_real
-    (f : ℝ → ℝ) (L : NNReal) (_hL_pos : 0 < L)
-    (_hf_lip : LipschitzWith L f)
-    (_hf_centered : ∫ x, f x ∂(gaussianReal 0 1) = 0)
-    (_hf_int : ∀ t : ℝ, Integrable (fun x => Real.exp (t * f x)) (gaussianReal 0 1))
-    (t : ℝ) :
-    ∫ x, Real.exp (t * f x) ∂(gaussianReal 0 1) ≤
-      Real.exp ((L : ℝ) ^ 2 * t ^ 2 / 2) := by
-  sorry  -- TAG: TrackD-Herbst
-
-/- ## Sub-lemma 3 (TD4-TD5) — Sup is a Lipschitz functional -/
+/- ## Sub-lemma 3 — Sup is a Lipschitz functional (TD4 closure target post-M1) -/
 
 /-- **Sup is a Lipschitz functional of a centered Gaussian process.**
 
@@ -313,12 +252,15 @@ for `Y := M − 𝔼[M]` and `c := sigma2.toNNReal`. The set
 `Y` and shuffling), and `(c : ℝ) = sigma2` since `sigma2 > 0`. The
 `Measure.real` ↔ `(· ).toReal` translation is `measureReal_def`.
 
-**Status (round-2 closure, Path B′).** **Full** body — closes the BTIS
-theorem modulo the three sub-lemma sorries
-(`TrackD-LogSobolev-bottleneck`, `TrackD-Herbst`, `TrackD-LipschitzSup`).
-The chain `BTIS ← Lipschitz-sup ← Herbst ← log-Sobolev` is now structurally
-locked at the file-level, with each link being either Full (this theorem)
-or a single TAG'd sorry. TD3-TD4 close the upstream sub-lemmas.
+**Status (round-2 closure, Path B′; round-3 chain consolidation).**
+**Full** body — closes the BTIS theorem modulo the single sub-lemma 3
+sorry (`TrackD-LipschitzSup`). The chain
+`BTIS ← Lipschitz-sup-via-SLT-CGF` is structurally locked at the
+file level: round-3 TD3 T2.2 deletion of the post-Path-B′ orphans
+sub-lemmas 1 (`gaussian_log_sobolev_real`) and 2
+(`herbst_subgaussian_real`) consolidated the chain to a single open
+TAG. TD4 closes sub-lemma 3 via the SLT `lipschitz_cgf_bound` adapter
+(see sub-lemma 3 docstring for the recipe).
 
 Continuous-T generalization (replacing `Fintype T` by
 `SecondCountableTopology T` with sample-path-bounded hypothesis) is a
