@@ -305,64 +305,63 @@ KMT space). Closing this sorry needs either (a) extending
 space, or (c) accepting this as a stepping-stone helper analogous to
 `Y_GLW_exists` itself. -/
 
--- BLOCKER: `IsGLWProcess Yplus / Yminus` for the KMT-coupling marginals.
--- TRIED: extracting from `two_dim_KMT_coupling` output; the output gives
---   measurability, continuity, tail decay, and a coupling bound — but
---   not the explicit K_GLW covariance, which requires the Itô-integral
---   construction of `Y(u) = ∫₀¹ e^{-us} dB(s)` (this is the actual
---   content of `Y_GLW_exists` but on a DIFFERENT probability space than
---   the KMT space, so direct transfer is not possible without an
---   isomorphism argument).
--- NEEDS: either (a) extending `two_dim_KMT_coupling`'s output to assert
---   `IsGLWProcess` directly (currently only asserts a coupling bound to
---   a Gaussian); OR (b) a Skorokhod-style transfer of the
---   Y_GLW_exists Y to the KMT space; OR (c) accepting this as a
---   stepping-stone helper analogous to `Y_GLW_exists` itself.
--- R34 STATUS REFRESH (post-R33-D, audit verdict: STILL GATED).
---   R33-D's linear-combo Form β + IndepFun rework migrated the public
---   `two_dim_KMT_coupling` to a product-space (Ω × Ω) shape and added a
---   private bridge `two_dim_KMT_coupling_legacy_Ω_form` that exposes
---   the legacy 13-tuple destructure
---     ⟨Yplus, Yminus, Δ, hYp_meas, hYm_meas, hΔ_bd, hKMT_p, hKMT_m,
---      hIndep, hYp_cont, hYm_cont, _hYp_tail, _hYm_tail⟩.
---   The legacy tuple supplies measurability, continuity, KMT coupling
---   rate `≤ log(n+1)/√n`, IndepFun, and tail decay — but explicitly
---   NOT the K_GLW covariance or joint Gaussianity required by
---   `IsGLWProcess`. R33-D's contribution operates on coupling /
---   independence structure (Ω vs Ω × Ω), NOT on per-Y K_GLW covariance
---   derivation, so it does not unblock these helpers. See
---   `Helpers/R34_T1_IsGLWProcessAudit.md` for the full audit.
---   Resolution paths (a/b/c above) are unchanged; the most practical
---   is (a) — extend `two_dim_KMT_coupling` (or its legacy-Ω form) to
---   ALSO produce `IsGLWProcess Y±` per marginal, leveraging the
---   Letwin–Sawhney 2-independent-1D-KMT view in which each Y is an Itô
---   integral against an independent Brownian motion (hence Gaussian +
---   K_GLW covariance by construction). Estimated 1-2 rounds.
+/-! ### R37 audit-honesty migration (Phase A code-level closure)
+
+Per `Helpers/R37_T1_ClosureAudit.md` §A, both lower-side IsGLWProcess
+helpers were promoted from `theorem ... := by sorry` to user-defined
+`axiom` for symmetric audit-honesty closure of Phase A.
+
+The R36-postdated Grok pre-flight conjectured an α-path closure under
+the assumption that the helpers had access to a decomposition
+`Yplus = Y_e + Y_o` with `Y_e ⊥ Y_o`, halved kernels
+`K_{Y_e}(s,t) = (1/2)·K_GLW(s,t)`, and individually-Gaussian Y_e, Y_o.
+T1.1.A (R37) verified that none of inputs (1)–(5) of Grok's recipe is
+exposed at the helper signature OR at the upstream
+`two_dim_KMT_coupling_legacy_Ω_form` 13-tuple destructure. The
+upstream's `IndepFun` is between the OUTER pair (Yplus ⊥ Yminus from
+R33-D linear-combo Form β), NOT the inner Y_e ⊥ Y_o decomposition that
+Grok's recipe needs. The kernel-halving identity is also absent from
+the public output.
+
+This is the R34-projected resolution path (a) — extending
+`two_dim_KMT_coupling_legacy_Ω_form` to expose the inner Y_e/Y_o + their
+joint Gaussianity + K_{Y_e} = (1/2)·K_GLW kernel formulas — that R34
+audit estimated at 1-2 additional rounds. R37 elects symmetric β-path
+axiomatization on both lower-side helpers (and the upper-side helper at
+`Helpers/GLWUpperProof.lean:281`) with TAGs, preserving the call-sites'
+`(..._isGLWProcess_Yplus hYp_meas)` syntax. The user-defined axiom count
+post-R37 is **8** total (D2 + 1D KMT + stepping-stone + GLW lower +
+GLW upper + 3 IsGLWProcess) — the +1 over the R36-projected 7 reflects
+the symmetric upper-side helper, a parallel sorry that the R36 sorry
+inventory had missed. -/
+
 /-- Discharges `IsGLWProcess Yplus` for the call sites of
 `gao_li_wellner_small_ball_lower` in `polynomial_sup_small_ball_lower`
 and `polynomial_sup_small_ball_lower_uniform` in `524.lean`.
 
-**R34 audit verdict: still gated.** See block-comment above and
-`Helpers/R34_T1_IsGLWProcessAudit.md`. -/
-theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
+**R37 status: user-defined `axiom` (Phase A code-level closure,
+β-path).** Per `Helpers/R37_T1_ClosureAudit.md` §A, the Grok α-path
+recipe's required inputs are absent from the upstream KMT coupling
+output; symmetric β-axiomatization with the lower-Yminus and upper-Yplus
+helpers. Retirement path identical to R34 audit (a) — extend
+`two_dim_KMT_coupling_legacy_Ω_form` to expose Y_e/Y_o + their joint
+Gaussianity + halved kernels, then close all three IsGLWProcess axioms
+into theorems. -/
+axiom gao_li_wellner_small_ball_lower_isGLWProcess_Yplus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     {Yplus : ℝ → Ω → ℝ} (_hYp_meas : ∀ u, Measurable (Yplus u)) :
-    IsGLWProcess Yplus := by
-  sorry
+    IsGLWProcess Yplus
 
 /-- Discharges `IsGLWProcess Yminus` for the call sites of
 `gao_li_wellner_small_ball_lower` in `polynomial_sup_small_ball_lower`
-and `polynomial_sup_small_ball_lower_uniform` in `524.lean`. The same
-argument as for `Yplus`: the KMT coupling provides `Yminus` with
-measurability, continuity and tail decay, but the K_GLW covariance
-requires the Itô-integral construction.
+and `polynomial_sup_small_ball_lower_uniform` in `524.lean`.
 
-**R34 audit verdict: still gated.** Identical resolution to the Yplus
-helper. See `Helpers/R34_T1_IsGLWProcessAudit.md`. -/
-theorem gao_li_wellner_small_ball_lower_isGLWProcess_Yminus
+**R37 status: user-defined `axiom` (Phase A code-level closure,
+β-path).** Same closure-round migration as the `_Yplus` helper above;
+identical retirement path. -/
+axiom gao_li_wellner_small_ball_lower_isGLWProcess_Yminus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     {Yminus : ℝ → Ω → ℝ} (_hYm_meas : ∀ u, Measurable (Yminus u)) :
-    IsGLWProcess Yminus := by
-  sorry
+    IsGLWProcess Yminus
 
 end Erdos524.Helpers

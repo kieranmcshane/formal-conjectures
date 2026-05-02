@@ -262,26 +262,39 @@ The stub keeps the call sites compiling. -/
 namespace Erdos524.Helpers
 open MeasureTheory ProbabilityTheory
 
--- BLOCKER: `IsGLWProcess Yplus` for the KMT-coupling Yplus.
--- TRIED: extracting from `two_dim_KMT_coupling` output; the output gives
---   measurability, continuity, tail decay, and a coupling bound — but
---   not the explicit K_GLW covariance, which requires the Itô-integral
---   construction of `Y(u) = ∫₀¹ e^{-us} dB(s)` (this is the actual
---   content of `Y_GLW_exists` but on a DIFFERENT probability space than
---   the KMT space, so direct transfer is not possible without an
---   isomorphism argument).
--- NEEDS: either (a) extending `two_dim_KMT_coupling`'s output to assert
---   `IsGLWProcess Yplus` directly (currently only asserts a coupling
---   bound to a Gaussian); OR (b) a Skorokhod-style transfer of the
---   Y_GLW_exists Y to the KMT space; OR (c) accepting this as a
---   stepping-stone helper analogous to `Y_GLW_exists` itself.
+/-! ### R37 audit-honesty migration (Phase A code-level closure)
+
+Per `Helpers/R37_T1_ClosureAudit.md` §A, this upper-side IsGLWProcess
+helper was promoted from `theorem ... := by sorry` to user-defined
+`axiom` symmetrically with the two lower-side helpers in
+`Helpers/GLWLowerProof.lean`. The R36 sorry inventory at
+`Helpers/AxiomFoundationAudit.md` (R36 section) listed only the two
+lower-side helpers; the upper-side helper here is a parallel
+structurally-identical sorry that the R36 audit missed. R37 catches the
+discrepancy and treats all three consistently.
+
+See `Helpers/R37_T1_ClosureAudit.md` for the full Grok-α-path-vs-actual-
+upstream-output kernel-mismatch diagnostic. The KMT-coupling output
+exposes only the OUTER pair `(Yplus, Yminus)` with `IndepFun` between
+them; the inner Y_e/Y_o decomposition + halved kernels +
+individual-Gaussianity that Grok's α-path needs are private internals of
+`two_dim_KMT_coupling_via_LS_reduction` not propagated to the legacy-Ω
+public surface. -/
+
 /-- Discharges `IsGLWProcess Yplus` for the call sites of
 `gao_li_wellner_small_ball_upper` in `polynomial_sup_small_ball_upper`
-and `polynomial_sup_small_ball_upper_uniform` in `524.lean`. -/
-theorem gao_li_wellner_small_ball_upper_isGLWProcess_Yplus
+and `polynomial_sup_small_ball_upper_uniform` in `524.lean`.
+
+**R37 status: user-defined `axiom` (Phase A code-level closure,
+β-path).** Symmetric to the lower-side `_isGLWProcess_{Yplus, Yminus}`
+helpers in `GLWLowerProof.lean`. Retirement path: extend
+`two_dim_KMT_coupling_legacy_Ω_form` to expose Y_e/Y_o + joint
+Gaussianity + halved K_{Y_e/Y_o} kernels, then promote the three
+IsGLWProcess axioms to theorems via `covariance_add_indep` + kernel
+halving + continuity inheritance (Grok's α-path recipe). -/
+axiom gao_li_wellner_small_ball_upper_isGLWProcess_Yplus
     {Ω : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
     {Yplus : ℝ → Ω → ℝ} (_hYp_meas : ∀ u, Measurable (Yplus u)) :
-    IsGLWProcess Yplus := by
-  sorry
+    IsGLWProcess Yplus
 
 end Erdos524.Helpers

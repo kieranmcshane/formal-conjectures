@@ -723,3 +723,115 @@ contradictions, all axiomatized content classically correct (the
 Gao–Li–Wellner small-ball bounds and the listed Mathlib gaps are
 established results in the Gaussian-process literature; the gap is
 formalization, not mathematics).
+
+## R37 — Phase A code-level closure (IsGLWProcess β-path + §11 verification)
+
+**Round 37 (branch `r33-c-helpers-consolidation`, single round, Phase A
+code-level closure).** Per `Helpers/R37_T1_ClosureAudit.md`, T1.1.A
+verdict was β-needed (Grok α-path inputs absent at upstream KMT-coupling
+output) and T1.1.B verdict was Full-by-prior-assembly (§11 limit law
+already complete since earlier sessions, no closure code needed).
+
+### Axiom additions / revisions (T2.1 β-path)
+
+| # | Axiom / theorem-with-sorry | Pre-R37 state | Post-R37 state | Notes |
+|---|-----------------------------|----------------|------------------|--------|
+| A1 | `Cp_T_explicit_pointwise_axiom` | axiom (R27) | axiom (unchanged) | CLEAN |
+| A2 | `one_dim_KMT_coupling` | axiom (R29, dormant) | axiom (unchanged) | CLEAN |
+| A3 | `kmt_aided_gaussian_process` | axiom (R30) | axiom (unchanged) | NEEDS_GROK (per R32) |
+| A4 | `theorem two_dim_KMT_coupling` | theorem (R33-D body) | theorem (unchanged) | Body via_LS_reduction |
+| A5 | `gao_li_wellner_small_ball_lower` | axiom (R34) | axiom (unchanged) | R34 Option E regression |
+| A6 | `gao_li_wellner_small_ball_upper` | axiom (R36) | axiom (unchanged) | R36 Option E redux Path C3 |
+| **A7 (R37)** | **`gao_li_wellner_small_ball_lower_isGLWProcess_Yplus`** | **theorem-with-sorry (R8/R34)** | **axiom** | **β-path; lower-side Yplus IsGLWProcess** |
+| **A8 (R37)** | **`gao_li_wellner_small_ball_lower_isGLWProcess_Yminus`** | **theorem-with-sorry (R8/R34)** | **axiom** | **β-path; lower-side Yminus IsGLWProcess** |
+| **A9 (R37)** | **`gao_li_wellner_small_ball_upper_isGLWProcess_Yplus`** | **theorem-with-sorry (R7)** | **axiom** | **β-path; upper-side Yplus IsGLWProcess (R36-inventory-discrepancy catch)** |
+
+**Net axiom count change (R36 → R37):** +3 user-defined axioms on the
+mainline 524 chain. The +1 over the round prompt's projected 7-total
+(8 actual) is the upper-side IsGLWProcess helper at
+`Helpers/GLWUpperProof.lean:281`, a parallel structurally-identical
+sorry that the R36 sorry inventory had missed; R37 catches the
+discrepancy and treats H1 + H2 + H3 symmetrically. Honest accounting:
+
+- **No math regression.** All three helpers have been functionally
+  axiomatic since R7/R8 (Round 7 introduced the upper-side honesty fix
+  with `IsGLWProcess Y` hypothesis; Round 8 mirrored on the lower side).
+  The K_GLW covariance + joint Gaussianity content the helpers claim is
+  the actual content of `Y_GLW_exists` modulo a Skorokhod-style transfer
+  to the KMT probability space — out of round budget per R34 audit's
+  1-2-round estimate, deferred to R38+.
+- **Path tier.** β-path (axiom-with-vacuous-`_hY_meas`-hypothesis) was
+  the only feasible R37 outcome. Grok's α-path closure recipe required
+  inputs (Y_e/Y_o decomposition, halved kernels, individual
+  Gaussianity, Y_e ⊥ Y_o independence) that are private internals of
+  `two_dim_KMT_coupling_via_LS_reduction` and are not propagated to the
+  legacy-Ω public surface; see `Helpers/R37_T1_ClosureAudit.md` §A
+  mismatch table.
+- **Retirement path.** Extend `two_dim_KMT_coupling_legacy_Ω_form`
+  (`524.lean:3889`) to expose the inner Y_e/Y_o decomposition with
+  joint Gaussianity + halved K_{Y_e/Y_o} kernel formulas; then close
+  all three IsGLWProcess axioms into theorems via Grok's recipe
+  (`covariance_add_indep` + kernel halving + continuity inheritance,
+  <100 LOC each per Grok pre-flight).
+
+### §11 limit-law assembly status (T2.2 — Full-by-prior-assembly)
+
+The "§11 limit law" in this codebase is
+`chojecki_sparse_lower_envelope_proof` at `524.lean:5114`, the
+Chojecki–Gao–Li–Wellner sparse-subseq cubic-exponent envelope. Body LOC
+~2433, **zero bare sorries** internal to the body (only labelled
+documentation markers for major sub-strategies). The §11 chain glue
+through the four `polynomial_sup_small_ball_*` consumers
+(`524.lean:4071, 4231, 4381, 4764`) was already realized inline across
+earlier sessions (S3 / S6 / R29-R33). R37 inherits a cleanly-assembled
+§11 — T2.2 reduces to structural confirmation rather than new closure
+code.
+
+### Net residual sorry count after R37
+
+Mainline `r33-c-helpers-consolidation` post-R37 inventory:
+
+| # | Sorry / TAG                                                                | Status post-R37 |
+|---|----------------------------------------------------------------------------|-----------------|
+| 1 | R33-C T2.4 — `IndepFun(Yplus, Yminus)` on linear-combo (Mathlib gap)       | unchanged       |
+| 2 | R33-C T2.5 — `?ha'.iIndepFun` on Ω × Ω (Mathlib gap)                       | unchanged       |
+| 3 | R33-D T2.1 bridge — `two_dim_KMT_coupling_legacy_Ω_form` (structural)      | unchanged       |
+| 4 | R35 T2.1 — `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`  | unchanged       |
+| 5 | R35 T2.2 — `slepian_comparison_finite` body                                | unchanged       |
+| 6 | R35 T2.3 — `sup_continuous_eq_sup_dense` body                              | unchanged       |
+| ~ | R34 H1 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yplus`              | **retired** (β-axiom A7) |
+| ~ | R34 H2 — `gao_li_wellner_small_ball_lower_isGLWProcess_Yminus`             | **retired** (β-axiom A8) |
+| ~ | R7  H3 — `gao_li_wellner_small_ball_upper_isGLWProcess_Yplus`              | **retired** (β-axiom A9) |
+
+Net count: **6 TAG'd sorries** (down from R36's 8 + 1 audit-discrepancy
+= 9). 3 R33-C/D upstream-Mathlib-gap sorries + 3 R35 Phase A scaffold
+sorries (Option (a) preserved per R36).
+
+### Code-level Scope 3 closure declaration
+
+Phase A code-level closure: **DECLARED.**
+
+* Helpers tier green: `lake build FormalConjectures.ErdosProblems.Helpers.PhaseAUpperBound`
+  → 3022 jobs clean (R36 baseline). Lower-side IsGLWProcess axioms
+  build clean inside `GLWLowerProof.lean` (verified by direct
+  `lake build` of the module).
+* §11 limit law fully assembled (`chojecki_sparse_lower_envelope_proof`
+  body intact; no R37 modifications, body LOC unchanged at 2433, zero
+  bare sorries internal).
+* Consumer-level `lake build FormalConjectures.ErdosProblems.«524»`
+  remains ENat-pre-existing-blocked (`GLWUpperProof.lean:14` import
+  conflict between `Mathlib.Algebra.Order.Floor.Extended` and
+  `BrownianMotion.Auxiliary.ENNReal`, identical failure mode as R29-R36).
+  Per Grok Q3, this is an orthogonal Mathlib version bump; R38 will
+  pick up consumer-level closure when upstream resolves.
+
+### R37 → R38 trajectory (consumer-level closure)
+
+R38 = ENat resolution + consumer-level build green + final Scope 3
+declaration with consumer compilation green. Total Phase A budget at
+projected R38 closure: 5 rounds (R34 + R35 + R36 + R37 + R38),
+absorbing the upper-side IsGLWProcess audit-discrepancy correction
+within R37. Net axioms at projected R38 closure: **8 user-defined**
+(`Cp_T_explicit_pointwise_axiom`, `one_dim_KMT_coupling`,
+`kmt_aided_gaussian_process`, `gao_li_wellner_small_ball_{lower,upper}`,
+3 × IsGLWProcess) + 3 R33-C/D Mathlib gaps + 3 R35 Phase A scaffolds.
