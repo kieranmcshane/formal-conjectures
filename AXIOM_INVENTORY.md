@@ -19,6 +19,76 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R49 V2 round 11 — Path A axiomatization of Phase 2 body)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone).
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R49 (T1.1 audit `e9f5508`,
+  T2.1 axiom replacement `c62b5e4`, T2.2 this entry, T2.3 build + push).
+* **Round type:** Variante 1, single round, mainline. Path A switch per
+  user directive — mechanical axiomatization of Phase 2 body to free
+  3-5 mainline rounds for GLW shortcut + Track C/D parallel work.
+* **Net debt change:**
+  * Sorries: **12 → 11** (-1, Phase 2 body Stub at
+    `MultivariateGaussianCDF.lean:160-313` retired).
+  * User-defined axioms: **5 → 6** (+1, Axiom #6 added — see "Axiom #6"
+    section below).
+  * Items at gate: **17 → 17** (no change; strategic value is freed
+    budget for downstream retirements, not item-count change).
+* **Total mainline debt:** 6 user-defined axioms + 11 TAG'd sorries =
+  17 items.
+* **Cumulative R40-R49 retirement rate:** ~0.5 sorry/round (10 rounds
+  elapsed since R39; sorry retirements include R44 MGI, R46 sub-gap (a)
+  + (c), R49 Phase 2 body via Path A axiomatization). Note: Path A
+  axiomatization is a sorry-retirement-via-debt-conversion, NOT a
+  closure — the underlying mathematical claim is now load-bearing on
+  Axiom #6 instead of being open.
+* **Four deliverables this round:**
+  * **R49-T1.1 Path γ' breakage re-verification + axiom signature draft**
+    (`Helpers/Round49_T1_PathAAxiomatization.md`, 302 lines, commit
+    `e9f5508`). Re-verified at HEAD `434a407` that R48-T1.1 misframings
+    M1 + M2 still hold:
+    * **(M1)** Lean MGI at `MultivariateGaussianPdf.lean:412` is the
+      measure-vs-Lebesgue-integral REWRITE identity with no
+      `HasFDerivAt` / `DifferentiableAt` content; pdf S-differentiability
+      is a separate ~80-150 LOC chain blocked on R40
+      `Matrix.det.differentiable` Stub.
+    * **(M2)** `multivariateGaussianPdf_uniform_tail_bound_on_compact_posDef`
+      at `GaussianParametricAnalysis.lean:168` lives inside a
+      `/-! ... -/` docstring code block, NOT a Lean theorem. Path γ' DCT
+      chain consumer "Gaussian tail majorant" does not exist as a Lean
+      object.
+    No new theorems landed between R48 (`434a407`) and R49 mainline that
+    unblock Path γ'. Path A axiomatization is the correct decision.
+  * **R49-T2.1 Path A axiom replacement** (commit `c62b5e4`).
+    `MultivariateGaussianCDF.lean:160-313` Stub deleted; replaced with
+    `axiom multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
+    of identical type signature (verbatim binders + conclusion preserved,
+    including `_h_pd` underscore prefix). Anti-mismatch hygiene:
+    `lake env lean` clean on the modified file and on the only Lean
+    consumer (`PhaseAUpperBound.lean:404`); positional caller unchanged.
+  * **R49-T2.2 AXIOM_INVENTORY.md update** (this section + table update +
+    Axiom #6 detail entry below).
+  * **R49-T2.3 build verification + status doc + push R48+R49 to fork**
+    (`Helpers/PhaseV2R49Status.md` + full `lake build` log).
+* **R52 milestone gate trajectory:** items at 17, gate threshold ≤ 8.
+  Mainline R50-R52 trajectory (post-R49 Path A): GLW shortcut R50-R51
+  (~2-3 retirements target) + freed budget redirected to TC3 + TD4
+  parallel work. Cumulative items projection: 17 - 5 to 17 - 7 = 10 to
+  12 by R52 if GLW shortcut + cross-track contributions land.
+  **R52 gate marginal under hybrid (c) target ≤ 8** without further
+  axiomatization decisions; Path A switch buys budget but does not by
+  itself flip the gate. Track C/Track D contribution cadence determines
+  R52 outcome.
+* **Cumulative T1.1 audit ledger:** 7 distinct Grok pre-flight
+  misframings caught (unchanged from R48 — R49 was a mechanical
+  axiomatization round with no Grok dispatch, just T1.1 re-verification
+  of R48 audit).
+
+See `Helpers/PhaseV2R49Status.md` and
+`Helpers/Round49_T1_PathAAxiomatization.md` for the round status doc +
+re-verification audit.
+
 ## Build status (R48 V2 round 10 — Path γ' framing audit + T2.1 abort)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
@@ -394,7 +464,7 @@ for the round status doc + audit.
   `Helpers/R39_T1_AlphaConversionAudit.md` for the cold re-audit and
   `Helpers/PhaseV2R39Status.md` for the round status.
 
-## 5 user-defined axioms (technical debt — must retire)
+## 6 user-defined axioms (technical debt — must retire)
 
 | # | Axiom | Source round | Provisional retire-path |
 |---|---|---|---|
@@ -403,9 +473,85 @@ for the round status doc + audit.
 | 3 | `kmt_aided_gaussian_process` | pre-Phase-A | V2 R49-R53 (derive from #1+#2 + scaling-limit theorem; also closes V2-R39 sorries 7-9) |
 | 4 | `gao_li_wellner_small_ball_lower` | R34 | V2 R40-R48 (Slepian + SF + BTIS composition) |
 | 5 | `gao_li_wellner_small_ball_upper` | R36 | V2 R40-R48 (parallel to #4) |
+| 6 | `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` | R49 (Path A switch) | V2 R55-R59 post-gate (Mathlib pin bump preferred; from-scratch ~150-300 LOC fallback) |
 
-All five are classically correct (see the audit doc for the
-classical-justification chain).
+All six are classically correct (see the audit doc + Axiom #6 detail
+below for classical-justification chains).
+
+### Axiom #6 detail: `multivariateGaussianOrthantCDF_differentiable_wrt_covariance`
+
+* **Added:** R49 (V2 round 11, 2026-05-02), Path A switch.
+* **File:** `FormalConjectures/ErdosProblems/Helpers/MultivariateGaussianCDF.lean:190`.
+* **Lean signature:**
+  ```lean
+  axiom multivariateGaussianOrthantCDF_differentiable_wrt_covariance
+      {ι : Type*} [Fintype ι] [DecidableEq ι]
+      (S₀ : Matrix ι ι ℝ) (_h_pd : S₀.PosDef) (x : ι → ℝ) :
+      DifferentiableAt ℝ
+        (fun S : Matrix ι ι ℝ => multivariateGaussianOrthantCDF S x) S₀
+  ```
+  (Section variables `{ι}`, `[Fintype ι]`, `[DecidableEq ι]` are
+  auto-bound from the surrounding `namespace
+  Erdos524.Helpers.MultivariateGaussianCDF` `variable` block.)
+* **Mathematical content (plain English):** for a positive-definite
+  covariance matrix `Σ` on `ι`-indexed coordinates and threshold vector
+  `x`, the half-space probability
+  `F(Σ; x) = ℙ_{Z ∼ 𝒩(0, Σ)} (∀ i, Z i ≤ x i)` is differentiable in `Σ`
+  in the entry-wise Fréchet sense at `Σ = S₀.PosDef`. Classical proof:
+  Lebesgue density formula `ρ(z; Σ) = (2π)^{-n/2} (det Σ)^{-1/2}
+  exp(-z^T Σ^{-1} z / 2)` + differentiation under the integral sign +
+  uniform Gaussian-tail Lipschitz envelope on a `PosDef` neighbourhood
+  of `S₀`. Reference: Slepian (1962) "The one-sided barrier problem for
+  Gaussian noise", Bell System Tech. J. 41:463-501; Tong (1990) "The
+  Multivariate Normal Distribution" §5.1.
+* **Why axiomatized at R49 (Path A switch):** the R48-T1.1 audit
+  (`R48_T1_PathGammaPrimeAudit.md` §2-§3, re-verified at HEAD `434a407`
+  in `Round49_T1_PathAAxiomatization.md` §1) caught two independent
+  misframings in the Path γ' brief recipe:
+  * **(M1)** Lean MGI
+    (`multivariateGaussianOrthantCDF_eq_lebesgue_integral` at
+    `MultivariateGaussianPdf.lean:412`) is a measure-vs-Lebesgue-integral
+    REWRITE identity — its R44 Full body (lines 412-477) is three
+    sequential `rw`s with no `HasFDerivAt` / `DifferentiableAt` content.
+    Pdf S-differentiability is a separate ~80-150 LOC chain blocked on
+    R40 `Matrix.det.differentiable` Stub at
+    `MatrixDetDifferentiable.lean:149`.
+  * **(M2)** `multivariateGaussianPdf_uniform_tail_bound_on_compact_posDef`
+    at `GaussianParametricAnalysis.lean:168` lives INSIDE a `/-! ... -/`
+    docstring code block, NOT a Lean theorem. Path γ' DCT chain consumer
+    "Gaussian tail majorant" does not exist as a Lean object.
+
+  Path B (continue from-scratch closure) costed at ~400+ LOC across 3-5
+  rounds with P(Full)/round ~0.30 — incompatible with the R52 milestone
+  gate (items ≤ 8) under the cumulative ~0.5 sorry/round retirement
+  rate. Path A axiomatization trades -1 sorry for +1 axiom (item count
+  unchanged at gate) and frees 3-5 rounds of mainline budget for GLW
+  shortcut (R50-R51) + Track C round 3 + Track D round 4 retirements.
+* **Retirement target: R55-R59 (post-gate), two-path sub-plan:**
+  1. *Mathlib pin bump (preferred):* monitor Mathlib for landings of
+     pdf-differentiability infrastructure for `multivariateGaussianPdf`
+     / `multivariateGaussian` density, uniform Gaussian-tail bound on
+     `IsCompact ∘ PosDef` neighbourhoods, and `Matrix.det.differentiable`
+     (R40 Stub-equivalent). Post-`v4.27` toolchain bump, the axiom
+     retires via direct chain composition (~50-100 LOC consumer
+     wrapper).
+  2. *From-scratch closure (fallback):* build the missing pieces in-tree
+     — ~150-300 LOC over 2-3 rounds, anchored on R40 Stub close
+     (~30-80 LOC) + tail-bound Full helper (~60-100 LOC) + Phase 2 body
+     Full close (~150-300 LOC). This is Path B from the R49 framing,
+     executed once R52-gate budget is freed.
+
+  Retirement is **not required for the R52 gate** (gate measures item
+  count; +1 axiom / -1 sorry is a wash there). Strategic value of Path
+  A is the freed mainline budget for OTHER retirements.
+* **Status:** ACTIVE (placeholder, math content provable from the
+  classical Lebesgue-density route described above).
+* **Consumers (Lean code):**
+  * `PhaseAUpperBound.lean:404` —
+    `multivariateGaussianOrthantCDF_differentiableAt_along_Sα_path`
+    (Phase 1B chain rule composition). Applies the axiom positionally
+    with three arguments; signature preserved verbatim so the call site
+    is unchanged.
 
 **R39 retired axioms 6-8** (the 3 IsGLWProcess β-axioms) by α-tighten:
 sound tightened signatures requiring KMT-coupling-rate hypothesis;
