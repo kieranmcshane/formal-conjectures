@@ -15,6 +15,7 @@ import Mathlib.Analysis.Calculus.FDeriv.Basic
 import Mathlib.Analysis.Calculus.FDeriv.Mul
 import Mathlib.Analysis.Calculus.FDeriv.Add
 import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
+import Mathlib.LinearAlgebra.Matrix.NonsingularInverse
 import Mathlib.LinearAlgebra.Matrix.PosDef
 import Mathlib.Topology.Instances.Matrix
 import Mathlib.Analysis.Matrix.Normed
@@ -198,13 +199,42 @@ mechanical (~30 LOC) but resolves to several Mathlib lookups.
   without the `Ring.inverse` bridge. -/
 theorem Matrix.PosDef.inv_hasFDerivAt
     {n : Type*} [Fintype n] [DecidableEq n]
-    (M : Matrix n n ℝ) (_hM : M.PosDef) :
+    (M : Matrix n n ℝ) (hM : M.PosDef) :
     ∃ L : Matrix n n ℝ →L[ℝ] Matrix n n ℝ,
       HasFDerivAt (fun A : Matrix n n ℝ => A⁻¹) L M := by
-  -- TAG[R40-T2.2-posdef-ringInverse-bridge] : ~80-150 LOC, specialise
-  -- hasFDerivAt_ringInverse + Matrix.inv ↔ Ring.inverse bridge. Body
-  -- target: R41 once the bridge lemma name is confirmed at the pin.
-  -- See R40_T1_DifferentiabilityAudit.md §2.
-  sorry
+  -- **R41-T2.2 Full close.** Strategy:
+  --   1. Activate `Matrix.linftyOpNormedRing` + `Matrix.linftyOpNormedAlgebra`
+  --      as local instances (Mathlib doesn't make them global because there
+  --      are several natural matrix-norm choices, but for Phase A upper
+  --      Option B the L1-sup norm is the canonical one).
+  --   2. `CompleteSpace (Matrix n n ℝ)` follows from finite-dimensionality;
+  --      `HasSummableGeomSeries` is automatic via the
+  --      `[NormedRing R] [CompleteSpace R]` instance at
+  --      `Mathlib/Analysis/SpecificLimits/Normed.lean:278`.
+  --   3. From `hM : M.PosDef` get `IsUnit M` via `hM.isUnit`, then the
+  --      unit `u := hM.isUnit.unit : (Matrix n n ℝ)ˣ` with `↑u = M`.
+  --   4. `hasFDerivAt_ringInverse u` gives
+  --      `HasFDerivAt Ring.inverse (-mulLeftRight ℝ _ M⁻¹ M⁻¹) M`.
+  --   5. **Bridge.** `Matrix.nonsing_inv_eq_ringInverse` gives the GLOBAL
+  --      function equality `(·⁻¹ : Matrix n n ℝ → Matrix n n ℝ) = Ring.inverse`
+  --      (works for non-units too: both return 0). Hence the FDeriv transfers
+  --      directly via `funext` rewriting — no open-set / `eventuallyEq`
+  --      argument needed.
+  letI : NormedRing (Matrix n n ℝ) := Matrix.linftyOpNormedRing
+  letI : NormedAlgebra ℝ (Matrix n n ℝ) := Matrix.linftyOpNormedAlgebra
+  -- The unit at M.
+  set u : (Matrix n n ℝ)ˣ := hM.isUnit.unit with hu_def
+  have hu_coe : (↑u : Matrix n n ℝ) = M := IsUnit.unit_spec hM.isUnit
+  -- HasFDerivAt for Ring.inverse at the unit.
+  have h_ring : HasFDerivAt (Ring.inverse : Matrix n n ℝ → Matrix n n ℝ)
+      (-ContinuousLinearMap.mulLeftRight ℝ (Matrix n n ℝ) ↑u⁻¹ ↑u⁻¹) (↑u : Matrix n n ℝ) :=
+    hasFDerivAt_ringInverse u
+  -- Bridge: `Matrix.inv = Ring.inverse` GLOBALLY (`nonsing_inv_eq_ringInverse`).
+  have h_func_eq : (fun A : Matrix n n ℝ => A⁻¹) = Ring.inverse := by
+    funext A
+    exact Matrix.nonsing_inv_eq_ringInverse (A := A)
+  -- Transfer the FDeriv along the function equality + restate at M = ↑u.
+  rw [h_func_eq, ← hu_coe]
+  exact ⟨_, h_ring⟩
 
 end Erdos524.Helpers
