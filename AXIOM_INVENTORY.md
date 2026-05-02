@@ -21,14 +21,17 @@ For the round-by-round status docs, see
 
 ## Track B status (parallel to R44 Track A — Mathlib re-verification round)
 
-* **Branch:** `track-b-r33cd-gaps` from `37c671f`. First parallel-pattern
-  test post-R43.
-* **Outcome:** axioms 5 → 5 (unchanged), sorries 13 → 13 (unchanged).
+* **Branch:** `track-b-r33cd-gaps` (created from `r33-c-helpers-consolidation`
+  at `6783d38`, after Track A's R44-T1.1 + R44-T2.2 commits had landed
+  on the parent branch — a non-conflicting interleaving since the two
+  tracks modify file-disjoint sets). First parallel-pattern test
+  post-R43.
+* **Track B contribution:** axioms 5 → 5 (unchanged), sorries
+  unchanged (Track A R44-T2.2 already retired the MGI Stub, 13 → 12).
   Three TAG'd sub-Stubs refreshed at the R33-C/D Mathlib-version-skew
   gaps (`Helpers/TwoDimKMTFromOneDim.lean:660`, `:943`, `524.lean:3920`)
   with re-verification stamps confirming the gaps stand at current
-  Mathlib HEAD. No Track A interference; merge surface limited to two
-  new docs + comment additions.
+  Mathlib HEAD.
 * **Calibration data:** brief over-estimated single-round closure
   feasibility for Mathlib-gap sorries (P(Full) actually ~0.05–0.20 per
   sorry, not 0.55–0.65). Apply 0.5× discount for Track C/D briefs.

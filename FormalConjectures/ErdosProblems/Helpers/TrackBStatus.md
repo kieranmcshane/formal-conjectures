@@ -1,11 +1,26 @@
 # Track B status — R33-C/D Mathlib gaps closure (parallel-pattern test)
 
 **Branch.** `track-b-r33cd-gaps`, base `r33-c-helpers-consolidation`
-HEAD `37c671f` (R43 V2 round 5 close, 2026-05-02).
+HEAD as observed at branch-creation; in practice, by the time Track B
+ran `git checkout -b`, Track A had advanced two commits past `37c671f`
+(R44-T1.1 audit `6cfe27e` and R44-T2.2 MGI body close `6783d38`).
+Track B work is built on top of Track A's `6783d38`. Files modified by
+the two tracks are disjoint:
+
+* Track A R44 commits: `Helpers/R44_T1_BodyCloseAudit.md` (new doc) and
+  `Helpers/MultivariateGaussianPdf.lean` (MGI body close).
+* Track B commits: `Helpers/TwoDimKMTFromOneDim.lean`, `524.lean`,
+  `AXIOM_INVENTORY.md`, plus two new docs (`TrackB_T1_R33cdGapsAudit.md`
+  and `TrackBStatus.md`).
+
+The interleaving is therefore **non-conflicting**: Track A advanced
+on its files, Track B advanced on different files, both visible
+in the linear history of `track-b-r33cd-gaps` after a clean
+fast-forward.
 
 **Track B HEAD at close.** This branch carries audit + three TAG
 diagnostic refreshes + this status doc; net axiom change 0, net sorry
-change 0.
+change 0 (relative to Track A's R44-T2.2 base).
 
 **Parallel pattern.** Track B runs in parallel to Track A (R44 MGE+MGI
 bodies + Phase 2 CDF differentiability on `r33-c-helpers-consolidation`
@@ -38,18 +53,20 @@ read-only-first audit pattern over optimistic per-sorry triage.
 
 ## 2. Net debt change
 
-* **Axioms:** 5 → 5 (unchanged).
-* **Sorries:** 13 → 13 (unchanged; three refreshed diagnostics).
-* **Track B branch state:** ready for merge into
-  `r33-c-helpers-consolidation` post-R44 Track A landing.
-* **Anticipated merge surface:** TrackBStatus.md (new) +
-  TrackB_T1_R33cdGapsAudit.md (new) + comment additions in two
-  existing files (no functional changes). Likely zero conflicts with
-  Track A R44 since Track A modifies different files
-  (`MultivariateGaussianPdf.lean`, `PhaseAUpperBound.lean`,
-  `MultivariateGaussianCDF.lean`); the only shared file is
-  `AXIOM_INVENTORY.md`, where Track B adds a small Track B section
-  (kept ≤ 30 lines, easy three-way merge).
+* **Axioms:** 5 → 5 (unchanged across both Track A R44-T1.1/T2.2 and
+  Track B).
+* **Sorries:** 13 → 12 (Track A R44-T2.2 MGI Stub retired; Track B
+  unchanged — three refreshed diagnostics). Track B's audit was
+  authored against the 13-sorry baseline; the actual final count
+  reflects R44-T2.2's contribution.
+* **Track B branch state:** ready for fast-forward merge into
+  `r33-c-helpers-consolidation` (currently at Track A's `6783d38`).
+* **Realised merge surface:** non-conflicting interleaving on the
+  branch tip. Files modified are entirely disjoint between the two
+  tracks; the only shared file is `AXIOM_INVENTORY.md`, where Track B
+  adds a small Track B section (≤30 lines) above Track A's R43
+  build-status block. R44 Track A has not yet edited
+  `AXIOM_INVENTORY.md`, so the Track B addition lands cleanly.
 
 ---
 
