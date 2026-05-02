@@ -164,5 +164,38 @@ theorem abs_log_factorial_sub_stirling_le {n : ℕ} (hn : 1 ≤ n) :
   rw [abs_of_nonneg hlog_lo]
   exact hlog_hi
 
+/-- **Robbins 1955 sharp upper bound.**
+
+For all `n ≥ 1`, `n! ≤ √(2π n) · (n/e)^n · exp(1/(12n))`.
+
+This is the *sharp* form of Stirling's upper bound: the constant `exp(1/(12n))` decays to `1`,
+matching the Mathlib lower bound `√(2π n) · (n/e)^n ≤ n!` asymptotically. The looser
+`factorial_le_stirling` above uses an absolute constant `exp 1 / √(2π) ≈ 1.0844` instead.
+
+Mathlib pin status (`mathlib4 @ 25ce633136`, verified TC6 T1.1): NOT formalised. Mathlib
+explicitly comments at `Mathlib/Analysis/SpecialFunctions/Stirling.lean:264, 280` that
+*"Sharper bounds due to Robbins are available, but are not yet formalised."*
+
+Closure recipe (TC7+ scope, ~120-200 LOC):
+* refine `stirlingSeq'_antitone` to a quantitative rate using monotonicity of the
+  log-correction `log(stirlingSeq n) - 1/(12n)` (standard Robbins technique),
+* alternatively, derive from the Mathlib log-form `le_log_factorial_stirling` plus
+  a Stirling-series remainder estimate of order `1/(12n)`.
+
+Used by TC7 Carter-Pollard polynomial bound assembly (the binomial-coefficient ratio
+`(n choose k) / 2^n` requires sharp Stirling on both `n!` and `k!(n-k)!`). -/
+theorem factorial_le_stirling_robbins {n : ℕ} (hn : 1 ≤ n) :
+    (n.factorial : ℝ) ≤ Real.sqrt (2 * Real.pi * n) * (n / Real.exp 1) ^ n *
+        Real.exp (1 / (12 * (n : ℝ))) := by
+  -- TAG[TrackC-Layer3-Stirling-robbins]: TC7+ close target.
+  -- See Mathlib comment at Stirling.lean:264, 280: "Sharper bounds due to Robbins
+  -- are available, but are not yet formalised."
+  -- Closure recipe (~120-200 LOC):
+  --   * Use `Stirling.stirlingSeq'_antitone` plus quantitative rate from log-correction
+  --     `log(stirlingSeq n) - 1/(12n)` (classical Robbins technique),
+  --   * OR derive from `Stirling.le_log_factorial_stirling` plus Stirling-series
+  --     remainder estimate of order `1/(12n)`.
+  sorry
+
 end Helpers
 end Erdos524

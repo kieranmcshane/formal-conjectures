@@ -16,6 +16,8 @@ limitations under the License.
 
 import Mathlib.Probability.Distributions.Gaussian.Real
 import Mathlib.MeasureTheory.Integral.Bochner.Set
+import Mathlib.MeasureTheory.Integral.IntegralEqImproper
+import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
 
 /-!
 # Mills ratio for the standard Gaussian (Track C round 5 infrastructure)
@@ -58,8 +60,8 @@ the Gaussian tail in the proof of Tusnády's polynomial inequality.
 
 namespace Erdos524.Helpers
 
-open MeasureTheory ProbabilityTheory
-open scoped Real
+open MeasureTheory ProbabilityTheory Filter
+open scoped Real Topology NNReal
 
 /-- **Standard-Gaussian Mills ratio.**
 
@@ -95,6 +97,100 @@ theorem gaussianMillsRatioReal_pos {x : ℝ} (_hx : 0 < x) :
   --   * div positivity from `gaussianPDFReal_pos 0 1 x`.
   sorry
 
+/-- **Closed form for the first moment of the standard Gaussian on `(x, ∞)`.**
+
+For all real `x`, `∫ t in Ioi x, t · gaussianPDFReal 0 1 t = gaussianPDFReal 0 1 x`.
+
+Standard fact via FTC-2: the function `t ↦ -gaussianPDFReal 0 1 t` has derivative
+`t ↦ t · gaussianPDFReal 0 1 t` and tends to `0` at `+∞`, so by
+`integral_Ioi_of_hasDerivAt_of_tendsto`:
+`∫ t in Ioi x, t · gaussianPDFReal 0 1 t = 0 - (-gaussianPDFReal 0 1 x) = gaussianPDFReal 0 1 x`. -/
+private lemma gaussianTailFirstMomentEq (x : ℝ) :
+    ∫ t in Set.Ioi x, t * gaussianPDFReal 0 1 t = gaussianPDFReal 0 1 x := by
+  set c : ℝ := (Real.sqrt (2 * Real.pi))⁻¹ with hc_def
+  have hc_nonneg : 0 ≤ c := by
+    rw [hc_def]; positivity
+  -- gaussianPDFReal 0 1 t = c * exp(-t^2/2)
+  have hpdf_unfold : ∀ t : ℝ, gaussianPDFReal 0 1 t = c * Real.exp (-t ^ 2 / 2) := by
+    intro t
+    show (Real.sqrt (2 * Real.pi * ((1 : ℝ≥0) : ℝ)))⁻¹ *
+         Real.exp (-(t - 0) ^ 2 / (2 * ((1 : ℝ≥0) : ℝ))) = c * Real.exp (-t ^ 2 / 2)
+    rw [hc_def, NNReal.coe_one]
+    ring_nf
+  -- Antiderivative-friendly form for F
+  let G : ℝ → ℝ := fun s => -(c * Real.exp (-s ^ 2 / 2))
+  have hF_eq : (fun t => -gaussianPDFReal 0 1 t) = G := by
+    funext s; show -gaussianPDFReal 0 1 s = -(c * Real.exp (-s ^ 2 / 2))
+    rw [hpdf_unfold s]
+  -- HasDerivAt for G
+  have hderivG : ∀ t : ℝ, HasDerivAt G (t * gaussianPDFReal 0 1 t) t := by
+    intro t
+    -- d/dt (s^2) = 2*t at t
+    have h_sq : HasDerivAt (fun s : ℝ => s ^ 2) (2 * t) t := by
+      simpa using hasDerivAt_pow 2 t
+    -- d/dt (-s^2) = -(2*t)
+    have h_negsq : HasDerivAt (fun s : ℝ => -s ^ 2) (-(2 * t)) t := h_sq.neg
+    -- d/dt (-s^2/2) = -(2*t)/2 = -t
+    have h_in : HasDerivAt (fun s : ℝ => -s ^ 2 / 2) (-t) t := by
+      have := h_negsq.div_const 2
+      have heq : -(2 * t) / 2 = -t := by ring
+      rw [heq] at this
+      exact this
+    -- d/dt exp(-s^2/2) = exp(-t^2/2) * (-t)
+    have h_exp : HasDerivAt (fun s : ℝ => Real.exp (-s ^ 2 / 2))
+        (Real.exp (-t ^ 2 / 2) * (-t)) t := h_in.exp
+    -- d/dt (c * exp(-s^2/2)) = c * (exp(-t^2/2) * (-t))
+    have h_cexp : HasDerivAt (fun s : ℝ => c * Real.exp (-s ^ 2 / 2))
+        (c * (Real.exp (-t ^ 2 / 2) * (-t))) t := h_exp.const_mul c
+    -- d/dt G(s) = -(c * (exp(-t^2/2) * (-t))) = c * t * exp(-t^2/2) = t * gaussianPDFReal 0 1 t
+    have h_neg : HasDerivAt G (-(c * (Real.exp (-t ^ 2 / 2) * (-t)))) t := h_cexp.neg
+    have hderiv_eq : -(c * (Real.exp (-t ^ 2 / 2) * (-t))) = t * gaussianPDFReal 0 1 t := by
+      rw [hpdf_unfold t]; ring
+    rw [← hderiv_eq]; exact h_neg
+  -- G → 0 at +∞
+  have hG_tendsto : Tendsto G atTop (nhds 0) := by
+    -- exp(-t²/2) → 0
+    have hexp_tendsto : Tendsto (fun t : ℝ => Real.exp (-t ^ 2 / 2)) atTop (nhds 0) := by
+      -- -t²/2 → -∞ at +∞
+      have h_sq_top : Tendsto (fun t : ℝ => t ^ 2) atTop atTop :=
+        tendsto_pow_atTop (by norm_num : 2 ≠ 0)
+      -- -t²/2 = (-(1/2)) * t², and (-(1/2)) < 0 so const_mul_atTop_of_neg
+      have h_neg_half_sq : Tendsto (fun t : ℝ => -(1 / 2 : ℝ) * t ^ 2) atTop atBot :=
+        h_sq_top.const_mul_atTop_of_neg (by norm_num : -(1 / 2 : ℝ) < 0)
+      have heq : (fun t : ℝ => -(1 / 2 : ℝ) * t ^ 2) = (fun t : ℝ => -t ^ 2 / 2) := by
+        funext t; ring
+      rw [heq] at h_neg_half_sq
+      exact Real.tendsto_exp_atBot.comp h_neg_half_sq
+    have h_c_exp : Tendsto (fun t : ℝ => c * Real.exp (-t ^ 2 / 2)) atTop (nhds (c * 0)) :=
+      hexp_tendsto.const_mul c
+    have h_neg : Tendsto G atTop (nhds (-(c * 0))) := h_c_exp.neg
+    simpa using h_neg
+  -- Integrability of t * gaussianPDFReal 0 1 t on Ioi x
+  have hint_full : Integrable (fun t : ℝ => t * gaussianPDFReal 0 1 t) := by
+    have h1 : Integrable (fun t : ℝ => t * Real.exp (-(1 / 2 : ℝ) * t ^ 2)) :=
+      integrable_mul_exp_neg_mul_sq (by norm_num : (0 : ℝ) < 1 / 2)
+    have h2 : Integrable (fun t : ℝ => c * (t * Real.exp (-(1 / 2 : ℝ) * t ^ 2))) :=
+      h1.const_mul c
+    apply h2.congr
+    filter_upwards with t
+    rw [hpdf_unfold t]
+    have hexp_eq : Real.exp (-(1 / 2 : ℝ) * t ^ 2) = Real.exp (-t ^ 2 / 2) := by
+      congr 1; ring
+    rw [hexp_eq]; ring
+  have hint : IntegrableOn (fun t : ℝ => t * gaussianPDFReal 0 1 t) (Set.Ioi x) :=
+    hint_full.integrableOn
+  -- Apply FTC-2 with G as antiderivative
+  have hcont : ContinuousWithinAt G (Set.Ici x) x :=
+    (hderivG x).continuousAt.continuousWithinAt
+  have hres :=
+    integral_Ioi_of_hasDerivAt_of_tendsto hcont
+      (fun t _ => hderivG t) hint hG_tendsto
+  -- hres : ∫ t in Ioi x, t * gaussianPDFReal 0 1 t = 0 - G x
+  rw [hres]
+  show 0 - G x = gaussianPDFReal 0 1 x
+  show 0 - (-(c * Real.exp (-x ^ 2 / 2))) = gaussianPDFReal 0 1 x
+  rw [hpdf_unfold x]; ring
+
 /-- **Classical Mills truncation bound.**
 
 For `x > 0`, `gaussianMillsRatioReal x ≤ 1 / x`. Equivalently,
@@ -102,22 +198,49 @@ For `x > 0`, `gaussianMillsRatioReal x ≤ 1 / x`. Equivalently,
 `e^{-t²/2} ≤ (t/x) e^{-t²/2}` for `t ≥ x` (since `1 ≤ t/x`),
 then `∫_x^∞ (t/x) e^{-t²/2} dt = (1/x) [-e^{-t²/2}]_x^∞ = e^{-x²/2}/x`,
 divided through by `√(2π) · φ(x) = e^{-x²/2}` gives the claim. -/
-theorem gaussianMillsRatioReal_truncation {x : ℝ} (_hx : 0 < x) :
+theorem gaussianMillsRatioReal_truncation {x : ℝ} (hx : 0 < x) :
     gaussianMillsRatioReal x ≤ 1 / x := by
-  -- TAG[TrackC-Layer3-Mills-truncation]: TC6+ close target.
-  -- Closure recipe (~40-60 LOC):
-  --   * pointwise `gaussianPDFReal 0 1 t ≤ (t / x) * gaussianPDFReal 0 1 t`
-  --     for `t ≥ x` (follows from `1 ≤ t/x` and pdf-nonneg),
-  --   * monotonicity of `setIntegral` on `Ioi x` to lift pointwise to
-  --     integral inequality,
-  --   * exact evaluation of `∫ t in Ioi x, t * exp (-t²/2)` via the
-  --     antiderivative `t ↦ -exp(-t²/2)`, requires
-  --     `MeasureTheory.integral_Ioi_of_hasDerivAt_of_tendsto`
-  --     or analogous Mathlib API.
-  -- Mathlib pin gap: explicit `setIntegral_exp_neg_sq_div_self_Ioi` not
-  -- packaged. Either prove inline (~20-30 LOC) or extract via
-  -- `integral_exp_neg_sq` family + change of variables.
-  sorry
+  have hφx_pos : 0 < gaussianPDFReal 0 1 x :=
+    gaussianPDFReal_pos 0 1 x (by norm_num)
+  -- Integrability of pdf and t*pdf on Ioi x
+  have hint_φ : IntegrableOn (gaussianPDFReal 0 1) (Set.Ioi x) :=
+    (integrable_gaussianPDFReal 0 1).integrableOn
+  have hint_xφ : IntegrableOn (fun t : ℝ => x * gaussianPDFReal 0 1 t)
+      (Set.Ioi x) :=
+    hint_φ.const_mul x
+  have hint_tφ : IntegrableOn (fun t : ℝ => t * gaussianPDFReal 0 1 t)
+      (Set.Ioi x) := by
+    have h1 : Integrable (fun t : ℝ => t * Real.exp (-(1 / 2 : ℝ) * t ^ 2)) :=
+      integrable_mul_exp_neg_mul_sq (by norm_num : (0 : ℝ) < 1 / 2)
+    have h2 : Integrable (fun t : ℝ => (Real.sqrt (2 * Real.pi))⁻¹ *
+        (t * Real.exp (-(1 / 2 : ℝ) * t ^ 2))) := h1.const_mul _
+    have hfull : Integrable (fun t : ℝ => t * gaussianPDFReal 0 1 t) := by
+      apply h2.congr
+      filter_upwards with t
+      show (Real.sqrt (2 * Real.pi))⁻¹ * (t * Real.exp (-(1 / 2 : ℝ) * t ^ 2)) =
+           t * gaussianPDFReal 0 1 t
+      show (Real.sqrt (2 * Real.pi))⁻¹ * (t * Real.exp (-(1 / 2 : ℝ) * t ^ 2)) =
+           t * ((Real.sqrt (2 * Real.pi * ((1 : ℝ≥0) : ℝ)))⁻¹ *
+                Real.exp (-(t - 0) ^ 2 / (2 * ((1 : ℝ≥0) : ℝ))))
+      rw [NNReal.coe_one]
+      ring_nf
+    exact hfull.integrableOn
+  -- Pointwise: x * φ t ≤ t * φ t for t ∈ Ioi x
+  have hpw : ∀ t ∈ Set.Ioi x, x * gaussianPDFReal 0 1 t ≤ t * gaussianPDFReal 0 1 t := by
+    intro t ht
+    have ht' : x ≤ t := le_of_lt ht
+    exact mul_le_mul_of_nonneg_right ht' (gaussianPDFReal_nonneg 0 1 t)
+  -- Lift to integral
+  have hmono : ∫ t in Set.Ioi x, x * gaussianPDFReal 0 1 t ≤
+               ∫ t in Set.Ioi x, t * gaussianPDFReal 0 1 t :=
+    setIntegral_mono_on hint_xφ hint_tφ measurableSet_Ioi hpw
+  -- Pull constant + use moment identity
+  rw [integral_const_mul, gaussianTailFirstMomentEq] at hmono
+  -- hmono : x * (∫ t in Ioi x, gaussianPDFReal 0 1 t) ≤ gaussianPDFReal 0 1 x
+  -- Goal: gaussianMillsRatioReal x ≤ 1 / x
+  unfold gaussianMillsRatioReal
+  rw [div_le_div_iff₀ hφx_pos hx]
+  linarith
 
 /-- **Monotonicity of the Mills ratio on `(0, ∞)`.**
 

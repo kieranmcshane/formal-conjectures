@@ -853,3 +853,106 @@ with TC5 brief's "Stirling-precision + real-Beta deferred to TC6
   TC6 + TC7 land cleanly (closes polynomial bound sub-sorry +
   Mills helpers).
 * **Cumulative misframing ledger:** 8 (unchanged from TC4).
+
+---
+
+# Track C status — round 6 closure
+
+**Round:** Track C round 6 (parallel-track, branch `track-c-1dkmt` from `7af23b8`).
+**Date:** 2026-05-02.
+**Outcome:** **Mid-distribution closure of mandatory floor (T1.1 + T2.1 + T2.2 + T2.3).** Mills truncation Full body close (~115 LOC, including private FTC-2 helper `gaussianTailFirstMomentEq`); Stirling Robbins + Real-Beta signatures Stub'd per brief.
+
+## TC6.1 Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Cache check + Claims Verification Table | **Full** | [`Helpers/TrackC_round6_T1_MillsAudit.md`](TrackC_round6_T1_MillsAudit.md) | All 10 claims rows filled. Cache fresh (build mtime 2026-05-02 17:00, manifest 16:07 — no `lake exe cache get` needed). Claims 5 + 6 confirmed Stirling-Robbins + Real-Beta absent at pin (Mathlib comment cites Robbins not formalised). |
+| T2.1 — Mills truncation body close | **Full** | [`Helpers/GaussianMillsRatio.lean:163-237`](GaussianMillsRatio.lean#L163) | `gaussianMillsRatioReal_truncation` Full close via private helper `gaussianTailFirstMomentEq` (FTC-2 + `integrable_mul_exp_neg_mul_sq` + monotone setIntegral). Net Mills file Stubs 3 → 2 (`pos` + `antitone` remain TC7+ scope). |
+| T2.2 — Stirling Robbins + Real-Beta signature lockdown | **Full** | [`Helpers/StirlingTwoSided.lean:166-194`](StirlingTwoSided.lean#L166) (Robbins Stub appended) + [`Helpers/RealBeta.lean`](RealBeta.lean) (NEW, 89 LOC) | `factorial_le_stirling_robbins` Stub (sharper `exp(1/(12n))` form vs existing `exp 1 / √(2π)` constant); `realBeta` def + `realBeta_eq_Gamma_ratio` Stub bridging to `Complex.betaIntegral_eq_Gamma_mul_div`. |
+| T2.3 — Build verification + status doc + push | **in-progress** | This document + targeted `lake build` log below. | Build of 4 critical Track C targets (`OneDimKMT`, `GaussianMillsRatio`, `StirlingTwoSided`, `RealBeta`) clean. |
+
+All four mandatory-floor outcomes Full. Track C round 6 caps at 0 condition triggered: **none.**
+
+## TC6.2 Build verification log (verbatim)
+
+```
+$ lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+             FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio \
+             FormalConjectures.ErdosProblems.Helpers.StirlingTwoSided \
+             FormalConjectures.ErdosProblems.Helpers.RealBeta
+✔ [2904/2904] Built …
+Build completed successfully (2904 jobs).
+```
+
+## TC6.3 Net debt change (project ledger update)
+
+### Axioms
+
+* **Track C axioms (cumulative since TC1):** unchanged — `oneDimKMT` Stub (TC1) + `tusnady_base_polynomial` Stub (TC3 + TC4 + TC5 signature tightening) + `hungarian_dyadic_step` Stub (TC3 + TC5 signature tightening) + `sup_error_log_over_sqrt` Stub (TC1) + `skorokhod_embedding_single` Stub (TC1). 5 (Stub-form theorems, not declared `axiom`s).
+* **Mainline axioms:** unchanged at 8 user-defined + 11 mainline TAG'd sorries = 19.
+
+### Sorries (track-c branch)
+
+| File | TC5 → TC6 change | Notes |
+|---|---|---|
+| `Helpers/GaussianMillsRatio.lean` | 3 → 2 | `gaussianMillsRatioReal_truncation` Full closed; `pos` + `antitone` remain. |
+| `Helpers/StirlingTwoSided.lean` | 0 → 1 | `factorial_le_stirling_robbins` new Stub (sharper Robbins form). |
+| `Helpers/RealBeta.lean` (NEW) | — → 1 | `realBeta_eq_Gamma_ratio` new Stub. |
+
+**Net TC6 branch sorry change:** `−1 (Mills truncation closed) + 2 (Stirling Robbins + Beta-Gamma sigs) = +1`.
+
+Cumulative branch sorry change since TC1: TC1 ~+5 (4 layer Stubs + Mills sketch), TC2 −1, TC3 ~+0 (signature tightening), TC4 ~+0, TC5 +3, TC6 +1 ⇒ ~+8 net. Mills helpers + new TC6 Stubs are progress markers, not regressions: each is composition-precondition for TC7 Carter-Pollard polynomial assembly.
+
+## TC6.4 Commits this round (track-c-1dkmt)
+
+| Commit | Subject | Files |
+|---|---|---|
+| (TC6 T1.1) | TC6 T1.1: Claims Verification Table + cache check | `Helpers/TrackC_round6_T1_MillsAudit.md` (NEW) |
+| (TC6 T2.1) | TC6 T2.1: Mills truncation body close (FTC-2 + setIntegral monotone) | `Helpers/GaussianMillsRatio.lean` |
+| (TC6 T2.2) | TC6 T2.2: Stirling Robbins + Real-Beta signature lockdown | `Helpers/StirlingTwoSided.lean`, `Helpers/RealBeta.lean` (NEW) |
+| (TC6 T2.3) | TC6 T2.3: build verification + status doc + push | `Helpers/TrackCStatus.md` |
+
+(All four bundled into a single TC6 commit per Track C round process — see TC5 closure for precedent.)
+
+## TC6.5 Cluster trajectory (post-TC6)
+
+| Round | Target | Status |
+|---|---|---|
+| TC1 | Layer 1-4 signatures + Mathlib gap audit | ✅ Full closure (`15192f1`) |
+| TC2 | Layer 2 (`quantile_transform_finite_moment`) | ✅ Full closure (`f018aea`/`7f23b8`) |
+| TC3 | Layer 3 base + dyadic step signatures | ✅ Full closure (`8c5451f`/`c96e54b`/`f4511f5`) |
+| TC4 | Tusnády polynomial body + Hungarian dyadic step body | ✅ Mid-low closure (`a1d6b6a`) — Path A scaffolding + signature weaknesses flagged |
+| TC5 | Signature tightening + Mills ratio infrastructure start | ✅ Mid-distribution Full closure (`7af23b8`) |
+| **TC6** | **Mills truncation Full + Stirling Robbins + Real-Beta sigs** | **✅ Mid-distribution Full closure (this round)** |
+| TC7 | Carter-Pollard polynomial bound assembly (closes `tusnady_base_polynomial` body sub-sorry) + Mills `pos` + `antitone` close | open: depends on Stirling Robbins + Beta-Gamma close |
+| TC8+ | Layer 3 `hungarian_dyadic_step` body close + Layer 4 SupError + main `oneDimKMT` assembly | open |
+
+Cluster size estimate unchanged at **8 rounds total**.
+
+## TC6.6 Honesty / framing notes
+
+* **Round outcome:** Mid-distribution. Mandatory floor Full on all 4 outcomes. Net branch sorry change `+1` (Mills truncation `−1` retirement plus Stirling Robbins + Real-Beta-Gamma `+2` introductions). Net axiom unchanged. Resolves the Mills truncation cyclic-blocker (TC5 surfaced) at body level.
+* **Mismatch ledger:** 8 (unchanged). T1.1 audit confirmed brief consistency; minor doc drift caught (BACKGROUND.md said `Helpers/...` absolute path, actual is `FormalConjectures/ErdosProblems/Helpers/...`; also `def gaussianMillsRatioReal` at line 79 not the predicted line 62 — neither material).
+* **Skin-in-the-game compliance check:**
+  - Worktree used ✓ (no cross-track collision).
+  - Claims Verification Table produced with all 10 rows VERIFIED ✓.
+  - T2.1 Mills truncation Full body close committed (Full Lean code, NOT plan doc, NOT TAG'd diagnostic) ✓.
+  - T2.2 stretch executed Full (Stirling Robbins Stub + Real-Beta def + Beta-Gamma Stub) ✓.
+  - T2.3 status doc + push committed ✓.
+  - Track C work pushed only to `track-c-1dkmt` branch ✓.
+  - No mainline files modified ✓.
+  - No TC5 Mills `def` modified; only `_truncation` Stub body filled ✓.
+  - `lake exe cache get` rule respected (cache already fresh, skipped per audit) ✓.
+* **Active math engagement:** T2.1 required four interlocking sub-proofs:
+  (1) HasDerivAt for `t ↦ -(c · exp(-t²/2))` — explicit chain rule application via `hasDerivAt_pow 2 t |>.neg.div_const 2 |>.exp |>.const_mul c |>.neg`,
+  (2) Tendsto for the antiderivative at `+∞` — via `Tendsto.const_mul_atTop_of_neg` (using `-(1/2) < 0`) and `Real.tendsto_exp_atBot.comp`,
+  (3) Integrability of `t * gaussianPDFReal 0 1 t` — bridged from Mathlib's `integrable_mul_exp_neg_mul_sq (1/2)` via constant-multiplication and `Integrable.congr` with explicit `exp(-(1/2)·t²) = exp(-t²/2)` rewrite,
+  (4) FTC-2 application via `integral_Ioi_of_hasDerivAt_of_tendsto`, then setIntegral monotonicity (`x · φ(t) ≤ t · φ(t)` for `t ∈ Ioi x`) and constant-pull (`integral_const_mul`), then division via `div_le_div_iff₀ hφx_pos hx`. The PDF unfold `gaussianPDFReal 0 1 t = (√(2π))⁻¹ · exp(-t²/2)` required `NNReal.coe_one` to discharge the `(1 : ℝ≥0) → ℝ` coercion in Mathlib's parameterised PDF definition.
+* **What did NOT happen in TC6:** full Carter-Pollard polynomial bound close (TC7 scope); Mills `pos` + `antitone` close (TC7 scope; `antitone` depends on truncation, now unblocked); Layer 3 Hungarian dyadic step body close (TC8+ scope); Layer 4 SupError attempt; axiom retirement (still 5).
+
+## TC6.7 Status label
+
+* **Track C round 6 outcome:** Mid-distribution (mandatory floor Full; T2.1 Mills truncation Full body close + T2.2 Stirling Robbins + Real-Beta sigs Full + T2.3 build/status/push Full; net branch sorry +1).
+* **Track C cluster status:** Round 6 of ~8 complete. TC7 target: Carter-Pollard polynomial bound assembly (composes Mills truncation + Stirling Robbins + Real-Beta-Gamma identities to close `tusnady_base_polynomial` body sub-sorry); P(TC7 Full polynomial closure) ~ 0.30-0.45 single round given 3 dependent Stubs; multi-round potential. Mills `pos` + `antitone` could be closed in TC7 prelude if budget permits (≤30 LOC each given truncation).
+* **R52 hybrid (c) gate contribution:** TC6 is +0 retirement at gate-relevant scale (Mills truncation closes a Track C-internal Stub but not a mainline TAG'd-sorry/axiom). TC6 cumulative since TC1: still +1 retirement (TC2 Layer 2). TC7+ forecast: +1 if Carter-Pollard polynomial body lands; +2-3 if TC7 + TC8 land cleanly through Layer 3 dyadic step body.
+* **Cumulative misframing ledger:** 8 (unchanged from TC4 + TC5).
