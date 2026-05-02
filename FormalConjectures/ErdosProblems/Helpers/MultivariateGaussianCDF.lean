@@ -162,40 +162,79 @@ theorem multivariateGaussianOrthantCDF_differentiable_wrt_covariance
     DifferentiableAt ℝ
       (fun S : Matrix ι ι ℝ => multivariateGaussianOrthantCDF S x) S₀ := by
   -- TAG[R35-T2.1-mathlib-gap-density] : missing density + det.diff + inv.diff
-  -- See R35_T1_DiffLemmaAudit.md sections 3, 4, 5 for the three concrete
-  -- Mathlib API gaps and the tried alternatives.
   --
-  -- **R41-T1.1 audit refinement.** Path B per Grok R41 pre-flight Q2 ("chain
-  -- on R40 Stubs as axiom-equivalent") is *partially* applicable: the R40
-  -- stubs `Matrix.det.hasFDerivAt`, `Matrix.det.differentiable`, and
-  -- `Matrix.PosDef.inv_hasFDerivAt` are real signatures and compose cleanly.
-  -- HOWEVER, the R40-T2.3 stubs `multivariateGaussian_eq_lebesgue_withDensity`
-  -- (MGE) and `multivariateGaussianOrthantCDF_eq_lebesgue_integral` (MGI) are
-  -- `True := by trivial` placeholders, NOT real signatures. The diff-under-
-  -- integral closure step requires MGI as a black-box rewrite to recast
-  -- `multivariateGaussianOrthantCDF S x = ∫_{orthant} pdf(z; S) dz`; with
-  -- MGI = True, that rewrite is impossible. R41-T1.1 audit
-  -- (`R41_T1_ChainCompositionAudit.md`) documents this gap in detail.
+  -- **R45-T2.1/T2.2 audit-aligned skeleton (Path γ per Grok R45 Q4).**
+  -- R44 retired the MGI Stub Full
+  -- (`MultivariateGaussianPdf.lean:278` —
+  -- `multivariateGaussianOrthantCDF_eq_lebesgue_integral`), so the rewrite
+  -- of the orthant CDF to a Lebesgue integral is now executable. The
+  -- single `sorry` here remains; this round (R45) advances the diagnostic
+  -- quality of the residual without inflating the sorry count, per the
+  -- R45-T1.1 framing-verification audit's revised cost estimate (~400-600
+  -- LOC for full body close, NOT Grok Q4's ~300-350 LOC).
   --
-  -- **Closure prerequisites (R42 work):**
+  -- **Path γ skeleton (executable on R44+R41 chain, sub-residuals named):**
   --
-  --   (P1) MGE `True` → real signature: `multivariateGaussian 0 S` admits
-  --        `multivariateGaussianPdf S` as Lebesgue density (modulo the
-  --        EuclideanSpace ↔ ι → ℝ identification). ~50 LOC.
-  --   (P2) MGI `True` → real signature: orthantCDF S x equals the Lebesgue
-  --        integral of `multivariateGaussianPdf S` over `orthant x`. ~30 LOC.
-  --   (P3) `Matrix.det.hasFDerivAt` Stub → Full body. ~150-300 LOC (R40-T2.1
-  --        cofactor route). Currently chainable as black-box.
+  --   (i) MGI rewrite — POST-R44 EXECUTABLE.
+  --       `multivariateGaussianOrthantCDF S x =
+  --          ∫ y in orthant x, multivariateGaussianPdf S (fun i => y i)`
+  --       via `MultivariateGaussianPdf.multivariateGaussianOrthantCDF_eq_lebesgue_integral`.
+  --       Transferred across `S` via `EventuallyEq` on a PosDef
+  --       neighborhood — see sub-gap (A) below for the missing
+  --       `Matrix.PosDef.isOpen` step.
   --
-  -- **Closure body proof (R42 scope, ~400-700 LOC after P1+P2):**
+  --   (ii) Diff-under-integral — APPLY
+  --        `MeasureTheory.hasFDerivAt_integral_of_dominated_loc_of_lip`
+  --        (Mathlib `Analysis/Calculus/ParametricIntegral.lean:164`).
   --
-  --   (i)   Rewrite orthant CDF via MGI: orthantCDF S x = ∫_{orthant x} pdf(z; S) dz.
-  --   (ii)  Pointwise smoothness of (S, z) ↦ pdf(z; S) via Matrix.det.diff +
-  --         Matrix.PosDef.inv_hasFDerivAt + Real.exp.differentiable.
-  --   (iii) Diff-under-integral via Lebesgue dominated convergence with a
-  --         Σ-uniform integrable dominator on the orthant region.
-  --   (iv)  Verify S.PosDef stays in an open neighborhood of S₀ (det > 0
-  --         is open + Hermitian is closed + PSD-cone interior).
+  --   (iii) Integrand pointwise differentiability —
+  --        `S ↦ multivariateGaussianPdf S y` is differentiable at `S₀.PosDef`
+  --        for every `y`, by chain rule on the closed-form formula:
+  --          * `Matrix.det.differentiable` — R40 Stub @ line 149,
+  --            chainable as black box.
+  --          * `Matrix.PosDef.inv_hasFDerivAt` — R41 Full @ line 200.
+  --          * `Real.sqrt` differentiability at positive args
+  --            (`Mathlib/Analysis/SpecialFunctions/Sqrt.lean:68`).
+  --          * `differentiableAt_inv` for `(S.det)⁻¹` at `S₀.det > 0`
+  --            (`Mathlib/Analysis/Calculus/FDeriv/Mul.lean:804`).
+  --          * `Real.exp.differentiable` (Mathlib).
+  --          * Bilinear continuity for `y ⬝ᵥ S⁻¹ *ᵥ y`.
+  --        Estimated ~80-150 LOC. Concretely chainable post-R41.
+  --
+  --   (iv) Three engineering sub-gaps (load-bearing residual):
+  --
+  --        (A) `Matrix.PosDef.isOpen` — needed for transferring
+  --            `multivariateGaussianOrthantCDF S x = ∫ ...` across `S`
+  --            in a neighborhood of `S₀`. Mathlib has
+  --            `Matrix.PosDef.det_pos` but not the open-set predicate.
+  --            Closure: `det > 0` continuous + Hermitian closed + PSD
+  --            interior. ~30-80 LOC.
+  --
+  --        (B) Integrability of `multivariateGaussianPdf S` on `orthant x`.
+  --            Mathlib has `IsGaussian.integrable_id` for the abstract
+  --            multivariate Gaussian but not the closed-form PDF
+  --            integrability. Closure: explicit Gaussian-tail bound
+  --            (`exp(-c·‖y‖²)` for `c > 0` from PosDef-inverse positive
+  --            spectrum) + `Integrable.exp_neg_quadratic`. ~50-100 LOC.
+  --
+  --        (C) **Load-bearing.** `LipschitzOnWith` on `S ↦ pdf S y` over
+  --            a PosDef neighborhood, with **integrable** Lipschitz
+  --            envelope. Requires explicit Fréchet derivative formula
+  --            chain (sub-gap iii) + uniform Gaussian-tail bound on the
+  --            derivative norm. ~150-300 LOC alone — the dominant
+  --            engineering cost of the full Phase 2 body close.
+  --
+  -- **Combined R45-T1.1 cost estimate**: ~400-600 LOC for full body
+  -- close. Single-round full close is high-risk (P~0.30 per audit);
+  -- this round preserves the single TAG'd Stub with diagnostic-quality
+  -- enhancement (P~0.65 mid-distribution outcome).
+  --
+  -- See `Helpers/R45_T1_FramingVerificationAudit.md` §4-§5 for the
+  -- full Mathlib API verification + sub-gap LOC decomposition + R45
+  -- outcome distribution. The R44 status doc
+  -- (`Helpers/PhaseV2R44Status.md`) recorded MGI Full close;
+  -- `Helpers/PhaseV2R45Status.md` (this round) records the Phase 2
+  -- diagnostic-quality advance with the sorry preserved.
   sorry
 
 /-! ## Entry-wise partial-derivative formula (R36+ scope, signature here for
