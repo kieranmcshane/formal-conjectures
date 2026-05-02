@@ -139,40 +139,53 @@ upstream proof effort: the sorry body has the same intrinsic difficulty
 either way (Herbst + Lipschitz-sup + integrability, all derivable from
 sub-lemmas 1–2 once those are closed).
 
-**Status (round 3).** TAG'd `TrackD-LipschitzSup`. **TD3 abort per
-binding discipline rule.** Local-Claude T1.1 semantic verification
-caught two breaking semantic mismatches between Grok's TD3 Q1
-Route-(b) recipe (SLT external import + adaptation) and the actual
-state of the SLT repo (`YuanheZ/lean-stat-learning-theory` @ tree
-`4aaea155`); see `Helpers/TrackD_round3_T1_SemanticVerificationAudit.md`
-(T1.1 audit, ~210 lines).
+**Status (round 3).** TAG'd `TrackD-LipschitzSup`. **TD3 closure
+attempt aborted at lake-build stage** after corrected-target
+re-routing per user pivot (M1 license demoted as academic-research
+norm; T2.1 retargeted from `gaussian_lipschitz_concentration` to
+`lipschitz_cgf_bound`). The aborted experiment is documented below
+along with the four mismatches surfaced by T1.1 + T2.1 attempts; see
+`Helpers/TrackD_round3_T1_SemanticVerificationAudit.md` (T1.1 audit)
+and `Helpers/TrackDStatus.md` TD3 addendum (T2.3 build log) for the
+full record.
 
-* **M1 (license, BREAKING).** SLT repo has no `LICENSE` file
-  (GitHub API: `license: null`; tree-listing: file absent,
-  `truncated: false`). Per-file headers assert Apache-2.0 referencing
-  the missing LICENSE — internally inconsistent. Vendoring or
-  transitive Lake dependency creates a license-compliance risk for
-  FormalConjectures (Apache-2.0 with LICENSE present). User decision
-  required. Grok asserted MIT.
-* **M2 (theorem-form, secondary).** SLT
+* **M1 (license, demoted).** SLT repo has no `LICENSE` file (GitHub
+  API: `license: null`; tree-listing: file absent). Per-file headers
+  assert Apache-2.0 referencing the missing LICENSE. User-acknowledged
+  academic-research-formalization norm — proceed with intent clear.
+* **M2 (theorem-form, addressed).** SLT
   `gaussian_lipschitz_concentration` (line 1301 of
   `SLT/GaussianLipConcen.lean`) returns a direct tail bound
   `(stdGaussianE n {x | t ≤ |f x − ∫ y, f y ∂μ|}).toReal ≤
-  2 · exp(−t²/(2 L²))`, NOT a `HasSubgaussianMGF` wrapper. The right
-  SLT target for adapting to this signature is
-  `lipschitz_cgf_bound` (line 1209) + `lipschitz_exp_centered_integrable_E`
-  (line 1229): the CGF inequality plus the integrability lemma can
-  be packaged into `HasSubgaussianMGF`. Grok cited the wrong
-  theorem within SLT.
-* **M3 (mathlib pin).** SLT `lakefile.lean` requires mathlib from
-  floating `master`; lake-manifest captured `d68c4dc0`. Project pin
-  is `25ce63313608`. SLT-as-dependency would inherit drift risk over
-  the master delta.
+  2 · exp(−t²/(2 L²))`, NOT a `HasSubgaussianMGF` wrapper. The
+  corrected target is `lipschitz_cgf_bound` (line 1209) + the
+  companion `lipschitz_exp_centered_integrable_E` (line 1229): CGF
+  inequality + integrability package into `HasSubgaussianMGF` via
+  Mathlib's structure constructor. Grok cited the wrong theorem
+  within SLT; user pivot installed the correction.
+* **M3 (mathlib pin, BREAKING — promoted from minor).** SLT
+  `lakefile.lean` requires `mathlib` from floating `master`;
+  lake-manifest captured `d68c4dc0`. Project pin is `25ce63313608`.
+  TD3 T2.1 lake-add experiment (commit reverted) proved drift hard:
+  `lake build SLT.GaussianLipConcen` failed because
+  `SLT.GaussianPoincare.LevyContinuity` imports
+  `Mathlib.MeasureTheory.Measure.Prokhorov`, **a file that does not
+  exist in our pin** (added to mathlib master between `25ce63313608`
+  and `d68c4dc0`). Cascading failures: LevyContinuity → Limit →
+  BernoulliLSI → OneDimGLSICompSmo → OneDimGLSI → TensorizedGLSI →
+  GaussianLipConcen. Cherry-pick path requires vendoring Prokhorov
+  + 5000+ LOC of SLT infrastructure — out of TD3 scope. TD4 paths:
+  (a) project mathlib pin bump (project-wide retest cost), or
+  (b) Mathlib-only from-scratch closure via Bakry-Émery / OU
+  semigroup (original TD3-TD4 fallback).
 * **M4 (predicate degeneracy).** `IsCenteredGaussianProcess.joint_gaussian`
-  field above is `True` (round-1 placeholder). A genuine Cholesky
-  adapter requires strengthening this predicate (~100 LOC of
-  joint-Gaussian content) so the matrix square root of the covariance
-  pushes `stdGaussianE` to the marginal law of `X`.
+  field above is `True` (round-1 placeholder). Even with M3 cleared,
+  a genuine Cholesky adapter requires strengthening this predicate
+  (~100 LOC of joint-Gaussian content via `HasGaussianLaw` from
+  Mathlib `Probability/Distributions/Gaussian/Basic.lean:45` or via
+  `BrownianMotion.Gaussian.IsGaussianProcess`) so that the matrix
+  square root of the covariance pushes `stdGaussianE` to the marginal
+  law of `X`.
 
 **Mathlib-only path (no SLT) preserves the original TD4-TD5
 projection** (close `gaussian_log_sobolev_real` at TD4 then iterate

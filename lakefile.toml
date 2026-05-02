@@ -36,6 +36,19 @@ name = "kolmogorov_extension4"
 git = "https://github.com/RemyDegenne/kolmogorov_extension4"
 rev = "2c2b44e55251"
 
+# TD3 (R51 round 3) experiment: SLT lake-add was attempted with the
+# corrected lipschitz_cgf_bound target. Build failed at
+# SLT.GaussianPoincare.LevyContinuity, which imports
+# Mathlib.MeasureTheory.Measure.Prokhorov — a file that does not exist
+# in our pin (25ce63313608). Cascading failures hit BernoulliLSI →
+# OneDimGLSICompSmo → OneDimGLSI → TensorizedGLSI → GaussianLipConcen.
+# Cherry-pick path requires vendoring Prokhorov + 5000+ LOC of SLT
+# infrastructure — out of TD3 scope. Lake-add reverted; TD4 needs
+# either a mathlib pin bump (project-wide retest) or a Mathlib-only
+# from-scratch closure of sub-lemma 3 via Bakry-Émery / OU semigroup.
+# See Helpers/TrackD_round3_T1_SemanticVerificationAudit.md and
+# Helpers/TrackDStatus.md TD3 addendum for the full experiment log.
+
 # We make this a separate library so that we can apply different lean options.
 [[lean_lib]]
 name = "FormalConjecturesForMathlib"
