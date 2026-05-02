@@ -200,8 +200,77 @@ upstream proof effort: the sorry body has the same intrinsic difficulty
 either way (Herbst + Lipschitz-sup + integrability, all derivable from
 sub-lemmas 1–2 once those are closed).
 
-**Status.** TAG'd `TrackD-LipschitzSup` — TD4-TD5 closure target. Largely
-bookkeeping once Sub-lemmas 1–2 are in scope.
+**Status (round 3).** TAG'd `TrackD-LipschitzSup`. **TD3 abort per
+binding discipline rule.** Local-Claude T1.1 semantic verification
+caught two breaking semantic mismatches between Grok's TD3 Q1
+Route-(b) recipe (SLT external import + adaptation) and the actual
+state of the SLT repo (`YuanheZ/lean-stat-learning-theory` @ tree
+`4aaea155`); see `Helpers/TrackD_round3_T1_SemanticVerificationAudit.md`
+(T1.1 audit, ~210 lines).
+
+* **M1 (license, BREAKING).** SLT repo has no `LICENSE` file
+  (GitHub API: `license: null`; tree-listing: file absent,
+  `truncated: false`). Per-file headers assert Apache-2.0 referencing
+  the missing LICENSE — internally inconsistent. Vendoring or
+  transitive Lake dependency creates a license-compliance risk for
+  FormalConjectures (Apache-2.0 with LICENSE present). User decision
+  required. Grok asserted MIT.
+* **M2 (theorem-form, secondary).** SLT
+  `gaussian_lipschitz_concentration` (line 1301 of
+  `SLT/GaussianLipConcen.lean`) returns a direct tail bound
+  `(stdGaussianE n {x | t ≤ |f x − ∫ y, f y ∂μ|}).toReal ≤
+  2 · exp(−t²/(2 L²))`, NOT a `HasSubgaussianMGF` wrapper. The right
+  SLT target for adapting to this signature is
+  `lipschitz_cgf_bound` (line 1209) + `lipschitz_exp_centered_integrable_E`
+  (line 1229): the CGF inequality plus the integrability lemma can
+  be packaged into `HasSubgaussianMGF`. Grok cited the wrong
+  theorem within SLT.
+* **M3 (mathlib pin).** SLT `lakefile.lean` requires mathlib from
+  floating `master`; lake-manifest captured `d68c4dc0`. Project pin
+  is `25ce63313608`. SLT-as-dependency would inherit drift risk over
+  the master delta.
+* **M4 (predicate degeneracy).** `IsCenteredGaussianProcess.joint_gaussian`
+  field above is `True` (round-1 placeholder). A genuine Cholesky
+  adapter requires strengthening this predicate (~100 LOC of
+  joint-Gaussian content) so the matrix square root of the covariance
+  pushes `stdGaussianE` to the marginal law of `X`.
+
+**Mathlib-only path (no SLT) preserves the original TD4-TD5
+projection** (close `gaussian_log_sobolev_real` at TD4 then iterate
+Herbst per sub-lemma 2 then build the Cholesky adapter). The deletion
+of sub-lemmas 1+2 in TD3 (round 3, this branch) is independent of
+sub-lemma 3 closure: Path B′ chains directly through sub-lemma 3, and
+sub-lemmas 1+2 were post-Path-B′ orphans (Q3 + grep verification).
+TD4 closure of sub-lemma 3 either via SLT (post-M1 user clearance)
+or from-scratch (Bakry-Émery / Ornstein-Uhlenbeck semigroup) is now
+the cluster's open thread.
+
+**Adapter sketch for the post-M1 path** (so T2.1 has a "tried" line
+even on abort):
+
+1. Strengthen `IsCenteredGaussianProcess` (or harmonise with
+   `BrownianMotion.Gaussian.IsGaussianProcess`) so finite-dimensional
+   marginals carry an actual `HasGaussianLaw` predicate. ~100 LOC.
+2. Define the covariance matrix `Σ : Matrix T T ℝ` with
+   `Σ i j = ∫ ω, X i ω * X j ω ∂ℙ`; show `PosSemidef Σ` from
+   `IsCenteredGaussianProcess` (joint-Gaussian + centered ⇒ PosSemidef
+   covariance, via `Matrix.posSemidef_iff_eq_transpose_mul_self` on the
+   cross-term integral). ~40 LOC.
+3. Take `A := Σ.sqrt` (Mathlib `Matrix.PosSemidef.sqrt`); push
+   `stdGaussianE T` to the joint law of `X` via `Measure.map A`
+   (using `IsCenteredGaussianProcess` to identify the laws). ~80 LOC.
+4. Sup-of-coordinates `(s : T → ℝ) ↦ ⨆ t, s t` is 1-Lipschitz in
+   `EuclideanSpace ℝ T` (`Mathlib`'s `LipschitzWith` API). ~20 LOC.
+5. Compose with `A`-pushed pullback ⇒ centred sup is
+   `‖A‖`-Lipschitz functional of the standard Gaussian; apply SLT
+   `lipschitz_cgf_bound` (post-M1) to get the CGF inequality. ~50 LOC.
+6. Package CGF inequality + SLT integrability into
+   `HasSubgaussianMGF` via Mathlib's structure constructor. ~40 LOC.
+7. Identify `‖A‖² = ‖Σ‖op = sigma2` (using `hσ_var` and
+   `Matrix.PosSemidef.sqrt_norm_sq`). ~30 LOC.
+
+Total: 360 LOC. Cf. Grok Q1 estimate of 150-250 LOC — third TD3
+underestimate; documented in T1.1 audit §D.
 -/
 theorem lipschitz_sup_finite_gaussian
     {Ω T : Type*} [MeasureSpace Ω] [IsProbabilityMeasure (ℙ : Measure Ω)]
