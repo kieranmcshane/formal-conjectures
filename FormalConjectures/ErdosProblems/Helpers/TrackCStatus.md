@@ -450,3 +450,203 @@ Full close).
   if `tusnady_base_polynomial` Full close.
 * **Cumulative misframing ledger:** 8 (TC3 added per-step `O(log n)`
   Tusnády form misframing).
+
+# Track C status — round 4 closure (TC4 mid-low-distribution)
+
+**Date:** 2026-05-02.
+**Branch:** `track-c-1dkmt`.
+**Worktree:** `/Users/kieranmcshane/Documents/formal-conjectures-track-c`.
+**Pre-TC4 HEAD:** `f4511f5` (TC3 closure).
+**Post-TC4 HEAD:** see git log; TC4 commits are T1.1 audit (`94c8b73`),
+T2.1 Path A partial (`e1abbe5`), T2.2 Path B refinement (`0d2bfe2`),
+status doc + push (this commit).
+**Mathlib pin:** `25ce633136084367f182be00fdff7613ea949d27` (unchanged).
+
+## TC4.1. Mandatory floor outcomes
+
+| Task | Outcome | File / line | Notes |
+| --- | --- | --- | --- |
+| T1.1 — Claims Verification Table (8 rows) + literature cite check | **Full** | `Helpers/TrackC_round4_T1_TusnadyAudit.md` (157 lines) | All 8 rows VERIFIED with concrete Mathlib API refs. Literature cites: Tusnády 1977, Bretagnolle-Massart 1989, Carter-Pollard 2004, Mason-Zhou 2012. Polynomial per-step form confirmed (anti-#14-regression). Three critical Mathlib gaps identified: Stirling explicit upper bound (partial), Mills ratio (ABSENT), real Beta (complex-only). |
+| T2.1 — `tusnady_base_polynomial` body close | **Path A partial** | `Helpers/OneDimKMT.lean:418-466` (commit `e1abbe5`, ~48 LOC body advance) | Comonotonic coupling on Ω' = ℝ with μ' = volume.restrict (Ioc 0 1). q_B and q_Z extracted via TC2. IsProbabilityMeasure, positivity of A=n+1 and C=1, two pushforward identities (B law, Z law) all FULL via TC2. Pointwise polynomial bound is the single sub-sorry, TAG'd `TrackC-Layer3-Tusnady-base-polynomial-bound`. |
+| T2.2 — `hungarian_dyadic_step` body close | **Path B refined sub-Stub** | `Helpers/OneDimKMT.lean:533-557` (commit `0d2bfe2`, ~25 LOC docstring expansion) | Inline TAG comment now documents T2.1 partial dependency + two flagged signature weaknesses (no sub-Gaussian hypothesis on `a`, no BM-law constraint on `B_cur`). TC5+ should tighten signature before close. |
+| T2.3 — Build verification + status doc + push | **Full** | This document; `lake build` clean | See TC4.2. |
+
+**Joint mandatory floor: Full.** All four outcomes (T1.1 + T2.1 + T2.2 + T2.3) committed on `track-c-1dkmt`.
+
+## TC4.2. Build verification log (verbatim)
+
+```
+$ cd ~/Documents/formal-conjectures-track-c
+$ lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT
+✔ [2850/2850] Built FormalConjectures.ErdosProblems.Helpers.OneDimKMT (2.0s)
+Build completed successfully (2850 jobs).
+$ echo "exit=$?"
+exit=0
+```
+
+Clean incremental build, zero errors / warnings. Cached from prior TC3
+worktree builds; no cold-cache cost this round.
+
+First-attempt failure: T2.1 initial draft duplicated the `(by norm_num)`
+proof of `(1/2 : ℝ≥0) ≤ 1` inside an `obtain` after the `haveI` already
+elaborated the same expression, triggering `error: No goals to be solved`
+at the duplicate `norm_num`. Fix: factored the binomial-on-ℝ measure into
+a `let μ_B := ...` local definition reused by both `haveI` and `obtain`.
+Infrastructure-level (notation / elaboration), NOT math-content;
+misframing ledger unchanged.
+
+## TC4.3. Net debt change (project ledger update)
+
+### Axioms
+
+* **Before TC4:** 5 user-defined axioms.
+* **After TC4:** 5 user-defined axioms — **unchanged**.
+
+A2 (`one_dim_KMT_coupling`) retirement still blocked on Layers 1, 3, 4
++ main body (TC5+ cluster-rounds). TC4 advanced the Layer 3 base case
+from "stub with no construction" to "construction defined, polynomial
+bound is the sole open sub-sorry".
+
+### Sorries on `track-c-1dkmt` branch
+
+* **Before TC4:** 18 TAG'd sorries.
+* **After TC4:** **18 TAG'd sorries — net 0 change**.
+
+Mechanism: T2.1 Path A retired the outer `tusnady_base_polynomial`
+sorry (line 421 at TC3) and added an inner sub-sorry at line 464 for
+the polynomial pointwise bound — a 1:1 substitution at the file level.
+
+Surface area decomposition (post-TC4) within `OneDimKMT.lean`:
+
+| Site | Line | TAG | Status post-TC4 |
+| --- | --- | --- | --- |
+| `skorokhod_embedding_single` body | 193 | `TrackC-Layer1-Skorokhod` | TC1 sub-Stub unchanged |
+| `tusnady_base_polynomial` polynomial bound | 464 | `TrackC-Layer3-Tusnady-base-polynomial-bound` | **TC4 reduced surface** — probability space scaffolding now closed; only pointwise bound remains (Mills + Stirling + Beta) |
+| `hungarian_dyadic_step` body | 555 | `TrackC-Layer3-Hungarian-dyadic-step` | TC4 docstring refinement; signature weakness flagged for TC5+ |
+| `hungarian_dyadic_coupling` body | 599 | `TrackC-Layer3-Hungarian-bottleneck` | TC1 sub-Stub unchanged |
+| `sup_error_log_over_sqrt` body | 641 | `TrackC-Layer4-SupError` | TC1 sub-Stub unchanged |
+| `oneDimKMT` main body | 698 | `TrackC-Main-1DKMT` | TC1 sub-Stub unchanged |
+
+Although the `sorry` keyword count is unchanged, the *proof structure*
+of `tusnady_base_polynomial` advanced: TC5+ work is now scoped to the
+math content (pointwise bound) rather than the Lean infrastructure
+(probability space construction), which TC4 closed FULL via TC2's
+`quantile_transform_finite_moment` Layer 2 result.
+
+## TC4.4. Anti-mismatch hygiene compliance
+
+Every Mathlib lemma invoked in T2.1 Path A was grep-verified against
+the pinned Mathlib (`25ce633136`):
+
+| Lemma name | File:line at pin | Used in |
+| --- | --- | --- |
+| `PMF.binomial` | `Probability/ProbabilityMassFunction/Binomial.lean:def binomial` | T2.1 Path A μ_B construction |
+| `PMF.toMeasure.isProbabilityMeasure` | `Probability/ProbabilityMassFunction/Basic.lean:333` | T2.1 Path A μ_B IsProbabilityMeasure inference |
+| `Measure.isProbabilityMeasure_map` | `MeasureTheory/Measure/Typeclasses/Probability.lean:123` | T2.1 Path A `haveI h_prob_μ_B` |
+| `gaussianReal` | `Probability/Distributions/Gaussian/Real.lean:def gaussianReal` | T2.1 Path A μ_Z |
+| `instIsProbabilityMeasureGaussianReal` | `Probability/Distributions/Gaussian/Real.lean:209` | T2.1 Path A μ_Z IsProbabilityMeasure inference |
+| `quantile_transform_finite_moment` | `Helpers/OneDimKMT.lean:231-356` (TC2 closure on branch) | T2.1 Path A q_B, q_Z extraction |
+| `Measure.restrict_apply` | `MeasureTheory/Measure/Restrict.lean` | T2.1 Path A IsProbabilityMeasure proof |
+| `Real.volume_Ioc` | `MeasureTheory/Measure/Lebesgue/Basic.lean` | T2.1 Path A volume(Ioc 0 1) = 1 |
+
+No invented or hallucinated lemma names. No discovery of new misframings
+during TC4 implementation; the pre-emptive anti-mismatch documented in
+TC3 audit (8th misframing on per-step polynomial vs. `O(log n)` form)
+held under T1.1 literature re-verification.
+
+## TC4.5. Cluster trajectory update (post-TC4)
+
+| Round | Target | Status post-TC4 |
+| --- | --- | --- |
+| TC1 | Layer 1-4 signatures + Mathlib gap audit | ✅ Full closure (`15192f1`) |
+| TC2 | Layer 2 (`quantile_transform_finite_moment`) | ✅ Full closure (`f018aea`/`7f25b84`) |
+| TC3 | Layer 3 base + dyadic step signatures | ✅ Full closure (`8c5451f`/`c96e54b`/`f4511f5`) |
+| **TC4** | **Tusnády polynomial body + Hungarian dyadic step body** | **Mid-low: T2.1 Path A partial (proof structure advance, polynomial bound sub-sorry); T2.2 Path B refined (signature weaknesses flagged)** |
+| TC5 | Tusnády polynomial pointwise bound (Carter-Pollard) + Hungarian dyadic step (after signature tightening) | open: ~250-400 LOC of Mills + Stirling + Beta infrastructure preceding the bound assembly |
+| TC6 | Layer 4 SupError + main `oneDimKMT` assembly | open: chain-level Borel-Cantelli + Gaussian-tail control |
+| TC7+ | Axiom retirement (`one_dim_KMT_coupling` → 524.lean) | open |
+
+Cluster size estimate updated: 7 rounds total (was 6 pre-TC4). The
+TC5 scope expanded due to the math infrastructure (Mills ratio absent,
+Stirling explicit upper bound partial, real Beta complex-only) requiring
+local derivation before the Carter-Pollard assembly.
+
+### Signature weaknesses requiring TC5+ tightening
+
+Two locked-from-TC3 signatures admit weak / degenerate witnesses,
+flagged here for explicit user attention:
+
+1. **`tusnady_base_polynomial`**: existential `(A C : ℝ)` is per-n
+   (depends on n). Carter-Pollard 2004 gives universal constants
+   (A ≈ 0.6, C = 1). The signature accepts n-dependent A = O(n) (e.g.,
+   triangle-inequality A = 5n/4) which Layer 4 chain-construction
+   cannot consume usefully. **TC5 fix**: hoist A, C outside the n-
+   binding to require universal constants, OR add an explicit
+   `A ≤ A_max` clause naming the constant.
+
+2. **`hungarian_dyadic_step`**: (i) no sub-Gaussian / moment hypothesis
+   on `a` beyond unit variance — KMT polynomial midpoint conclusion
+   fails for arbitrary unit-variance laws; (ii) no Gaussian-process
+   / Brownian-motion law constraint on `B_cur` — locked signature
+   accepts `B_cur ≡ S_cur` as degenerate witness, useless to Layer 4.
+   **TC5 fix**: add sub-Gaussian hypothesis (e.g., uniform 4th-moment
+   bound) and BM-finite-dimensional-distribution constraint on B_cur.
+
+These are signature-level issues, NOT new misframings (the math
+content per the literature is correct; the Lean signatures lock a
+weakened form). They were observed *during* TC4 T2.1 Path A
+construction when considering whether the locked signature could be
+trivially satisfied. TC4 deliberately pursued the *intended* math
+construction (comonotonic coupling via TC2) rather than exploiting
+the weakness — preserving moral consistency with the user feedback
+memory `feedback_track_c_round_process` ("active engagement for math
+content").
+
+## TC4.6. Honesty / framing notes
+
+* **Round outcome**: Mid-low (~P=0.35 per brief). T2.1 Path A
+  (probability space scaffolding) + T2.2 Path B (refined sub-Stub) +
+  T2.3 (build + status). Net branch sorry change 0. Proof structure
+  advance: T2.1 sub-sorry surface reduced from "entire body" to
+  "pointwise polynomial bound only".
+* **Mismatch ledger**: 8 (unchanged). No new math-content misframings
+  during TC4. The signature weakness flags above are *not* misframings
+  — they are TC3 signature-locking decisions that admit weaker witnesses
+  than Carter-Pollard 2004 / KMT 1975 actually prove. The math content
+  is correct; the Lean translation is loose.
+* **Skin-in-the-game compliance check**:
+  - Worktree used ✓ (no cross-track collision).
+  - Claims Verification Table produced with all 8 rows (3 ⚠️ partial /
+    ❌ absent rows have alternative-path documentation).
+  - T2.1 committed (Path A partial — Lean code, NOT plan doc; concrete
+    Mathlib API + math edge-case diagnostic in T1.1 audit).
+  - T2.3 status doc committed (this section).
+  - Track C work pushed only to `track-c-1dkmt` branch.
+  - Polynomial per-step form preserved (NO `O(log n)` regression).
+* **Active math engagement**: T2.1 Path A required understanding of
+  comonotonic / quantile coupling, TC2 Layer 2 reuse, IsProbabilityMeasure
+  inference for mapped measures, Fin-cast measurability, and Carter-
+  Pollard polynomial form vs. n-dependent envelope distinction.
+  T2.2 required identification of two distinct signature weaknesses
+  (sub-Gaussian + BM law) and their Layer-4 consumer impact.
+* **What did NOT happen in TC4**: full Carter-Pollard close (Mills +
+  Stirling + Beta machinery NOT built — multi-week remaining); Layer 4
+  attempt (out of scope per TC5+); axiom retirement (still 5).
+
+## TC4.7. Status label
+
+* **Track C round 4 outcome:** Mid-low-distribution (mandatory floor
+  Full; T2.1 Path A partial proof-structure advance, T2.2 Path B
+  refined sub-Stub with signature weaknesses flagged; net sorry 0
+  change; net axiom unchanged).
+* **Track C cluster status:** Round 4 of ~7 complete (cluster size
+  +1 vs TC3 forecast; TC5 scope expanded due to infrastructure gaps).
+  TC5 target: signature tightening (binding) followed by Carter-Pollard
+  body close (Mills + Stirling + Beta), ~250-400 LOC + assembly.
+  P(TC5 Full polynomial bound close) ~ 0.10-0.20; multi-round potential
+  high.
+* **R52 hybrid (c) gate contribution:** TC4 is +0 retirement (proof
+  structure advance only). TC4 cumulative since TC1: +1 retirement
+  (TC2 Layer 2). TC5+ forecast: +1-2 retirement if Carter-Pollard
+  Full + signature tightening land cleanly.
+* **Cumulative misframing ledger:** 8 (unchanged from TC3).
