@@ -188,14 +188,64 @@ theorem slepian_comparison_finite
     (S_X S_Y : Matrix ι ι ℝ) (_h_pdX : S_X.PosDef) (_h_pdY : S_Y.PosDef)
     (_h_diag : ∀ i, S_X i i = S_Y i i)
     (_h_offdiag : ∀ i j, i ≠ j → S_X i j ≤ S_Y i j)
-    (_x : ι → ℝ) :
+    (x : ι → ℝ) :
     Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
-        S_X _x ≤
+        S_X x ≤
       Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
-        S_Y _x := by
-  -- TAG[R35-T2.2-body-deferred-R36] : ~150 LOC, Gaussian interpolation
-  -- chain rule via multivariateGaussianOrthantCDF_differentiable_wrt_covariance.
-  -- See R35_T1_DiffLemmaAudit.md §7-§8 for the three retirement options.
+        S_Y x := by
+  -- **R41-T3.2 Slepian body (Path B per Grok pre-flight).**
+  --
+  -- Strategy: Gaussian interpolation `Σ(α) := (1-α) S_X + α S_Y` for α ∈ [0,1].
+  -- Define `F(α) := orthantCDF(Σ(α), x)`. By the chain rule + Stein identity,
+  -- `F'(α) = ∑_{i ≠ j} (S_Y - S_X)_{ij} · ρ_{ij}(α; x) ≥ 0` where each
+  -- factor is non-negative (off-diagonal hypothesis + density positivity).
+  -- FTC gives `F(0) ≤ F(1)`, i.e. `orthantCDF S_X x ≤ orthantCDF S_Y x`.
+  --
+  -- R41 lands the **infrastructure** (path, PosSemidef preservation,
+  -- F endpoints) and structures the closure step as a TAG'd dependency
+  -- on T3.1 (CDF differentiability) + T3.1-partial-offdiagonal (explicit
+  -- derivative formula) — both R35 / R40-pending. Path B per Grok:
+  -- T3.2 composes soundly on those Stubs as black-box assumptions.
+  -- Step 1: linear interpolation path Σ(α).
+  set Sα : ℝ → Matrix ι ι ℝ := fun α => (1 - α) • S_X + α • S_Y with hSα_def
+  -- Step 2: endpoint identities Sα(0) = S_X, Sα(1) = S_Y.
+  have hSα_0 : Sα 0 = S_X := by simp [hSα_def]
+  have hSα_1 : Sα 1 = S_Y := by simp [hSα_def]
+  -- Step 3: define F(α) := orthantCDF(Σ(α), x).
+  set F : ℝ → ℝ := fun α =>
+    Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+      (Sα α) x with hF_def
+  -- Step 4: F endpoint identities.
+  have hF_0 : F 0 = Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+      S_X x := by
+    change Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+      (Sα 0) x = _
+    rw [hSα_0]
+  have hF_1 : F 1 = Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+      S_Y x := by
+    change Erdos524.Helpers.MultivariateGaussianCDF.multivariateGaussianOrthantCDF
+      (Sα 1) x = _
+    rw [hSα_1]
+  -- Step 5: rewrite goal F(0) ≤ F(1).
+  rw [← hF_0, ← hF_1]
+  -- Step 6: closure via FTC + sign analysis.
+  -- Body chains on:
+  --   (a) `multivariateGaussianOrthantCDF_differentiable_wrt_covariance` (R35-T2.1
+  --       Stub) — gives `DifferentiableAt ℝ (fun S => orthantCDF S x) (Sα α)` for
+  --       every α ∈ [0,1] with Σ(α) PosDef.
+  --   (b) PosSemidef preservation under convex combination (proved below as
+  --       `Erdos524.Helpers.posDef_convex_combination`).
+  --   (c) `multivariateGaussianOrthantCDF_partial_offdiagonal` (R35-T1.1 stub)
+  --       — explicit formula for ∂F/∂Σ_{ij} at off-diagonal i ≠ j.
+  --   (d) Sign analysis: each ∂F/∂Σ_{ij} factor is non-negative density-times-
+  --       conditional-prob, and the chain-rule weight `(S_Y - S_X)_{ij} ≥ 0` by
+  --       off-diagonal hypothesis. Diagonal terms vanish by equal-variance
+  --       hypothesis `_h_diag`.
+  --   (e) FTC: `F(0) ≤ F(1)` follows from `F'(α) ≥ 0` for all `α ∈ [0,1]`.
+  -- TAG[R41-T3.2-FTC-via-Stein-and-T3.1-Stub] : ~150 LOC chain-rule + sign
+  -- analysis + FTC. Closes Full once T3.1 explicit-derivative-formula stub
+  -- (`multivariateGaussianOrthantCDF_partial_offdiagonal`) is upgraded from
+  -- `True` placeholder to a real statement. R42 scope per Path B.
   sorry
 
 /-! ## Step 2 — Sudakov–Fernique on `[0, T]` (BLOCKED on Gap A2) -/
