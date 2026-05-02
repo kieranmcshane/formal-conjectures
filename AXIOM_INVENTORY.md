@@ -19,6 +19,110 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R55 V2 round 17 — alternate-track drift fix sweep, mechanical)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone). All 8 R50-relevant critical build targets remain green
+  post-R55; R52's CharFunCrossBlock + MultivariateSmallBallUpper +
+  R53's MatrixDetDifferentiable + R54's MVGaussianDensityBound build
+  state preserved. **In addition,
+  `Wikipedia/DiameterSimpleFiniteGroups.lean` and
+  `ErdosProblems/1141.lean` now build green** for the first time
+  since the respective Mathlib pin (PR #30129 commit `eae0ea4f18`,
+  ahead of pin) / simp-set drift events — both are alternate-track
+  build unblocks, not mainline-gate item retirements.
+* **Branch:** `r46-track-a-mge-posdef` HEAD post-R55 (T1.1 audit
+  `2d330e0`, T2.1 fixes `9c7818f`, T2.2 + T2.3 + AXIOM_INVENTORY
+  bundled in this R55 close commit).
+* **Round type:** Variante 1, single round, mainline. Mechanical
+  multi-target API/simp-set drift fix sweep. Pattern match R52
+  CharFunCrossBlock 1-line + R54 MVGaussianDensityBound 8-LOC
+  precedents. **Two alternate-track build unblocks**, no
+  mainline-gate sorry/axiom delta.
+* **Net debt change:**
+  * Sorries: **11 → 11** (0; both fix sites were Full proof attempts /
+    Decidable instance scaffold broken by Mathlib drift, not TAG'd
+    sorries).
+  * User-defined axioms: **8 → 8** (0; no axiom touched).
+  * Items at gate: **19 → 19** (0; alternate-track unblock, not gate
+    retirement). Strategic value: 2 `@[category test]` group-diameter
+    test theorems in `DiameterSimpleFiniteGroups.lean`
+    (`groupDiam_alternating_three`, `groupDiam_perm_two`) and the
+    `Decidable (Erdos1141Prop n)` scaffold instance in `1141.lean`
+    become buildable — repo-health regression preservation, no
+    Erdős-524 cone delta.
+* **Total mainline debt:** 8 user-defined axioms + 11 TAG'd sorries =
+  19 items (unchanged from R54 close).
+* **Cumulative R40-R55 retirement rate:** ~0.28 sorry/round (sorry
+  count R39→R55: 14 → 11 across 16 rounds gross, with 4 axioms-via-γ-floor
+  swaps and three alternate-track unblocks along the way).
+* **Three deliverables this round:**
+  * **R55-T1.1 Claims Verification Table + drift error catalog**
+    (`Helpers/Round55_T1_DriftSweep.md`, ~268 lines, commit `2d330e0`).
+    All 8 claims VERIFIED. Five build errors catalogued at HEAD
+    `9ba0c27`: Errors A (DiameterSimpleFiniteGroups, 2 sites) + B
+    (1141.lean, 1 site) classified Type A and applied; Errors C
+    (508.lean) + D (26.lean) + E (HartshorneConjecture) classified
+    Type B/C and deferred R56+ per ≤30-LOC budget.
+  * **R55-T2.1 fix application** (commit `9c7818f`, +13/-3 LOC across
+    2 files). Two edits:
+    1. `Wikipedia/DiameterSimpleFiniteGroups.lean` (+12/-2 LOC):
+       added `private theorem eq_top_iff_forall_ne_adj'` at lines
+       43-51 with proof body
+       `simp [← top_le_iff, SimpleGraph.le_iff_adj]` matching upstream
+       Mathlib commit `eae0ea4f18` verbatim; replaced 2 call sites
+       (lines 86, 124) of the pre-Mathlib-pin lemma name.
+    2. `ErdosProblems/1141.lean` (+1/-1 LOC, single token): added
+       `Nat.lt_succ_iff` to the Decidable instance simp set on line
+       44 to bridge `k * k ≤ n'` ↔ `k * k < n' + 1` normal-form
+       mismatch.
+    `lake env lean` clean per-file post-fix.
+  * **R55-T2.2 build verification + AXIOM_INVENTORY + status doc + push**
+    (this entry; `Helpers/PhaseV2R55Status.md`). Build verified: 8
+    critical targets all green (7930/7930 helpers + 7933/7933 with
+    524 + 2 modified files); only pre-existing copyright-style
+    warnings on `GLWUpperProof.lean:1:0` + module-docstring linter
+    warning on `524.lean:7631:0` (unchanged from R54).
+* **R52 milestone gate trajectory (post-R55):** items at 19, gate
+  threshold ≤ 8. R56-R58 trajectory must contribute **~11 retirements
+  across 3 rounds = ~3.67/round**, well above the cumulative
+  ~0.28/round rate. **R52 gate fails decisively under hybrid (c)** —
+  γ floor + β R58 extension trajectory binding per BACKGROUND.md.
+  R56 candidates (priority order, post-R55 retirement of R55's
+  candidate #3):
+  1. **Companion Stub `Matrix.det.hasFDerivAt` axiomatization** (R56
+     γ-floor extension) — same TAG, same closure path as R53; +1
+     axiom -1 sorry, items unchanged. Mechanical, P(Full) ~0.95.
+  2. **Q1c track full close attempt** — `geomSeries_offDiag_le`
+     per-distance-class re-indexing per R52-T2.1 recipe, ~100-180 LOC,
+     P(Full)/round ~0.55, item-positive on alternate-track if Full.
+  3. **Continued alternate-track API drift fixes** — Errors C
+     (508.lean Pairwise simp drift), D (26.lean lia/grind tactic
+     drift), E (HartshorneConjecture SheafOfModules.Hom.hom field
+     rename) per R55 catalog §"Build error catalog"; Type B/C, each
+     ≥3-15 LOC restructure or new-API investigation.
+* **Cumulative T1.1 audit ledger:** 8 distinct misframings caught
+  pre-dispatch (unchanged from R50/R51/R52/R53/R54 — R55 is mechanical
+  multi-target pattern-match, no Grok dispatch).
+* **Anti-mismatch hygiene 8/8:**
+  only 2 non-524 files modified (single-file scope per fix;
+  `DiameterSimpleFiniteGroups.lean` +12/-2 LOC, `1141.lean` +1/-1
+  LOC); helper proof for Error A pinned and re-verified pre-edit
+  (matches upstream Mathlib commit `eae0ea4f18` body verbatim);
+  no new imports needed
+  (`top_le_iff`/`SimpleGraph.le_iff_adj`/`top_adj`/`Nat.lt_succ_iff`
+  all reachable through pre-existing
+  `FormalConjectures.Util.ProblemImports` chain); no Mathlib API
+  guesswork (helper proof copied verbatim from upstream, simp
+  augmentation a single named Mathlib lemma); track branches not
+  touched (mainline only); R49 axiom #6 + R51 axiom #7 + R53 axiom
+  #8 + A1-A5 + R50 sub-Stubs untouched; R46 helper itself untouched;
+  mainline-only modification.
+
+See `Helpers/PhaseV2R55Status.md` and
+`Helpers/Round55_T1_DriftSweep.md` for the round status doc + T1.1
+Claims Verification Table.
+
 ## Build status (R54 V2 round 16 — MVGaussianDensityBound API drift fix, mechanical)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
