@@ -19,6 +19,65 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (R46 V2 round 8 — MGE sub-gap (a) Full + PosDef min-eigenvalue)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone, 2026-05-02). 524.lean + all helpers compile.
+* **Mathematical content (R46 update):** mid-distribution diagnostic
+  enhancement with foundational infrastructure landed. Five
+  deliverables, plus (third consecutive) Grok pre-flight misframing
+  catch.
+  * **R46-T1.1 grep audit + framing verification**
+    (`Helpers/R46_T1_GrepAuditAndFramingVerification.md`, ~200 lines).
+    Catches Grok R46 pre-flight Q2 misframing: "`Matrix.PosDef.isOpen`"
+    in `Matrix n n ℝ` is **mathematically false** because PosDef
+    requires `IsHermitian`, which is closed (not open) in the full
+    matrix space. Patched to correctly-framed minimum-eigenvalue lower
+    bound formulation. Sub-gap (c) constant-Jacobian linear pushforward
+    additionally identified as DIRECT application of
+    `map_linearMap_addHaar_eq_smul_addHaar` (`EqHaar.lean:234`) — no
+    new sub-lemma needed.
+  * **R46-T2.1 MGE sub-gap (a) Full close + (c) ApplyDirect.** Two
+    new Full theorems in `Helpers/MultivariateGaussianPdf.lean`:
+    * `det_CFC_sqrt_eq_sqrt_det` (~30 LOC): `(CFC.sqrt S).det =
+      Real.sqrt S.det` for PosSemidef S. Composition of
+      `CFC.sqrt_mul_sqrt_self` + `Matrix.det_mul` +
+      `Real.sqrt_eq_iff_mul_self_eq`.
+    * `det_CFC_sqrt_pos_of_posDef` corollary.
+    MGE main body diagnostic refreshed to credit (a) Full + (c)
+    ApplyDirect; remaining bottleneck narrowed to sub-gap (b)
+    `stdGaussian_eq_lebesgue_withDensity` (~80-120 LOC, deferred to
+    R47+).
+  * **R46-T2.2 PosDef minimum-eigenvalue helpers (Full).** Two new
+    Full theorems in `Helpers/PhaseAUpperBound.lean`:
+    * `posDef_min_eigenvalue_pos` (~15 LOC): for PosDef M with
+      `[Nonempty n]`, `∃ c > 0, ∀ i, c ≤ eigenvalues i`.
+    * `posDef_min_eigenvalue_witness` (~25 LOC): same content with
+      constant pinned via `Finset.min'`.
+    These are foundational for R47+ Phase 2 body close (uniform
+    Gaussian tail majorant on compact PosDef) and for
+    local-stability-under-Hermitian-perturbations.
+* **Net debt change R45 → R46:** axioms 5 → 5 (unchanged); sorries
+  12 → 12 (unchanged — diagnostic-quality progress with foundational
+  infrastructure landed). **0 net retirement** (below hybrid (c) target
+  of 1.5-2.0/round); R47-R50 must compensate at 1.875-2.5/round to
+  recover R52 gate viability.
+* **All build targets remain green** (`lake env lean` clean on
+  `MultivariateGaussianCDF.lean`, `MultivariateGaussianPdf.lean`,
+  `MatrixDetDifferentiable.lean`, `PhaseAUpperBound.lean`,
+  `524.lean`); R38 + R39 + R40 + R41 + R42 + R43 + R44 + R45
+  milestones preserved.
+* **Process Q4 ii continued value:** R46 catches **third consecutive**
+  Grok pre-flight misframing. Pattern: Grok reliable for *math
+  reasoning* (the WHY) but unreliable for *formal-Mathlib API claims*
+  (the WHAT — exact lemma names, exact universe of discourse, exact
+  ambient topology). Local Claude grep continues to deliver
+  round-saving value at marginal cost.
+
+See `Helpers/PhaseV2R46Status.md` and
+`Helpers/R46_T1_GrepAuditAndFramingVerification.md` for the round
+status doc + framing audit.
+
 ## Build status (R45 V2 round 7 — Phase 2 diagnostic-quality enhancement)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
