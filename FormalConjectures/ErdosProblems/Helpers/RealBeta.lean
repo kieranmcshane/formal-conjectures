@@ -73,16 +73,35 @@ integral `Γ(a) · Γ(b) = ∫∫ u^(a-1) v^(b-1) e^{-u-v} du dv`, then split vi
 variables to express as `Γ(a+b) · B(a,b)`. -/
 theorem realBeta_eq_Gamma_ratio {a b : ℝ} (ha : 0 < a) (hb : 0 < b) :
     realBeta a b = Real.Gamma a * Real.Gamma b / Real.Gamma (a + b) := by
-  -- TAG[TrackC-Layer3-RealBeta-GammaRatio]: TC7+ close target.
-  -- Closure recipe (~80-150 LOC):
-  --   * Bridge `realBeta` to `Complex.betaIntegral` via real-to-complex coercion of
-  --     the `intervalIntegral` (use `IntervalIntegral.integral_ofReal` or analogous),
-  --   * Apply `Complex.betaIntegral_eq_Gamma_mul_div`
-  --     (`Mathlib/Analysis/SpecialFunctions/Gamma/Beta.lean:525`,
-  --     `lemma betaIntegral_eq_Gamma_mul_div (u v : ℂ) (hu : 0 < u.re) (hv : 0 < v.re)`),
-  --   * Use `Complex.Gamma_ofReal` to extract real `Gamma` from the complex form.
-  -- Cyclic-blocker note: this Stub is the *only* Real-Beta dependency in Track C; closing
-  -- it unblocks Carter-Pollard §4 binomial-moment composition for TC7.
-  sorry
+  have h_a_re : 0 < ((a : ℂ)).re := by simpa using ha
+  have h_b_re : 0 < ((b : ℂ)).re := by simpa using hb
+  -- Step 1: integrand identity on [0, 1].
+  have h_integrand : ∀ x ∈ Set.uIcc (0:ℝ) 1,
+      ((x ^ (a - 1) * (1 - x) ^ (b - 1) : ℝ) : ℂ) =
+        (x : ℂ) ^ ((a : ℂ) - 1) * (1 - (x : ℂ)) ^ ((b : ℂ) - 1) := by
+    intro x hx
+    rw [Set.uIcc_of_le (by norm_num : (0:ℝ) ≤ 1)] at hx
+    obtain ⟨hx0, hx1⟩ := hx
+    have h_one_sub : (0:ℝ) ≤ 1 - x := by linarith
+    rw [Complex.ofReal_mul, Complex.ofReal_cpow hx0 (a - 1),
+        Complex.ofReal_cpow h_one_sub (b - 1)]
+    push_cast
+    ring
+  -- Step 2: real-Beta-as-complex via integral_ofReal + integrand congruence.
+  have h_realBeta : ((realBeta a b) : ℂ) = Complex.betaIntegral (a:ℂ) (b:ℂ) := by
+    unfold realBeta Complex.betaIntegral
+    rw [← intervalIntegral.integral_ofReal]
+    exact intervalIntegral.integral_congr h_integrand
+  -- Step 3: Beta-Gamma identity in ℂ + bridge to ℝ.
+  have h_gamma : Complex.betaIntegral (a:ℂ) (b:ℂ) =
+      ((Real.Gamma a * Real.Gamma b / Real.Gamma (a + b)) : ℂ) := by
+    rw [Complex.betaIntegral_eq_Gamma_mul_div (a:ℂ) (b:ℂ) h_a_re h_b_re,
+        Complex.Gamma_ofReal, Complex.Gamma_ofReal,
+        ← Complex.ofReal_add, Complex.Gamma_ofReal]
+  -- Step 4: combine and use ℝ → ℂ injectivity.
+  have : ((realBeta a b) : ℂ) =
+      ((Real.Gamma a * Real.Gamma b / Real.Gamma (a + b)) : ℂ) :=
+    h_realBeta.trans h_gamma
+  exact_mod_cast this
 
 end Erdos524.Helpers

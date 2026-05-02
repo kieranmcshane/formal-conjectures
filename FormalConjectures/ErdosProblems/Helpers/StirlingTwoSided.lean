@@ -172,29 +172,61 @@ This is the *sharp* form of Stirling's upper bound: the constant `exp(1/(12n))` 
 matching the Mathlib lower bound `√(2π n) · (n/e)^n ≤ n!` asymptotically. The looser
 `factorial_le_stirling` above uses an absolute constant `exp 1 / √(2π) ≈ 1.0844` instead.
 
-Mathlib pin status (`mathlib4 @ 25ce633136`, verified TC6 T1.1): NOT formalised. Mathlib
-explicitly comments at `Mathlib/Analysis/SpecialFunctions/Stirling.lean:264, 280` that
+Mathlib pin status (`mathlib4 @ 25ce633136`, verified TC6 T1.1 + TC7 T1.1): NOT formalised.
+Mathlib explicitly comments at `Mathlib/Analysis/SpecialFunctions/Stirling.lean:264, 280` that
 *"Sharper bounds due to Robbins are available, but are not yet formalised."*
 
-Closure recipe (TC7+ scope, ~120-200 LOC):
-* refine `stirlingSeq'_antitone` to a quantitative rate using monotonicity of the
-  log-correction `log(stirlingSeq n) - 1/(12n)` (standard Robbins technique),
-* alternatively, derive from the Mathlib log-form `le_log_factorial_stirling` plus
-  a Stirling-series remainder estimate of order `1/(12n)`.
+**TC7 T2.2B refined diagnostic — Mathlib gap binding.**
 
-Used by TC7 Carter-Pollard polynomial bound assembly (the binomial-coefficient ratio
-`(n choose k) / 2^n` requires sharp Stirling on both `n!` and `k!(n-k)!`). -/
+This Stub will NOT close in TC7. The closure path is genuine Robbins-trapezoidal
+machinery (~120-200 LOC) which requires deriving the log-correction antitonicity
+of `log(stirlingSeq n) - 1/(12n)` from scratch, since Mathlib provides only the
+weaker `Stirling.stirlingSeq'_antitone` (without the `1/(12n)` quantitative rate).
+
+**Closure plan for TC8+ (deferred):**
+
+1. *Log-correction antitonicity (Robbins 1955).* Define
+   `robbinsCorr n : ℝ := Real.log (Stirling.stirlingSeq n) - 1 / (12 * n)`
+   for `n ≥ 1`. Show `Antitone robbinsCorr` via the trapezoidal-rule remainder:
+   `log(n+1) - log(n) ≥ 1/(2n) + 1/(2(n+1)) - 1/(12n²) + 1/(12(n+1)²)` for `n ≥ 1`.
+   This is the integral-comparison estimate `∫_n^{n+1} log t dt ≥ trapezoid - error`.
+   ~60-80 LOC.
+
+2. *Limit at infinity.* From `Stirling.tendsto_stirlingSeq_sqrt_pi : stirlingSeq → √π`
+   (`Stirling.lean:228`) and `1/(12n) → 0` we get `robbinsCorr n → log √π`.
+   Combined with antitonicity (step 1): `robbinsCorr n ≥ log √π` for all `n ≥ 1`.
+   ~10-20 LOC.
+
+3. *Unfold to factorial form.* From `robbinsCorr n ≥ log √π`:
+   `log(stirlingSeq n) ≥ log √π + 1/(12n)`,
+   `stirlingSeq n ≥ √π · exp(1/(12n))`. Wait — this gives a LOWER bound, not upper.
+   The correct direction for the *upper* Robbins bound uses an antitonicity of
+   `log(stirlingSeq n) + 1/(12n)` (the *positive* correction term), giving an upper
+   limit. Need to flip the trapezoid argument: `log(n+1) - log(n) ≤ trapezoid + error`
+   for the OTHER side of the integral comparison.
+   ~30-50 LOC.
+
+4. *Final algebra.* From `stirlingSeq n ≤ √π · exp(1/(12n))` and the unfold
+   `stirlingSeq n = n! / (√(2n) · (n/e)^n)`, derive the desired bound by
+   multiplying through and using `√(2n) · √π = √(2π n)`.
+   ~20-30 LOC.
+
+Total: ~120-180 LOC. **Only step 4 is mechanical**; steps 1-3 require explicit
+trapezoidal-remainder analysis. TC7 budget cannot accommodate this within the
+4h round; deferred to TC8 as a dedicated Stirling-Robbins close round.
+
+**Carter-Pollard composition impact**: this Stub is ONE of the three TC7 prelude
+gaps (Mills _antitone, Stirling Robbins, Real-Beta) needed for full Carter-Pollard
+polynomial bound assembly. With Real-Beta closed (TC7 T2.2A) and Mills _pos closed
+(TC7 T2.1A), the *tail case* of Carter-Pollard becomes provable using the looser
+`factorial_le_stirling` (TC6, with constant `exp 1/√(2π) ≈ 1.0844`). The *bulk
+case* (where binomial-Gaussian comparison is sharp) requires Robbins. -/
 theorem factorial_le_stirling_robbins {n : ℕ} (hn : 1 ≤ n) :
     (n.factorial : ℝ) ≤ Real.sqrt (2 * Real.pi * n) * (n / Real.exp 1) ^ n *
         Real.exp (1 / (12 * (n : ℝ))) := by
-  -- TAG[TrackC-Layer3-Stirling-robbins]: TC7+ close target.
+  -- TAG[TrackC-Layer3-Stirling-robbins]: TC8+ close target.
   -- See Mathlib comment at Stirling.lean:264, 280: "Sharper bounds due to Robbins
-  -- are available, but are not yet formalised."
-  -- Closure recipe (~120-200 LOC):
-  --   * Use `Stirling.stirlingSeq'_antitone` plus quantitative rate from log-correction
-  --     `log(stirlingSeq n) - 1/(12n)` (classical Robbins technique),
-  --   * OR derive from `Stirling.le_log_factorial_stirling` plus Stirling-series
-  --     remainder estimate of order `1/(12n)`.
+  -- are available, but are not yet formalised." TC7 T1.1 confirmed gap binding.
   sorry
 
 end Helpers

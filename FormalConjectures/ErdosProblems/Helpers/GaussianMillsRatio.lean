@@ -87,15 +87,29 @@ For `x > 0`, `gaussianMillsRatioReal x > 0`. Standard fact: numerator
 is the integral of `gaussianPDFReal 0 1` (positive everywhere when
 variance `1 ≠ 0`) over `Ioi x` (non-empty Lebesgue-positive set), hence
 strictly positive; denominator is `gaussianPDFReal 0 1 x > 0`; quotient
-of positives is positive. -/
+of positives is positive. (TC7 T2.1A close.) -/
 theorem gaussianMillsRatioReal_pos {x : ℝ} (_hx : 0 < x) :
     0 < gaussianMillsRatioReal x := by
-  -- TAG[TrackC-Layer3-Mills-positivity]: TC6+ close target.
-  -- Closure recipe (~15-25 LOC):
-  --   * `setIntegral_pos` on Ioi x with positive integrand
-  --     (gaussianPDFReal 0 1 > 0 from Mathlib `gaussianPDFReal_pos`),
-  --   * div positivity from `gaussianPDFReal_pos 0 1 x`.
-  sorry
+  unfold gaussianMillsRatioReal
+  have hφx_pos : 0 < gaussianPDFReal 0 1 x :=
+    gaussianPDFReal_pos 0 1 x (by norm_num)
+  have hint : IntegrableOn (gaussianPDFReal 0 1) (Set.Ioi x) :=
+    (integrable_gaussianPDFReal 0 1).integrableOn
+  have hae : 0 ≤ᵐ[volume.restrict (Set.Ioi x)] gaussianPDFReal 0 1 :=
+    Filter.Eventually.of_forall (fun t => gaussianPDFReal_nonneg 0 1 t)
+  have hsupp : Function.support (gaussianPDFReal 0 1) = Set.univ := by
+    ext t
+    simp only [Function.mem_support, Set.mem_univ, iff_true]
+    exact (gaussianPDFReal_pos 0 1 t (by norm_num)).ne'
+  have hsupp_inter :
+      Function.support (gaussianPDFReal 0 1) ∩ Set.Ioi x = Set.Ioi x := by
+    rw [hsupp, Set.univ_inter]
+  have hvol_Ioi : 0 < volume (Set.Ioi x) := by
+    rw [Real.volume_Ioi]; exact ENNReal.zero_lt_top
+  have hnum_pos : 0 < ∫ t in Set.Ioi x, gaussianPDFReal 0 1 t := by
+    rw [setIntegral_pos_iff_support_of_nonneg_ae hae hint, hsupp_inter]
+    exact hvol_Ioi
+  exact div_pos hnum_pos hφx_pos
 
 /-- **Closed form for the first moment of the standard Gaussian on `(x, ∞)`.**
 
@@ -257,16 +271,45 @@ above. So monotonicity follows from `gaussianMillsRatioReal_truncation`
 plus a sign-of-derivative argument. -/
 theorem gaussianMillsRatioReal_antitone {x y : ℝ} (_hx : 0 < x) (_hxy : x ≤ y) :
     gaussianMillsRatioReal y ≤ gaussianMillsRatioReal x := by
-  -- TAG[TrackC-Layer3-Mills-antitone]: TC6+ close target.
-  -- Closure recipe (~50-80 LOC, depends on truncation closing first):
-  --   * derivative formula `m'(x) = x · m(x) - 1` (chain via FTC + product
-  --     rule on `m(x) · φ(x) = ∫_x^∞ φ`),
-  --   * `gaussianMillsRatioReal_truncation` gives `x · m(x) ≤ 1`, hence
-  --     `m'(x) ≤ 0` on Ioi 0,
-  --   * `Antitone.of_deriv_nonpos` or analogous to lift derivative-sign
-  --     to the function itself.
-  -- Composition order: this lemma depends on the truncation bound; close
-  -- truncation first, then antitone via derivative argument.
+  -- TAG[TrackC-Layer3-Mills-antitone]: TC8+ close target.
+  -- TC7 outcome: refined Stub (T2.1B refined diagnostic) — derivative chain
+  -- requires FTC for Ioi-integrals which Mathlib at pin `25ce633136` does
+  -- not provide directly (only `integral_hasDerivAt_left` for interval
+  -- form). Workaround sketch:
+  --
+  --   1. Localise: pick anchor `M := y + 1`. For x ∈ Ioo 0 M, write
+  --      `F(x) := ∫ t in Ioi x, φ t = (∫ t in x..M, φ t) + (∫ t in Ioi M, φ t)`
+  --      via `integral_Iic_add_Ioi` (`IntervalIntegral/Basic.lean:1082`)
+  --      and the Iic/Ioi splitting on Ioi x = Ioc x M ∪ Ioi M.
+  --
+  --   2. HasDerivAt the localised first term at `x₀ ∈ Ioo 0 M`:
+  --      `HasDerivAt (fun u => ∫ t in u..M, φ t) (-φ x₀) x₀`
+  --      via `integral_hasDerivAt_left` (`FundThmCalculus.lean:755`),
+  --      with `IntervalIntegrable` from `integrable_gaussianPDFReal 0 1`
+  --      and `ContinuousAt` from gaussianPDFReal continuity.
+  --      Second term is constant in `x` (depends only on `M`).
+  --
+  --   3. HasDerivAt of denominator `φ(x) = (√(2π))⁻¹ · exp(-x²/2)`:
+  --      derivative `-x · φ(x)`, via the same `hderivG` chain used in
+  --      `gaussianTailFirstMomentEq` (lines 126-149). Hoist that block
+  --      to a private named lemma `gaussianPDFReal_hasDerivAt_neg_x`.
+  --
+  --   4. Quotient rule via `HasDerivAt.div` (positivity of denominator
+  --      from `gaussianPDFReal_pos 0 1 x₀ one_ne_zero`). After algebra:
+  --      `m'(x₀) = -1 + x₀ · m(x₀)`.
+  --
+  --   5. Sign via truncation: `gaussianMillsRatioReal_truncation` (TC6)
+  --      gives `m(x₀) ≤ 1/x₀` for `x₀ > 0`, i.e. `x₀ · m(x₀) ≤ 1`,
+  --      hence `m'(x₀) ≤ 0`.
+  --
+  --   6. Lift to AntitoneOn (Ioi 0) via `antitoneOn_of_deriv_nonpos`
+  --      (`Mathlib/Analysis/Calculus/Deriv/MeanValue.lean:478`),
+  --      `Convex.Ioi := convex_Ioi`. Then apply at `x ≤ y` both in Ioi 0.
+  --
+  -- LOC estimate: ~120-180 LOC (heavier than initial ~50-80 estimate
+  -- because step 1 splitting + step 3 PDF derivative chain are both
+  -- non-trivial and Mathlib lacks a direct `HasDerivAt.intervalIntegral`
+  -- variant for the half-line Ioi form). TC8 scope.
   sorry
 
 end Erdos524.Helpers

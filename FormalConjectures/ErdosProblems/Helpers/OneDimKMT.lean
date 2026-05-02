@@ -463,16 +463,46 @@ theorem tusnady_base_polynomial (n : ℕ) (_hn : 1 ≤ n) :
     refine ⟨?_⟩
     rw [Measure.restrict_apply MeasurableSet.univ, Set.univ_inter, Real.volume_Ioc]
     simp
-  · -- TAG[TrackC-Layer3-Tusnady-base-polynomial-bound]: TC6+ sub-sorry.
+  · -- TAG[TrackC-Layer3-Tusnady-base-polynomial-bound]: TC8+ sub-sorry.
     -- ∀ᵐ ω' ∂(volume.restrict (Ioc 0 1)),
     --   |q_B ω' - n - q_Z ω'| ≤ 0.6 + (q_Z ω')² / n   (Carter-Pollard 2004).
-    -- Mathlib gaps blocking close (TC5 — TC6+ closure target):
-    -- (i) Stirling explicit upper bound (~30-50 LOC, asymptotic-only at
-    --     pin; needed for binomial-coefficient asymptotics).
-    -- (ii) Mills ratio (~40-60 LOC, ABSENT in pinned Mathlib — local
-    --      `Real.gaussianMillsRatioReal` def + lemmas provided in TC5).
-    -- (iii) real Beta-integral comparison (~20-40 LOC, complex-only at
-    --       pin — TC6 scope).
+    --
+    -- TC7 progress on infrastructure:
+    -- (i) Stirling looser form `factorial_le_stirling`
+    --     (constant `exp 1 / √(2π) ≈ 1.0844`): ✅ TC6 Full
+    --     (`Helpers/StirlingTwoSided.lean:62`).
+    -- (ii) Stirling sharp Robbins form `exp(1/(12n))` constant:
+    --      ❌ TC7 T2.2B refined Stub (Mathlib gap binding;
+    --      `Helpers/StirlingTwoSided.lean:223` Robbins; needed for sharp
+    --      binomial-coef bulk case).
+    -- (iii) Mills ratio positivity `gaussianMillsRatioReal_pos`:
+    --       ✅ TC7 T2.1A Full (`Helpers/GaussianMillsRatio.lean:91`).
+    -- (iv) Mills ratio truncation `gaussianMillsRatioReal_truncation`:
+    --      ✅ TC6 Full (`Helpers/GaussianMillsRatio.lean:201`).
+    -- (v) Mills ratio antitonicity `gaussianMillsRatioReal_antitone`:
+    --     ❌ TC7 T2.1B refined Stub (FTC for Ioi-integrals + derivative
+    --     chain; `Helpers/GaussianMillsRatio.lean:258`).
+    -- (vi) Real-Beta-Gamma identity `realBeta_eq_Gamma_ratio`:
+    --      ✅ TC7 T2.2A Full (`Helpers/RealBeta.lean:74`).
+    --
+    -- Carter-Pollard 2004 §3-4 assembly path (TC8+ scope, ~150-300 LOC):
+    --   * **Tail case** (|q_Z ω'| large): use Mills truncation (✅ TC6) +
+    --     looser Stirling (✅ TC6) + Real-Beta moment identity
+    --     (✅ TC7 T2.2A) for binomial-Gaussian large-deviation comparison.
+    --     This sub-case is now ASSEMBLABLE on the TC7 prelude.
+    --   * **Bulk case** (|q_Z ω'| moderate): requires sharp Stirling Robbins
+    --     for the binomial-coefficient asymptotic constant. **Blocked on
+    --     TC8 Robbins close.**
+    --   * **µ'-a.e. lift**: trivial since the bound is provable for all
+    --     ω' ∈ Ioo 0 1, and `Ioc 0 1 \ Ioo 0 1 = {1}` is a null set under
+    --     `volume.restrict (Ioc 0 1)`.
+    --
+    -- TC7 close attempt scope: full close requires both Mills antitone (T2.1B)
+    -- AND Stirling Robbins (T2.2B) — both refined Stubs at TC7 close. TC7
+    -- decision: ship Carter-Pollard polynomial bound as TC8+ scope, NOT
+    -- attempt partial tail-case close inside this single sub-sorry (since
+    -- splitting it would require restructuring the conclusion existentially
+    -- which loses the universal-constants form that TC5 locked).
     sorry
 
 /-! ### Layer 3 — Hungarian dyadic decomposition + recursive coupling
