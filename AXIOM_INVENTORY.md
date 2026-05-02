@@ -19,6 +19,63 @@ For the full audit, see
 For the round-by-round status docs, see
 [`FormalConjectures/ErdosProblems/Helpers/PhaseAR{34..38}Status.md`](FormalConjectures/ErdosProblems/Helpers/).
 
+## Build status (Track D round 3 — sub-lemma 3 SLT pivot, Prokhorov drift, sub-lemmas 1+2 retired)
+
+* **Build infrastructure:** consumer-build-green (preserved from R38
+  milestone).
+* **Branch:** `track-d-btis-honest` HEAD `de9b0a0`.
+* **Net debt change:** -2 sorries on this branch (3 → 1). Round
+  outcome: Path B′ chain consolidation; sub-lemma 3 sorry preserved
+  with experimental evidence (Prokhorov drift) for TD4 routing.
+* **Track D branch debt (post-TD3):** 5 user-defined axioms (mainline,
+  unchanged) + 1 TAG'd sorry on this branch (`TrackD-LipschitzSup`).
+* **Four deliverables this round:**
+  * **TD3-T1.1 semantic verification audit** (`Helpers/TrackD_round3_T1_SemanticVerificationAudit.md`,
+    ~209 lines). Verified at SLT tree sha `4aaea155` and project
+    pin `mathlib4 @ 25ce63313608` that Grok TD3 Q1's Route-(b)
+    recipe rests on TWO breaking semantic mismatches:
+    * **(M1)** SLT repo missing LICENSE file (per-file Apache-2.0
+      headers reference the missing LICENSE — internally inconsistent
+      posture). Demoted by user pivot as academic-research norm.
+    * **(M2)** Grok cited `gaussian_lipschitz_concentration` (line
+      1301, returns tail bound) — wrong shape for sub-lemma 3 which
+      needs `HasSubgaussianMGF`. Correct target is
+      `lipschitz_cgf_bound` (line 1209) + `lipschitz_exp_centered_integrable_E`
+      (line 1229), which package into `HasSubgaussianMGF`.
+  * **TD3-T2.1 (post-pivot retry + abort)**: lake-add of SLT @
+    `4aaea155` succeeded; lake build of `SLT.GaussianLipConcen`
+    failed at `SLT.GaussianPoincare.LevyContinuity` due to missing
+    `Mathlib.MeasureTheory.Measure.Prokhorov` in our pin (M3
+    promoted from minor to BREAKING). 7-module cascading build
+    failure; cherry-pick path costed at 5000+ LOC (out of TD3
+    scope). Sub-lemma 3 docstring updated with M1-M4 + adapter
+    sketch + experimental evidence; lake-add reverted with
+    explanatory comment.
+  * **TD3-T2.2 sub-lemmas 1+2 deletion**: `gaussian_log_sobolev_real`
+    (TAG `TrackD-LogSobolev-bottleneck`) and `herbst_subgaussian_real`
+    (TAG `TrackD-Herbst`) deleted from `BTISHonestProof.lean`.
+    T1.1 sub-task C grep verified zero consumers outside the file
+    (Q3 verdict confirmed). File-top docstring + `borell_tis`
+    docstring updated to reflect chain consolidation.
+  * **TD3-T2.3 build verification + status doc** (this entry +
+    `Helpers/TrackDStatus.md` Round-3 addendum). `lake build
+    FormalConjectures.ErdosProblems.Helpers.BTISHonestProof`
+    succeeds (7867 jobs, 21s, only inherited brownian-motion
+    warning).
+* **TD3 commit chain on `track-d-btis-honest`:** `b01898d` (T1.1) →
+  `3f677e0` (T2.1 abort with M1-M4 docstring) → `46c21b1` (T2.2
+  deletion) → `a354c29` (T2.1 redo + lake experiment) → this
+  AXIOM_INVENTORY commit.
+* **TD4 routing decision required from user:**
+  * (a) project mathlib pin bump to a commit that includes
+    `Mathlib.MeasureTheory.Measure.Prokhorov` + SLT lake-add
+    re-attempt (broad-scope retest cost), OR
+  * (b) Mathlib-only from-scratch via Bakry-Émery / OU semigroup
+    (4-6 h wall-clock per TD2 §4.a).
+* **Track D cluster status:** TD3 retires 2/3 branch sorries; TD4
+  closes the remaining `TrackD-LipschitzSup` once the routing
+  decision is made.
+
 ## Build status (R47 V2 round 9 — MGE three-bridge diagnostic + Phase 2 deferral)
 
 * **Build infrastructure:** consumer-build-green (preserved from R38
