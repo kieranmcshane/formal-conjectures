@@ -391,10 +391,14 @@ lemma abs_cos_sum_sub_prod_cos_le_sum_offDiag
     -- Combine using IH: |cos sumS - prodS| ≤ ∑_{(p,q)∈S.offDiag} (1/2)|θ_p||θ_q|
     have hih : |Real.cos sumS - prodS|
         ≤ ∑ pq ∈ S.offDiag, (1/2 : ℝ) * |θ pq.1| * |θ pq.2| := ih
-    -- Now expand (insert a S).offDiag
+    -- Now expand (insert a S).offDiag.
+    -- Note: `Finset.offDiag_insert` takes the element `a` as an explicit
+    -- first argument (Mathlib `variable (a : α)` ahead of the theorem),
+    -- with `s` implicit; pass `a` explicitly to avoid metavariable unification
+    -- failure flagged by Mathlib API drift in earlier rounds.
     have hoffDiag : (insert a S).offDiag
         = S.offDiag ∪ ({a} ×ˢ S) ∪ (S ×ˢ {a}) :=
-      Finset.offDiag_insert has
+      Finset.offDiag_insert a has
     -- Disjointness: S.offDiag is disjoint from {a}×ˢS (first coord ≠ a) and S×ˢ{a} (second ≠ a),
     -- and {a}×ˢS is disjoint from S×ˢ{a} since a ∉ S.
     have hd_S_aS : Disjoint S.offDiag (({a} : Finset ι) ×ˢ S) := by

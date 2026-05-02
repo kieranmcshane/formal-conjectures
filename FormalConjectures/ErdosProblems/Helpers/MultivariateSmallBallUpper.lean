@@ -226,15 +226,52 @@ is dominated by the geometric series `∑_{p<q} 2^{-(q-p)} ≤ M`.
 
 /-- The geometric-series sum `∑_{(p,q)∈offDiag(Fin M)} 2^{-|q-p|}` is bounded
 by `4M`. This is the bookkeeping driver for the cross-block swap error,
-used in the `cf_block_decoupling` quantitative bound. -/
+used in the `cf_block_decoupling` quantitative bound.
+
+**R52-T2.1 diagnostic upgrade** (Q1c track consolidation, mid-distribution
+outcome): the lemma body remains a TAG'd Stub. Closure recipe (R53+) is
+the **per-distance-class re-indexing**:
+
+```
+∑_{(p,q) ∈ offDiag} 2^(-|q.val - p.val|)
+  = ∑_{d=1}^{M-1} (#{(p,q) ∈ offDiag : |q.val - p.val| = d}) · (1/2)^d
+  = ∑_{d=1}^{M-1} 2·(M - d) · (1/2)^d   -- two pairs per (p,d): (p, p+d) and (p, p-d)
+  ≤ 2·M · ∑_{d=1}^{M-1} (1/2)^d
+  ≤ 2·M · 1 = 2·M ≤ 4·M.
+```
+
+**Mathlib gaps blocking a single-round close**:
+
+* (a) `Finset.partition_by_distance`: a per-distance partition of
+  `(Finset.univ : Finset (Fin M)).offDiag` indexed by `d ∈ Finset.Ioc 0 (M-1)`,
+  with each class of cardinality exactly `2·(M-d)`. Mathlib has
+  `Finset.offDiag_card = M·M - M` (`Mathlib/Data/Finset/Prod.lean:295`)
+  but no fibre-by-distance decomposition.
+* (b) `Finset.sum_geometric_two_le_one`: `∑_{d=1}^{N} (1/2)^d ≤ 1` for
+  any `N : ℕ`. Mathlib has `geom_sum_eq` and `tsum_geometric_of_lt_one`
+  but the finite-partial-sum bound requires assembly.
+* (c) Composition glue between (a) and (b) plus an extra `2·M` factor —
+  ~30-50 LOC of arithmetic.
+
+**Tried alternatives (T2.1 attempt log)**:
+
+* Crude bound `2^(-|q.val - p.val|) ≤ 1` (every term ≤ 1) gives total
+  `≤ |offDiag| = M(M-1)`, requires `M ≤ 5` for `≤ 4M` (insufficient).
+* Crude bound `2^(-|q.val - p.val|) ≤ 1/2` (every offDiag term ≤ 1/2 since
+  `|q.val - p.val| ≥ 1`) gives total `≤ M(M-1)/2`, requires `M ≤ 9` for
+  `≤ 4M` (insufficient).
+* The general bound `4M` genuinely requires the geometric-row structure
+  (per-distance fibres). LOC estimate: 100-180.
+
+**Estimated R53+ closure**: ~100-180 LOC; P(Full)/round ~0.55. -/
 lemma geomSeries_offDiag_le (M : ℕ) :
     ∑ pq ∈ (Finset.univ : Finset (Fin M)).offDiag,
       (2 : ℝ) ^ (-(|(pq.2.val : ℤ) - (pq.1.val : ℤ)| : ℤ)) ≤ 4 * M := by
-  -- sub-stub: geomSeries_offDiag_bookkeeping
-  -- Pair (p,q) with p ≠ q contributes 2^{-|q-p|}; sum over each row
-  -- p is ≤ 2·∑_{d≥1} 2^{-d} = 2; sum over rows gives 2M; offDiag is
-  -- ordered pairs so factor of 2 again — total ≤ 4M.
-  -- Mathlib gap: explicit geometric-sum bookkeeping over Fin M offDiag.
+  -- Diagnostic-quality upgrade only (R52-T2.1 mid-distribution outcome).
+  -- The general `4M` bound requires per-distance-class fibre cardinality
+  -- (Mathlib gap (a)) plus finite-partial geometric sum (gap (b)) — see
+  -- the docstring above. Crude term-wise bounds (≤ 1 per term, ≤ 1/2 per
+  -- offDiag term) only suffice for `M ≤ 5` and `M ≤ 9` respectively.
   sorry
 
 /-- **Step 2 (CF block decoupling via Q1b).** Direct re-export of
