@@ -650,3 +650,196 @@ content").
   (TC2 Layer 2). TC5+ forecast: +1-2 retirement if Carter-Pollard
   Full + signature tightening land cleanly.
 * **Cumulative misframing ledger:** 8 (unchanged from TC3).
+
+## TC5. Round 5 — Signature tightening (binding) + Mills ratio infrastructure start
+
+**Round:** Track C round 5 (parallel-track, branch `track-c-1dkmt`,
+worktree `~/Documents/formal-conjectures-track-c`).
+**Date:** 2026-05-02.
+**Outcome:** **Mid-distribution Full closure of mandatory floor (T1.1 +
+T2.1 + T2.2 + T2.3 + T2.4).** Signature tightening Full on both
+TC4-flagged weakness sites; Mills ratio infrastructure file landed
+(local `def` + 3 TAG'd Stub lemmas).
+
+### TC5.1. Mandatory floor outcomes
+
+| Outcome | Status | Artefact | Notes |
+|---|---|---|---|
+| T1.1 — Claims Verification Table + signature extraction | **Full** | `Helpers/TrackC_round5_T1_TighteningAudit.md` (~195 lines, well above ≥50-line floor), commit `0de9fb3` | All 10 rows VERIFIED. TC3 `tusnady_base_polynomial` (lines 408-416) and `hungarian_dyadic_step` (lines 512-555) signatures extracted verbatim. Mathlib pin status confirmed: `ProbabilityTheory.HasSubgaussianMGF` ✅ (`SubGaussian.lean:606`), `gaussianReal` ✅ (`Gaussian/Real.lean:200`), Mills ratio ❌ (zero grep hits over `.lake/packages/mathlib/Mathlib/`), `gaussianCDF` ❌, Stirling-explicit + real-Beta TC6 scope. |
+| T2.1 — `tusnady_base_polynomial` signature tightening | **Full** | `Helpers/OneDimKMT.lean:408-470` (commit `4df3a2b`, ~85 LOC body+docstring) | Drop existential `(A C : ℝ)`, hardcode universal Carter-Pollard 2004 constants A=0.6, C=1 in conclusion. Switch `∀ ω'` → `∀ᵐ ω' ∂μ'` (volume.restrict (Ioc 0 1) probability-measure null-set discipline; eliminates TC4 need to absorb trivial `ω' ∉ Ioc 0 1` branch via per-n A). TC4 Path A probability-space scaffolding preserved verbatim; only the conclusion changes. Type-checks clean: 6 sorries in file (unchanged). |
+| T2.2 — `hungarian_dyadic_step` signature tightening | **Full** | `Helpers/OneDimKMT.lean:512-580` (commit `242ced5`, ~70 LOC body+docstring) | Resolves TC4 W2 (two prongs): (i) add `(_ha_subg : ∃ c : ℝ≥0, ∀ k, ProbabilityTheory.HasSubgaussianMGF (a k) c ℙ)` uniform sub-Gaussian variance proxy; (ii) add `(∀ t : NNReal, μ'.map (B_cur t) = gaussianReal 0 t)` BM-marginal constraint inside the existential conjunction (eliminates degenerate witness `B_cur ≡ S_cur`); (iii) drop existential `(A C : ℝ)`, hardcode 0.6, 1; (iv) `∀ ω'` → `∀ᵐ ω' ∂μ'`. New import: `Mathlib.Probability.Moments.SubGaussian`. Type-checks clean: 6 sorries in file (unchanged). |
+| T2.3 — Mills ratio infrastructure | **Full (def + 3 lemma signatures TAG'd Stub)** | `Helpers/GaussianMillsRatio.lean` (NEW FILE, ~149 lines, commit `47c1f15`) | Mathlib pin verified absent (T1.1 claim 6). New file: noncomputable `def gaussianMillsRatioReal (x : ℝ) : ℝ` via integral form `(∫ t in Ioi x, gaussianPDFReal 0 1 t) / gaussianPDFReal 0 1 x` (workaround for absent `Real.gaussianCDF`). Three TAG'd Stub lemmas: `gaussianMillsRatioReal_pos` (positivity on Ioi 0, ~15-25 LOC), `gaussianMillsRatioReal_truncation` (Feller bound m(x) ≤ 1/x, ~40-60 LOC), `gaussianMillsRatioReal_antitone` (monotonicity via derivative formula `m'(x) = x · m(x) - 1`, ~50-80 LOC). Imports `Mathlib.Probability.Distributions.Gaussian.Real` + `Mathlib.MeasureTheory.Integral.Bochner.Set`. Not yet imported into `OneDimKMT.lean` — TC6 import when polynomial-bound assembly composes Mills ratio. |
+| T2.4 — Build verification + status doc + push | **Full** | This section + `lake build` output below | All Track C files type-check clean (`lake env lean` per-file: `OneDimKMT.lean` 6 sorry warnings unchanged from pre-TC5 baseline; `GaussianMillsRatio.lean` 3 expected new sorry warnings on the introduced TAG'd Stubs). |
+
+All five mandatory-floor outcomes Full. TC5 caps at 0 condition triggered: **none.**
+
+### TC5.2. Net debt change (Track C branch ledger)
+
+#### Axioms
+
+* **Before TC5:** 5 user-defined axioms on `track-c-1dkmt` (D2 + 1D
+  KMT + KMT-aided Gaussian + GLW lower + GLW upper).
+* **After TC5:** 5 user-defined axioms — **unchanged.**
+
+The existing `axiom one_dim_KMT_coupling` is **not** retired this
+round (signature tightening + infrastructure preparation only).
+
+#### Sorries (track-c branch, total)
+
+* **Before TC5 (post-TC4):** 18 TAG'd sorries on `track-c-1dkmt` (per
+  TC4 close ledger).
+* **After TC5:** **21 TAG'd sorries** (+3, all from TC5 T2.3 Mills
+  ratio Stubs introduced as new infrastructure).
+
+Detail:
+* `tusnady_base_polynomial` polynomial bound (line 464 → 466
+  post-edit): unchanged sub-sorry, signature tightened around it.
+* `hungarian_dyadic_step` body (line 555 → 580 post-edit): unchanged
+  sub-sorry, signature tightened around it.
+* **NEW** `gaussianMillsRatioReal_pos` (`GaussianMillsRatio.lean:89`):
+  TAG `TrackC-Layer3-Mills-positivity`, TC6+ closure.
+* **NEW** `gaussianMillsRatioReal_truncation`
+  (`GaussianMillsRatio.lean:105`): TAG `TrackC-Layer3-Mills-truncation`,
+  TC6+ closure.
+* **NEW** `gaussianMillsRatioReal_antitone`
+  (`GaussianMillsRatio.lean:135`): TAG `TrackC-Layer3-Mills-antitone`,
+  TC6+ closure.
+
+This is a **debt-count regression** but not a project regression: the
+3 new sub-Stubs are introductions of infrastructure required for the
+Carter-Pollard bound assembly. Closing the polynomial-bound sub-sorry
+in `tusnady_base_polynomial` (TC6+) requires Mills ratio first; the
+bottleneck shifts from "Mills ratio absent" (TC4 diagnostic) to "Mills
+ratio Stubs to close" (TC5 outcome). This is parallel to the R40 V2
+differentiability scaffolding pattern (R40 added Stubs that became
+closures over R41-R47).
+
+### TC5.3. Build verification log (verbatim)
+
+Per-file `lake env lean` (substantive type-check, ran after each commit):
+
+```
+$ lake env lean FormalConjectures/ErdosProblems/Helpers/OneDimKMT.lean
+FormalConjectures/.../OneDimKMT.lean:172:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:422:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:546:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:599:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:657:8: warning: declaration uses 'sorry'
+FormalConjectures/.../OneDimKMT.lean:699:8: warning: declaration uses 'sorry'
+
+$ lake env lean FormalConjectures/ErdosProblems/Helpers/GaussianMillsRatio.lean
+FormalConjectures/.../GaussianMillsRatio.lean:89:8: warning: declaration uses 'sorry'
+FormalConjectures/.../GaussianMillsRatio.lean:105:8: warning: declaration uses 'sorry'
+FormalConjectures/.../GaussianMillsRatio.lean:135:8: warning: declaration uses 'sorry'
+```
+
+Targeted `lake build` on TC5 deltas (post-T2.3, full verification):
+
+```
+$ lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+             FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+✔ [2890/2891] Built FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio (22s)
+✔ [2891/2891] Built FormalConjectures.ErdosProblems.Helpers.OneDimKMT (22s)
+Build completed successfully (2891 jobs).
+```
+
+The targeted build covers the SubGaussian-import cascade through to
+both TC5 delta files (`OneDimKMT.lean` with the new
+`Mathlib.Probability.Moments.SubGaussian` import; `GaussianMillsRatio.lean`
+new file). 2891 jobs reflects the full transitive dependency closure
+required to compile both files, including the SubGaussian olean and
+its Mathlib prerequisites. (A whole-project `lake build` without
+target was attempted earlier; killed at 45 min when its Mathlib
+re-validation cascade exceeded the round budget — the targeted build
+above provides the substantive verification of TC5 correctness.)
+
+### TC5.4. Commits this round (track-c-1dkmt)
+
+| Commit | Subject | Files |
+|---|---|---|
+| `0de9fb3` | TC5 T1.1: Claims Verification Table + signature extraction audit | `Helpers/TrackC_round5_T1_TighteningAudit.md` (NEW) |
+| `4df3a2b` | TC5 T2.1: tusnady_base_polynomial signature tightening (universal A=0.6, C=1) | `Helpers/OneDimKMT.lean` |
+| `242ced5` | TC5 T2.2: hungarian_dyadic_step signature tightening (sub-Gaussian + BM-law) | `Helpers/OneDimKMT.lean` |
+| `47c1f15` | TC5 T2.3: Real Gaussian Mills ratio infrastructure (local def + 3 lemma Stubs) | `Helpers/GaussianMillsRatio.lean` (NEW) |
+| (TC5 T2.4) | TC5 T2.4: build verification + status doc + push | `Helpers/TrackCStatus.md` |
+
+### TC5.5. Cluster trajectory (post-TC5)
+
+| Round | Target | Status |
+|---|---|---|
+| TC1 | Layer 1-4 signatures + Mathlib gap audit | ✅ Full closure (`15192f1`) |
+| TC2 | Layer 2 (`quantile_transform_finite_moment`) | ✅ Full closure (`f018aea`/`7f25b84`) |
+| TC3 | Layer 3 base + dyadic step signatures | ✅ Full closure (`8c5451f`/`c96e54b`/`f4511f5`) |
+| TC4 | Tusnády polynomial body + Hungarian dyadic step body | ✅ Mid-low closure (`a1d6b6a`) — Path A scaffolding + signature weaknesses flagged |
+| **TC5** | **Signature tightening + Mills ratio infrastructure start** | **✅ Mid-distribution Full closure (this round)** |
+| TC6 | Mills ratio Full closure (positivity + truncation + antitone) + Stirling-explicit + real-Beta | open: ~150-300 LOC |
+| TC7 | Carter-Pollard polynomial bound assembly (closes `tusnady_base_polynomial` body sub-sorry) | open: depends on TC6 Mills + Stirling + Beta |
+| TC8+ | Layer 3 `hungarian_dyadic_step` body close + Layer 4 SupError + main `oneDimKMT` assembly | open |
+
+Cluster size estimate updated: **8 rounds total** (was 7 pre-TC5).
+The TC5 outcome reveals that Mills/Stirling/Beta infrastructure
+collectively requires its own dedicated round (TC6) before
+Carter-Pollard polynomial-bound assembly (TC7), pushing the original
+TC7 Layer 4 + main assembly to TC8+. This honest re-forecast aligns
+with TC5 brief's "Stirling-precision + real-Beta deferred to TC6
+(per TC4 multi-week framing)" scope.
+
+### TC5.6. Honesty / framing notes
+
+* **Round outcome:** Mid-distribution. Mandatory floor Full on all 5
+  outcomes. Net branch sorry change +3 (Mills ratio infrastructure
+  introductions), net axiom unchanged. Resolves both TC4 weakness
+  flags (W1 universal-constants + W2 sub-Gaussian + BM-law) at
+  signature level.
+* **Mismatch ledger:** 8 (unchanged). T1.1 audit confirmed the brief's
+  internal consistency; no new Grok pre-flight misframings caught.
+* **Skin-in-the-game compliance check:**
+  - Worktree used ✓ (no cross-track collision).
+  - Claims Verification Table produced with all 10 rows VERIFIED ✓.
+  - T2.1 + T2.2 signature tightening committed (Full Lean code,
+    NOT plan doc) ✓.
+  - T2.3 Mills ratio infrastructure committed (Lean def + Stubs) ✓.
+  - T2.4 status doc + push committed ✓.
+  - Track C work pushed only to `track-c-1dkmt` branch ✓.
+  - Universal constants A=0.6, C=1 binding (Carter-Pollard 2004) ✓.
+  - No degenerate witnesses: sub-Gaussian + BM-law constraints
+    binding (TC4 W2 resolved at signature level) ✓.
+  - No premature Stirling / real-Beta attempt (deferred to TC6 per
+    brief) ✓.
+* **Active math engagement:** T1.1 verified Mathlib pin state for
+  five distinct API surfaces (SubGaussian structure namespace,
+  gaussianReal signature, Mills-ratio absence cross-check, Stirling
+  asymptotic-only state, real-Beta complex-only state). T2.1
+  considered the workaround consequence of switching from per-n A to
+  universal A=0.6 (necessary `∀ ω'` → `∀ᵐ ω' ∂μ'` switch on
+  `volume.restrict (Ioc 0 1)` since the trivial off-support branch
+  no longer absorbs into A). T2.2 chose the right Mathlib namespace
+  (`ProbabilityTheory.HasSubgaussianMGF`, not the Kernel-flavoured
+  variant at line 88). T2.3 chose the integral form for Mills ratio
+  (workaround for absent `gaussianCDF`).
+* **What did NOT happen in TC5:** full Carter-Pollard polynomial
+  bound close (TC6+ scope after Mills ratio Full closure); Layer 3
+  Hungarian dyadic step body close (TC8+ scope); Layer 4 SupError
+  attempt; axiom retirement (still 5).
+
+### TC5.7. Status label
+
+* **Track C round 5 outcome:** Mid-distribution (mandatory floor
+  Full; T2.1 + T2.2 signature tightening Full + T2.3 Mills ratio
+  infrastructure Full def + 3 TAG'd Stubs; net branch sorry +3
+  introductions; net axiom unchanged).
+* **Track C cluster status:** Round 5 of ~8 complete (cluster size
+  +1 vs TC4 forecast; Mills/Stirling/Beta requires dedicated TC6
+  before Carter-Pollard assembly). TC6 target: Mills ratio body
+  close (~150-300 LOC) + Stirling-explicit (~30-50 LOC) + real-Beta
+  (~20-40 LOC).
+  P(TC6 Full Mills closure) ~ 0.40-0.55; P(TC6 Full Stirling +
+  Beta) ~ 0.25-0.40 in single round (multi-round potential).
+* **R52 hybrid (c) gate contribution:** TC5 is +0 retirement
+  (signature tightening + infrastructure preparation; +3 sub-Stubs
+  infrastructure). TC5 cumulative since TC1: +1 retirement
+  (TC2 Layer 2). TC6+ forecast: +1 if Mills Full lands cleanly
+  (closes Mills bottleneck, unblocks polynomial assembly); +2-3 if
+  TC6 + TC7 land cleanly (closes polynomial bound sub-sorry +
+  Mills helpers).
+* **Cumulative misframing ledger:** 8 (unchanged from TC4).
