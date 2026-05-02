@@ -60,8 +60,9 @@ For the round-by-round status docs, see
   * **TD5-T2.2** AXIOM_INVENTORY.md update (this section + new
     Axiom #9 row in the active-axioms table).
 * **TD5 commit chain on `track-d-btis-honest`:** `21a43fe` (T1.1) →
-  `<TBD T2.1>` (axiom replacement) → this AXIOM_INVENTORY commit
-  → T2.3 build/status/push.
+  `f384086` (T2.1 axiom replacement) → `0b42868` (T2.2 this
+  AXIOM_INVENTORY block) → `23c8c52` (T2.3 build verification +
+  TrackDStatus.md TD5 closure section + fork push).
 * **Retirement plan for Axiom #9.** Post-R59. Three options:
   (i) **Upstream.** Monitor Mathlib for `borell_tis` PR landing
       (timeline unknown; 0 PRs as of 2026-05-02).
