@@ -527,10 +527,31 @@ theorem hungarian_dyadic_step
       -- pairing on the dyadic increment).
       ∀ ω', |S_cur (2 ^ k) ω' - B_cur (2 ^ k : NNReal) ω'| ≤
         A + C * (B_cur (2 ^ k : NNReal) ω') ^ 2 / ((2 ^ k : ℕ) : ℝ) := by
-  -- TAG[TrackC-Layer3-Hungarian-dyadic-step]: TC4 close target.
-  -- Recursion plan: see docstring above. Body composes
-  -- `tusnady_base_polynomial` (k iterations) with TC2's quantile transport
-  -- and chains via triangle + Cauchy-Schwarz on dyadic-increment Gaussians.
+  -- TAG[TrackC-Layer3-Hungarian-dyadic-step]: TC5+ close target (revised
+  -- post-TC4 T1.1 audit). Recursion plan: see docstring above.
+  --
+  -- TC4 dependency state (per TrackC_round4_T1_TusnadyAudit.md):
+  --   • `tusnady_base_polynomial` is Path A partial (probability space
+  --     scaffolding closed via TC2 quantile transport; polynomial bound
+  --     `|B - n - Z| ≤ A + C·Z²/n` is a sub-sorry pending Mills + Stirling
+  --     + Beta machinery, multi-week math-engineering).
+  --   • Composing `tusnady_base_polynomial` here would inherit the same
+  --     sub-sorry, so a parallel Path A on this lemma would leave an
+  --     identical math gap.
+  --
+  -- Signature observations flagged for TC5+ tightening (status doc):
+  --   (i) No sub-Gaussian / moment hypothesis on `a` beyond unit variance.
+  --       The KMT polynomial midpoint bound is sharp under sub-Gaussian
+  --       tails (or bounded support per original KMT 1975); without that,
+  --       quantile-coupling differences are unbounded over Ioc 0 1, and
+  --       the conclusion fails for arbitrary unit-variance laws.
+  --   (ii) No Gaussian-process / Brownian-motion law constraint on
+  --        `B_cur`; locked signature accepts `B_cur ≡ S_cur` as a
+  --        degenerate witness, which Layer 4 cannot consume usefully.
+  --
+  -- TC5+ should either (a) tighten the signature with sub-Gaussian +
+  -- BM-law constraints before attempting close, or (b) ship a strengthened
+  -- companion lemma with the sharper hypotheses.
   sorry
 
 /-- **Layer 3 (`TrackC-Layer3-Hungarian-bottleneck`).**
