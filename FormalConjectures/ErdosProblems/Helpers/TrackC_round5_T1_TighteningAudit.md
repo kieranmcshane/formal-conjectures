@@ -177,11 +177,14 @@ hypothesis needed since `0.6 > 0` is `decide`-proved.)
 * `leansearch` deferred (Mills ratio confirmed absent via local grep; no
   upstream search needed).
 
-## §6 — Misframing ledger (cumulative T1.1 audit ledger #17)
+## §6 — Misframing ledger (no new entry this round)
 
 No new misframing this round. TC5 brief is internally consistent; T1.1
-audit confirms the path. (Distinct from R50-T1.1 ledger entry #16, which
-caught a chain-level scope mismatch on a different track.)
+audit confirms the path. **Cumulative ledger remains at #16** (no
+increment — the pipeline operating as designed without catching a
+mismatch is not itself a ledger entry). Ledger #16 was R50-T1.1's
+chain-level scope mismatch on the GLW determinant shortcut on a
+different track.
 
 ## §7 — TC5 forecast distribution (recap)
 

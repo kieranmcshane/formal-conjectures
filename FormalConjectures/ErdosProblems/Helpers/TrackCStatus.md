@@ -686,33 +686,43 @@ round (signature tightening + infrastructure preparation only).
 
 #### Sorries (track-c branch, total)
 
+**Honest arithmetic (post-R50 discipline rule #3):**
+
 * **Before TC5 (post-TC4):** 18 TAG'd sorries on `track-c-1dkmt` (per
   TC4 close ledger).
-* **After TC5:** **21 TAG'd sorries** (+3, all from TC5 T2.3 Mills
-  ratio Stubs introduced as new infrastructure).
+* **After TC5:** **21 TAG'd sorries** (+3, infrastructure introduction).
+  * **0 retirements** (signature tightening preserves count by design).
+  * **+3 new TAG'd Stubs** in `GaussianMillsRatio.lean` (TC6+ closure
+    targets):
+    * `gaussianMillsRatioReal_pos` (`GaussianMillsRatio.lean:89`,
+      TAG `TrackC-Layer3-Mills-positivity`).
+    * `gaussianMillsRatioReal_truncation` (`GaussianMillsRatio.lean:105`,
+      TAG `TrackC-Layer3-Mills-truncation`).
+    * `gaussianMillsRatioReal_antitone` (`GaussianMillsRatio.lean:135`,
+      TAG `TrackC-Layer3-Mills-antitone`).
+* **Cluster items at TC5 close:** 21 sorries on `track-c-1dkmt`
+  branch.
 
-Detail:
+**Pre-existing TC4 sub-sorries unchanged at TC5 (signatures tightened
+around them, bodies preserved):**
+
 * `tusnady_base_polynomial` polynomial bound (line 464 → 466
   post-edit): unchanged sub-sorry, signature tightened around it.
 * `hungarian_dyadic_step` body (line 555 → 580 post-edit): unchanged
   sub-sorry, signature tightened around it.
-* **NEW** `gaussianMillsRatioReal_pos` (`GaussianMillsRatio.lean:89`):
-  TAG `TrackC-Layer3-Mills-positivity`, TC6+ closure.
-* **NEW** `gaussianMillsRatioReal_truncation`
-  (`GaussianMillsRatio.lean:105`): TAG `TrackC-Layer3-Mills-truncation`,
-  TC6+ closure.
-* **NEW** `gaussianMillsRatioReal_antitone`
-  (`GaussianMillsRatio.lean:135`): TAG `TrackC-Layer3-Mills-antitone`,
-  TC6+ closure.
 
-This is a **debt-count regression** but not a project regression: the
-3 new sub-Stubs are introductions of infrastructure required for the
+This is a **debt-count regression on the branch**, but it is an
+*infrastructure-introduction regression*, not a *closure regression*:
+no Full theorem or sub-Stub was opened back to a sorry; the +3 new
+Stubs are entirely new declarations supplying machinery for the
 Carter-Pollard bound assembly. Closing the polynomial-bound sub-sorry
 in `tusnady_base_polynomial` (TC6+) requires Mills ratio first; the
-bottleneck shifts from "Mills ratio absent" (TC4 diagnostic) to "Mills
-ratio Stubs to close" (TC5 outcome). This is parallel to the R40 V2
+bottleneck shifts from "Mills ratio absent" (TC4 diagnostic) to
+"Mills ratio Stubs to close" (TC5 outcome). Parallel to R40 V2
 differentiability scaffolding pattern (R40 added Stubs that became
-closures over R41-R47).
+closures over R41-R47). The raw count `21` is the binding number for
+discipline rule #3; report it as such, not diluted to "0 net change
+because infrastructure introduction."
 
 ### TC5.3. Build verification log (verbatim)
 
