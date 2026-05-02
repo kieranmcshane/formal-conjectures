@@ -25,8 +25,8 @@ For the round-by-round status docs, see
   milestone). All R50-relevant critical build targets remain green
   post-R51 axiom replacement.
 * **Branch:** `r46-track-a-mge-posdef` HEAD post-R51 (T1.1 audit
-  `<commit-T1>`, T2.1 axiom replacement `<commit-T2.1>`, T2.2 this
-  entry).
+  `d65514e`, T2.1 axiom replacement `5653eb7`, T2.2 commit
+  `48e51ec`, T2.3 this entry + build verification).
 * **Round type:** Variante 1, single round, mainline. **γ-floor
   mechanical axiomatization**, not a math content close. Replaces MGE
   Stub at `Helpers/MultivariateGaussianPdf.lean:248` with axiom of
