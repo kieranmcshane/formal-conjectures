@@ -16,6 +16,7 @@ import Mathlib.LinearAlgebra.Matrix.PosDef
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.MeasureTheory.Measure.Lebesgue.EqHaar
 import Mathlib.MeasureTheory.Measure.WithDensity
+import Mathlib.MeasureTheory.Integral.Bochner.Set
 
 /-!
 # R40-T2.3 — Explicit Lebesgue density for the multivariate Gaussian
@@ -181,19 +182,38 @@ structure).
   with `(2π)^{-n/2} exp(-‖·‖²/2)`. -/
 theorem multivariateGaussian_eq_lebesgue_withDensity
     (S : Matrix ι ι ℝ) (_hS : S.PosDef) :
-    -- Statement: the multivariateGaussian measure (transferred to `ι → ℝ`)
-    -- equals the Lebesgue measure weighted by the explicit PDF.
-    -- Precise statement defers to R41 once the EuclideanSpace ↔ (ι → ℝ)
-    -- identification is normalised. As a placeholder claim suitable for
-    -- the R40 milestone, we record only the *existence* of the density
-    -- in symbolic form via the PDF definition.
-    True := by
-  -- TAG[R40-T2.3-pushforward-jacobian] : ~200-350 LOC, requires:
-  -- (a) det_CFC_sqrt_eq_sqrt_det, (b) stdGaussian_eq_lebesgue_withDensity,
-  -- (c) change-of-variables for linear pushforwards with constant Jacobian.
-  -- See R40_T1_DifferentiabilityAudit.md §3 for the full audit and
-  -- tried alternatives.
-  trivial
+    -- **R43-T2.1 signature upgrade (per Grok R43 pre-flight Q1).**
+    -- The multivariate Gaussian measure on `EuclideanSpace ℝ ι` equals the
+    -- canonical (Lebesgue) volume measure weighted by the explicit PDF.
+    -- The PDF is evaluated at `fun i => y i`, applying the standard
+    -- `EuclideanSpace ℝ ι ↔ (ι → ℝ)` coordinate identification at the
+    -- consumer site. Body remains TAG'd Stub (R44 Phase 2 scope).
+    (multivariateGaussian (0 : EuclideanSpace ℝ ι) S) =
+      (volume : Measure (EuclideanSpace ℝ ι)).withDensity
+        (fun y : EuclideanSpace ℝ ι =>
+          ENNReal.ofReal (multivariateGaussianPdf S (fun i => y i))) := by
+  -- TAG[R43-T2.1-MGE-pushforward-jacobian-body] : Real-signature upgrade of
+  -- the R40 `True := by trivial` placeholder. Body still requires (a)–(c)
+  -- below; closure target R44 Phase 2 alongside CDF differentiability body.
+  --
+  -- **Closure prerequisites (R44 scope):**
+  --
+  --   (a) `det_CFC_sqrt_eq_sqrt_det : (CFC.sqrt S).det = Real.sqrt S.det` for
+  --       PosDef `S`. Provable from `(CFC.sqrt S) * (CFC.sqrt S) = S` and
+  --       `det_mul`. NOT packaged at `mathlib4 @ 25ce63313608`.
+  --   (b) `stdGaussian_eq_lebesgue_withDensity` on `EuclideanSpace ℝ ι` —
+  --       implicit in the `Measure.pi` + `gaussianReal` structure but no
+  --       single-equality lemma packaged. Requires unwinding
+  --       `BrownianMotion.Gaussian.MultivariateGaussian.lean` line 160
+  --       (`stdGaussian = (Measure.pi (fun _ ↦ gaussianReal 0 1)).map …`).
+  --   (c) Change-of-variables for linear pushforward with constant Jacobian
+  --       — Mathlib has the general
+  --       `MeasureTheory.integral_image_eq_integral_abs_det_jacobian_smul_of_injOn`
+  --       but no specialisation to `T = toEuclideanCLM (CFC.sqrt S)` with
+  --       `|det T| = sqrt S.det`.
+  --
+  -- See `Helpers/R40_T1_DifferentiabilityAudit.md` §3 + `R43_T1_SignatureUpgradeAudit.md` §2.1.
+  sorry
 
 /-- **R40-T2.3 ledger — alternative spelling.** The half-space (orthant)
 probability of `multivariateGaussian 0 S` admits the Lebesgue integral
@@ -204,13 +224,29 @@ in `MultivariateGaussianCDF.lean`.
 R40 records the signature; body discharges via
 `multivariateGaussian_eq_lebesgue_withDensity` once the latter closes. -/
 theorem multivariateGaussianOrthantCDF_eq_lebesgue_integral
-    (_S : Matrix ι ι ℝ) (_hS : _S.PosDef) (_x : ι → ℝ) :
-    -- Statement: orthant probability equals Lebesgue integral of PDF over the
-    -- orthant {z | ∀ i, z i ≤ x i}. Precise typing deferred to R41
-    -- alongside the bridge above.
-    True := by
-  -- TAG[R40-T2.3-orthant-via-pdf] : ~30 LOC consumer wrapper around
-  -- `multivariateGaussian_eq_lebesgue_withDensity`. Body deferred to R41.
-  trivial
+    (S : Matrix ι ι ℝ) (_hS : S.PosDef) (x : ι → ℝ) :
+    -- **R43-T2.1 signature upgrade (per Grok R43 pre-flight Q1).** The
+    -- half-space (orthant) probability under `multivariateGaussian 0 S`
+    -- equals the Lebesgue integral of the explicit PDF over the orthant
+    -- region `{z | ∀ i, z i ≤ x i}`. We state this via `Measure.real`
+    -- (the ℝ-valued probability measure projection) on the LHS; the RHS
+    -- is the standard set-integral. Phrased without reference to the
+    -- `MultivariateGaussianCDF.orthant` def to avoid creating a
+    -- circular import (`MultivariateGaussianCDF.lean` will import this
+    -- file, not the other way around). Body remains TAG'd Stub.
+    (multivariateGaussian (0 : EuclideanSpace ℝ ι) S).real
+        {z : EuclideanSpace ℝ ι | ∀ i, z i ≤ x i} =
+      ∫ y in {z : EuclideanSpace ℝ ι | ∀ i, z i ≤ x i},
+        multivariateGaussianPdf S (fun i => y i) := by
+  -- TAG[R43-T2.1-MGI-orthant-via-MGE-body] : Real-signature upgrade of
+  -- the R40 `True := by trivial` placeholder. Body derives from
+  -- `multivariateGaussian_eq_lebesgue_withDensity` (MGE, R44 scope) via:
+  --   (i)  Apply MGE: `multivariateGaussian 0 S = volume.withDensity (pdf)`.
+  --   (ii) `Measure.real_withDensity_apply` (or equivalent toReal extraction):
+  --        `(volume.withDensity (ofReal pdf)).real (orthant x) =
+  --         ∫ y in orthant x, pdf y`. Standard Mathlib API.
+  -- ~30 LOC consumer wrapper. Closure target: R44 Phase 2 alongside MGE.
+  -- See `R43_T1_SignatureUpgradeAudit.md` §2.2.
+  sorry
 
 end Erdos524.Helpers.MultivariateGaussianPdf
