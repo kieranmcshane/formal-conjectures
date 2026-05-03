@@ -60,7 +60,35 @@ for `0 ≤ N`, `0 ≤ ε`, `0 ≤ s`, `s < 1`. This is exactly the Taylor-bound
 payload needed before the interval-integral and Gaussian-tail evaluation
 steps.
 
+Follow-up implementation note (Codex continuation on the same branch):
+after the first TC12 pass landed the pointwise bridge, the monotone
+interval-integral consequence was also closed on compact prefixes
+`[0, r]`, `r < 1`:
+
+```lean
+theorem carterPollardH_exp_bulk_upper_interval_prefix
+    {N ε r : ℝ} (hN0 : 0 ≤ N) (hε0 : 0 ≤ ε) (hr0 : 0 ≤ r) (hr1 : r < 1) :
+    ∫ s in (0 : ℝ)..r, Real.exp (N * carterPollardH ε s - N * ε ^ 2 / 2) ≤
+      ∫ s in (0 : ℝ)..r, Real.exp (-(N * (s + ε) ^ 2) / 2)
+```
+
+This deliberately stops before the improper-limit / Gaussian-tail
+evaluation. It is the safe Restatement-(ii) bulk-upper body fragment: no
+`Real.Gaussian.compl_cdf` is fabricated, no endpoint continuity at `s = 1`
+is assumed, and no new sorry is introduced.
+
 ## Disposition
 
 Proceed with additive Full lemmas on `tc12-cdx-bulk-upper`, without using
 `sorry` and without fabricating the missing `Real.Gaussian.compl_cdf` API.
+
+Final landed state on this branch:
+
+| Lean artefact | Status |
+|---|---|
+| `bin_tail_beta_integral_half_poly` | Full |
+| `carterPollardH_exp_bulk_upper_pointwise` | Full |
+| `carterPollardH_exp_bulk_upper_interval_prefix` | Full |
+
+`lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardHFunction`
+is green after all three.

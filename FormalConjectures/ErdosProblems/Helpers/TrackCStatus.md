@@ -1690,6 +1690,7 @@ recorded in `TrackC_round12_T1_Eq7BulkUpperAudit.md`.
 |---|---|---|
 | `bin_tail_beta_integral_half_poly` | Full | Specializes the existing `Erdos524.Helpers.binomial_tail_beta_integral` to `p = 1/2`, using the in-tree `binomialPolyTail` form. |
 | `carterPollardH_exp_bulk_upper_pointwise` | Full | Converts TC11's Taylor theorem into the pointwise integrand bound `exp(N*h - Nε²/2) ≤ exp(-(N*(s+ε)^2)/2)` for `0 ≤ N`, `0 ≤ ε`, `0 ≤ s < 1`. |
+| `carterPollardH_exp_bulk_upper_interval_prefix` | Full | Integrates the pointwise domination over compact prefixes `[0, r]`, `r < 1`, via `intervalIntegral.integral_mono_on`. This is the safe raw-integral bulk-upper fragment before the improper-limit / Gaussian-tail evaluation. |
 
 The exact Gaussian-tail theorem from the brief was not stated because the
 brief's pseudocode name `Real.Gaussian.compl_cdf` does not exist at the
@@ -1710,6 +1711,7 @@ completed successfully after the edits (2654 jobs).
 * **Axioms:** unchanged.
 * **Sorries:** unchanged.
 * **TC12 brief status:** not complete; this pass lands the audit plus two
-  Full local bridges and leaves raw-sum rewrites, eq. (7) prefactor assembly,
-  interval-integral monotonicity, and Gaussian-tail evaluation for the next
+  Full local bridges plus the compact-prefix interval monotonicity theorem.
+  It leaves raw-sum rewrites, eq. (7) prefactor assembly, the endpoint /
+  improper-limit passage `r → 1`, and Gaussian-tail evaluation for the next
   TC12 continuation.

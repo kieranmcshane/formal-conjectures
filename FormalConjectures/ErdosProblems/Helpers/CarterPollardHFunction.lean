@@ -430,4 +430,48 @@ theorem carterPollardH_exp_bulk_upper_pointwise
           linarith
     _ = -(N * (s + ε) ^ 2) / 2 := by ring
 
+/-- TC12 bulk-upper interval domination on compact prefixes `[0, r]`, `r < 1`.
+
+The paper's final bound integrates over `[0, 1]`; this prefix form is the
+safe Lean-local version at the current Mathlib pin. It avoids assigning
+continuity of `log (1 - s)` at the endpoint `s = 1`, and it is the exact
+monotone-integral consequence of `carterPollardH_exp_bulk_upper_pointwise`
+needed before the separate improper-limit / Gaussian-tail step. -/
+theorem carterPollardH_exp_bulk_upper_interval_prefix
+    {N ε r : ℝ} (hN0 : 0 ≤ N) (hε0 : 0 ≤ ε) (hr0 : 0 ≤ r) (hr1 : r < 1) :
+    ∫ s in (0 : ℝ)..r, Real.exp (N * carterPollardH ε s - N * ε ^ 2 / 2) ≤
+      ∫ s in (0 : ℝ)..r, Real.exp (-(N * (s + ε) ^ 2) / 2) := by
+  let f : ℝ → ℝ := fun s => Real.exp (N * carterPollardH ε s - N * ε ^ 2 / 2)
+  let g : ℝ → ℝ := fun s => Real.exp (-(N * (s + ε) ^ 2) / 2)
+  have hf_cont : ContinuousOn f (Set.Icc (0 : ℝ) r) := by
+    dsimp [f]
+    have hH : ContinuousOn (carterPollardH ε) (Set.Icc (0 : ℝ) r) :=
+      (carterPollardH_contDiffOn_Icc (n := 0) ε hr1).continuousOn
+    have hlin : ContinuousOn
+        (fun s => N * carterPollardH ε s - N * ε ^ 2 / 2) (Set.Icc (0 : ℝ) r) :=
+      (continuousOn_const.mul hH).sub continuousOn_const
+    exact continuous_exp.comp_continuousOn hlin
+  have hg_cont : ContinuousOn g (Set.Icc (0 : ℝ) r) := by
+    dsimp [g]
+    have hadd : ContinuousOn (fun s : ℝ => s + ε) (Set.Icc (0 : ℝ) r) :=
+      continuousOn_id.add continuousOn_const
+    have hsq : ContinuousOn (fun s : ℝ => (s + ε) ^ 2) (Set.Icc (0 : ℝ) r) :=
+      hadd.pow 2
+    have harg : ContinuousOn (fun s : ℝ => -(N * (s + ε) ^ 2) / 2)
+        (Set.Icc (0 : ℝ) r) :=
+      ((continuousOn_const.mul hsq).neg).div_const 2
+    exact continuous_exp.comp_continuousOn harg
+  have hf_int : IntervalIntegrable f MeasureTheory.volume (0 : ℝ) r :=
+    (by
+      have hf_cont_u : ContinuousOn f (Set.uIcc (0 : ℝ) r) := by
+        simpa [Set.uIcc_of_le hr0] using hf_cont
+      exact hf_cont_u.intervalIntegrable)
+  have hg_int : IntervalIntegrable g MeasureTheory.volume (0 : ℝ) r :=
+    (by
+      have hg_cont_u : ContinuousOn g (Set.uIcc (0 : ℝ) r) := by
+        simpa [Set.uIcc_of_le hr0] using hg_cont
+      exact hg_cont_u.intervalIntegrable)
+  exact intervalIntegral.integral_mono_on hr0 hf_int hg_int (fun s hs => by
+    exact carterPollardH_exp_bulk_upper_pointwise hN0 hε0 hs.1 (lt_of_le_of_lt hs.2 hr1))
+
 end FormalConjectures.ErdosProblems.Helpers.CarterPollardH
