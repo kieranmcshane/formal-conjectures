@@ -1971,3 +1971,27 @@ Net debt change: 0.
 * No new sorries.
 * No `Real.Gaussian.compl_cdf`.
 * No γ rewrite, quantile inversion, or `tusnady_base_polynomial` claim.
+
+---
+
+# TC21 — Δ equality close attempt
+
+TC21 created `TrackC_round21_T1_DeltaEqualityCloseAudit.md` and attempted the
+exact multiplicative close
+`carterPollardDeltaRaw = carterPollardDeltaPaperShape`.
+
+Outcome: **not closed**. The proof reduced to the expected final finite
+cancellation between the Stirling-core powers, the entropy denominator
+`(1+ε)^K(1-ε)^(N-K)`, the factor `(1-ε²)^(-1/2)`, the separate
+`m/N = 1 + N⁻¹` factor, the raw `sqrt(2π)/sqrt N` normalization, and the
+powers of `1/2`. That cancellation should be isolated as its own private
+lemma in the next pass.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No γ rewrite.
+* No normal-tail ratio, quantile inversion, endpoint/small-`m` handling, or
+  `tusnady_base_polynomial` claim.
