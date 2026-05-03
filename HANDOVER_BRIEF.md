@@ -155,6 +155,34 @@ If a colleague's Mac chokes : tell them to run `lean-doctor` first. The script i
 
 ---
 
+## 9.5 Claiming a round (binding)
+
+Before you create a working branch for any round in the queue, **claim it
+publicly** : open `WORK_IN_FLIGHT.md` at the repo root, append a row with
+`Round | Branch | Colleague | Started (UTC) | Brief path | Status = claimed`,
+commit, and push to the fork. Then create your branch. The contract is "row
+first, branch second" — without the row, another colleague can legitimately
+pick up the same round and you both burn time. Pull `WORK_IN_FLIGHT.md` (or
+just `git fetch fork && git diff fork/r46-track-a-mge-posdef -- WORK_IN_FLIGHT.md`)
+before starting any round to see what is already claimed. Update the row's
+`Status` to `merged` / `dropped` when you finish.
+
+---
+
+## 9.6 Local tooling install
+
+Two helper directories ship with this branch :
+
+- **`tooling/`** — `lean-doctor`, `lean-build-sweep`, `apply_lean_cpu_fix.sh`
+  and their installers. See `tooling/README.md`. macOS / zsh only.
+- **`agent-memory/`** — discipline rules Claude Cowork auto-loads. See
+  `agent-memory/README.md` for the install line, and for guidance on using the
+  notes with non-Cowork AI clients.
+
+Both are optional but recommended before a long Lean session.
+
+---
+
 ## 10. Quickstart for new colleague (5 minutes)
 
 1. `git clone https://github.com/google-deepmind/formal-conjectures.git && cd formal-conjectures && git remote add fork https://github.com/kieranmcshane/formal-conjectures.git && git fetch fork`
