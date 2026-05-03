@@ -1715,3 +1715,28 @@ completed successfully after the edits (2654 jobs).
   It leaves raw-sum rewrites, eq. (7) prefactor assembly, the endpoint /
   improper-limit passage `r → 1`, and Gaussian-tail evaluation for the next
   TC12 continuation.
+
+---
+
+# TC13 — full-interval Carter-Pollard raw bulk upper
+
+TC13 landed `carterPollardH_exp_bulk_upper_full`, the `[0,1]` raw-integral
+bulk upper domination:
+the Carter-Pollard exponential integrand is bounded by the translated
+Gaussian-kernel integrand after integration over the full interval.
+
+Builds:
+
+```
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardHFunction
+lake build FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta
+```
+
+Both completed successfully.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* This advances the Carter-Pollard chain but does not yet close
+  `tusnady_base_polynomial`.
