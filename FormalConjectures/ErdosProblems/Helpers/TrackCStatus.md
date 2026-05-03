@@ -1544,3 +1544,119 @@ theorem binomialPolyTail_eq_pmf_tail
 * **Track C cluster status**: Round 10 of ~22-25 complete. TC11+ (Carter-Pollard Steps 3+ Taylor expansion + bulk/tail split + envelope) NOW UNBLOCKED — Step 1 polynomial-form identity (`binomial_tail_beta_integral`, TC9), Step 2 prefactor explicit bound (`stirling_prefactor_bound`, TC10), and PMF bridge (`binomialPolyTail_eq_pmf_tail`, TC10) are all Full closures available for Step 3+ assembly.
 * **R52 hybrid (c) gate contribution**: TC10 is +0 retirement at gate-relevant scale (`stirling_prefactor_bound` and `binomialPolyTail_eq_pmf_tail` are NEW Track C-internal Full theorems, NOT mainline TAG'd-sorry/axiom retirements). TC10 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC11+ forecast: +1 mainline-relevant if full Carter-Pollard assembly lands across TC11+ and `tusnady_base_polynomial` retires.
 * **Cumulative misframing ledger**: 8 (unchanged from TC9).
+
+# TC11 — Carter-Pollard Step 3 (h-function + cubic Taylor bound)
+
+**Round dispatch**: Track C round 11, opened at HEAD `7327028` (post-TC10 fixup).
+**Branch**: `track-c-1dkmt`.
+**File added**: `Helpers/CarterPollardHFunction.lean` (NEW, 395 LOC, 0 sorries, 0 axioms).
+**Audit doc added**: `Helpers/TrackC_round11_T1_TaylorAudit.md` (NEW).
+
+## TC11.1 Mathlib API audit (T1.1)
+
+All Mathlib APIs verified at pin (`25ce633136`):
+
+* `Real.hasDerivAt_log` (`Mathlib/Analysis/SpecialFunctions/Log/Deriv.lean:52`).
+* `HasDerivAt.log` (`Log/Deriv.lean:112`).
+* `Real.contDiffAt_log` (`Log/Deriv.lean:74`); `ContDiffAt.log` (`Log/Deriv.lean:167`).
+* `taylor_mean_remainder_lagrange` (`Mathlib/Analysis/Calculus/Taylor.lean:323`) — Lagrange remainder, sig: `(hx : x₀ < x) (hf : ContDiffOn ℝ n f (Icc x₀ x)) (hf' : DifferentiableOn ℝ (iteratedDerivWithin n f (Icc x₀ x)) (Ioo x₀ x)) → ∃ x' ∈ Ioo x₀ x, f x − taylorWithinEval f n (Icc x₀ x) x₀ x = iteratedDerivWithin (n+1) f (Icc x₀ x) x' · (x − x₀)^(n+1) / (n+1)!`.
+* `iteratedDerivWithin_eq_iteratedDeriv` (`Mathlib/Analysis/Calculus/IteratedDeriv/Defs.lean:70`) — bridge under `UniqueDiffOn` + `ContDiffAt` + `x ∈ s`.
+* `ContDiffOn.differentiableOn_iteratedDerivWithin` (`Defs.lean:162`) — `m < n` and `UniqueDiffOn s` ⇒ `DifferentiableOn (iteratedDerivWithin m f s) s`.
+* `Filter.EventuallyEq.deriv_eq` (`Deriv/Basic.lean:603`) — used to chain higher derivatives.
+* `Filter.EventuallyEq.iteratedDeriv_eq` (`IteratedDeriv/Lemmas.lean:200`) — auxiliary for the closed-form swap.
+* `uniqueDiffOn_Icc`; `taylor_within_apply`; `iteratedDerivWithin_zero/one/succ`.
+
+**Strategy choice**: **Strategy A** (Lagrange remainder) chosen and binding before T2.x. Strategy B (direct integration of `h'''` bound) was the audit fallback; not invoked.
+
+## TC11.2 Paper typo flag (audit-surfaced, mathematically critical)
+
+The arXiv paper (math/0508606 page 7) prints `h'''(s) = -[6s + 2s² + ε(2 + 6s²)] / (1−s²)³`. The correct expression is `-[6s + 2s³ + ε(2 + 6s²)] = -2(3s + s³ + ε(1 + 3s²))`.
+
+* Verified by direct substitution at `s = 1/2, ε = 1/2`: paper-as-printed gives `−12.444`, correct formula gives `−11.852`. Direct evaluation `h'''(1/2) = (1/2)/(27/8) − (3/2)/(1/8) = 4/27 − 12 = −320/27 ≈ −11.852`. Paper has typo.
+* The qualitative claims `h'''(s) ≤ 0` and `h'''(0) = -2ε` (the only ones consumed downstream in TC12) are **unaffected** by the typo — both forms have the same sign behaviour and same value at `s = 0`.
+* **Lean implementation uses the corrected form** `carterPollardH_d3 ε s := -2 * (3*s + s^3 + ε*(1 + 3*s^2)) / (1 - s^2)^3`. Audit doc + commit message both flag the typo.
+
+## TC11.3 Closure deliverables (T2.x)
+
+| Artefact | Type | Status |
+|---|---|---|
+| `carterPollardH ε s` | NEW Full def | ✅ |
+| `carterPollardH_zero` | NEW Full lemma (`@[simp]`) | ✅ |
+| `carterPollardH_hasDerivAt` | NEW Full lemma (raw HasDerivAt) | ✅ |
+| `carterPollardH_deriv_zero` | NEW Full lemma (`h'(0) = -ε`) | ✅ |
+| `carterPollardH_d1` | NEW Full def | ✅ |
+| `carterPollardH_hasDerivAt_d1` | NEW Full lemma (closed-form HasDerivAt) | ✅ |
+| `carterPollardH_d2` | NEW Full def | ✅ |
+| `carterPollardH_d1_hasDerivAt` | NEW Full lemma (h'' HasDerivAt) | ✅ |
+| `carterPollardH_d3` | NEW Full def | ✅ |
+| `carterPollardH_d2_hasDerivAt` | NEW Full lemma (h''' HasDerivAt + ring close) | ✅ |
+| `carterPollardH_iteratedDeriv_one` | NEW Full lemma | ✅ |
+| `carterPollardH_iteratedDeriv_two` | NEW Full lemma (via EventuallyEq.deriv_eq) | ✅ |
+| `carterPollardH_iteratedDeriv_three` | NEW Full lemma (via EventuallyEq.deriv_eq) | ✅ |
+| `carterPollardH_d3_nonpos` | NEW Full lemma (sign bound) | ✅ |
+| `carterPollardH_iteratedDeriv_three_nonpos` | NEW Full lemma | ✅ |
+| `carterPollardH_contDiffAt` | NEW Full lemma (smoothness on `(-1, 1)`) | ✅ |
+| `carterPollardH_contDiffOn_Icc` | NEW Full lemma | ✅ |
+| **`carterPollardH_taylor_upper_bound`** | **NEW Full theorem (CLOSURE TARGET, paper §4)** | **✅** |
+
+**Total Full closures**: 4 defs + 13 lemmas + 1 theorem = **18 NEW Full artefacts**, **0 sorries, 0 axioms** in the new file. Joint TC9+TC10+TC11 targeted build green (2654 jobs). `BinomialTailBeta.lean` (TC9+TC10) preserved (no regression).
+
+## TC11.4 Strategy A execution notes
+
+* **Mathlib chain rule ergonomics**: `HasDerivAt.const_mul` exists for the multiplicative constant; `HasDerivAt.inv` (signature `HasDerivAt (f⁻¹) (-f' / f²)`) was the right combinator for the `(1∓s)⁻¹` differentiation; `HasDerivAt.pow 2` for `(1∓s)^2`. Combined with `HasDerivAt.add` to assemble the two-term sum. The `convert ... using 1` pattern was friction-prone (see TC11.5); resolved by switching to `HasDerivAt.congr_deriv` plus `field_simp; ring` to discharge the value-equation goal.
+* **Iterated-deriv bridging**: `iteratedDeriv n f s` and `iteratedDerivWithin n f s' s` are bridged via `iteratedDerivWithin_eq_iteratedDeriv` under `UniqueDiffOn` + `ContDiffAt` + `s ∈ set`. Used three times in T2.3 for `n = 1, 2, 3` at the boundary `s = 0` and at the Lagrange-witness `s'`.
+* **EventuallyEq machinery**: To compute `iteratedDeriv 2 f s` and `iteratedDeriv 3 f s` for `s ∈ Ioo (-1) 1`, used `Filter.EventuallyEq.deriv_eq` to swap `deriv (carterPollardH ε)` with the closed-form `carterPollardH_d1 ε` (and similarly for the second iterate) on the open neighbourhood `Ioo (-1) 1`. This avoids any `iteratedFDeriv` low-level reasoning.
+* **Smoothness derivation**: `ContDiffOn ℝ 3 (carterPollardH ε) (Icc 0 s)` for `s < 1` is built via `ContDiffAt.log` chain rule + `contDiffAt_const.mul` + `ContDiffAt.add`, then point-wise extension via `ContDiffAt.contDiffWithinAt`.
+
+## TC11.5 Mismatch ledger update
+
+TC11 implementation surfaced **3 infrastructure-level adjustments** (NOT math content; the math chain was clean):
+
+1. **`HasDerivAt.const_mul` vs `ContDiffAt.const_mul`**: only `HasDerivAt` has the `const_mul` method directly. For `ContDiffAt`, the equivalent is `contDiffAt_const.mul hf` (using the multiplicative-pair combinator).
+2. **`(2+1)!` postfix-factorial vs ℝ-cast confusion**: `((2+1)! : ℕ)` typechecks but is a no-op (already ℕ); for `(0 : ℝ) < ↑((2+1).factorial : ℝ)` need explicit `Nat.factorial` + cast. The `!` postfix interacts poorly with `(_ : ℝ)` ascription.
+3. **`convert ... using 1` ambiguity**: produces 0, 1, or 2 sub-goals depending on which coords match syntactically; if a sub-tactic targets a goal that no longer exists, "No goals to be solved" surfaces. Resolved by switching to `HasDerivAt.congr_deriv` (which separates structure from value-equation).
+
+These 3 are infrastructure-level (Mathlib API conventions), not math content. **Mismatch ledger 8 → 11 (+3 for TC11)**.
+
+## TC11.6 Honesty / framing notes
+
+* **Round outcome**: **Best-distribution** (post-T1.1 calibrated estimate ~0.30 for all-Full; achieved). Mandatory floor + T2.1 + T2.2 (a-e) + T2.3 closure target all Full Lean code. Net Helpers sorry +0 (NEW theorems, no existing Stub retired). Net axiom unchanged.
+* **Skin-in-the-game compliance check**:
+  - Worktree used ✓ (no cross-track collision; no `lake update`, no Mathlib pin bump, no `.lake/packages/*` checkout).
+  - Claims Verification Table produced with all 11 rows VERIFIED ✓.
+  - T2.x committed (Full Lean code, NOT plan doc) ✓.
+  - Track C work pushed only to `track-c-1dkmt` branch ✓.
+  - No mainline OR track-d files modified ✓.
+  - No TC1-TC10 Full theorems modified ✓.
+  - Cache freshness check at session start; `lake exe cache get` succeeded ✓.
+  - **Q7 iterative micro-step binding respected** — Step 3 (h-function + cubic Taylor bound) ONLY attempted; §2 eq (7) reformulation, §4 bulk/tail split, Mills reciprocal-bridge, §5 Theorem 2 NOT attempted ✓.
+  - **No multi-step Carter-Pollard assembly attempted** ✓.
+  - **Strategy proposal vs binding** (TC9-TC10 lesson): Strategy A locked in audit T1.1 BEFORE coding T2.x; no silent strategy switch.
+  - **Paper typo flagged** (audit + code comment + commit message), and corrected form used in Lean ✓.
+* **Active math engagement**: T2.2 required understanding (a) the chain-rule decomposition `h(ε, s) = (1/2)(1+ε) log(1-s) + (1/2)(1-ε) log(1+s)` from `H((1-s)/2; ε) - H(1/2; ε)`, (b) the closed forms of `h', h'', h'''` and the algebraic identity `(1-ε)(1-s)³ - (1+ε)(1+s)³ = -[6s + 2s³ + ε(2+6s²)]` (paper typo on the `2s²` coefficient — independently verified). T2.3 required understanding the Lagrange-form Taylor's theorem at order 2 over `[0, s]`, the `iteratedDerivWithin → iteratedDeriv` bridge at boundary points (using `ContDiffAt` + `UniqueDiffOn`), and the algebraic identity `ε²/2 - (s+ε)²/2 = -εs - s²/2` connecting the paper's bound form to the Taylor-polynomial form.
+* **What did NOT happen in TC11**:
+  - Paper §2 eq (7) reformulation `P{X≥k} = e^Δ √(N/2π) ∫_0^1 e^{Nh-Nε²/2} ds` (TC12 scope).
+  - Paper §4 bulk/tail split with `12η² + η = ε_N` choice (TC12 scope).
+  - Paper §3 Mills reciprocal-bridge `m(x) = 1/ρ(x)` adapter (TC13 scope).
+  - Paper §5 Theorem 2 derivation (TC13 scope).
+  - Inequality (5) consequence and `tusnady_base_polynomial` envelope assembly (TC14 scope).
+  - `tusnady_base_polynomial` body sub-sorry retirement (line 506 of `OneDimKMT.lean`; TC14+ scope).
+  - Layer 3 dyadic step body close (TC15+ scope).
+  - Layer 4 SupError attempt (TC16+ scope).
+  - Axiom retirement (still 5).
+  - Cross-track FS coordination (no `lake update`, no pin bump — Track A R60 GLW infra runs in parallel without collision).
+
+## TC11.7 LOC retrospection
+
+* **Audit estimate**: 200 LOC (T2.1 + T2.2 + T2.3).
+* **Actual**: 395 LOC.
+* **Overrun**: ~98% (~37% accounting for the doc-string overhead which audit didn't allocate).
+* **Where the LOC went**: T2.2 (the iterated-derivative chain) was the main overrun source. The `HasDerivAt → iteratedDeriv` bridging required intermediate `EventuallyEq` lemmas that were not in the audit's per-step LOC accounting. T2.3 closure was within audit estimate (~75 LOC effective).
+* **Risk-band predictions**: audit said low risk; actual was low risk (no math-level surprises; only Lean-ergonomic adjustments). Three infrastructure-level adjustments surfaced (see §11.5), none required strategy reconsideration.
+
+## TC11.8 Status label
+
+* **Track C round 11 outcome**: **Best-distribution** (mandatory floor Full; T2.1 + T2.2 + T2.3 all Full Lean code; closure target `carterPollardH_taylor_upper_bound` Full; +1 NEW Full closure theorem + 13 NEW Full supporting lemmas + 4 NEW Full defs; net branch sorry +0; net axiom unchanged at 5).
+* **Track C cluster status**: Round 11 of ~22-25 complete. **TC12 (paper §2 eq (7) reformulation + paper §4 bulk/tail split)** NOW UNBLOCKED — `carterPollardH_taylor_upper_bound` (TC11) is the cubic-bound Full input that §4 needs to rigorously drop the Taylor-3 remainder. TC12 forecast: 200-350 LOC (per brief preview).
+* **R52 hybrid (c) gate contribution**: TC11 is +0 retirement at gate-relevant scale (`carterPollardH_taylor_upper_bound` is a NEW Track C-internal Full theorem, NOT a mainline TAG'd-sorry/axiom retirement). TC11 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC14 forecast: +1 mainline-relevant if full Carter-Pollard assembly lands across TC11→TC14 and `tusnady_base_polynomial` retires.
+* **Cumulative misframing ledger**: 11 (was 8 from TC10; +3 from TC11 §11.5).

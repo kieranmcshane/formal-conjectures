@@ -1,0 +1,395 @@
+/-
+Copyright 2026 The Formal Conjectures Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-/
+
+import Mathlib.Analysis.Calculus.Deriv.Add
+import Mathlib.Analysis.Calculus.Deriv.Mul
+import Mathlib.Analysis.Calculus.IteratedDeriv.Defs
+import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
+import Mathlib.Analysis.Calculus.MeanValue
+import Mathlib.Analysis.Calculus.Taylor
+import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+
+/-!
+# Carter–Pollard h-function and cubic Taylor bound (TC11)
+
+Carter, A.V. and Pollard, D. (2004), "Tusnády's inequality revisited,"
+*Annals of Statistics* 32(6), 2731–2741. arXiv:math/0508606.
+
+This file implements **§2 eq (8) / §4 first paragraph** of the paper:
+the Carter–Pollard h-function and its cubic Taylor upper bound.
+
+  `h(ε, s) := H((1-s)/2; ε) - H(1/2; ε)
+            = (1/2)(1+ε) · log(1-s) + (1/2)(1-ε) · log(1+s)`
+
+The closure target is the cubic Taylor bound (paper page 7):
+
+  `∀ ε ∈ [0, 1], ∀ s ∈ [0, 1),  h(ε, s) ≤ ε²/2 - (s + ε)²/2`.
+
+Equivalently `h(ε, s) ≤ -εs - s²/2`.
+
+## Paper typo flag
+
+The paper page 7 prints `h'''(s) = -[6s + 2s² + ε(2 + 6s²)] / (1-s²)³`,
+which is a typo for `-[6s + 2s³ + ε(2 + 6s²)]`. This file uses the
+**corrected** form
+  `h'''(ε, s) = -2 · (3s + s³ + ε(1 + 3s²)) / (1 - s²)³`.
+The qualitative claims `h'''(s) ≤ 0` and `h'''(0) = -2ε` (the only ones
+used downstream in TC12) are unaffected by the typo.
+
+See `Helpers/TrackC_round11_T1_TaylorAudit.md` for derivation, claims
+verification table, and strategy choice (Strategy A: `taylor_mean_remainder_lagrange`).
+-/
+
+namespace FormalConjectures.ErdosProblems.Helpers.CarterPollardH
+
+open Real Set
+
+/-- Carter–Pollard h-function (arXiv:math/0508606 §2 eq (8)).
+
+After cancellation of the constant logs in `H((1-s)/2; ε) - H(1/2; ε)`,
+this reduces to
+  `h(ε, s) = (1/2)(1+ε) · log(1-s) + (1/2)(1-ε) · log(1+s)`.
+
+The function is concave on `(-1, 1)` and achieves its maximum (=0) at `s = 0`. -/
+noncomputable def carterPollardH (ε s : ℝ) : ℝ :=
+  (1 / 2) * (1 + ε) * Real.log (1 - s) + (1 / 2) * (1 - ε) * Real.log (1 + s)
+
+@[simp] lemma carterPollardH_zero (ε : ℝ) : carterPollardH ε 0 = 0 := by
+  unfold carterPollardH
+  simp
+
+/-- First-derivative `HasDerivAt` form at `s ∈ (-1, 1)`.
+The "as-built" derivative is `(1/2)(1+ε) · (-1/(1-s)) + (1/2)(1-ε) · (1/(1+s))`,
+which equals `-(1+ε)/(2(1-s)) + (1-ε)/(2(1+s))`. -/
+lemma carterPollardH_hasDerivAt
+    (ε : ℝ) {s : ℝ} (hs1 : -1 < s) (hs2 : s < 1) :
+    HasDerivAt (carterPollardH ε)
+      ((1 / 2) * (1 + ε) * (-1 / (1 - s)) + (1 / 2) * (1 - ε) * (1 / (1 + s))) s := by
+  have h1ne : (1 : ℝ) - s ≠ 0 := by linarith
+  have h2ne : (1 : ℝ) + s ≠ 0 := by linarith
+  have h1 : HasDerivAt (fun s : ℝ => (1 : ℝ) - s) (-1) s := by
+    simpa using (hasDerivAt_id s).const_sub 1
+  have h2 : HasDerivAt (fun s : ℝ => (1 : ℝ) + s) 1 s := by
+    simpa using (hasDerivAt_id s).const_add 1
+  have hlog1 : HasDerivAt (fun s : ℝ => Real.log (1 - s)) (-1 / (1 - s)) s :=
+    h1.log h1ne
+  have hlog2 : HasDerivAt (fun s : ℝ => Real.log (1 + s)) (1 / (1 + s)) s :=
+    h2.log h2ne
+  have hT1 : HasDerivAt (fun s : ℝ => (1 / 2) * (1 + ε) * Real.log (1 - s))
+      ((1 / 2) * (1 + ε) * (-1 / (1 - s))) s := hlog1.const_mul _
+  have hT2 : HasDerivAt (fun s : ℝ => (1 / 2) * (1 - ε) * Real.log (1 + s))
+      ((1 / 2) * (1 - ε) * (1 / (1 + s))) s := hlog2.const_mul _
+  exact hT1.add hT2
+
+/-- `h'(ε, 0) = -ε`. -/
+lemma carterPollardH_deriv_zero (ε : ℝ) :
+    deriv (carterPollardH ε) 0 = -ε := by
+  have h := (carterPollardH_hasDerivAt ε (s := 0) (by norm_num) (by norm_num)).deriv
+  simp at h
+  linarith [h]
+
+/-! ### First-derivative closed form (`h'`) -/
+
+/-- Closed form for the first derivative of `carterPollardH`:
+    `h'(ε, s) = -((1+ε)/2) · (1-s)⁻¹ + ((1-ε)/2) · (1+s)⁻¹`. -/
+noncomputable def carterPollardH_d1 (ε s : ℝ) : ℝ :=
+  -((1 + ε) / 2) * (1 - s)⁻¹ + ((1 - ε) / 2) * (1 + s)⁻¹
+
+/-- `HasDerivAt (carterPollardH ε) (carterPollardH_d1 ε s) s` for `s ∈ (-1, 1)`. -/
+lemma carterPollardH_hasDerivAt_d1
+    (ε : ℝ) {s : ℝ} (hs1 : -1 < s) (hs2 : s < 1) :
+    HasDerivAt (carterPollardH ε) (carterPollardH_d1 ε s) s := by
+  have h := carterPollardH_hasDerivAt ε hs1 hs2
+  have h1ne : (1 : ℝ) - s ≠ 0 := by linarith
+  have h2ne : (1 : ℝ) + s ≠ 0 := by linarith
+  refine h.congr_deriv ?_
+  unfold carterPollardH_d1
+  field_simp
+
+/-! ### Second-derivative closed form (`h''`) -/
+
+/-- Closed form for the second derivative of `carterPollardH`:
+    `h''(ε, s) = -(1+ε)/(2(1-s)²) - (1-ε)/(2(1+s)²)`. -/
+noncomputable def carterPollardH_d2 (ε s : ℝ) : ℝ :=
+  -((1 + ε) / (2 * (1 - s)^2)) - ((1 - ε) / (2 * (1 + s)^2))
+
+/-- `HasDerivAt (carterPollardH_d1 ε) (carterPollardH_d2 ε s) s` for `s ∈ (-1, 1)`. -/
+lemma carterPollardH_d1_hasDerivAt
+    (ε : ℝ) {s : ℝ} (hs1 : -1 < s) (hs2 : s < 1) :
+    HasDerivAt (carterPollardH_d1 ε) (carterPollardH_d2 ε s) s := by
+  have h1ne : (1 : ℝ) - s ≠ 0 := by linarith
+  have h2ne : (1 : ℝ) + s ≠ 0 := by linarith
+  have h1 : HasDerivAt (fun s : ℝ => (1 : ℝ) - s) (-1) s := by
+    simpa using (hasDerivAt_id s).const_sub 1
+  have h2 : HasDerivAt (fun s : ℝ => (1 : ℝ) + s) 1 s := by
+    simpa using (hasDerivAt_id s).const_add 1
+  -- (h1.inv h1ne) : HasDerivAt (fun y => (1-y)⁻¹) (-(-1)/(1-s)^2) s
+  -- (h2.inv h2ne) : HasDerivAt (fun y => (1+y)⁻¹) (-1/(1+s)^2) s
+  have hT1 : HasDerivAt (fun s : ℝ => -((1 + ε) / 2) * (1 - s)⁻¹)
+      (-((1 + ε) / 2) * (-(-1) / (1 - s)^2)) s := (h1.inv h1ne).const_mul _
+  have hT2 : HasDerivAt (fun s : ℝ => ((1 - ε) / 2) * (1 + s)⁻¹)
+      (((1 - ε) / 2) * (-1 / (1 + s)^2)) s := (h2.inv h2ne).const_mul _
+  have h := hT1.add hT2
+  refine h.congr_deriv ?_
+  unfold carterPollardH_d2
+  field_simp
+  ring
+
+/-! ### Third-derivative closed form (`h'''`)
+
+**Note (paper typo)**: arXiv:math/0508606 page 7 prints
+`h'''(s) = -[6s + 2s² + ε(2 + 6s²)] / (1-s²)³`. The correct expression
+is `-[6s + 2s³ + ε(2 + 6s²)] = -2(3s + s³ + ε(1 + 3s²))`. The qualitative
+claims `h'''(s) ≤ 0` and `h'''(0) = -2ε` are unaffected. -/
+
+/-- Closed form for the third derivative of `carterPollardH`:
+    `h'''(ε, s) = -2 · (3s + s³ + ε(1 + 3s²)) / (1 - s²)³`. -/
+noncomputable def carterPollardH_d3 (ε s : ℝ) : ℝ :=
+  -2 * (3 * s + s^3 + ε * (1 + 3 * s^2)) / (1 - s^2)^3
+
+/-- `HasDerivAt (carterPollardH_d2 ε) (carterPollardH_d3 ε s) s` for `s ∈ (-1, 1)`. -/
+lemma carterPollardH_d2_hasDerivAt
+    (ε : ℝ) {s : ℝ} (hs1 : -1 < s) (hs2 : s < 1) :
+    HasDerivAt (carterPollardH_d2 ε) (carterPollardH_d3 ε s) s := by
+  have h1ne : (1 : ℝ) - s ≠ 0 := by linarith
+  have h2ne : (1 : ℝ) + s ≠ 0 := by linarith
+  have h1ne_sq : ((1 : ℝ) - s)^2 ≠ 0 := pow_ne_zero _ h1ne
+  have h2ne_sq : ((1 : ℝ) + s)^2 ≠ 0 := pow_ne_zero _ h2ne
+  have h1 : HasDerivAt (fun s : ℝ => (1 : ℝ) - s) (-1) s := by
+    simpa using (hasDerivAt_id s).const_sub 1
+  have h2 : HasDerivAt (fun s : ℝ => (1 : ℝ) + s) 1 s := by
+    simpa using (hasDerivAt_id s).const_add 1
+  -- (h1.pow 2) : HasDerivAt (fun y => (1-y)^2) (↑2 * (1-s)^(2-1) * (-1)) s
+  -- (h2.pow 2) : HasDerivAt (fun y => (1+y)^2) (↑2 * (1+s)^(2-1) * 1)    s
+  -- (... .inv ...) : HasDerivAt (((·)^2)⁻¹) (-((deriv-value)) / ((1∓s)^2)^2) s
+  have hT1 : HasDerivAt (fun s : ℝ => -((1 + ε) / 2) * ((1 - s)^2)⁻¹)
+      (-((1 + ε) / 2) * (-(↑2 * (1 - s)^(2 - 1) * (-1)) / ((1 - s)^2)^2)) s :=
+    ((h1.pow 2).inv h1ne_sq).const_mul _
+  have hT2 : HasDerivAt (fun s : ℝ => -((1 - ε) / 2) * ((1 + s)^2)⁻¹)
+      (-((1 - ε) / 2) * (-(↑2 * (1 + s)^(2 - 1) * 1) / ((1 + s)^2)^2)) s :=
+    ((h2.pow 2).inv h2ne_sq).const_mul _
+  -- The function `s ↦ -((1+ε)/2)·((1-s)²)⁻¹ + -((1-ε)/2)·((1+s)²)⁻¹` equals `carterPollardH_d2 ε`.
+  -- Reroute the goal through this form via a function equality.
+  have hfun : carterPollardH_d2 ε =
+      (fun s : ℝ => -((1 + ε) / 2) * ((1 - s)^2)⁻¹ + -((1 - ε) / 2) * ((1 + s)^2)⁻¹) := by
+    funext t
+    unfold carterPollardH_d2
+    field_simp
+    ring
+  rw [hfun]
+  refine (hT1.add hT2).congr_deriv ?_
+  unfold carterPollardH_d3
+  rw [show (1 - s^2 : ℝ) = (1 - s) * (1 + s) from by ring, mul_pow]
+  field_simp
+  ring
+
+/-! ### Iterated-derivative closed-form lemmas
+
+We prove `iteratedDeriv n (carterPollardH ε) s = carterPollardH_dn ε s` for
+`n ∈ {1, 2, 3}` and `s ∈ (-1, 1)`. The inductive step uses
+`Filter.EventuallyEq.deriv_eq` to swap `deriv (...)` for the closed form on
+the open neighbourhood `Ioo (-1) 1`. -/
+
+/-- `iteratedDeriv 1 (carterPollardH ε) s = carterPollardH_d1 ε s` on `(-1, 1)`. -/
+lemma carterPollardH_iteratedDeriv_one
+    (ε : ℝ) {s : ℝ} (hs1 : -1 < s) (hs2 : s < 1) :
+    iteratedDeriv 1 (carterPollardH ε) s = carterPollardH_d1 ε s := by
+  rw [iteratedDeriv_one]
+  exact (carterPollardH_hasDerivAt_d1 ε hs1 hs2).deriv
+
+/-- The first derivative of `carterPollardH` agrees with its closed form on
+    a neighbourhood of any point in `(-1, 1)`. -/
+private lemma deriv_carterPollardH_eventuallyEq
+    (ε : ℝ) {s : ℝ} (hs : s ∈ Set.Ioo (-1 : ℝ) 1) :
+    deriv (carterPollardH ε) =ᶠ[nhds s] carterPollardH_d1 ε := by
+  filter_upwards [isOpen_Ioo.mem_nhds hs] with t ht
+  exact (carterPollardH_hasDerivAt_d1 ε ht.1 ht.2).deriv
+
+/-- `iteratedDeriv 2 (carterPollardH ε) s = carterPollardH_d2 ε s` on `(-1, 1)`. -/
+lemma carterPollardH_iteratedDeriv_two
+    (ε : ℝ) {s : ℝ} (hs1 : -1 < s) (hs2 : s < 1) :
+    iteratedDeriv 2 (carterPollardH ε) s = carterPollardH_d2 ε s := by
+  have hs : s ∈ Set.Ioo (-1 : ℝ) 1 := ⟨hs1, hs2⟩
+  rw [show (2 : ℕ) = 1 + 1 from rfl, iteratedDeriv_succ, iteratedDeriv_one]
+  rw [(deriv_carterPollardH_eventuallyEq ε hs).deriv_eq]
+  exact (carterPollardH_d1_hasDerivAt ε hs1 hs2).deriv
+
+/-- The second derivative of `carterPollardH` agrees with its closed form
+    on a neighbourhood of any point in `(-1, 1)`. -/
+private lemma iteratedDeriv_two_carterPollardH_eventuallyEq
+    (ε : ℝ) {s : ℝ} (hs : s ∈ Set.Ioo (-1 : ℝ) 1) :
+    iteratedDeriv 2 (carterPollardH ε) =ᶠ[nhds s] carterPollardH_d2 ε := by
+  filter_upwards [isOpen_Ioo.mem_nhds hs] with t ht
+  exact carterPollardH_iteratedDeriv_two ε ht.1 ht.2
+
+/-- `iteratedDeriv 3 (carterPollardH ε) s = carterPollardH_d3 ε s` on `(-1, 1)`. -/
+lemma carterPollardH_iteratedDeriv_three
+    (ε : ℝ) {s : ℝ} (hs1 : -1 < s) (hs2 : s < 1) :
+    iteratedDeriv 3 (carterPollardH ε) s = carterPollardH_d3 ε s := by
+  have hs : s ∈ Set.Ioo (-1 : ℝ) 1 := ⟨hs1, hs2⟩
+  rw [show (3 : ℕ) = 2 + 1 from rfl, iteratedDeriv_succ]
+  rw [(iteratedDeriv_two_carterPollardH_eventuallyEq ε hs).deriv_eq]
+  exact (carterPollardH_d2_hasDerivAt ε hs1 hs2).deriv
+
+/-! ### Sign of the third derivative -/
+
+/-- `carterPollardH_d3 ε s ≤ 0` for `s ∈ [0, 1)`, `ε ∈ [0, 1]`.
+    Numerator `-2 · (3s + s³ + ε(1 + 3s²)) ≤ 0` since the bracket is
+    nonneg; denominator `(1 - s²)³ > 0`. -/
+lemma carterPollardH_d3_nonpos
+    {ε : ℝ} (hε0 : 0 ≤ ε) {s : ℝ} (hs0 : 0 ≤ s) (hs1 : s < 1) :
+    carterPollardH_d3 ε s ≤ 0 := by
+  unfold carterPollardH_d3
+  have hbracket : 0 ≤ 3 * s + s^3 + ε * (1 + 3 * s^2) := by
+    have h1 : (0 : ℝ) ≤ 3 * s := by positivity
+    have h2 : (0 : ℝ) ≤ s^3 := by positivity
+    have h3 : (0 : ℝ) ≤ ε * (1 + 3 * s^2) := by positivity
+    linarith
+  have hnum : -2 * (3 * s + s^3 + ε * (1 + 3 * s^2)) ≤ 0 := by
+    have : (0 : ℝ) ≤ 2 * (3 * s + s^3 + ε * (1 + 3 * s^2)) := by linarith
+    linarith
+  have hden_pos : 0 < (1 - s^2)^3 := by
+    have h1ms : 0 < 1 - s^2 := by nlinarith
+    positivity
+  exact div_nonpos_of_nonpos_of_nonneg hnum hden_pos.le
+
+/-- `iteratedDeriv 3 (carterPollardH ε) s ≤ 0` for `s ∈ [0, 1)`, `ε ∈ [0, 1]`.
+    This is the qualitative bound the paper §4 (page 7) uses to drop the cubic
+    Taylor remainder. -/
+lemma carterPollardH_iteratedDeriv_three_nonpos
+    {ε : ℝ} (hε0 : 0 ≤ ε) {s : ℝ} (hs0 : 0 ≤ s) (hs1 : s < 1) :
+    iteratedDeriv 3 (carterPollardH ε) s ≤ 0 := by
+  rw [carterPollardH_iteratedDeriv_three ε (by linarith) hs1]
+  exact carterPollardH_d3_nonpos hε0 hs0 hs1
+
+/-! ### Smoothness of `carterPollardH` on `(-1, 1)` -/
+
+/-- `carterPollardH ε` is `C^∞` at any point of `(-1, 1)`. -/
+lemma carterPollardH_contDiffAt
+    (ε : ℝ) {x : ℝ} (hx1 : -1 < x) (hx2 : x < 1) {n : WithTop ℕ∞} :
+    ContDiffAt ℝ n (carterPollardH ε) x := by
+  have h1 : (1 : ℝ) - x ≠ 0 := by linarith
+  have h2 : (1 : ℝ) + x ≠ 0 := by linarith
+  have hsub : ContDiffAt ℝ n (fun y : ℝ => (1 : ℝ) - y) x :=
+    contDiffAt_const.sub contDiffAt_id
+  have hadd : ContDiffAt ℝ n (fun y : ℝ => (1 : ℝ) + y) x :=
+    contDiffAt_const.add contDiffAt_id
+  have hlog1 : ContDiffAt ℝ n (fun y : ℝ => Real.log (1 - y)) x := hsub.log h1
+  have hlog2 : ContDiffAt ℝ n (fun y : ℝ => Real.log (1 + y)) x := hadd.log h2
+  have hT1 : ContDiffAt ℝ n (fun y : ℝ => (1 / 2) * (1 + ε) * Real.log (1 - y)) x :=
+    contDiffAt_const.mul hlog1
+  have hT2 : ContDiffAt ℝ n (fun y : ℝ => (1 / 2) * (1 - ε) * Real.log (1 + y)) x :=
+    contDiffAt_const.mul hlog2
+  exact hT1.add hT2
+
+/-- `carterPollardH ε` is `ContDiffOn ℝ n` on `Icc 0 s` for any `s < 1`. -/
+lemma carterPollardH_contDiffOn_Icc
+    (ε : ℝ) {s : ℝ} (hs : s < 1) {n : WithTop ℕ∞} :
+    ContDiffOn ℝ n (carterPollardH ε) (Set.Icc (0 : ℝ) s) := by
+  intro x hx
+  have hx1 : -1 < x := by linarith [hx.1]
+  have hx2 : x < 1 := by linarith [hx.2]
+  exact (carterPollardH_contDiffAt ε hx1 hx2).contDiffWithinAt
+
+/-! ### Cubic Taylor upper bound (closure target) -/
+
+/-- **Carter–Pollard 2004 §4 cubic Taylor bound** (arXiv:math/0508606 page 7).
+
+For `ε ∈ [0, 1]` and `s ∈ [0, 1)`,
+  `h(ε, s) ≤ ε²/2 − (s + ε)²/2`.
+
+Equivalently `h(ε, s) ≤ −εs − s²/2`. Proof: Taylor's theorem with Lagrange
+remainder at order 2, using `h(0) = 0`, `h'(0) = −ε`, `h''(0) = −1`, and
+the third-derivative bound `h'''(t) ≤ 0` to drop the cubic remainder. -/
+theorem carterPollardH_taylor_upper_bound
+    {ε : ℝ} (hε0 : 0 ≤ ε) {s : ℝ} (hs0 : 0 ≤ s) (hs1 : s < 1) :
+    carterPollardH ε s ≤ ε^2 / 2 - (s + ε)^2 / 2 := by
+  -- Boundary case s = 0: both sides are 0.
+  rcases eq_or_lt_of_le hs0 with hseq | hspos
+  · subst hseq
+    have : carterPollardH ε 0 = 0 := carterPollardH_zero ε
+    rw [this]
+    nlinarith
+  -- Main case 0 < s < 1.
+  have hUDO : UniqueDiffOn ℝ (Set.Icc (0 : ℝ) s) := uniqueDiffOn_Icc hspos
+  have hCD3 : ContDiffOn ℝ 3 (carterPollardH ε) (Set.Icc 0 s) :=
+    carterPollardH_contDiffOn_Icc ε hs1
+  have hCD2 : ContDiffOn ℝ 2 (carterPollardH ε) (Set.Icc 0 s) :=
+    hCD3.of_le (by norm_num)
+  have hDiff2 : DifferentiableOn ℝ
+      (iteratedDerivWithin 2 (carterPollardH ε) (Set.Icc 0 s)) (Set.Ioo 0 s) := by
+    have hWhole := hCD3.differentiableOn_iteratedDerivWithin (m := 2) (by norm_num) hUDO
+    exact hWhole.mono Set.Ioo_subset_Icc_self
+  obtain ⟨s', hs'mem, hsTaylor⟩ :=
+    taylor_mean_remainder_lagrange hspos hCD2 hDiff2
+  -- Bridge iteratedDerivWithin n f (Icc 0 s) 0 = iteratedDeriv n f 0 (n = 0, 1, 2).
+  have hzero_mem : (0 : ℝ) ∈ Set.Icc (0 : ℝ) s := Set.left_mem_Icc.mpr hspos.le
+  have hb1 : iteratedDerivWithin 1 (carterPollardH ε) (Set.Icc 0 s) 0
+      = iteratedDeriv 1 (carterPollardH ε) 0 :=
+    iteratedDerivWithin_eq_iteratedDeriv hUDO
+      (carterPollardH_contDiffAt ε (by norm_num) (by norm_num : (0 : ℝ) < 1)) hzero_mem
+  have hb2 : iteratedDerivWithin 2 (carterPollardH ε) (Set.Icc 0 s) 0
+      = iteratedDeriv 2 (carterPollardH ε) 0 :=
+    iteratedDerivWithin_eq_iteratedDeriv hUDO
+      (carterPollardH_contDiffAt ε (by norm_num) (by norm_num : (0 : ℝ) < 1)) hzero_mem
+  -- Compute the Taylor polynomial value.
+  have hd1_zero : carterPollardH_d1 ε 0 = -ε := by
+    unfold carterPollardH_d1; ring
+  have hd2_zero : carterPollardH_d2 ε 0 = -1 := by
+    unfold carterPollardH_d2; ring
+  have htaylor : taylorWithinEval (carterPollardH ε) 2 (Set.Icc 0 s) 0 s
+      = -ε * s - s^2 / 2 := by
+    rw [taylor_within_apply]
+    simp only [Finset.sum_range_succ, Finset.sum_range_zero, zero_add,
+               iteratedDerivWithin_zero, carterPollardH_zero,
+               sub_zero, smul_eq_mul]
+    rw [hb1, hb2,
+        carterPollardH_iteratedDeriv_one ε (by norm_num) (by norm_num : (0 : ℝ) < 1),
+        carterPollardH_iteratedDeriv_two ε (by norm_num) (by norm_num : (0 : ℝ) < 1),
+        hd1_zero, hd2_zero]
+    simp [Nat.factorial]
+    ring
+  -- Bridge iteratedDerivWithin 3 f (Icc 0 s) s' = iteratedDeriv 3 f s'.
+  have hs'1 : -1 < s' := by linarith [hs'mem.1]
+  have hs'2 : s' < 1 := by linarith [hs'mem.2]
+  have hb3 : iteratedDerivWithin 3 (carterPollardH ε) (Set.Icc 0 s) s'
+      = iteratedDeriv 3 (carterPollardH ε) s' :=
+    iteratedDerivWithin_eq_iteratedDeriv hUDO
+      (carterPollardH_contDiffAt ε hs'1 hs'2) (Set.Ioo_subset_Icc_self hs'mem)
+  -- Bound the remainder.
+  have hd3_le : iteratedDeriv 3 (carterPollardH ε) s' ≤ 0 :=
+    carterPollardH_iteratedDeriv_three_nonpos hε0 hs'mem.1.le hs'2
+  have hs3_pos : 0 ≤ (s - 0)^(2 + 1) := by
+    rw [sub_zero]; positivity
+  have hfact_pos : (0 : ℝ) < ((2 + 1).factorial : ℝ) := by
+    exact_mod_cast Nat.factorial_pos (2 + 1)
+  have hrem_nonpos :
+      iteratedDerivWithin 3 (carterPollardH ε) (Set.Icc 0 s) s'
+        * (s - 0)^(2 + 1) / ((2 + 1).factorial : ℝ) ≤ 0 := by
+    rw [hb3]
+    apply div_nonpos_of_nonpos_of_nonneg
+    · exact mul_nonpos_of_nonpos_of_nonneg hd3_le hs3_pos
+    · exact hfact_pos.le
+  have hdiff_nonpos :
+      carterPollardH ε s - taylorWithinEval (carterPollardH ε) 2 (Set.Icc 0 s) 0 s ≤ 0 := by
+    rw [hsTaylor]; exact hrem_nonpos
+  have hf_le : carterPollardH ε s ≤ taylorWithinEval (carterPollardH ε) 2 (Set.Icc 0 s) 0 s := by
+    linarith
+  rw [htaylor] at hf_le
+  have alg : (-ε * s - s^2 / 2 : ℝ) = ε^2 / 2 - (s + ε)^2 / 2 := by ring
+  linarith [alg, hf_le]
+
+end FormalConjectures.ErdosProblems.Helpers.CarterPollardH
