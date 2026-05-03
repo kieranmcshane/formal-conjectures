@@ -197,4 +197,57 @@ theorem binomialPolyTail_half_le_gaussian_tail_of_params
     carterPollardH_exp_bulk_upper_gaussian_tail (N := N) (ε := ε) hNpos hε0
   simpa [C, mul_assoc] using mul_le_mul_of_nonneg_left htail hC_nonneg
 
+/-- TC16 constants-instantiated Carter--Pollard raw Gaussian-tail bridge.
+
+Under the `binomialPolyTail m k` convention, the Carter--Pollard paper's
+parameters are `N = m - 1` and `ε = (2 * k - m - 1) / (m - 1)`. This theorem
+only instantiates those constants in the TC15 raw tail bound; it does not
+perform any final normal-tail comparison or Tusnády polynomial closure. -/
+theorem binomialPolyTail_half_le_gaussian_tail_instantiated
+    {m k : ℕ}
+    (hm : 2 ≤ m)
+    (hk : 1 ≤ k) (hkm : k ≤ m)
+    (hε0 :
+      0 ≤ (((2 : ℝ) * (k : ℝ) - (m : ℝ) - 1) / ((m : ℝ) - 1))) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      ((m : ℝ) * ((m - 1).choose (k - 1) : ℝ)) *
+        ((1 / 2 : ℝ) ^ m *
+          Real.exp (((m - 1 : ℕ) : ℝ) *
+            (((2 : ℝ) * (k : ℝ) - (m : ℝ) - 1) / ((m : ℝ) - 1)) ^ 2 / 2) *
+          ((Real.sqrt ((m - 1 : ℕ) : ℝ))⁻¹ *
+            ∫ t in Set.Ioi
+              (Real.sqrt ((m - 1 : ℕ) : ℝ) *
+                (((2 : ℝ) * (k : ℝ) - (m : ℝ) - 1) / ((m : ℝ) - 1))),
+              Real.exp (-t ^ 2 / 2))) := by
+  let N : ℝ := ((m - 1 : ℕ) : ℝ)
+  let ε : ℝ := (((2 : ℝ) * (k : ℝ) - (m : ℝ) - 1) / ((m : ℝ) - 1))
+  have hm1_nat_pos : 0 < m - 1 := by omega
+  have hNpos : 0 < N := by
+    dsimp [N]
+    exact_mod_cast hm1_nat_pos
+  have hm_cast_sub : ((m - 1 : ℕ) : ℝ) = (m : ℝ) - 1 := by
+    rw [Nat.cast_sub (show 1 ≤ m by omega)]
+    norm_num
+  have hden : (m : ℝ) - 1 ≠ 0 := by
+    rw [← hm_cast_sub]
+    exact ne_of_gt hNpos
+  have hk_cast_sub : ((k - 1 : ℕ) : ℝ) = (k : ℝ) - 1 := by
+    rw [Nat.cast_sub hk]
+    norm_num
+  have hmk_cast_sub : ((m - k : ℕ) : ℝ) = (m : ℝ) - (k : ℝ) := by
+    rw [Nat.cast_sub hkm]
+  have hleft : N * (1 + ε) / 2 = ((k - 1 : ℕ) : ℝ) := by
+    dsimp [N, ε]
+    rw [hm_cast_sub, hk_cast_sub]
+    field_simp [hden]
+    ring
+  have hright : N * (1 - ε) / 2 = ((m - k : ℕ) : ℝ) := by
+    dsimp [N, ε]
+    rw [hm_cast_sub, hmk_cast_sub]
+    field_simp [hden]
+    ring
+  have htail := binomialPolyTail_half_le_gaussian_tail_of_params
+    (n := m) (k := k) (N := N) (ε := ε) hk hkm hNpos hε0 hleft hright
+  simpa [N, ε] using htail
+
 end FormalConjectures.ErdosProblems.Helpers.CarterPollardH

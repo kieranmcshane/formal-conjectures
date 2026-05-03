@@ -1799,3 +1799,33 @@ Net debt change: 0.
 * No new sorries.
 * This advances the Carter-Pollard chain but does not yet close
   `tusnady_base_polynomial`.
+
+---
+
+# TC16 — Carter-Pollard constants audit and instantiation
+
+TC16 landed the T1.0 constants audit in
+`TrackC_round16_T1_ConstantsAudit.md` and added
+`binomialPolyTail_half_le_gaussian_tail_instantiated`.
+
+The audit confirms that, under the Lean `binomialPolyTail m k` convention,
+the Carter-Pollard parameters are
+
+* `N = m - 1`,
+* `ε = (2*k - m - 1) / (m - 1)`,
+* Lean `k` is the paper's upper-tail threshold, while `K = k - 1` is the
+  shifted exponent parameter.
+
+The new Lean theorem instantiates the TC15 abstract raw Gaussian-tail bridge
+with those constants. It remains a raw integral tail bound; it does not close
+`tusnady_base_polynomial` and does not assemble the downstream equation-(5)
+quantile-polynomial argument.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* Remaining work: normal-tail ratio/quantile inversion, symmetry adapter, and
+  endpoint/small-`n` handling before any universal `A = 0.6`, `C = 1`
+  closure claim.
