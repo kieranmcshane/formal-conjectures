@@ -1740,3 +1740,62 @@ Net debt change: 0.
 * No new sorries.
 * This advances the Carter-Pollard chain but does not yet close
   `tusnady_base_polynomial`.
+
+---
+
+# TC15 — Carter-Pollard equation-(7) bridge
+
+TC15 added `Helpers/CarterPollardEq7Bridge.lean` as a separate bridge file
+to avoid mixing the TC14 raw Gaussian-tail substitution with the Beta-integral
+rewriting layer.
+
+Landed Full Lean artefacts:
+
+* `betaPartialIntegral_half_eq_carterPollardH_integral_of_params`:
+  affine substitution `x = (1-s)/2` plus abstract exponent matching
+  `N(1+ε)/2 = k-1`, `N(1-ε)/2 = n-k`.
+* `binomialPolyTail_half_eq_carterPollardH_integral_of_params`:
+  composition with `bin_tail_beta_integral_half_poly`.
+* `binomialPolyTail_half_le_gaussian_tail_of_params`:
+  composition with `carterPollardH_exp_bulk_upper_gaussian_tail`, still
+  under abstract `N, ε` parameters.
+
+This is not the final binomial-tail upper bound. TC16 still needs the constants
+audit and the exact instantiation of `N, ε` before closing the final
+Carter-Pollard/Tusnády envelope.
+
+Builds:
+
+```
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardHFunction
+lake build FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta
+```
+
+All completed successfully.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+
+---
+
+# TC14 — raw Gaussian-tail substitution
+
+TC14 landed `carterPollardH_exp_bulk_upper_gaussian_tail`, obtained from
+`carterPollardH_exp_bulk_upper_full` by the affine substitution
+`t = √N (s + ε)` and by enlarging the finite interval to
+`Set.Ioi (Real.sqrt N * ε)`.
+
+The right-hand side remains the raw tail integral
+`(Real.sqrt N)⁻¹ * ∫ t in Set.Ioi (Real.sqrt N * ε), Real.exp (-t^2/2)`.
+No `Real.Gaussian.compl_cdf` API is introduced or used.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* This advances the Carter-Pollard chain but does not yet close
+  `tusnady_base_polynomial`.

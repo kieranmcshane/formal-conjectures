@@ -20,6 +20,7 @@ import Mathlib.Analysis.Calculus.IteratedDeriv.Defs
 import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
 import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Analysis.Calculus.Taylor
+import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 import FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta
 
@@ -535,5 +536,65 @@ theorem carterPollardH_exp_bulk_upper_full
   simpa [f, g] using
     (intervalIntegral.integral_mono_on_of_le_Ioo h01 hf_int hg_int (fun s hs => by
       exact carterPollardH_exp_bulk_upper_pointwise hN0 hε0 hs.1.le hs.2))
+
+/-- TC14 raw Gaussian-tail substitution.
+
+This is the direct affine change of variables `t = √N (s + ε)` applied to
+the TC13 raw bulk upper bound, followed by enlarging the finite interval to
+the one-sided tail. No Gaussian CDF API is used. -/
+theorem carterPollardH_exp_bulk_upper_gaussian_tail
+    {N ε : ℝ} (hN0 : 0 < N) (hε0 : 0 ≤ ε) :
+    ∫ s in (0 : ℝ)..1, Real.exp (N * carterPollardH ε s - N * ε ^ 2 / 2) ≤
+      (Real.sqrt N)⁻¹ *
+        ∫ t in Set.Ioi (Real.sqrt N * ε), Real.exp (-t ^ 2 / 2) := by
+  let φ : ℝ → ℝ := fun t => Real.exp (-t ^ 2 / 2)
+  let c : ℝ := Real.sqrt N
+  have hc_pos : 0 < c := Real.sqrt_pos.2 hN0
+  have hc_ne : c ≠ 0 := hc_pos.ne'
+  have hc_nonneg : 0 ≤ c := hc_pos.le
+  have hfull := carterPollardH_exp_bulk_upper_full (N := N) (ε := ε) hN0.le hε0
+  have hkernel_eq :
+      (∫ s in (0 : ℝ)..1, Real.exp (-(N * (s + ε) ^ 2) / 2)) =
+        c⁻¹ * ∫ t in c * ε..c * (1 + ε), φ t := by
+    have hfun :
+        (fun s : ℝ => Real.exp (-(N * (s + ε) ^ 2) / 2)) =
+          (fun s : ℝ => φ (c * s + c * ε)) := by
+      funext s
+      dsimp [φ, c]
+      congr 1
+      rw [← mul_add, mul_pow, Real.sq_sqrt hN0.le]
+    rw [hfun]
+    simpa [φ, c, mul_add, add_comm, add_left_comm, add_assoc] using
+      (intervalIntegral.integral_comp_mul_add (f := φ) (a := (0 : ℝ)) (b := 1)
+        (c := c) (d := c * ε) hc_ne)
+  have hφ_int : MeasureTheory.Integrable φ := by
+    have h := integrable_exp_neg_mul_sq (b := (1 / 2 : ℝ)) (by norm_num)
+    refine h.congr ?_
+    filter_upwards with t
+    dsimp [φ]
+    congr 1
+    ring
+  have htail_int : MeasureTheory.IntegrableOn φ (Set.Ioi (c * ε)) := hφ_int.integrableOn
+  have htail_nonneg : 0 ≤ᵐ[MeasureTheory.volume.restrict (Set.Ioi (c * ε))] φ :=
+    Filter.Eventually.of_forall (fun t => (Real.exp_pos _).le)
+  have hfinite_subset_tail :
+      Set.Ioc (c * ε) (c * (1 + ε)) ≤ᵐ[MeasureTheory.volume] Set.Ioi (c * ε) :=
+    Filter.Eventually.of_forall (fun t ht => ht.1)
+  have hfinite_tail :
+      ∫ t in c * ε..c * (1 + ε), φ t ≤ ∫ t in Set.Ioi (c * ε), φ t := by
+    have hε_le : ε ≤ 1 + ε := by linarith
+    have hbounds : c * ε ≤ c * (1 + ε) :=
+      mul_le_mul_of_nonneg_left hε_le hc_nonneg
+    rw [intervalIntegral.integral_of_le hbounds]
+    exact MeasureTheory.setIntegral_mono_set htail_int htail_nonneg hfinite_subset_tail
+  calc
+    ∫ s in (0 : ℝ)..1, Real.exp (N * carterPollardH ε s - N * ε ^ 2 / 2)
+        ≤ ∫ s in (0 : ℝ)..1, Real.exp (-(N * (s + ε) ^ 2) / 2) := hfull
+    _ = c⁻¹ * ∫ t in c * ε..c * (1 + ε), φ t := hkernel_eq
+    _ ≤ c⁻¹ * ∫ t in Set.Ioi (c * ε), φ t :=
+      mul_le_mul_of_nonneg_left hfinite_tail (inv_nonneg.mpr hc_nonneg)
+    _ = (Real.sqrt N)⁻¹ *
+        ∫ t in Set.Ioi (Real.sqrt N * ε), Real.exp (-t ^ 2 / 2) := by
+      rfl
 
 end FormalConjectures.ErdosProblems.Helpers.CarterPollardH
