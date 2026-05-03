@@ -1862,3 +1862,35 @@ Net debt change: 0.
 * No `Real.Gaussian.compl_cdf`.
 * Quantile inversion and the comparison between `Δ_raw` and the paper's
   Stirling-expanded `Δ` remain out of scope for TC17.
+
+---
+
+# TC18 — Δ_raw diagnostic and loose Stirling-prefactor bound
+
+TC18 landed the T1.0 Δ-bound audit in
+`TrackC_round18_T1_DeltaBoundAudit.md` and added debt-free algebraic support
+around the TC17 raw prefactor.
+
+New Lean artefacts:
+
+* `carterPollardPrefactorRaw_pos`: positivity of the exact raw prefactor in
+  the nonempty range `2 ≤ m`, `1 ≤ k`, `k ≤ m`.
+* `carterPollardDeltaRaw_exp_le_stirling_prefactor`: loose explicit bound
+  for `exp(Δ_raw)` using the existing
+  `Erdos524.Helpers.stirling_prefactor_bound`.
+* `carterPollardDeltaRaw_le_log_stirling_prefactor`: logarithmic form of the
+  same loose bound.
+
+The audit concludes that the paper's `Δ` is mathematically the same exact
+prefactor exponent, but the Lean equality still needs a separate
+Robbins/Stirling expansion layer: exact factorial rewrite, named `λ` terms,
+`Λ = λ_N - λ_K - λ_(N-K)`, and the entropy rewrite into the paper's
+`γ(ε)` expression.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* Quantile inversion, endpoint/small-`m` cases, and the sharp
+  paper-shaped `Δ` bound remain deferred.

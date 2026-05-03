@@ -276,10 +276,12 @@ Stirling-expanded `Δ` is bounded or identified. -/
 noncomputable def carterPollardDeltaRaw (m k : ℕ) : ℝ :=
   Real.log (carterPollardPrefactorRaw m k)
 
-lemma carterPollardDeltaRaw_exp_eq_prefactor
+/-- Positivity of the exact raw Carter--Pollard prefactor in the nonempty
+binomial-tail range. -/
+theorem carterPollardPrefactorRaw_pos
     {m k : ℕ}
     (hm : 2 ≤ m) (hk : 1 ≤ k) (hkm : k ≤ m) :
-    Real.exp (carterPollardDeltaRaw m k) = carterPollardPrefactorRaw m k := by
+    0 < carterPollardPrefactorRaw m k := by
   have hm_pos : (0 : ℝ) < (m : ℝ) := by
     exact_mod_cast (show 0 < m by omega)
   have hchoose_pos : (0 : ℝ) < ((m - 1).choose (k - 1) : ℝ) := by
@@ -287,10 +289,69 @@ lemma carterPollardDeltaRaw_exp_eq_prefactor
   have hN_pos : 0 < carterPollardN m := by
     unfold carterPollardN
     exact_mod_cast (show 0 < m - 1 by omega)
-  unfold carterPollardDeltaRaw
-  rw [Real.exp_log]
   unfold carterPollardPrefactorRaw
   positivity
+
+lemma carterPollardDeltaRaw_exp_eq_prefactor
+    {m k : ℕ}
+    (hm : 2 ≤ m) (hk : 1 ≤ k) (hkm : k ≤ m) :
+    Real.exp (carterPollardDeltaRaw m k) = carterPollardPrefactorRaw m k := by
+  unfold carterPollardDeltaRaw
+  exact Real.exp_log (carterPollardPrefactorRaw_pos hm hk hkm)
+
+/-- TC18 loose explicit upper bound for the exact raw `exp(Δ)` prefactor.
+
+This uses only the elementary in-tree bound
+`m * choose (m-1) (k-1) ≤ m^k/(k-1)!`. It is intentionally weaker than the
+paper's Robbins-expanded `Δ` estimate, but it exposes the remaining finite
+Stirling/entropy gap without adding debt. -/
+theorem carterPollardDeltaRaw_exp_le_stirling_prefactor
+    {m k : ℕ}
+    (hm : 2 ≤ m) (hk : 1 ≤ k) (hkm : k ≤ m) :
+    Real.exp (carterPollardDeltaRaw m k) ≤
+      ((m : ℝ) ^ k / ((k - 1).factorial : ℝ)) *
+        ((1 / 2 : ℝ) ^ m *
+          Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2)) *
+        (Real.sqrt (2 * Real.pi) * (Real.sqrt (carterPollardN m))⁻¹) := by
+  rw [carterPollardDeltaRaw_exp_eq_prefactor hm hk hkm]
+  unfold carterPollardPrefactorRaw
+  have hcoeff := Erdos524.Helpers.stirling_prefactor_bound (k := k) (m := m) hk hkm
+  have hrest_nonneg :
+      0 ≤
+        ((1 / 2 : ℝ) ^ m *
+          Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2)) *
+        (Real.sqrt (2 * Real.pi) * (Real.sqrt (carterPollardN m))⁻¹) := by
+    have hN_pos : 0 < carterPollardN m := by
+      unfold carterPollardN
+      exact_mod_cast (show 0 < m - 1 by omega)
+    positivity
+  simpa [mul_assoc] using mul_le_mul_of_nonneg_right hcoeff hrest_nonneg
+
+/-- Logarithmic form of the loose TC18 prefactor bound. The sharper
+Carter--Pollard paper bound still requires the Robbins `λ` and `γ` expansion. -/
+theorem carterPollardDeltaRaw_le_log_stirling_prefactor
+    {m k : ℕ}
+    (hm : 2 ≤ m) (hk : 1 ≤ k) (hkm : k ≤ m) :
+    carterPollardDeltaRaw m k ≤
+      Real.log
+        (((m : ℝ) ^ k / ((k - 1).factorial : ℝ)) *
+          ((1 / 2 : ℝ) ^ m *
+            Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2)) *
+          (Real.sqrt (2 * Real.pi) * (Real.sqrt (carterPollardN m))⁻¹)) := by
+  have hbound := carterPollardDeltaRaw_exp_le_stirling_prefactor hm hk hkm
+  have hrhs_pos :
+      0 <
+        ((m : ℝ) ^ k / ((k - 1).factorial : ℝ)) *
+          ((1 / 2 : ℝ) ^ m *
+            Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2)) *
+          (Real.sqrt (2 * Real.pi) * (Real.sqrt (carterPollardN m))⁻¹) := by
+    have hm_pos : (0 : ℝ) < (m : ℝ) := by
+      exact_mod_cast (show 0 < m by omega)
+    have hN_pos : 0 < carterPollardN m := by
+      unfold carterPollardN
+      exact_mod_cast (show 0 < m - 1 by omega)
+    positivity
+  exact (Real.le_log_iff_exp_le hrhs_pos).mpr hbound
 
 /-- TC17 normalized Gaussian-tail version of the TC16 raw bound.
 
