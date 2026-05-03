@@ -1933,3 +1933,41 @@ Net debt change: 0.
 * No `Real.Gaussian.compl_cdf`.
 * Quantile inversion and `tusnady_base_polynomial` retirement remain out of
   scope.
+
+---
+
+# TC20 — Δ equality path factorization
+
+TC20 landed the T1.0 equality-path audit in
+`TrackC_round20_T1_DeltaEqualityAudit.md` and added several debt-free exact
+bridges needed for the final
+`carterPollardDeltaRaw = carterPollardDeltaPaperShape` theorem.
+
+New Lean artefacts:
+
+* `carterPollardK_add_NK_eq_N`.
+* `carterPollard_choose_eq_factorial_div`.
+* `carterPollardN_eq_sub_one`.
+* `carterPollardK_real_eq_N_mul_one_add_eps_div_two`.
+* `carterPollardNK_real_eq_N_mul_one_sub_eps_div_two`.
+* `carterPollard_one_add_eps_pos`.
+* `carterPollard_one_sub_eps_pos`.
+* `carterPollard_one_sub_eps_sq_pos`.
+* `carterPollardLambda_exp_eq`.
+* `carterPollardEntropyDelta_exp_eq`.
+* `carterPollardDeltaPaperShape_exp_eq_factorized`.
+
+Outcome: **diagnostic Full / equality-path infrastructure Full**, but not the
+final exact equality theorem. The remaining proof obligation is the exact
+cancellation between the Stirling-core powers, the entropy denominator
+`(1+ε)^K(1-ε)^(N-K)`, the square-root factor
+`(1-ε²)^(-1/2)`, and the separate `m/N = 1 + N⁻¹` factor. This is finite
+algebra, but it is the real TC20 hard point and should not be hidden behind a
+loose bound or a definitional shortcut.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No γ rewrite, quantile inversion, or `tusnady_base_polynomial` claim.

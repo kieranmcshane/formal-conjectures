@@ -324,6 +324,140 @@ theorem carterPollard_lambda_indices_pos
   dsimp [carterPollardK, carterPollardNK]
   omega
 
+/-- In the Carter--Pollard range, `K + (N-K) = N` at the Nat level. -/
+theorem carterPollardK_add_NK_eq_N
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    carterPollardK m k + carterPollardNK m k = m - 1 := by
+  dsimp [carterPollardK, carterPollardNK]
+  omega
+
+/-- Factorial form of the binomial coefficient in the Carter--Pollard range. -/
+theorem carterPollard_choose_eq_factorial_div
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    (((m - 1).choose (k - 1) : ℕ) : ℝ) =
+      ((m - 1).factorial : ℝ) /
+        (((carterPollardK m k).factorial : ℝ) *
+          ((carterPollardNK m k).factorial : ℝ)) := by
+  have hle : k - 1 ≤ m - 1 := by omega
+  have hsplit : (m - 1) - (k - 1) = carterPollardNK m k := by
+    unfold carterPollardNK
+    omega
+  have hK : k - 1 = carterPollardK m k := by
+    unfold carterPollardK
+    rfl
+  have hchoose_mul_nat :=
+    Nat.choose_mul_factorial_mul_factorial (n := m - 1) (k := k - 1) hle
+  have hchoose_mul :
+      (((m - 1).choose (k - 1) : ℕ) : ℝ) *
+          ((carterPollardK m k).factorial : ℝ) *
+          ((carterPollardNK m k).factorial : ℝ) =
+        ((m - 1).factorial : ℝ) := by
+    rw [← hK, ← hsplit]
+    exact_mod_cast hchoose_mul_nat
+  have hden_pos :
+      0 < ((carterPollardK m k).factorial : ℝ) *
+        ((carterPollardNK m k).factorial : ℝ) := by
+    positivity
+  rw [eq_div_iff hden_pos.ne']
+  rw [← hchoose_mul]
+  ring
+
+/-- The Lean instantiated `N` is the real number `m - 1`. -/
+theorem carterPollardN_eq_sub_one
+    {m : ℕ} (hm : 2 ≤ m) :
+    carterPollardN m = (m : ℝ) - 1 := by
+  unfold carterPollardN
+  rw [Nat.cast_sub (show 1 ≤ m by omega)]
+  norm_num
+
+/-- Exact real form of `K = N(1+ε)/2`. -/
+theorem carterPollardK_real_eq_N_mul_one_add_eps_div_two
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    ((carterPollardK m k : ℕ) : ℝ) =
+      carterPollardN m * (1 + carterPollardEps m k) / 2 := by
+  have hm2 : 2 ≤ m := by omega
+  have hk1 : 1 ≤ k := by omega
+  have hN_eq := carterPollardN_eq_sub_one (m := m) hm2
+  have hden : (m : ℝ) - 1 ≠ 0 := by
+    rw [← hN_eq]
+    unfold carterPollardN
+    exact ne_of_gt (by exact_mod_cast (show (0 : ℕ) < m - 1 by omega) : 0 < ((m - 1 : ℕ) : ℝ))
+  have hK_cast : ((carterPollardK m k : ℕ) : ℝ) = (k : ℝ) - 1 := by
+    unfold carterPollardK
+    rw [Nat.cast_sub hk1]
+    norm_num
+  rw [hK_cast, hN_eq]
+  unfold carterPollardEps
+  field_simp [hden]
+  ring
+
+/-- Exact real form of `N-K = N(1-ε)/2`. -/
+theorem carterPollardNK_real_eq_N_mul_one_sub_eps_div_two
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    ((carterPollardNK m k : ℕ) : ℝ) =
+      carterPollardN m * (1 - carterPollardEps m k) / 2 := by
+  have hm2 : 2 ≤ m := by omega
+  have hkm : k ≤ m := by omega
+  have hN_eq := carterPollardN_eq_sub_one (m := m) hm2
+  have hden : (m : ℝ) - 1 ≠ 0 := by
+    rw [← hN_eq]
+    unfold carterPollardN
+    exact ne_of_gt (by exact_mod_cast (show (0 : ℕ) < m - 1 by omega) : 0 < ((m - 1 : ℕ) : ℝ))
+  have hNK_cast : ((carterPollardNK m k : ℕ) : ℝ) = (m : ℝ) - (k : ℝ) := by
+    unfold carterPollardNK
+    rw [Nat.cast_sub hkm]
+  rw [hNK_cast, hN_eq]
+  unfold carterPollardEps
+  field_simp [hden]
+  ring
+
+/-- The factors `1+ε` and `1-ε` are positive in the non-extreme range. -/
+theorem carterPollard_one_add_eps_pos
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    0 < 1 + carterPollardEps m k := by
+  have hK_pos : (0 : ℝ) < ((carterPollardK m k : ℕ) : ℝ) := by
+    exact_mod_cast (carterPollard_lambda_indices_pos hm hk_lower hk_upper).2.1
+  have hN_pos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+  have hK := carterPollardK_real_eq_N_mul_one_add_eps_div_two hm hk_lower hk_upper
+  have hprod : 0 < carterPollardN m * (1 + carterPollardEps m k) / 2 := by
+    simpa [← hK] using hK_pos
+  nlinarith [hN_pos]
+
+/-- The factor `1-ε` is positive in the non-extreme range. -/
+theorem carterPollard_one_sub_eps_pos
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    0 < 1 - carterPollardEps m k := by
+  have hNK_pos : (0 : ℝ) < ((carterPollardNK m k : ℕ) : ℝ) := by
+    exact_mod_cast (carterPollard_lambda_indices_pos hm hk_lower hk_upper).2.2
+  have hN_pos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+  have hNK := carterPollardNK_real_eq_N_mul_one_sub_eps_div_two hm hk_lower hk_upper
+  have hprod : 0 < carterPollardN m * (1 - carterPollardEps m k) / 2 := by
+    simpa [← hNK] using hNK_pos
+  nlinarith [hN_pos]
+
+/-- The factor `1-ε^2` is positive in the non-extreme range. -/
+theorem carterPollard_one_sub_eps_sq_pos
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    0 < 1 - carterPollardEps m k ^ 2 := by
+  have hp := carterPollard_one_add_eps_pos hm hk_lower hk_upper
+  have hm' := carterPollard_one_sub_eps_pos hm hk_lower hk_upper
+  have hfactor :
+      1 - carterPollardEps m k ^ 2 =
+        (1 + carterPollardEps m k) * (1 - carterPollardEps m k) := by ring
+  rw [hfactor]
+  positivity
+
 /-- The Stirling core in formula (3) is positive whenever `j ≥ 1`. -/
 theorem carterPollardStirlingCore_pos {j : ℕ} (hj : 1 ≤ j) :
     0 < carterPollardStirlingCore j := by
@@ -341,6 +475,99 @@ theorem carterPollardLambdaTerm_exp_eq
   have hratio_pos : 0 < (j.factorial : ℝ) / carterPollardStirlingCore j := by
     positivity
   exact Real.exp_log hratio_pos
+
+/-- Multiplicative form of `exp(Λ)` from formula (3). -/
+theorem carterPollardLambda_exp_eq
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    Real.exp (carterPollardLambda m k) =
+      ((m - 1).factorial : ℝ) *
+        carterPollardStirlingCore (carterPollardK m k) *
+        carterPollardStirlingCore (carterPollardNK m k) /
+      (((carterPollardK m k).factorial : ℝ) *
+        ((carterPollardNK m k).factorial : ℝ) *
+        carterPollardStirlingCore (m - 1)) := by
+  rcases carterPollard_lambda_indices_pos hm hk_lower hk_upper with ⟨hN, hK, hNK⟩
+  have hcoreN := (carterPollardStirlingCore_pos hN).ne'
+  have hcoreK := (carterPollardStirlingCore_pos hK).ne'
+  have hcoreNK := (carterPollardStirlingCore_pos hNK).ne'
+  have hfactK : (((carterPollardK m k).factorial : ℝ) : ℝ) ≠ 0 := by positivity
+  have hfactNK : (((carterPollardNK m k).factorial : ℝ) : ℝ) ≠ 0 := by positivity
+  unfold carterPollardLambda
+  rw [Real.exp_sub, Real.exp_sub]
+  rw [carterPollardLambdaTerm_exp_eq hN,
+    carterPollardLambdaTerm_exp_eq hK,
+    carterPollardLambdaTerm_exp_eq hNK]
+  field_simp [hcoreN, hcoreK, hcoreNK, hfactK, hfactNK]
+
+/-- Multiplicative form of the explicit entropy term before the optional
+rewrite through `γ(ε)`. -/
+theorem carterPollardEntropyDelta_exp_eq
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    Real.exp (carterPollardEntropyDelta m k) =
+      Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2) *
+        (((1 + carterPollardEps m k) ^ (carterPollardK m k) *
+          (1 - carterPollardEps m k) ^ (carterPollardNK m k))⁻¹) := by
+  have hp := carterPollard_one_add_eps_pos hm hk_lower hk_upper
+  have hm' := carterPollard_one_sub_eps_pos hm hk_lower hk_upper
+  have hK := carterPollardK_real_eq_N_mul_one_add_eps_div_two hm hk_lower hk_upper
+  have hNK := carterPollardNK_real_eq_N_mul_one_sub_eps_div_two hm hk_lower hk_upper
+  have h_entropy :
+      carterPollardEntropyDelta m k =
+        - ((((carterPollardK m k : ℕ) : ℝ) * Real.log (1 + carterPollardEps m k) +
+            (((carterPollardNK m k : ℕ) : ℝ) * Real.log (1 - carterPollardEps m k)))) +
+          carterPollardN m * carterPollardEps m k ^ 2 / 2 := by
+    unfold carterPollardEntropyDelta
+    rw [hK, hNK]
+    ring
+  rw [h_entropy, Real.exp_add, Real.exp_neg, Real.exp_add]
+  have hpowK :
+      Real.exp (((carterPollardK m k : ℕ) : ℝ) *
+          Real.log (1 + carterPollardEps m k)) =
+        (1 + carterPollardEps m k) ^ (carterPollardK m k) := by
+    rw [mul_comm, ← Real.rpow_def_of_pos hp, Real.rpow_natCast]
+  have hpowNK :
+      Real.exp (((carterPollardNK m k : ℕ) : ℝ) *
+          Real.log (1 - carterPollardEps m k)) =
+        (1 - carterPollardEps m k) ^ (carterPollardNK m k) := by
+    rw [mul_comm, ← Real.rpow_def_of_pos hm', Real.rpow_natCast]
+  rw [hpowK, hpowNK]
+  ring
+
+private lemma exp_neg_half_log_eq_inv_sqrt {x : ℝ} (hx : 0 < x) :
+    Real.exp (-(1 / 2 : ℝ) * Real.log x) = (Real.sqrt x)⁻¹ := by
+  have hsqrt :
+      Real.exp ((1 / 2 : ℝ) * Real.log x) = Real.sqrt x := by
+    rw [show (1 / 2 : ℝ) * Real.log x = Real.log x * (1 / 2 : ℝ) by ring]
+    rw [Real.exp_mul, Real.exp_log hx, ← Real.sqrt_eq_rpow]
+  rw [show -(1 / 2 : ℝ) * Real.log x = -((1 / 2 : ℝ) * Real.log x) by ring]
+  rw [Real.exp_neg, hsqrt]
+
+/-- Exponential factorization of the paper-shaped entropy Δ. This is the safe
+multiplicative form used before the final raw-prefactor equality. -/
+theorem carterPollardDeltaPaperShape_exp_eq_factorized
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    Real.exp (carterPollardDeltaPaperShape m k) =
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (carterPollardLambda m k) *
+        (Real.sqrt (1 - carterPollardEps m k ^ 2))⁻¹ *
+        Real.exp (carterPollardEntropyDelta m k) := by
+  have hN_pos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+  have hlog_pos : 0 < 1 + (carterPollardN m)⁻¹ := by positivity
+  have hsq_pos := carterPollard_one_sub_eps_sq_pos hm hk_lower hk_upper
+  unfold carterPollardDeltaPaperShape
+  rw [show Real.log (1 + (carterPollardN m)⁻¹) + carterPollardLambda m k -
+        (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+          carterPollardEntropyDelta m k =
+        Real.log (1 + (carterPollardN m)⁻¹) + carterPollardLambda m k +
+          (-(1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2)) +
+            carterPollardEntropyDelta m k by ring]
+  rw [Real.exp_add, Real.exp_add, Real.exp_add, Real.exp_log hlog_pos,
+    exp_neg_half_log_eq_inv_sqrt hsq_pos]
 
 /-- Debt-free Robbins bounds available from the current local Stirling API.
 
