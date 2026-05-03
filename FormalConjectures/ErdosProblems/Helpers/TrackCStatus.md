@@ -1829,3 +1829,36 @@ Net debt change: 0.
 * Remaining work: normal-tail ratio/quantile inversion, symmetry adapter, and
   endpoint/small-`n` handling before any universal `A = 0.6`, `C = 1`
   closure claim.
+
+---
+
+# TC17 — normalized Gaussian-tail and raw Δ-prefactor bridge
+
+TC17 landed the T1.0 prefactor audit in
+`TrackC_round17_T1_DeltaPrefactorAudit.md` and added the normalized raw-tail
+bridge
+`binomialPolyTail_half_le_exp_delta_mul_gaussian_tail_instantiated`.
+
+New local definitions:
+
+* `carterPollardN m = (m - 1 : ℕ)` as a real.
+* `carterPollardEps m k = (2*k - m - 1)/(m - 1)`.
+* `gaussianTailRaw x = (sqrt(2π))⁻¹ * ∫_x^∞ exp(-t^2/2) dt`.
+* `carterPollardDeltaRaw m k = log(carterPollardPrefactorRaw m k)`.
+
+The theorem composes TC16 with the algebraic identity
+
+`A * ((sqrt N)⁻¹ * rawTail) =
+  exp(Δ_raw) * gaussianTailRaw(sqrt N * ε)`,
+
+where `A` is the exact combinatorial/Carter-Pollard prefactor already present
+in TC16. This isolates the paper's `exp(Δ) * Φ̄(ε sqrt N)` shape without
+introducing a CDF API.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* Quantile inversion and the comparison between `Δ_raw` and the paper's
+  Stirling-expanded `Δ` remain out of scope for TC17.

@@ -250,4 +250,102 @@ theorem binomialPolyTail_half_le_gaussian_tail_instantiated
     (n := m) (k := k) (N := N) (ε := ε) hk hkm hNpos hε0 hleft hright
   simpa [N, ε] using htail
 
+/-- Carter--Pollard's instantiated `N = m - 1` parameter. -/
+noncomputable def carterPollardN (m : ℕ) : ℝ :=
+  ((m - 1 : ℕ) : ℝ)
+
+/-- Carter--Pollard's instantiated `ε = (2*k - m - 1)/(m - 1)` parameter. -/
+noncomputable def carterPollardEps (m k : ℕ) : ℝ :=
+  (((2 : ℝ) * (k : ℝ) - (m : ℝ) - 1) / ((m : ℝ) - 1))
+
+/-- Raw normalized standard-Gaussian upper tail, kept as an interval integral. -/
+noncomputable def gaussianTailRaw (x : ℝ) : ℝ :=
+  (Real.sqrt (2 * Real.pi))⁻¹ *
+    ∫ t in Set.Ioi x, Real.exp (-t ^ 2 / 2)
+
+/-- The exact raw Carter--Pollard prefactor whose logarithm plays the role of
+the paper's `Δ` before any Stirling-error comparison is performed. -/
+noncomputable def carterPollardPrefactorRaw (m k : ℕ) : ℝ :=
+  ((m : ℝ) * ((m - 1).choose (k - 1) : ℝ)) *
+    ((1 / 2 : ℝ) ^ m *
+      Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2)) *
+    (Real.sqrt (2 * Real.pi) * (Real.sqrt (carterPollardN m))⁻¹)
+
+/-- Raw `Δ` corresponding to the exact Lean prefactor before the paper's
+Stirling-expanded `Δ` is bounded or identified. -/
+noncomputable def carterPollardDeltaRaw (m k : ℕ) : ℝ :=
+  Real.log (carterPollardPrefactorRaw m k)
+
+lemma carterPollardDeltaRaw_exp_eq_prefactor
+    {m k : ℕ}
+    (hm : 2 ≤ m) (hk : 1 ≤ k) (hkm : k ≤ m) :
+    Real.exp (carterPollardDeltaRaw m k) = carterPollardPrefactorRaw m k := by
+  have hm_pos : (0 : ℝ) < (m : ℝ) := by
+    exact_mod_cast (show 0 < m by omega)
+  have hchoose_pos : (0 : ℝ) < ((m - 1).choose (k - 1) : ℝ) := by
+    exact_mod_cast (Nat.choose_pos (show k - 1 ≤ m - 1 by omega))
+  have hN_pos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show 0 < m - 1 by omega)
+  unfold carterPollardDeltaRaw
+  rw [Real.exp_log]
+  unfold carterPollardPrefactorRaw
+  positivity
+
+/-- TC17 normalized Gaussian-tail version of the TC16 raw bound.
+
+This only rewrites the raw integral tail as
+`exp(Δ_raw) * gaussianTailRaw`; it does not compare `Δ_raw` with the paper's
+Stirling-expanded `Δ`, and it does not perform quantile inversion. -/
+theorem binomialPolyTail_half_le_exp_delta_mul_gaussian_tail_instantiated
+    {m k : ℕ}
+    (hm : 2 ≤ m)
+    (hk : 1 ≤ k) (hkm : k ≤ m)
+    (hε0 : 0 ≤ carterPollardEps m k) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      Real.exp (carterPollardDeltaRaw m k) *
+        gaussianTailRaw
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k) := by
+  have hraw := binomialPolyTail_half_le_gaussian_tail_instantiated
+    (m := m) (k := k) hm hk hkm (by simpa [carterPollardEps] using hε0)
+  have hraw_def :
+      Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+        ((m : ℝ) * ((m - 1).choose (k - 1) : ℝ)) *
+          ((1 / 2 : ℝ) ^ m *
+            Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2) *
+            ((Real.sqrt (carterPollardN m))⁻¹ *
+              ∫ t in Set.Ioi
+                (Real.sqrt (carterPollardN m) * carterPollardEps m k),
+                Real.exp (-t ^ 2 / 2))) := by
+    simpa [carterPollardN, carterPollardEps] using hraw
+  have hnorm :
+      ((m : ℝ) * ((m - 1).choose (k - 1) : ℝ)) *
+          ((1 / 2 : ℝ) ^ m *
+            Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2) *
+            ((Real.sqrt (carterPollardN m))⁻¹ *
+              ∫ t in Set.Ioi
+                (Real.sqrt (carterPollardN m) * carterPollardEps m k),
+                Real.exp (-t ^ 2 / 2))) =
+        Real.exp (carterPollardDeltaRaw m k) *
+          gaussianTailRaw
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k) := by
+    rw [carterPollardDeltaRaw_exp_eq_prefactor hm hk hkm]
+    unfold carterPollardPrefactorRaw gaussianTailRaw
+    set A : ℝ :=
+      ((m : ℝ) * ((m - 1).choose (k - 1) : ℝ)) *
+        ((1 / 2 : ℝ) ^ m *
+          Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2))
+    set S : ℝ := Real.sqrt (2 * Real.pi)
+    set R : ℝ := Real.sqrt (carterPollardN m)
+    set T : ℝ :=
+      ∫ t in Set.Ioi (Real.sqrt (carterPollardN m) * carterPollardEps m k),
+        Real.exp (-t ^ 2 / 2)
+    have hS_ne : S ≠ 0 := by
+      dsimp [S]
+      positivity
+    field_simp [hS_ne]
+    ring
+  rw [hnorm] at hraw_def
+  exact hraw_def
+
 end FormalConjectures.ErdosProblems.Helpers.CarterPollardH
