@@ -1,0 +1,201 @@
+#!/bin/zsh
+# lean-doctor — diagnostic et nettoyage rapide quand le Mac sature
+#               pendant les sessions Lean / formal-conjectures
+#
+# Usage :
+#   lean-doctor             # diagnostic seul, lecture pure
+#   lean-doctor --fix       # diagnostic + propose les nettoyages 1 par 1
+#   lean-doctor --fix -y    # diagnostic + nettoyages sans confirmation
+#   lean-doctor --quiet     # version 5 lignes pour script/cron
+#
+# Codes de sortie :
+#   0 = sain, rien à signaler
+#   1 = warnings (un seuil dépassé)
+#   2 = critiques (plusieurs seuils OU swap > 4 Go)
+
+set -u
+
+FIX=0
+YES=0
+QUIET=0
+for arg in "$@"; do
+  case "$arg" in
+    --fix)   FIX=1 ;;
+    -y|--yes) YES=1 ;;
+    --quiet) QUIET=1 ;;
+    -h|--help)
+      sed -n '2,12p' "$0"
+      exit 0
+      ;;
+    *)
+      echo "argument inconnu : $arg" >&2
+      exit 64
+      ;;
+  esac
+done
+
+# ─── couleurs (TTY only) ─────────────────────────────────────────
+if [ -t 1 ]; then
+  R=$'\e[31m'; G=$'\e[32m'; Y=$'\e[33m'; B=$'\e[34m'; D=$'\e[2m'; X=$'\e[0m'
+else
+  R=; G=; Y=; B=; D=; X=
+fi
+ok()    { (( QUIET )) || echo "${G}✓${X} $*"; }
+warn()  { (( QUIET )) || echo "${Y}⚠${X} $*"; W=$((W+1)); }
+crit()  { echo "${R}✗${X} $*"; C=$((C+1)); }
+hdr()   { (( QUIET )) || echo "\n${B}── $* ──${X}"; }
+W=0; C=0
+
+# ─── 1. swap ─────────────────────────────────────────────────────
+hdr "Swap"
+SWAP_USED_MB=$(sysctl -n vm.swapusage 2>/dev/null | sed -E 's/.*used = ([0-9]+)[.,]?[0-9]*M.*/\1/')
+[[ "$SWAP_USED_MB" =~ ^[0-9]+$ ]] || SWAP_USED_MB=0
+if   (( SWAP_USED_MB > 4096 )); then crit "swap utilisé : ${SWAP_USED_MB} Mo (critique > 4 Go)"
+elif (( SWAP_USED_MB > 2048 )); then warn "swap utilisé : ${SWAP_USED_MB} Mo (élevé > 2 Go)"
+else                                 ok "swap utilisé : ${SWAP_USED_MB} Mo"
+fi
+
+# ─── 2. CPU idle (moyenne court terme via load avg / nproc) ─────
+hdr "CPU"
+LOAD1=$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}')
+NPROC=$(sysctl -n hw.logicalcpu 2>/dev/null || echo 8)
+LOAD_PCT=$(awk -v l="$LOAD1" -v n="$NPROC" 'BEGIN{printf "%.0f", 100*l/n}')
+if   (( LOAD_PCT > 100 )); then crit "load 1min ${LOAD1} sur ${NPROC} cœurs = ${LOAD_PCT}% (oversubscribé)"
+elif (( LOAD_PCT > 70  )); then warn "load 1min ${LOAD1} sur ${NPROC} cœurs = ${LOAD_PCT}%"
+else                            ok "load 1min ${LOAD1} sur ${NPROC} cœurs = ${LOAD_PCT}%"
+fi
+
+# ─── 3. worktrees + cache .olean ─────────────────────────────────
+hdr "Worktrees formal-conjectures"
+FC_ROOT=~/Documents/formal-conjectures
+if [ ! -d "$FC_ROOT" ]; then
+  warn "$FC_ROOT introuvable — pas de projet formal-conjectures"
+else
+  cd "$FC_ROOT" || exit 1
+  # Filtre les worktrees "prunable" (orphelins, type /tmp) qui n'ont pas de .lake utile
+  for w in $(git worktree list 2>/dev/null | grep -v prunable | awk '{print $1}'); do
+    if [ -f "$w/.lake/packages/mathlib/.lake/build/lib/Mathlib/Init.olean" ] \
+       || [ -f "$w/.lake/packages/mathlib/.lake/build/lib/lean/Mathlib/Init.olean" ]; then
+      ok "cache OK    ${w/#$HOME/~}"
+    else
+      warn "cache MISS  ${w/#$HOME/~}  (lance : cd $w && lake exe cache get)"
+    fi
+  done
+fi
+
+# ─── 4. processus suspects ───────────────────────────────────────
+hdr "Processus"
+
+# 4a. renderers Claude > 1.5 Go
+BIG_RENDERERS=$(ps aux | awk '/Claude Helper.*Renderer/ && $6/1024 > 1500 {printf "%s %dM\n", $2, $6/1024}')
+if [ -n "$BIG_RENDERERS" ]; then
+  warn "renderer Claude > 1.5 Go détecté :"
+  echo "$BIG_RENDERERS" | sed 's/^/    /'
+else
+  ok "pas de renderer Claude obèse (> 1.5 Go)"
+fi
+
+# 4b. workers LSP fantômes
+GHOSTS=$(pgrep -f "lean.*--server" | wc -l | tr -d ' ')
+if (( GHOSTS > 4 )); then
+  warn "$GHOSTS workers Lean LSP en cours (> 4 = probable fantômes)"
+elif (( GHOSTS > 0 )); then
+  ok "$GHOSTS worker(s) Lean LSP actifs"
+else
+  ok "aucun worker Lean LSP (rien d'ouvert dans VS Code)"
+fi
+
+# 4c. ollama / rustdesk
+for proc in ollama RustDesk; do
+  if pgrep -x "$proc" >/dev/null 2>&1; then
+    warn "$proc actif"
+  else
+    ok "$proc absent"
+  fi
+done
+
+# 4d. lake build en cours ?
+LAKE_BUILDS=$(pgrep -f "lake build" | wc -l | tr -d ' ')
+if (( LAKE_BUILDS > 0 )); then
+  ok "$LAKE_BUILDS lake build en cours (normal pendant un round)"
+fi
+
+# ─── 5. top consommateurs RAM ────────────────────────────────────
+if (( ! QUIET )); then
+  hdr "Top 5 RAM"
+  ps aux | awk '$11 !~ /grep/ {printf "%-30s\t%dM\n", substr($11,length($11)-29), $6/1024}' \
+    | sort -k2 -n -r | head -5 | sed 's/^/  /'
+fi
+
+# ─── 6. mode --fix : actions correctives, opt-in ──────────────────
+maybe_run() {
+  local prompt="$1"; shift
+  if (( YES )); then
+    echo "${B}→${X} $prompt"
+    "$@"
+  else
+    printf "${B}? %s [y/N] ${X}" "$prompt"
+    read -r ans
+    [[ "$ans" =~ ^[yYoO]$ ]] && "$@"
+  fi
+}
+
+if (( FIX )); then
+  hdr "Actions correctives"
+
+  if pgrep -x ollama >/dev/null 2>&1; then
+    maybe_run "Tuer ollama ?" killall ollama
+  fi
+  if pgrep -x RustDesk >/dev/null 2>&1; then
+    maybe_run "Tuer RustDesk ?" killall RustDesk
+  fi
+  if (( GHOSTS > 4 )); then
+    maybe_run "Tuer les $GHOSTS workers Lean LSP (VS Code les recréera) ?" pkill -f "lean.*--server"
+  fi
+  if [ -n "$BIG_RENDERERS" ]; then
+    echo "${Y}!${X} Renderer Claude obèse — pas tué automatiquement (perte de l'onglet en cours)."
+    echo "    Pour le tuer manuellement :"
+    echo "$BIG_RENDERERS" | awk '{print "      kill " $1}'
+  fi
+  if (( SWAP_USED_MB > 2048 )); then
+    maybe_run "Flush des caches FS (sudo purge) ?" sudo purge
+  fi
+fi
+
+# ─── 7. résumé ────────────────────────────────────────────────────
+if (( ! QUIET )); then
+  echo
+  if   (( C > 0 )); then echo "${R}État : critique${X} ($C critiques, $W warnings)"
+  elif (( W > 0 )); then echo "${Y}État : à surveiller${X} ($W warnings)"
+  else                   echo "${G}État : sain${X}"
+  fi
+fi
+
+# ─── 8. mode --quiet : notif macOS uniquement si problème ────────
+# Utilisé par le launchd périodique. Ne notifie pas si tout va bien.
+# Anti-spam : notifie au plus une fois par heure pour le même niveau.
+if (( QUIET )) && (( C + W > 0 )); then
+  STAMP_DIR="$HOME/Library/Caches/lean-doctor"
+  mkdir -p "$STAMP_DIR"
+  LEVEL=$([ $C -gt 0 ] && echo "crit" || echo "warn")
+  STAMP="$STAMP_DIR/last-$LEVEL"
+  NOW=$(date +%s)
+  LAST=$([ -f "$STAMP" ] && cat "$STAMP" || echo 0)
+  if (( NOW - LAST > 3600 )); then
+    echo "$NOW" > "$STAMP"
+    if [ "$LEVEL" = "crit" ]; then
+      TITLE="lean-doctor : CPU/RAM critiques"
+      MSG="$C critiques, $W warnings — swap ${SWAP_USED_MB} Mo, load ${LOAD1}"
+    else
+      TITLE="lean-doctor : à surveiller"
+      MSG="$W warnings — swap ${SWAP_USED_MB} Mo, load ${LOAD1}"
+    fi
+    osascript -e "display notification \"$MSG\nLance: lean-doctor --fix\" with title \"$TITLE\"" 2>/dev/null
+    # log court
+    echo "$(date '+%Y-%m-%d %H:%M') $LEVEL  swap=${SWAP_USED_MB}M load=${LOAD1} W=$W C=$C" >> "$STAMP_DIR/history.log"
+  fi
+fi
+
+(( C > 0 )) && exit 2
+(( W > 0 )) && exit 1
+exit 0
