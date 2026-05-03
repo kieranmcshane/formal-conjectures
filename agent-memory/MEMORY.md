@@ -1,0 +1,14 @@
+# Memory Index
+
+- [user_profile](user_profile.md) — Lean 4 expert; technical English register; V1 / CUSUM / skin-in-the-game protocols (formal-conjectures context)
+- [feedback_erdos524_framing](feedback_erdos524_framing.md) — In Erdős 524: axioms = tech debt; infra rounds = milestones, NOT closures; do not export closure-tier language to user-facing artifacts
+- [feedback_track_c_round_process](feedback_track_c_round_process.md) — Track C rounds 2+: Cowork drafts brief; T1.1 grep audit FIRST then Grok recipe SECOND with uncertainty flagging; user dispatch only (no /schedule); active engagement for math content
+- [feedback_paper_recheck_t10](feedback_paper_recheck_t10.md) — Cross-track Erdős 524: Cowork-drafted briefs depending on paper claims require mandatory T1.0 paper-fetch BEFORE T1.1 grep audit (R59→R60 attempt-1→attempt-2 evidence)
+- [feedback_v2_cluster_filesystem_discipline](feedback_v2_cluster_filesystem_discipline.md) — V2 cluster: pin bumps + lake update + .lake/packages checkouts mutate shared project state across all branches; require user-confirmed exclusive FS window; probe-then-fork does NOT survive shared-FS concurrency (TD4 evidence)
+- [Lean Erdős 524](project_lean_erdos_524.md) — mainline `r46-track-a-mge-posdef` HEAD `7ac78d4` (R63 audit-redirect close 2026-05-03 GLW det lower bound — third consecutive at T1 floor: R50/R62/R63; **constant-gap entry #18** — in-tree `cauchy_hierarchical_det_lower_bound_explicit:3093` provides `exp(-120·m³)` but paper `(240·e)^{-2m³} ≈ exp(-12.96·m³)` is 9.16x tighter, in-tree strictly weaker so does NOT imply paper axiom; Cauchy det identity already in-tree as `cauchy_det_formula:488` private; T2.1+T2.2 SKIPPED; 0 net debt, gate 18 = 10 ax + 8 so unchanged; R64a honest-weakening to existential-c form ~50 LOC needs user sign-off on paper-fidelity tradeoff before dispatch); track-c-1dkmt HEAD `efe78d7` (TC11 close 2026-05-03, Carter-Pollard h-fn + cubic Taylor bound Full via `taylor_mean_remainder_lagrange`, 18 NEW Full artefacts in `Helpers/CarterPollardHFunction.lean`, 0 sorries 0 axioms, **paper typo `2s²`→`2s³` flagged**, TC12 unblocked); user priority #1 sorry-free + axiom-free 524.lean OPEN
+
+- [feedback_lean_cpu_fix](feedback_lean_cpu_fix.md) — Lean CPU fix : git worktrees (un par branche) → plus de `git checkout` invalidant `.lake/build/` ; `lake exe cache get` MANDATORY après chaque `git worktree add` / `lake update`. Mesures secondaires : `LEAN_NUM_THREADS=4`, `lean4.serverEnv`, `taskpolicy -b`. Réf : `~/Documents/formal-conjectures/worktree-setup-guide.md`
+Archived (non-primary, language/register from these does NOT apply to formal-conjectures):
+- [bayesian_anki_addon](project_bayesian_anki.md) — BayesianSRS Anki addon at ~/Downloads/bayesian_anki_addon/
+- [Signal FSRS multi-groupe](project_signal_fsrs.md) — Système FSRS Signal médecine + brevet à ~/signal_fsrs/
+- [Signal FSRS — groupe QCM Brevet](project_signal_brevet.md) — Brevet des collèges (DNB)
