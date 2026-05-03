@@ -8,7 +8,7 @@
 
 ---
 
-## 1. Paper recheck — what does Carter–Pollard 1986 actually need?
+## 1. Paper recheck — what does Carter–Pollard 2004 actually need?
 
 **Claim**: Carter–Pollard's KMT-style polynomial small-ball couplings exploit Step-2
 prefactor as an **explicit (non-asymptotic) upper bound**, NOT a `~`-asymptotic
@@ -232,9 +232,17 @@ user-facing artifacts.
 ## 7. Uncertainty flags (per Track C feedback memory)
 
 - **Paper recheck (§1)**: I do not have direct access to the Carter–Pollard
-  1986 paper; the rationale "explicit bound > asymptotic" is reconstructed
-  from standard KMT-coupling practice. If TC11+ assembly reveals the
-  asymptotic form is also needed, add `stirling_prefactor_isEquivalent` then.
+  2004 *Annals of Statistics* paper ("Tusnády's inequality revisited"); the
+  rationale "explicit bound > asymptotic" is reconstructed from standard
+  KMT-coupling practice. If TC11+ assembly reveals the asymptotic form is
+  also needed, add `stirling_prefactor_isEquivalent` then.
+- **Citation correction**: an earlier draft of this audit (and the TC10
+  brief) referenced "Carter–Pollard 1986" — that date is incorrect. The
+  paper everyone calls "Carter–Pollard" in the Tusnády/KMT context is
+  Carter & Pollard (2004), *Annals of Statistics* 32(6), 2731–2741, DOI
+  10.1214/009053604000000733. The rest of `TrackCStatus.md` (TC3+) and the
+  `BinomialTailBeta.lean` docstrings consistently use "2004"; this audit
+  is now aligned.
 - **Bridge target form (§4.2)**: chose `p : ℝ≥0` for cleaner statement.
   Brief allows `p : ℝ` with `Subtype.mk`. If a downstream consumer needs
   the `p : ℝ` form, add a `_real` variant in TC11+.
