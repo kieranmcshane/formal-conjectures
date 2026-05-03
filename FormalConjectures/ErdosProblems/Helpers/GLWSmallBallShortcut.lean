@@ -345,6 +345,25 @@ noncomputable def glwMatrixB (m : ℕ) (hm : 0 < m) :
     Real.exp (-(hierarchicalGrid m hm i) - hierarchicalGrid m hm j)
       * glwMatrixA m hm i j
 
+/-- **R61 Path A pragmatic axiom: GLW determinant lower bound.**
+
+Explicit determinant lower bound from Gao–Li–Wellner 2010 §4 Lemma 4.2
+(second half), paper-stated value `(240·e)^{-2m³}`. Proof requires the
+classical Cauchy determinant identity (NOT in Mathlib at pin
+`25ce63313608`) plus telescoping over the hierarchical grid; estimated
+500–700 LOC body + 30–60 LOC for the from-scratch Cauchy det. The R52
+gate decision authorises hybrid (c) Path A pragmatic — axiomatising a
+paper-stated quantitative bound — when the pure-body alternative is
+high-stall-risk in a single round.
+
+Consumed by `glw_lemma_4_2_paper_specs` (det side) below. Retirement
+(replacement with a Full proof) is staged for a future dedicated round
+if Path A is later revisited.
+
+TAG[R61-glw-det-lower-bound-axiom] -/
+axiom glw_det_lower_bound (m : ℕ) (hm : 0 < m) :
+    (glwMatrixA m hm).det ≥ (240 * Real.exp 1) ^ (-2 * (m : ℤ) ^ 3)
+
 /-- **GLW 2010 §4 Lemma 4.2 (paper-exact, both halves are inequalities).**
 
 States `permanent (glwMatrixA m hm) ≤ 1` and
@@ -367,9 +386,150 @@ theorem glw_lemma_4_2_paper_specs (m : ℕ) (hm : 0 < m) :
     Matrix.permanent (glwMatrixA m hm) ≤ 1 ∧
     (glwMatrixA m hm).det ≥
       (240 * Real.exp 1) ^ (-2 * (m : ℤ) ^ 3) := by
-  refine ⟨?_, ?_⟩
-  · sorry
-  · sorry
+  refine ⟨?_, glw_det_lower_bound m hm⟩
+  -- R61 Path A: per(a) ≤ 1 via crude bound + grid plug-in (Strategy A).
+  -- Step 1: every grid value is ≥ 4^m · (m+1).
+  have h_grid_lb : ∀ i : Fin (m * m),
+      (4 : ℝ) ^ m * ((m : ℝ) + 1) ≤ hierarchicalGrid m hm i := by
+    intro i
+    unfold hierarchicalGrid
+    have h4_one : (1 : ℝ) ≤ 4 := by norm_num
+    have h4_pos : (0 : ℝ) < 4 := by norm_num
+    have h_pow_ge : (4 : ℝ) ^ m ≤ (4 : ℝ) ^ (i.val / m + m) :=
+      pow_le_pow_right₀ h4_one (Nat.le_add_left _ _)
+    have h_pow_pos : (0 : ℝ) < (4 : ℝ) ^ (i.val / m + m) :=
+      pow_pos h4_pos _
+    have h_q_ge_one : (1 : ℝ) ≤ ((i.val % m + 1 : ℕ) : ℝ) := by
+      exact_mod_cast Nat.succ_le_succ (Nat.zero_le _)
+    have h_sum_ge : (m : ℝ) + 1 ≤ (m : ℝ) + ((i.val % m + 1 : ℕ) : ℝ) := by
+      linarith
+    have h_sum_one_pos : (0 : ℝ) < (m : ℝ) + 1 := by positivity
+    calc (4 : ℝ) ^ m * ((m : ℝ) + 1)
+        ≤ (4 : ℝ) ^ (i.val / m + m) * ((m : ℝ) + 1) :=
+          mul_le_mul_of_nonneg_right h_pow_ge h_sum_one_pos.le
+      _ ≤ (4 : ℝ) ^ (i.val / m + m) *
+            ((m : ℝ) + ((i.val % m + 1 : ℕ) : ℝ)) :=
+          mul_le_mul_of_nonneg_left h_sum_ge h_pow_pos.le
+  -- Step 2: every off-diagonal/diagonal Cauchy entry is ≤ 1/(2·4^m·(m+1)).
+  have h_grid_pos : ∀ i, 0 < hierarchicalGrid m hm i :=
+    hierarchicalGrid_pos m hm
+  have h_two_grid_lb_pos : (0 : ℝ) < 2 * (4 : ℝ) ^ m * ((m : ℝ) + 1) := by
+    have h1 : (0 : ℝ) < (4 : ℝ) ^ m := pow_pos (by norm_num) m
+    have h2 : (0 : ℝ) < (m : ℝ) + 1 := by positivity
+    positivity
+  have h_entry_ub : ∀ i j : Fin (m * m),
+      glwMatrixA m hm i j ≤ 1 / (2 * (4 : ℝ) ^ m * ((m : ℝ) + 1)) := by
+    intro i j
+    unfold glwMatrixA
+    have h_sum_ge : 2 * (4 : ℝ) ^ m * ((m : ℝ) + 1) ≤
+                    hierarchicalGrid m hm i + hierarchicalGrid m hm j := by
+      have h1 := h_grid_lb i
+      have h2 := h_grid_lb j
+      nlinarith [h1, h2]
+    have h_sum_pos : 0 < hierarchicalGrid m hm i + hierarchicalGrid m hm j :=
+      add_pos (h_grid_pos i) (h_grid_pos j)
+    rw [one_div, one_div]
+    exact inv_anti₀ h_two_grid_lb_pos h_sum_ge
+  -- Step 3: per A ≤ (m²)! · M^(m²) where M = 1/(2·4^m·(m+1)).
+  set M : ℝ := 1 / (2 * (4 : ℝ) ^ m * ((m : ℝ) + 1)) with hM_def
+  have hM_pos : 0 < M := div_pos one_pos h_two_grid_lb_pos
+  have h_entry_nonneg : ∀ i j, 0 ≤ glwMatrixA m hm i j := by
+    intro i j
+    unfold glwMatrixA
+    exact div_nonneg one_pos.le
+      (add_pos (h_grid_pos i) (h_grid_pos j)).le
+  have h_perm_ub : Matrix.permanent (glwMatrixA m hm) ≤
+      ((m * m).factorial : ℝ) * M ^ (m * m) := by
+    unfold Matrix.permanent
+    have h_per_term : ∀ σ : Equiv.Perm (Fin (m * m)),
+        ∏ i, glwMatrixA m hm (σ i) i ≤ M ^ (m * m) := by
+      intro σ
+      have h_card : (Finset.univ : Finset (Fin (m * m))).card = m * m := by
+        simp
+      calc ∏ i, glwMatrixA m hm (σ i) i
+          ≤ ∏ _i : Fin (m * m), M := by
+            apply Finset.prod_le_prod
+            · intro i _; exact h_entry_nonneg _ _
+            · intro i _; exact h_entry_ub _ _
+        _ = M ^ (m * m) := by
+            rw [Finset.prod_const, h_card]
+    calc ∑ σ : Equiv.Perm (Fin (m * m)), ∏ i, glwMatrixA m hm (σ i) i
+        ≤ ∑ _σ : Equiv.Perm (Fin (m * m)), M ^ (m * m) :=
+          Finset.sum_le_sum (fun σ _ => h_per_term σ)
+      _ = (Fintype.card (Equiv.Perm (Fin (m * m))) : ℝ) * M ^ (m * m) := by
+          rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+      _ = ((m * m).factorial : ℝ) * M ^ (m * m) := by
+          rw [Fintype.card_perm, Fintype.card_fin]
+  -- Step 4: (m²)! · M^(m²) ≤ 1, equivalently (m²)! ≤ (2·4^m·(m+1))^(m²).
+  have h_arith : ((m * m).factorial : ℝ) * M ^ (m * m) ≤ 1 := by
+    -- Reduce to a ℕ-side inequality and cast.
+    -- Pivot: prove m² ≤ 2·4^m·(m+1) in ℕ via m² ≤ 4^m (m ≥ 1) and 4^m ≤ 2·4^m·(m+1).
+    have hm1 : 1 ≤ m := hm
+    -- Auxiliary: ∀ k : ℕ, k ≤ 4^k.
+    have h_le_pow_four : ∀ k : ℕ, k ≤ 4 ^ k := by
+      intro k
+      induction k with
+      | zero => simp
+      | succ n ih =>
+        have h_pow_pos : 1 ≤ 4 ^ n := Nat.one_le_pow _ _ (by omega)
+        have h_step : 4 ^ (n + 1) = 4 ^ n + 4 ^ n + 4 ^ n + 4 ^ n := by
+          rw [pow_succ]; ring
+        omega
+    -- m² ≤ 4^m for m ≥ 1.
+    have h_msq_le_4pow : ∀ k : ℕ, 1 ≤ k → k * k ≤ 4 ^ k := by
+      intro k hk
+      induction k with
+      | zero => omega
+      | succ n ih =>
+        by_cases hn : n = 0
+        · subst hn; simp
+        · have hn_pos : 1 ≤ n := Nat.one_le_iff_ne_zero.mpr hn
+          have ih' := ih hn_pos
+          have h_n_le : n ≤ 4 ^ n := h_le_pow_four n
+          have h_pow_pos : 1 ≤ 4 ^ n := Nat.one_le_pow _ _ (by omega)
+          have h_step : 4 ^ (n + 1) = 4 ^ n + 4 ^ n + 4 ^ n + 4 ^ n := by
+            rw [pow_succ]; ring
+          have h_2n : 2 * n ≤ 2 * 4 ^ n := by omega
+          have h_expand : (n + 1) * (n + 1) = n * n + 2 * n + 1 := by ring
+          omega
+    -- m² ≤ 2·4^m·(m+1) in ℕ.
+    have h_msq_le_full : m * m ≤ 2 * 4 ^ m * (m + 1) := by
+      have h_m4 : m * m ≤ 4 ^ m := h_msq_le_4pow m hm1
+      have h_4pos : 1 ≤ 4 ^ m := Nat.one_le_pow _ _ (by omega)
+      have h_mp1 : 1 ≤ m + 1 := by omega
+      have : 4 ^ m ≤ 2 * 4 ^ m * (m + 1) := by nlinarith
+      omega
+    -- (m²)! ≤ (2·4^m·(m+1))^(m²).
+    have h_fact_bound :
+        (m * m).factorial ≤ (2 * 4 ^ m * (m + 1)) ^ (m * m) := by
+      calc (m * m).factorial ≤ (m * m) ^ (m * m) := Nat.factorial_le_pow _
+        _ ≤ (2 * 4 ^ m * (m + 1)) ^ (m * m) :=
+            Nat.pow_le_pow_left h_msq_le_full _
+    -- Cast to ℝ.
+    have h_two_pow_pos : (0 : ℝ) < 2 * (4 : ℝ) ^ m * ((m : ℝ) + 1) :=
+      h_two_grid_lb_pos
+    have h_pow_D_pos : (0 : ℝ) <
+        (2 * (4 : ℝ) ^ m * ((m : ℝ) + 1)) ^ (m * m) :=
+      pow_pos h_two_pow_pos _
+    have h_M_pow_eq : M ^ (m * m) =
+        1 / (2 * (4 : ℝ) ^ m * ((m : ℝ) + 1)) ^ (m * m) := by
+      rw [hM_def, div_pow, one_pow]
+    rw [h_M_pow_eq, mul_one_div, div_le_one h_pow_D_pos]
+    -- (m²)! ≤ (2·4^m·(m+1))^(m²) in ℝ.
+    have h_cast :
+        ((2 * 4 ^ m * (m + 1) : ℕ) : ℝ) =
+          2 * (4 : ℝ) ^ m * ((m : ℝ) + 1) := by
+      push_cast; ring
+    have h_pow_cast :
+        (((2 * 4 ^ m * (m + 1)) ^ (m * m) : ℕ) : ℝ) =
+          (2 * (4 : ℝ) ^ m * ((m : ℝ) + 1)) ^ (m * m) := by
+      rw [Nat.cast_pow]; congr 1
+    calc ((m * m).factorial : ℝ)
+        ≤ (((2 * 4 ^ m * (m + 1)) ^ (m * m) : ℕ) : ℝ) := by
+          exact_mod_cast h_fact_bound
+      _ = (2 * (4 : ℝ) ^ m * ((m : ℝ) + 1)) ^ (m * m) := h_pow_cast
+  -- Step 5: combine.
+  exact le_trans h_perm_ub h_arith
 
 /-- **GLW 2010 §4 Lemma 4.1 (paper-exact perturbation).**
 
@@ -396,6 +556,147 @@ theorem glw_lemma_4_1_perturbation
       Matrix.det a -
         (∑ k : ι, Finset.univ.sup' Finset.univ_nonempty
           (fun l : ι => b k l / a k l)) * Matrix.permanent a := by
-  sorry
+  -- R61 Path A: Strategy A' (positive-product induction).
+  -- See Helpers/TrackA_R61_T1_PathAAudit.md §T1.3 for the substitution
+  -- rationale (cleaner than the brief's sign-tracking on |S|≥2 cross terms).
+  set r : ι → ℝ := fun k => Finset.univ.sup' Finset.univ_nonempty
+    (fun l : ι => b k l / a k l) with hr_def
+  have h_pos_b : ∀ i j, 0 < b i j := fun i j => (h_strict i j).1
+  have h_lt_b : ∀ i j, b i j < a i j := fun i j => (h_strict i j).2
+  have h_le_b : ∀ i j, b i j ≤ a i j := fun i j => (h_lt_b i j).le
+  have h_pos_diff : ∀ i j, 0 < a i j - b i j := fun i j =>
+    sub_pos.mpr (h_lt_b i j)
+  -- Key bound: b k l ≤ r k * a k l (from definition of r as sup' of ratios).
+  have h_b_le_ra : ∀ k l, b k l ≤ r k * a k l := by
+    intro k l
+    have h_div_le : b k l / a k l ≤ r k :=
+      Finset.le_sup' (fun l : ι => b k l / a k l) (Finset.mem_univ l)
+    rwa [div_le_iff₀ (h_pos_a k l)] at h_div_le
+  -- (★) Pointwise product-difference bound.
+  have prod_diff_bound : ∀ (s : Finset ι) (f g : ι → ℝ),
+      (∀ i ∈ s, 0 ≤ g i) → (∀ i ∈ s, g i ≤ f i) →
+      ∏ i ∈ s, f i - ∏ i ∈ s, (f i - g i) ≤
+        ∑ k ∈ s, g k * ∏ i ∈ s.erase k, f i := by
+    intro s f g hg_nn hg_le
+    induction s using Finset.induction with
+    | empty => simp
+    | @insert k s' hk_notin ih =>
+      have hgk_nn : 0 ≤ g k := hg_nn k (Finset.mem_insert_self k s')
+      have hgk_le : g k ≤ f k := hg_le k (Finset.mem_insert_self k s')
+      have hfk_nn : 0 ≤ f k := le_trans hgk_nn hgk_le
+      have hg_nn' : ∀ i ∈ s', 0 ≤ g i := fun i hi =>
+        hg_nn i (Finset.mem_insert_of_mem hi)
+      have hg_le' : ∀ i ∈ s', g i ≤ f i := fun i hi =>
+        hg_le i (Finset.mem_insert_of_mem hi)
+      have ih' := ih hg_nn' hg_le'
+      have h_diff_nn : ∀ i ∈ s', 0 ≤ f i - g i := fun i hi =>
+        sub_nonneg.mpr (hg_le' i hi)
+      have h_f_nn' : ∀ i ∈ s', 0 ≤ f i := fun i hi =>
+        le_trans (hg_nn' i hi) (hg_le' i hi)
+      have h_prod_diff_le : ∏ i ∈ s', (f i - g i) ≤ ∏ i ∈ s', f i := by
+        apply Finset.prod_le_prod h_diff_nn
+        intro i hi
+        linarith [hg_nn' i hi]
+      rw [Finset.prod_insert hk_notin, Finset.prod_insert hk_notin,
+          Finset.sum_insert hk_notin, Finset.erase_insert hk_notin]
+      have h_eq :
+          f k * (∏ i ∈ s', f i) -
+            (f k - g k) * (∏ i ∈ s', (f i - g i)) =
+          f k * ((∏ i ∈ s', f i) - ∏ i ∈ s', (f i - g i)) +
+            g k * ∏ i ∈ s', (f i - g i) := by ring
+      rw [h_eq]
+      -- RHS rewrite: ∑ j ∈ s', g j * ∏_{(insert k s').erase j} f =
+      --              f k * ∑ j ∈ s', g j * ∏_{s'.erase j} f
+      have h_sum_rw :
+          ∑ j ∈ s', g j * ∏ i ∈ (insert k s').erase j, f i =
+            f k * ∑ j ∈ s', g j * ∏ i ∈ s'.erase j, f i := by
+        rw [Finset.mul_sum]
+        apply Finset.sum_congr rfl
+        intro j hj
+        have hkj : k ≠ j := fun h => hk_notin (h ▸ hj)
+        have h_erase : (insert k s').erase j = insert k (s'.erase j) :=
+          Finset.erase_insert_of_ne hkj
+        have h_k_notin_erase : k ∉ s'.erase j := fun h =>
+          hk_notin (Finset.mem_of_mem_erase h)
+        rw [h_erase, Finset.prod_insert h_k_notin_erase]
+        ring
+      rw [h_sum_rw]
+      have h1 :
+          f k * ((∏ i ∈ s', f i) - ∏ i ∈ s', (f i - g i)) ≤
+            f k * ∑ j ∈ s', g j * ∏ i ∈ s'.erase j, f i :=
+        mul_le_mul_of_nonneg_left ih' hfk_nn
+      have h2 :
+          g k * ∏ i ∈ s', (f i - g i) ≤ g k * ∏ i ∈ s', f i :=
+        mul_le_mul_of_nonneg_left h_prod_diff_le hgk_nn
+      linarith
+  -- Sign bound: ((σ.sign : ℤ) : ℝ) * t ≤ t when t ≥ 0.
+  have h_sign_bound : ∀ (σ : Equiv.Perm ι) (t : ℝ), 0 ≤ t →
+      ((σ.sign : ℤ) : ℝ) * t ≤ t := by
+    intro σ t ht
+    rcases Int.units_eq_one_or σ.sign with h | h
+    · rw [h]; simp
+    · rw [h]; push_cast; linarith
+  -- Convert goal.
+  rw [ge_iff_le, sub_le_iff_le_add, ← sub_le_iff_le_add']
+  -- Goal: det a - det (a - b) ≤ (∑ k, r k) * per a
+  -- Use det_apply'-style expansion via Matrix.det_apply + Units.smul_def.
+  rw [show ((fun i j => a i j - b i j) : Matrix ι ι ℝ) =
+        fun i j => a i j - b i j from rfl,
+      Matrix.det_apply, Matrix.det_apply]
+  simp only [Units.smul_def, zsmul_eq_mul]
+  rw [← Finset.sum_sub_distrib]
+  simp only [← mul_sub]
+  -- Goal: ∑ σ, ((σ.sign : ℤ) : ℝ) * ((∏ a (σi) i) - ∏ (a (σi) i - b (σi) i)) ≤
+  --       (∑ k, r k) * per a
+  -- Step A: per-σ nonneg of (∏ a - ∏ (a - b)).
+  have h_t_nn : ∀ σ : Equiv.Perm ι,
+      0 ≤ (∏ i, a (σ i) i) - ∏ i, (a (σ i) i - b (σ i) i) := by
+    intro σ
+    have h1 : ∏ i, (a (σ i) i - b (σ i) i) ≤ ∏ i, a (σ i) i := by
+      apply Finset.prod_le_prod
+      · intro i _; linarith [h_pos_diff (σ i) i]
+      · intro i _; linarith [h_pos_b (σ i) i]
+    linarith
+  -- Step B: drop sign factor (sign • t ≤ t for t ≥ 0).
+  apply le_trans (Finset.sum_le_sum
+    (fun σ _ => h_sign_bound σ _ (h_t_nn σ)))
+  -- Step C: per-σ apply (★).
+  have h_per_sigma : ∀ σ : Equiv.Perm ι,
+      (∏ i, a (σ i) i) - ∏ i, (a (σ i) i - b (σ i) i) ≤
+        ∑ k, b (σ k) k * ∏ i ∈ Finset.univ.erase k, a (σ i) i := by
+    intro σ
+    have h := prod_diff_bound Finset.univ
+      (fun i => a (σ i) i) (fun i => b (σ i) i)
+      (fun i _ => (h_pos_b (σ i) i).le)
+      (fun i _ => h_le_b (σ i) i)
+    exact h
+  apply le_trans (Finset.sum_le_sum (fun σ _ => h_per_sigma σ))
+  -- Step D: per-σ, bound row-by-row using b (σk) k ≤ r (σk) * a (σk) k,
+  -- then reindex `∑ k, r (σk) = ∑ k, r k` via Equiv.sum_comp.
+  -- ∑ σ, ∑ k, b (σk) k * ∏_{i ≠ k} a (σi) i
+  --   ≤ ∑ σ, ∑ k, r (σk) * ∏ i, a (σi) i  [b ≤ r·a entrywise + mul_prod_erase]
+  --   = ∑ σ, (∑ k, r (σk)) * ∏ i, a (σi) i  [factor; ∏ doesn't depend on k]
+  --   = ∑ σ, (∑ k, r k) * ∏ i, a (σi) i  [Equiv.sum_comp]
+  --   = (∑ k, r k) * ∑ σ, ∏ i, a (σi) i  [factor]
+  --   = (∑ k, r k) * per a  [definition]
+  have h_per_def :
+      Matrix.permanent a = ∑ σ : Equiv.Perm ι, ∏ i, a (σ i) i := rfl
+  rw [h_per_def, Finset.mul_sum]
+  apply Finset.sum_le_sum
+  intro σ _
+  -- Goal: ∑ k, b (σ k) k * ∏ i ∈ univ.erase k, a (σ i) i ≤ (∑ k, r k) * ∏ i, a (σ i) i
+  have h_reindex : (∑ k, r k) = ∑ k, r (σ k) := (Equiv.sum_comp σ r).symm
+  rw [h_reindex, Finset.sum_mul]
+  apply Finset.sum_le_sum
+  intro k _
+  have h_a_nn_erase : 0 ≤ ∏ i ∈ Finset.univ.erase k, a (σ i) i :=
+    Finset.prod_nonneg (fun i _ => (h_pos_a (σ i) i).le)
+  calc b (σ k) k * ∏ i ∈ Finset.univ.erase k, a (σ i) i
+      ≤ r (σ k) * a (σ k) k * ∏ i ∈ Finset.univ.erase k, a (σ i) i :=
+        mul_le_mul_of_nonneg_right (h_b_le_ra (σ k) k) h_a_nn_erase
+    _ = r (σ k) * (a (σ k) k * ∏ i ∈ Finset.univ.erase k, a (σ i) i) := by ring
+    _ = r (σ k) * ∏ i, a (σ i) i := by
+        rw [Finset.mul_prod_erase Finset.univ (fun i => a (σ i) i)
+              (Finset.mem_univ k)]
 
 end Erdos524.Helpers.GLWSmallBallShortcut
