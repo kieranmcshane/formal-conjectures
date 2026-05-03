@@ -1995,3 +1995,852 @@ Net debt change: 0.
 * No γ rewrite.
 * No normal-tail ratio, quantile inversion, endpoint/small-`m` handling, or
   `tusnady_base_polynomial` claim.
+
+---
+
+# TC43 — quantitative Mills-gain bound
+
+TC43 created `TrackC_round43_T1_MillsGainAudit.md` and landed the analytic
+Mills-gain side of the TC42 consumer.
+
+New Lean artefacts:
+
+* `gaussianMillsRatioReal_antitone_nonneg`;
+* `gaussianMillsRatioReal_le_zero_value_of_nonneg`;
+* `gaussianMillsRatioReal_log_hasDerivAt`;
+* `gaussianMillsRatioReal_log_ratio_eq_integral_inv_sub`;
+* `gaussianMillsRatioReal_log_ratio_ge_zero_value_bound`;
+* `carterPollardDeltaPaperShape_even_remainder_le_mills_gain_of_event_of_delta_le_zero_value_gap`.
+
+Outcome: **Diagnostic / partial**. The quantitative Mills-gain lower bound
+landed debt-free:
+
+```lean
+(gaussianMillsRatioReal 0)⁻¹ * (x - y) - (x^2 - y^2) / 2
+  <= log (gaussianMillsRatioReal y / gaussianMillsRatioReal x)
+```
+
+for `0 < y <= x`. The unqualified TC43 target did not close. The remaining
+explicit scalar gap is:
+
+```lean
+carterPollardDeltaPaperShape (2*n) k <=
+  (gaussianMillsRatioReal 0)⁻¹ *
+    (sqrt (carterPollardN (2*n)) * carterPollardEps (2*n) k
+      - z / sqrt ((n : Real) / 2))
+```
+
+under the TC43 event hypotheses. The landed Carter--Pollard reduction proves
+that this scalar gap is sufficient for the exact Mills-gain consumer; the
+quadratic density-ratio terms cancel exactly.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No weakening of constants `0.6` or `1`.
+* No decimal tuning.
+* No TC35 theorem retry.
+* No TC28 near-midpoint quadratic-envelope use.
+* No `tusnady_base_polynomial` edit.
+
+---
+
+# TC44 — Carter--Pollard scalar gap
+
+TC44 created `TrackC_round44_T1_CPScalarGapAudit.md` and targeted the scalar
+gap isolated by TC43.
+
+New Lean artefacts:
+
+* `gaussianMillsRatioReal_zero`;
+* `gaussianMillsRatioReal_zero_inv_ge_three_fourths`;
+* `carterPollardDeltaPaperShape_even_le_zero_value_gap_of_gap_bound`.
+
+Outcome: **Diagnostic / partial**. The exact Mills zero value landed:
+
+```lean
+gaussianMillsRatioReal 0 = sqrt (pi / 2)
+```
+
+as did the rational reciprocal lower bound:
+
+```lean
+(3/4 : Real) <= (gaussianMillsRatioReal 0)^(-1)
+```
+
+The unqualified scalar theorem
+`carterPollardDeltaPaperShape_even_le_zero_value_gap_of_event` did not close.
+The remaining obstruction is the Carter--Pollard `Delta` upper bound: the
+current TC24 route treats the two subtracted lambda terms only by
+nonnegativity, which is too coarse at the near-midpoint edge. The next scalar
+step needs the paper-sharp lower bound
+`(12*j + 1)^(-1) <= carterPollardLambdaTerm j` or an equivalent finite scalar
+estimate.
+
+The landed theorem proves that the sufficient rational scalar estimate
+
+```lean
+carterPollardDeltaPaperShape (2*n) k <=
+  (3/4 : Real) *
+    (sqrt (carterPollardN (2*n)) * carterPollardEps (2*n) k
+      - z / sqrt ((n : Real) / 2))
+```
+
+implies the exact TC43 zero-value scalar gap.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2900/2900` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No weakening of constants `0.6` or `1`.
+* No decimal tuning in Lean.
+* No TC35 theorem retry.
+* No TC28 near-midpoint quadratic-envelope tail use.
+* No `tusnady_base_polynomial` edit.
+
+---
+
+# TC25 — normal-tail ratio / Mills bridge
+
+TC25 created `TrackC_round25_T1_TailRatioAudit.md` and connected the TC24
+Robbins-Delta tail theorem to the existing local Mills-ratio infrastructure.
+
+New Lean artefacts:
+
+* `gaussianTailRaw_eq_millsRatio_mul_pdf`;
+* `gaussianTailRaw_le_pdf_div_of_pos`;
+* `binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_millsRatio_pdf`;
+* `binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_pdf_div`.
+
+Small hygiene change:
+
+* removed the unused positivity parameter from the private helper
+  `gaussianMillsRatioReal_hasDerivAt`; theorem surface unchanged.
+
+Outcome: **Full** for the audit and the low-risk Mills/raw-tail bridge. The
+first one-sided Mills truncation consequence also landed, with the positivity
+of `sqrt(N) * ε` left explicit for the next envelope round.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2852/2852` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No quantile inversion, endpoint/small-`m` handling, or
+  `tusnady_base_polynomial` claim.
+
+---
+
+# TC27 — factorized strict-tail envelope
+
+TC27 created `TrackC_round27_T1_FactorizedEnvelopeAudit.md` and simplified
+the TC26 expanded-density right hand side by cancelling the Gaussian density
+exponent against the `+ N * ε^2 / 2` contribution inside
+`carterPollardEntropyDelta`.
+
+New Lean artefacts:
+
+* `carterPollard_entropy_density_exponent_cancel`;
+* `carterPollard_first_envelope_factorized`;
+* `binomialPolyTail_half_le_carterPollard_first_factorized_envelope`.
+
+Outcome: **Full** for the first factorized strict-tail envelope. The exposed
+RHS is
+
+```text
+(1 + N⁻¹) * exp(1/(12N)) *
+  exp (-(N/2) * ((1+ε)log(1+ε) + (1-ε)log(1-ε))) /
+  (sqrt(2*pi) * sqrt(N) * ε * sqrt(1-ε^2))
+```
+
+with `N = carterPollardN m` and `ε = carterPollardEps m k`.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No quantile inversion, endpoint/small-`m` handling, or
+  `tusnady_base_polynomial` claim.
+
+---
+
+# TC28--TC30 — envelope / quantile / midpoint combined round
+
+TC28--TC30 created
+`TrackC_round28_30_T1_EnvelopeQuantileMidpointAudit.md` and pushed the TC27
+strict-tail envelope one scalar step further without reopening TC22--TC27.
+
+New Lean artefacts:
+
+* `carterPollard_one_sub_eps_sq_eq_four_K_mul_NK_div_N_sq`;
+* private `entropy_shape_ge_sq_of_nonneg_lt_one`;
+* `carterPollard_entropy_shape_ge_eps_sq`;
+* `carterPollard_first_factorized_den_pos`;
+* `carterPollard_first_factorized_envelope_le_quadratic_envelope`;
+* `binomialPolyTail_half_le_carterPollard_quadratic_strict_envelope`;
+* `quantile_gt_of_cdf_lt`.
+
+Outcome: **Acceptable / reusable Full helpers**. Stage 1 did not claim the
+final Carter--Pollard polynomial event comparison, but it did consume the TC27
+factorized RHS and replace the entropy exponent by the quadratic exponent
+`exp (-(N * ε^2) / 2)` in a debt-free tail theorem. Stage 2 landed a generic
+strict quantile/CDF bridge helper. Stage 3 midpoint was not attempted; the
+audit records the separate central-tail theorem needed next.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No endpoint/small-`m` handling beyond recording the midpoint blocker.
+* No `tusnady_base_polynomial` claim.
+
+---
+
+# TC40 — scaled Gaussian tail correction
+
+TC40 created `TrackC_round40_T1_ScaledGaussianTailAudit.md` and replaced the
+false TC35 scalar direction with the correctly scaled Gaussian tail surface for
+the actual Tusnády base law `Z ~ gaussianReal 0 ((n : ℝ≥0) / 2)`.
+
+TC35 false-theorem carryover:
+
+| Item | Status | Notes |
+|---|---|---|
+| `carterPollard_quadratic_strict_envelope_le_gaussian_event_tail` | FALSE AS STATED | Not retried. The TC28 quadratic envelope can exceed `1` near the strict midpoint edge. |
+| Corrected scaling | REQUIRED | The standard argument is `z / Real.sqrt ((n : ℝ) / 2)`, not `z`. |
+| Corrected CP input | REQUIRED | Compare the binomial tail itself or a valid CP intermediate, not the near-midpoint quadratic envelope. |
+
+Closed inputs:
+
+| Input | Status | Notes |
+|---|---|---|
+| `gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw` | CLOSED | TC31 standard CDF/tail bridge. |
+| `carterPollard_even_event_implies_z_lt_N_mul_eps_div_two` | CLOSED | TC35 even event-to-center comparison. |
+| `binomialPolyTail_half_le_exp_deltaPaperShape_mul_gaussian_tail_instantiated` | CLOSED | TC23 true CP paper-shaped tail form. |
+| `binomialPolyTail_eq_pmf_tail` | CLOSED | Available, not reopened. |
+| TC22--TC39 | CLOSED | Treated as closed inputs. |
+
+Numerical sanity check at the TC35 failing edge:
+
+| Quantity | Value |
+|---|---:|
+| Parameters | `n = 14`, `k = 15`, `z = 3/8` |
+| Event lhs | `0.9850446428571429 <= 1` |
+| `binomialPolyTail (2*n) k (1/2)` | `0.4252770096063614` |
+| `gaussianTailRaw z` | `0.35383023332727626` |
+| `z / sqrt(n/2)` | `0.1417366773784602` |
+| `gaussianTailRaw (z / sqrt(n/2))` | `0.4436440015151761` |
+
+The corrected scaled tail is large enough at this edge for the actual
+binomial tail, while the unscaled tail is not.
+
+Theorem names landed:
+
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.gaussianTailRaw_le_of_le`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.gaussianTailRaw_antitone`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.gaussianReal_zero_nat_half_cdf_eq_one_sub_scaled_gaussianTailRaw`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_even_event_implies_scaled_z_le_sqrtN_eps`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.binomialPolyTail_half_le_exp_deltaPaperShape_mul_scaled_gaussian_tail_of_event`.
+
+Main corrected theorem status: **not closed in TC40**. The landed CP
+composition reaches
+
+```lean
+Real.exp (carterPollardDeltaPaperShape (2 * n) k) *
+  gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2))
+```
+
+as the right hand side. Removing the visible paper-shaped `exp(Delta)` factor
+requires the next analytic tail-ratio theorem.
+
+Exact remaining TC41 consumer theorem:
+
+```lean
+theorem carterPollard_exp_deltaPaperShape_mul_tail_le_scaled_tail_of_event
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ))) :
+    Real.exp (carterPollardDeltaPaperShape (2 * n) k) *
+      gaussianTailRaw
+        (Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k) ≤
+      gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2))
+```
+
+Build log:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No weakening of constants `0.6` or `1`.
+* No `tusnady_base_polynomial` or dyadic-step claim.
+
+---
+
+# TC41 — Delta tail-ratio scaffold
+
+TC41 created `TrackC_round41_T1_DeltaTailRatioAudit.md` and audited the
+analytic tail-ratio theorem needed to remove the visible
+`exp(carterPollardDeltaPaperShape)` factor from TC40's corrected scaled-tail
+transport.
+
+TC40 closed inputs were preserved:
+
+| Input | Status | Notes |
+|---|---|---|
+| `binomialPolyTail_half_le_exp_deltaPaperShape_mul_gaussian_tail_instantiated` | CLOSED | TC23 true CP paper-shaped tail form. |
+| `binomialPolyTail_half_le_exp_deltaPaperShape_mul_scaled_gaussian_tail_of_event` | CLOSED | TC40 scaled transport, still with visible `exp(Delta)`. |
+| `carterPollard_even_event_implies_scaled_z_le_sqrtN_eps` | CLOSED | Event-to-standardized-threshold comparison. |
+| `gaussianTailRaw_le_of_le` / `gaussianTailRaw_antitone` | CLOSED | Raw-tail monotonicity. |
+| TC22--TC40 | CLOSED | Not reopened. |
+
+Mandatory numerical sanity check at `n = 14`, `k = 15`, `z = 3/8`:
+
+| Quantity | Value |
+|---|---:|
+| `exp(carterPollardDeltaPaperShape (2*n) k)` | `1.0281650044952697` |
+| `gaussianTailRaw (sqrt(N) * eps)` | `0.42369482984335716` |
+| product | `0.43562819663051783` |
+| `gaussianTailRaw (z / sqrt(n/2))` | `0.44364400151517608` |
+
+The target is numerically plausible at the edge, but the existing Mills
+antitonicity route only supplies the density-ratio exponent:
+`(x^2 - y^2)/2 = 0.008473875661375663`, while
+`Delta = 0.02777566436199434` and the true log tail-ratio is
+`0.04600898727210625`.
+
+Landed theorem claims:
+
+| Theorem | Status | Notes |
+|---|---|---|
+| `gaussianTailRaw_pos_of_pos` | FULL | Strict tail positivity for positive arguments. |
+| `gaussianTailRaw_exp_sq_diff_div_two_mul_le_of_pos_le` | FULL | Mills-antitone density-ratio comparison. |
+| `gaussianTailRaw_exp_mul_le_of_delta_le_sq_diff_div_two` | FULL | Sufficient condition using only density-ratio exponent. |
+| `gaussianTailRaw_exp_mul_le_of_exp_le_tail_ratio` | FULL | Exact tail-ratio adapter. |
+| `gaussianTailRaw_exp_mul_le_of_delta_le_log_tail_ratio` | FULL | Log-tail-ratio adapter for `Delta`. |
+| `carterPollard_even_event_tail_ratio_thresholds` | FULL | Packages positivity of both standardized thresholds plus TC40 threshold ordering. |
+| `carterPollard_exp_deltaPaperShape_mul_tail_le_scaled_tail_of_event_of_delta_le_log_tail_ratio` | FULL | Desired CP `exp(Delta)` absorption under one explicit log tail-ratio hypothesis. |
+| `binomialPolyTail_half_le_scaled_gaussian_event_tail_of_event_of_delta_le_log_tail_ratio` | FULL | TC40 composition under the same explicit log tail-ratio hypothesis. |
+
+Corrected scaled-tail theorem status: **deferred**. TC41 did not prove the
+unqualified
+`carterPollard_exp_deltaPaperShape_mul_tail_le_scaled_tail_of_event`; the exact
+remaining analytic obstruction is the log tail-ratio estimate.
+
+Exact TC42 consumer theorem:
+
+```lean
+theorem carterPollardDeltaPaperShape_even_le_log_tail_ratio_of_event
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ))) :
+    carterPollardDeltaPaperShape (2 * n) k ≤
+      Real.log
+        (gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) /
+          gaussianTailRaw
+            (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k))
+```
+
+Build log:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0. Mainline gate items remain **18**
+(`10 axioms + 8 sorries`), delta from start of TC41: **0**.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No weakening of constants `0.6` or `1`.
+* No TC35 quadratic-envelope retry.
+* No `tusnady_base_polynomial` edit or claim.
+
+---
+
+# TC42 — Mills log-tail-ratio decomposition
+
+TC42 created `TrackC_round42_T1_MillsLogTailRatioAudit.md` and audited the
+Mills-gain theorem needed to close the TC41 log-tail-ratio consumer.
+
+Closed-input discipline:
+
+| Input | Status | Notes |
+|---|---|---|
+| TC22--TC41 | CLOSED | Not reopened. |
+| TC35 quadratic-envelope comparison | FORBIDDEN | Not retried. |
+| TC28 quadratic envelope near midpoint | FORBIDDEN | Not used. |
+| TC41 density-ratio diagnostic | PRESERVED | Antitonicity alone gives only `(x^2 - y^2) / 2`, not the full log tail-ratio. |
+
+The edge `n = 14`, `k = 15`, `z = 3/8` was treated only as a false-target
+guard. No decimal tuning entered the proof strategy.
+
+Route audit:
+
+| Route | Status | Notes |
+|---|---|---|
+| Hazard integral | Audited, not landed | Needs a quantitative hazard lower bound stronger than Mills truncation. |
+| Mills-ratio decomposition | FULL | Landed exact log-ratio decomposition. |
+| Split proof | Deferred | Near-midpoint branch still requires quantitative Mills/hazard gain. |
+
+Landed theorem claims:
+
+| Theorem | Status | Notes |
+|---|---|---|
+| `gaussianPDFReal_zero_one_div_eq_exp_sq_diff_div_two` | FULL | Exact standard-Gaussian density ratio. |
+| `gaussianTailRaw_log_ratio_eq_sq_diff_div_two_add_log_millsRatio_ratio` | FULL | Route-B decomposition into density exponent plus logarithmic Mills gain. |
+| `gaussianTailRaw_log_ratio_ge_sq_diff_div_two_of_pos_le` | FULL | Log-form statement that existing antitonicity only gives the density-ratio lower bound. |
+| `carterPollardDeltaPaperShape_even_le_log_tail_ratio_of_event_of_remainder_le_mills_gain` | FULL | Conditional scalar theorem under the exact remaining Mills-gain inequality. |
+| `binomialPolyTail_half_le_scaled_gaussian_event_tail_of_event_of_remainder_le_mills_gain` | FULL | Conditional corrected scaled-tail composition under the exact same Mills-gain inequality. |
+
+Main TC42 target status: **deferred**. The unqualified
+`carterPollardDeltaPaperShape_even_le_log_tail_ratio_of_event` did not close.
+The exact TC43 consumer is now sharper than the TC41 raw log-ratio hypothesis:
+
+```lean
+theorem carterPollardDeltaPaperShape_even_remainder_le_mills_gain_of_event
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ))) :
+    carterPollardDeltaPaperShape (2 * n) k -
+        (((Real.sqrt (carterPollardN (2 * n)) *
+            carterPollardEps (2 * n) k) ^ 2 -
+          (z / Real.sqrt ((n : ℝ) / 2)) ^ 2) / 2) ≤
+      Real.log
+        (Erdos524.Helpers.gaussianMillsRatioReal
+            (z / Real.sqrt ((n : ℝ) / 2)) /
+          Erdos524.Helpers.gaussianMillsRatioReal
+            (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k))
+```
+
+Build log:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0. Mainline gate items remain **18**
+(`10 axioms + 8 sorries`), delta from start of TC42: **0**.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No weakening of constants `0.6` or `1`.
+* No decimal tuning.
+* No `tusnady_base_polynomial` edit or claim.
+
+---
+
+# TC35--TC39 — scalar / midpoint / Tusnady / dyadic combined round
+
+TC35--TC39 created
+`TrackC_round35_39_T1_ScalarMidpointTusnadyDyadicAudit.md`, audited the
+remaining scalar event-tail comparison, and stopped at the TC35 gate because
+the requested quadratic-envelope-to-standard-tail theorem is false as stated.
+
+Closed inputs:
+
+| Input | Status | Notes |
+|---|---|---|
+| `binomialPolyTail_half_le_carterPollard_quadratic_strict_envelope` | CLOSED | TC28 strict quadratic envelope, not reopened. |
+| `quantile_gt_iff_cdf_lt` | CLOSED | TC31 strict quantile iff. |
+| `binomialReal_cdf_pred_eq_one_sub_binomialPolyTail_half` | CLOSED | TC31 binomial CDF complement. |
+| `gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw` | CLOSED | TC31 standard-Gaussian CDF complement. |
+| `carterPollard_quadratic_strict_envelope_event_quantile_gt` | CLOSED conditional | TC32 event/quantile adapter still requiring a scalar tail hypothesis. |
+| TC22--TC34 scalar/CDF chain | CLOSED | Treated as closed inputs. |
+
+Claims by stage:
+
+| Stage | Claim | Status |
+|---|---|---|
+| TC35 | `carterPollard_quadratic_strict_envelope_le_gaussian_event_tail` | FALSE AS STATED; not added |
+| TC35 | `carterPollard_N_mul_eps_div_two_eq_real_center` | FULL |
+| TC35 | `carterPollard_N_mul_eps_div_two_eq_even_nat_center_sub_half` | FULL |
+| TC35 | `carterPollard_N_mul_eps_div_two_eq_odd_nat_center` | FULL |
+| TC35 | `carterPollard_event_implies_z_lt_nat_center_gap` | FULL |
+| TC35 | `carterPollard_event_implies_nat_center_gap_pos` | FULL |
+| TC35 | `carterPollard_even_event_implies_z_lt_N_mul_eps_div_two` | FULL |
+| TC36 | midpoint / symmetry | STOPPED by TC35 gate |
+| TC37 | remove conditional scalar hypothesis | STOPPED by TC35 gate |
+| TC38 | `tusnady_base_polynomial` body close | STOPPED; not edited |
+| TC39 | dyadic-step plumbing | STOPPED; not touched |
+
+The scalar counterexample is already visible at `m = 28`, `k = 15`,
+`z = 3/8`. The event hypothesis holds because
+`3/8 + 3/5 + (3/8)^2 / 14 = 4413/4480 <= 1`, while the TC28 quadratic
+envelope is approximately `2.1182743833` and `gaussianTailRaw (3/8)` is
+approximately `0.3538302333`.
+
+Exact theorem names landed:
+
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_N_mul_eps_div_two_eq_real_center`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_N_mul_eps_div_two_eq_even_nat_center_sub_half`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_N_mul_eps_div_two_eq_odd_nat_center`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_event_implies_z_lt_nat_center_gap`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_event_implies_nat_center_gap_pos`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_even_event_implies_z_lt_N_mul_eps_div_two`.
+
+`tusnady_base_polynomial` did **not** close. No midpoint/symmetry or dyadic
+plumbing was attempted after the TC35 stop gate.
+
+Explicit corrected TC40 consumer theorem: replace the false standard-tail
+quadratic-envelope comparison with a scaled Gaussian event-tail comparison for
+the actual base law `Z ~ gaussianReal 0 ((n : ℝ≥0) / 2)`:
+
+```lean
+theorem binomialPolyTail_half_le_scaled_gaussian_event_tail_of_event
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ))) :
+    Erdos524.Helpers.binomialPolyTail (2 * n) k (1 / 2 : ℝ) ≤
+      gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2))
+```
+
+This should be paired with a scaled CDF bridge for
+`cdf (gaussianReal 0 ((n : ℝ≥0) / 2)) z`; the TC31 standard-Gaussian bridge
+alone is not the right consumer for the physical `Z` in
+`tusnady_base_polynomial`.
+
+Build log:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No weakening of constants `0.6` or `1`.
+* No endpoint/small-`m` handling beyond the scalar diagnostic.
+* No `tusnady_base_polynomial` or `hungarian_dyadic_step` claim.
+
+---
+
+# TC31--TC34 — CDF / quantile / midpoint / symmetry combined round
+
+TC31--TC34 created
+`TrackC_round31_34_T1_CDFQuantileMidpointSymmetryAudit.md` and closed the
+CDF/event identity layer needed to make the TC28 strict quadratic envelope
+usable by shared-uniform quantile arguments.
+
+Closed inputs:
+
+| Input | Status | Notes |
+|---|---|---|
+| `binomialPolyTail_eq_pmf_tail` | CLOSED | Finite-support bridge used for binomial CDF complement. |
+| `gaussianTailRaw` | CLOSED | Local normalized standard-Gaussian tail integral. |
+| `binomialPolyTail_half_le_carterPollard_quadratic_strict_envelope` | CLOSED | TC28 strict quadratic envelope. |
+| `quantile_gt_of_cdf_lt` | CLOSED | Existing one-way strict quantile helper. |
+| TC22--TC30 scalar chain | CLOSED | Not reopened. |
+
+Claims by stage:
+
+| Stage | Claim | Status |
+|---|---|---|
+| TC31 | `quantile_gt_iff_cdf_lt` | FULL |
+| TC31 | `binomialReal_cdf_pred_eq_one_sub_binomialPolyTail_half` | FULL |
+| TC31 | `gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw` | FULL |
+| TC32 | `carterPollard_quadratic_strict_envelope_event_quantile_gt` | FULL conditional adapter |
+| TC32 scalar | `carterPollard_quadratic_strict_envelope_le_gaussian_event_tail` | DEFERRED bottleneck |
+| TC33 | `binomialPolyTail_half_eq_one_half_of_midpoint` | DEFERRED by TC32 stop gate |
+| TC34 | lower-tail / symmetry adapter | DEFERRED by TC32 stop gate |
+
+New Lean artefacts:
+
+* `Erdos524.Helpers.Erdos524.Helpers.quantile_gt_iff_cdf_lt`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.binomialReal_cdf_pred_eq_one_sub_binomialPolyTail_half`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw`;
+* `FormalConjectures.ErdosProblems.Helpers.CarterPollardH.carterPollard_quadratic_strict_envelope_event_quantile_gt`.
+
+Explicit remaining TC35 consumer theorem: compose the landed event adapter
+with the deferred scalar theorem
+`carterPollard_quadratic_strict_envelope_le_gaussian_event_tail` to remove
+the adapter's `hscalar` assumption:
+
+```lean
+theorem carterPollard_quadratic_strict_envelope_event_quantile_gt_of_event
+    {m k : ℕ} {z u : ℝ} {qB qZ : ℝ → ℝ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (((m + 1) / 2 : ℕ) : ℝ) ≤
+        ((k : ℝ) - (((m + 1) / 2 : ℕ) : ℝ)))
+    (hu : u ∈ Set.Ioo (0 : ℝ) 1)
+    (hGaloisB : ...)
+    (hGaloisZ : ...)
+    (hB_event : ((k - 1 : ℕ) : ℝ) < qB u) :
+    z < qZ u
+```
+
+Midpoint remains separate:
+`binomialPolyTail_half_eq_one_half_of_midpoint`.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.OneDimKMT \
+           FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta \
+           FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No endpoint/small-`m` handling beyond documenting the midpoint theorem.
+* No lower-tail/symmetry claim.
+* No `tusnady_base_polynomial` edit or claim.
+
+---
+
+# TC26 — envelope-shape and positivity premise audit
+
+TC26 created `TrackC_round26_T1_EnvelopeAudit.md` and checked the strict
+positivity premise needed before using the TC25 Mills truncation theorem.
+
+New Lean artefacts:
+
+* `carterPollardEps_eq_zero_of_two_mul_eq_succ`;
+* `carterPollardEps_pos_of_succ_lt_two_mul`;
+* `carterPollard_sqrtN_mul_eps_pos_of_succ_lt_two_mul`;
+* `gaussianPDFReal_zero_one_eq_inv_sqrt_mul_exp`;
+* `gaussianPDFReal_zero_one_div_eq_inv_sqrt_mul_exp_div`;
+* `binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_pdf_div_of_succ_lt_two_mul`;
+* `binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_exp_density_div`.
+
+Outcome: **Full** for the envelope/positivity audit and low-risk helpers. The
+bare upper-half hypothesis gives only `ε ≥ 0`; the odd midpoint edge
+`2*k = m+1` gives `ε = 0`, so Mills truncation must use the strengthened
+threshold `m+1 < 2*k` or a separate non-strict central case.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge \
+           FormalConjectures.ErdosProblems.Helpers.OneDimKMT
+```
+
+Result: success (`2899/2899` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No gamma rewrite.
+* No full quantile inversion, endpoint/small-`m` handling, or
+  `tusnady_base_polynomial` claim.
+
+---
+
+# TC24 — direct Robbins Delta bound
+
+TC24 created `TrackC_round24_T1_DeltaRobbinsAudit.md` and closed the direct
+entropy-shape route identified in TC23.
+
+New Lean artefacts:
+
+* `carterPollardLambda_le_robbins_upper_of_range`;
+* `carterPollardDeltaPaperShape_le_entropy_shape_robbins_upper`;
+* `gaussianTailRaw_nonneg`;
+* `binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_gaussian_tail`.
+
+Outcome: **Full** for the primary Robbins `Λ` bound and secondary
+paper-shaped `Δ` bound. The stretch Gaussian-tail nonnegativity helper and
+composed tail theorem also landed debt-free.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge
+```
+
+Result: success (`2739/2739` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No γ rewrite.
+* No normal-tail ratio, quantile inversion, endpoint/small-`m` handling, or
+  `tusnady_base_polynomial` claim.
+
+---
+
+# TC23 — Δ-bound route audit and paper-shaped tail bridge
+
+TC23 created `TrackC_round23_T1_DeltaBoundRouteAudit.md` and compared the two
+available next routes after the TC22 exact equality:
+
+* gamma rewrite route: mathematically closest to the paper, but deferred
+  because it requires a total `γ` definition, zero-case continuation, and a
+  separate entropy rewrite;
+* direct entropy-shape route: preferred for TC24, because the existing
+  `carterPollardDeltaPaperShape` and Robbins `λ` bounds already support a
+  debt-free finite Delta-bound step.
+
+New Lean artefacts:
+
+* `carterPollardEps_nonneg_of_upper_half_range`;
+* `binomialPolyTail_half_le_exp_deltaPaperShape_mul_gaussian_tail_instantiated`.
+
+Outcome: **Full** for the survey-first route audit and the low-risk bridge
+from TC17 normalized tail form to the TC22 paper-shaped entropy `Δ`.
+
+Targeted build:
+
+```text
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardEq7Bridge
+```
+
+Result: success (`2739/2739` jobs).
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No γ rewrite.
+* No normal-tail ratio, quantile inversion, endpoint/small-`m` handling, or
+  `tusnady_base_polynomial` claim.
+
+---
+
+# TC22 — Δ square-root/power cancellation close
+
+TC22 created `TrackC_round22_T1_DeltaCancellationAudit.md`, isolated the
+finite cancellation from the TC20/TC21 equality path, and then composed it into
+the exact entropy-shape equality.
+
+New Lean artefacts:
+
+* private `carterPollard_delta_power_cancellation`;
+* private `carterPollard_delta_sqrt_cancellation`;
+* private `carterPollard_delta_core_cancellation`;
+* private `carterPollard_delta_prefactor_normalization`;
+* `carterPollardPrefactorRaw_eq_exp_deltaPaperShape`;
+* `carterPollardDeltaRaw_eq_deltaPaperShape`.
+
+Outcome: **Full** for the exact raw/paper entropy-shape `Δ` equality in the
+Carter--Pollard non-extreme upper-half range `28 ≤ m`, `m / 2 < k`,
+`k ≤ m - 1`.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* No γ rewrite.
+* No normal-tail ratio, quantile inversion, endpoint/small-`m` handling, or
+  `tusnady_base_polynomial` claim.

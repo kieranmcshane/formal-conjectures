@@ -15,7 +15,10 @@ limitations under the License.
 -/
 
 import FormalConjectures.ErdosProblems.Helpers.CarterPollardHFunction
+import FormalConjectures.ErdosProblems.Helpers.GaussianMillsRatio
+import FormalConjectures.ErdosProblems.Helpers.OneDimKMT
 import FormalConjectures.ErdosProblems.Helpers.StirlingTwoSided
+import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
 
 /-!
 # Carter--Pollard equation (7) bridge
@@ -28,7 +31,8 @@ Tusnády constants.
 
 namespace FormalConjectures.ErdosProblems.Helpers.CarterPollardH
 
-open Real Set
+open Real Set ProbabilityTheory
+open scoped NNReal
 
 /-- On the open unit interval, the Carter--Pollard exponential recovers the
 Beta-integral polynomial kernel under the abstract exponent-matching
@@ -151,7 +155,7 @@ theorem betaPartialIntegral_half_eq_carterPollardH_integral_of_params
     congr 1
     ring
   rw [h_beta_poly, h_poly_h, h_shift]
-  ring
+  ring_nf
 
 /-- TC15 polynomial-tail form of the Carter--Pollard equation-(7) bridge. -/
 theorem binomialPolyTail_half_eq_carterPollardH_integral_of_params
@@ -271,6 +275,85 @@ def carterPollardNK (m k : ℕ) : ℕ :=
 noncomputable def gaussianTailRaw (x : ℝ) : ℝ :=
   (Real.sqrt (2 * Real.pi))⁻¹ *
     ∫ t in Set.Ioi x, Real.exp (-t ^ 2 / 2)
+
+/-! ### TC31 CDF/event bridges -/
+
+/-- TC31 finite-support CDF bridge for the real-valued half-binomial law.
+
+The CDF at `k - 1` is the complement of the analytic upper-tail polynomial. -/
+theorem binomialReal_cdf_pred_eq_one_sub_binomialPolyTail_half
+    {m k : ℕ} (hk : 1 ≤ k) (hkm : k ≤ m) :
+    cdf
+      ((PMF.binomial (1 / 2 : ℝ≥0) (by norm_num) m).toMeasure.map
+        (fun (i : Fin (m + 1)) => (i.val : ℝ)))
+      ((k - 1 : ℕ) : ℝ) =
+      1 - Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) := by
+  classical
+  let p : PMF (Fin (m + 1)) := PMF.binomial (1 / 2 : ℝ≥0) (by norm_num) m
+  let f : Fin (m + 1) → ℝ := fun i => (i.val : ℝ)
+  let tail : Set (Fin (m + 1)) := {i | k ≤ (i : ℕ)}
+  have hf : Measurable f := by fun_prop
+  haveI : MeasureTheory.IsProbabilityMeasure (p.toMeasure.map f) :=
+    MeasureTheory.Measure.isProbabilityMeasure_map hf.aemeasurable
+  have htail_meas : MeasurableSet tail :=
+    (Set.finite_univ.subset (by intro i hi; trivial)).measurableSet
+  have hpre : f ⁻¹' Set.Iic (((k - 1 : ℕ) : ℝ)) = tailᶜ := by
+    ext i
+    simp only [Set.mem_preimage, Set.mem_Iic, Set.mem_compl_iff]
+    change (((i : ℕ) : ℝ) ≤ ((k - 1 : ℕ) : ℝ)) ↔ ¬ k ≤ (i : ℕ)
+    constructor
+    · intro hi hik
+      have hi_nat : (i : ℕ) ≤ k - 1 := by exact_mod_cast hi
+      omega
+    · intro hnot
+      have hi_lt : (i : ℕ) < k := Nat.lt_of_not_ge hnot
+      have hi_nat : (i : ℕ) ≤ k - 1 := by omega
+      exact_mod_cast hi_nat
+  rw [ProbabilityTheory.cdf_eq_real]
+  rw [MeasureTheory.map_measureReal_apply hf measurableSet_Iic]
+  change p.toMeasure.real (f ⁻¹' Set.Iic (((k - 1 : ℕ) : ℝ))) =
+    1 - Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ)
+  rw [hpre, MeasureTheory.probReal_compl_eq_one_sub htail_meas]
+  congr 1
+  have hpoly := Erdos524.Helpers.binomialPolyTail_eq_pmf_tail
+    (m := m) (k := k) hk hkm (1 / 2 : ℝ≥0) (by norm_num)
+  simpa [p, tail, MeasureTheory.Measure.real,
+    PMF.toMeasure_apply_eq_toOuterMeasure_apply _ htail_meas]
+    using hpoly.symm
+
+/-- TC31 standard-Gaussian CDF bridge, proved directly from the local density
+and raw-tail integral definitions. -/
+theorem gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw
+    (x : ℝ) :
+    cdf (gaussianReal 0 1) x = 1 - gaussianTailRaw x := by
+  have hIoi_real : (gaussianReal 0 1).real (Set.Ioi x) = gaussianTailRaw x := by
+    have hpdf_unfold :
+        ∀ t : ℝ, gaussianPDFReal 0 1 t =
+          (Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-t ^ 2 / 2) := by
+      intro t
+      show (Real.sqrt (2 * Real.pi * ((1 : ℝ≥0) : ℝ)))⁻¹ *
+           Real.exp (-(t - 0) ^ 2 / (2 * ((1 : ℝ≥0) : ℝ))) =
+        (Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-t ^ 2 / 2)
+      rw [NNReal.coe_one]
+      ring_nf
+    have hnonneg : 0 ≤ ∫ t in Set.Ioi x, gaussianPDFReal 0 1 t := by
+      exact MeasureTheory.integral_nonneg_of_ae
+        (Filter.Eventually.of_forall fun t => gaussianPDFReal_nonneg 0 1 t)
+    have h_int : ∫ t in Set.Ioi x, gaussianPDFReal 0 1 t = gaussianTailRaw x := by
+      unfold gaussianTailRaw
+      simp_rw [hpdf_unfold]
+      rw [MeasureTheory.integral_const_mul]
+    rw [MeasureTheory.Measure.real]
+    rw [gaussianReal_apply_eq_integral 0 (v := (1 : ℝ≥0)) (by norm_num) (Set.Ioi x)]
+    rw [ENNReal.toReal_ofReal hnonneg]
+    exact h_int
+  rw [ProbabilityTheory.cdf_eq_real]
+  have hcompl := MeasureTheory.probReal_compl_eq_one_sub
+    (μ := gaussianReal 0 (1 : ℝ≥0)) (s := Set.Ioi x) measurableSet_Ioi
+  have hcompl_set : (Set.Ioi x : Set ℝ)ᶜ = Set.Iic x := by
+    ext t
+    simp
+  rw [← hcompl_set, hcompl, hIoi_real]
 
 /-- The exact raw Carter--Pollard prefactor whose logarithm plays the role of
 the paper's `Δ` before any Stirling-error comparison is performed. -/
@@ -458,6 +541,25 @@ theorem carterPollard_one_sub_eps_sq_pos
   rw [hfactor]
   positivity
 
+/-- Exact product form of the Carter--Pollard denominator factor
+`1 - ε^2`. -/
+theorem carterPollard_one_sub_eps_sq_eq_four_K_mul_NK_div_N_sq
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    1 - carterPollardEps m k ^ 2 =
+      4 * ((carterPollardK m k : ℕ) : ℝ) *
+        ((carterPollardNK m k : ℕ) : ℝ) / carterPollardN m ^ 2 := by
+  have hK := carterPollardK_real_eq_N_mul_one_add_eps_div_two hm hk_lower hk_upper
+  have hNK := carterPollardNK_real_eq_N_mul_one_sub_eps_div_two hm hk_lower hk_upper
+  have hN_ne : carterPollardN m ≠ 0 := by
+    have hN_pos : 0 < carterPollardN m := by
+      unfold carterPollardN
+      exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+    exact hN_pos.ne'
+  rw [hK, hNK]
+  field_simp [hN_ne]
+  ring
+
 /-- The Stirling core in formula (3) is positive whenever `j ≥ 1`. -/
 theorem carterPollardStirlingCore_pos {j : ℕ} (hj : 1 ≤ j) :
     0 < carterPollardStirlingCore j := by
@@ -569,6 +671,230 @@ theorem carterPollardDeltaPaperShape_exp_eq_factorized
   rw [Real.exp_add, Real.exp_add, Real.exp_add, Real.exp_log hlog_pos,
     exp_neg_half_log_eq_inv_sqrt hsq_pos]
 
+private theorem carterPollard_delta_power_cancellation
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    ((((carterPollardK m k : ℝ) / Real.exp 1) ^ carterPollardK m k) *
+        (((carterPollardNK m k : ℝ) / Real.exp 1) ^ carterPollardNK m k) /
+        ((carterPollardN m / Real.exp 1) ^ (m - 1)) *
+        (((1 + carterPollardEps m k) ^ carterPollardK m k *
+          (1 - carterPollardEps m k) ^ carterPollardNK m k)⁻¹)) =
+      ((1 / 2 : ℝ) ^ (m - 1)) := by
+  have hp := carterPollard_one_add_eps_pos hm hk_lower hk_upper
+  have hm' := carterPollard_one_sub_eps_pos hm hk_lower hk_upper
+  have hNpos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+  have hK_eq := carterPollardK_real_eq_N_mul_one_add_eps_div_two hm hk_lower hk_upper
+  have hNK_eq := carterPollardNK_real_eq_N_mul_one_sub_eps_div_two hm hk_lower hk_upper
+  have hK_add := carterPollardK_add_NK_eq_N hm hk_lower hk_upper
+  have hbaseK :
+      (((carterPollardK m k : ℕ) : ℝ) / Real.exp 1) =
+        (carterPollardN m / Real.exp 1) * ((1 + carterPollardEps m k) / 2) := by
+    rw [hK_eq]
+    ring
+  have hbaseNK :
+      (((carterPollardNK m k : ℕ) : ℝ) / Real.exp 1) =
+        (carterPollardN m / Real.exp 1) * ((1 - carterPollardEps m k) / 2) := by
+    rw [hNK_eq]
+    ring
+  rw [hbaseK, hbaseNK]
+  rw [mul_pow, mul_pow]
+  rw [show (carterPollardN m / Real.exp 1) ^ (carterPollardK m k) *
+        ((1 + carterPollardEps m k) / 2) ^ (carterPollardK m k) *
+        ((carterPollardN m / Real.exp 1) ^ (carterPollardNK m k) *
+          ((1 - carterPollardEps m k) / 2) ^ (carterPollardNK m k)) =
+        ((carterPollardN m / Real.exp 1) ^ (carterPollardK m k) *
+          (carterPollardN m / Real.exp 1) ^ (carterPollardNK m k)) *
+          (((1 + carterPollardEps m k) / 2) ^ (carterPollardK m k) *
+            ((1 - carterPollardEps m k) / 2) ^ (carterPollardNK m k)) by ring]
+  rw [← pow_add, hK_add]
+  have hNdiv_ne : carterPollardN m / Real.exp 1 ≠ 0 := by positivity
+  have hp_ne : 1 + carterPollardEps m k ≠ 0 := hp.ne'
+  have hm_ne : 1 - carterPollardEps m k ≠ 0 := hm'.ne'
+  field_simp [pow_ne_zero _ hNdiv_ne]
+  rw [div_pow, div_pow]
+  field_simp [hp_ne, hm_ne]
+  rw [← pow_add, hK_add]
+  rw [show ((1 / 2 : ℝ) ^ (m - 1)) = (((2 : ℝ) ^ (m - 1))⁻¹) by
+    rw [one_div, inv_pow]]
+  rw [mul_inv_cancel₀ (pow_ne_zero _ (by norm_num : (2 : ℝ) ≠ 0))]
+
+private theorem carterPollard_delta_sqrt_cancellation
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    (Real.sqrt (2 * Real.pi * ((carterPollardK m k : ℕ) : ℝ)) *
+          Real.sqrt (2 * Real.pi * ((carterPollardNK m k : ℕ) : ℝ)) /
+        Real.sqrt (2 * Real.pi * carterPollardN m)) *
+      (Real.sqrt (1 - carterPollardEps m k ^ 2))⁻¹ =
+        Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) / 2 := by
+  have hp := carterPollard_one_add_eps_pos hm hk_lower hk_upper
+  have hm' := carterPollard_one_sub_eps_pos hm hk_lower hk_upper
+  have hsq := carterPollard_one_sub_eps_sq_pos hm hk_lower hk_upper
+  have hNpos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+  have hK_eq := carterPollardK_real_eq_N_mul_one_add_eps_div_two hm hk_lower hk_upper
+  have hNK_eq := carterPollardNK_real_eq_N_mul_one_sub_eps_div_two hm hk_lower hk_upper
+  have hsq_factor :
+      1 - carterPollardEps m k ^ 2 =
+        (1 + carterPollardEps m k) * (1 - carterPollardEps m k) := by ring
+  rw [hK_eq, hNK_eq, hsq_factor]
+  have hleft_nonneg :
+      0 ≤
+        (Real.sqrt (2 * Real.pi * (carterPollardN m * (1 + carterPollardEps m k) / 2)) *
+              Real.sqrt (2 * Real.pi * (carterPollardN m * (1 - carterPollardEps m k) / 2)) /
+            Real.sqrt (2 * Real.pi * carterPollardN m)) *
+          (Real.sqrt ((1 + carterPollardEps m k) * (1 - carterPollardEps m k)))⁻¹ := by
+    positivity
+  have hright_nonneg : 0 ≤ Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) / 2 := by
+    positivity
+  rw [← mul_self_inj_of_nonneg hleft_nonneg hright_nonneg]
+  have hden1 : Real.sqrt (2 * Real.pi * carterPollardN m) ≠ 0 := by positivity
+  have hden2 : Real.sqrt ((1 + carterPollardEps m k) * (1 - carterPollardEps m k)) ≠ 0 := by
+    positivity
+  field_simp [hden1, hden2]
+  rw [sq_sqrt (by positivity : 0 ≤ Real.pi * carterPollardN m *
+      (1 + carterPollardEps m k))]
+  rw [sq_sqrt (by positivity : 0 ≤ Real.pi * carterPollardN m *
+      (1 - carterPollardEps m k))]
+  rw [sq_sqrt (by positivity : 0 ≤ 2 * Real.pi * carterPollardN m)]
+  rw [sq_sqrt (by positivity : 0 ≤ (1 + carterPollardEps m k) *
+      (1 - carterPollardEps m k))]
+  rw [sq_sqrt (by positivity : 0 ≤ 2 * Real.pi)]
+  rw [sq_sqrt hNpos.le]
+  ring
+
+private theorem carterPollard_delta_core_cancellation
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    (carterPollardStirlingCore (carterPollardK m k) *
+          carterPollardStirlingCore (carterPollardNK m k) /
+        carterPollardStirlingCore (m - 1)) *
+      (Real.sqrt (1 - carterPollardEps m k ^ 2))⁻¹ *
+      (((1 + carterPollardEps m k) ^ (carterPollardK m k) *
+        (1 - carterPollardEps m k) ^ (carterPollardNK m k))⁻¹) =
+        (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) / 2) *
+          ((1 / 2 : ℝ) ^ (m - 1)) := by
+  unfold carterPollardStirlingCore
+  let A : ℝ := Real.sqrt (2 * Real.pi * ((carterPollardK m k : ℕ) : ℝ))
+  let B : ℝ := Real.sqrt (2 * Real.pi * ((carterPollardNK m k : ℕ) : ℝ))
+  let C : ℝ := Real.sqrt (2 * Real.pi * carterPollardN m)
+  let P : ℝ := (((carterPollardK m k : ℕ) : ℝ) / Real.exp 1) ^ carterPollardK m k
+  let Q : ℝ := (((carterPollardNK m k : ℕ) : ℝ) / Real.exp 1) ^ carterPollardNK m k
+  let R : ℝ := (carterPollardN m / Real.exp 1) ^ (m - 1)
+  let D : ℝ := (Real.sqrt (1 - carterPollardEps m k ^ 2))⁻¹
+  let E : ℝ :=
+    (((1 + carterPollardEps m k) ^ carterPollardK m k *
+      (1 - carterPollardEps m k) ^ carterPollardNK m k)⁻¹)
+  let F : ℝ := Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) / 2
+  let G : ℝ := (1 / 2 : ℝ) ^ (m - 1)
+  have hNpos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+  have hsqrt : (A * B / C) * D = F := by
+    dsimp [A, B, C, D, F]
+    exact carterPollard_delta_sqrt_cancellation hm hk_lower hk_upper
+  have hpower : (P * Q / R) * E = G := by
+    dsimp [P, Q, R, E, G]
+    exact carterPollard_delta_power_cancellation hm hk_lower hk_upper
+  change (A * P * (B * Q) / (C * R)) * D * E = F * G
+  calc
+    (A * P * (B * Q) / (C * R)) * D * E =
+        ((A * B / C) * D) * ((P * Q / R) * E) := by
+      have hC : C ≠ 0 := by
+        dsimp [C]
+        positivity
+      have hR : R ≠ 0 := by
+        dsimp [R]
+        positivity
+      field_simp [hC, hR]
+    _ = F * G := by
+      rw [hsqrt, hpower]
+
+private theorem carterPollard_delta_prefactor_normalization
+    {m : ℕ} (hm : 28 ≤ m) :
+    (1 + (carterPollardN m)⁻¹) *
+        (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) / 2) *
+        ((1 / 2 : ℝ) ^ (m - 1)) =
+      (m : ℝ) * ((1 / 2 : ℝ) ^ m) *
+        (Real.sqrt (2 * Real.pi) * (Real.sqrt (carterPollardN m))⁻¹) := by
+  have hm2 : 2 ≤ m := by omega
+  have hNpos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show (0 : ℕ) < m - 1 by omega)
+  have hN_ne : carterPollardN m ≠ 0 := hNpos.ne'
+  have hsqrt_ne : Real.sqrt (carterPollardN m) ≠ 0 := by positivity
+  have hN_eq := carterPollardN_eq_sub_one (m := m) hm2
+  have hpow :
+      ((1 / 2 : ℝ) ^ m) = ((1 / 2 : ℝ) ^ (m - 1)) * (1 / 2 : ℝ) := by
+    nth_rewrite 1 [show m = (m - 1) + 1 by omega]
+    rw [pow_succ]
+  rw [hpow]
+  rw [show Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) / 2 =
+      Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) * (1 / 2 : ℝ) by ring]
+  field_simp [hN_ne, hsqrt_ne]
+  rw [sq_sqrt hNpos.le]
+  rw [hN_eq]
+  ring
+
+/-- Exact multiplicative close between the raw Lean prefactor and the
+paper-shaped entropy `Δ`, before any `γ` rewrite or tail-ratio estimate. -/
+theorem carterPollardPrefactorRaw_eq_exp_deltaPaperShape
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    carterPollardPrefactorRaw m k =
+      Real.exp (carterPollardDeltaPaperShape m k) := by
+  let F : ℝ :=
+    ((m - 1).factorial : ℝ) /
+      (((carterPollardK m k).factorial : ℝ) *
+        ((carterPollardNK m k).factorial : ℝ))
+  let E : ℝ := Real.exp (carterPollardN m * carterPollardEps m k ^ 2 / 2)
+  let C : ℝ :=
+    (carterPollardStirlingCore (carterPollardK m k) *
+          carterPollardStirlingCore (carterPollardNK m k) /
+        carterPollardStirlingCore (m - 1)) *
+      (Real.sqrt (1 - carterPollardEps m k ^ 2))⁻¹ *
+      (((1 + carterPollardEps m k) ^ (carterPollardK m k) *
+        (1 - carterPollardEps m k) ^ (carterPollardNK m k))⁻¹)
+  let R : ℝ :=
+    (m : ℝ) * ((1 / 2 : ℝ) ^ m) *
+      (Real.sqrt (2 * Real.pi) * (Real.sqrt (carterPollardN m))⁻¹)
+  have hk : 1 ≤ k := by omega
+  have hkm : k ≤ m := by omega
+  have hm2 : 2 ≤ m := by omega
+  have hcoreN : carterPollardStirlingCore (m - 1) ≠ 0 := by
+    have hN := (carterPollard_lambda_indices_pos hm hk_lower hk_upper).1
+    exact (carterPollardStirlingCore_pos hN).ne'
+  have hfactK : (((carterPollardK m k).factorial : ℝ) : ℝ) ≠ 0 := by positivity
+  have hfactNK : (((carterPollardNK m k).factorial : ℝ) : ℝ) ≠ 0 := by positivity
+  have hraw :
+      carterPollardPrefactorRaw m k = F * E * R := by
+    unfold carterPollardPrefactorRaw
+    rw [carterPollard_choose_eq_factorial_div hm hk_lower hk_upper]
+    dsimp [F, E, R]
+    ring
+  have hpaper :
+      Real.exp (carterPollardDeltaPaperShape m k) =
+        F * E * ((1 + (carterPollardN m)⁻¹) * C) := by
+    rw [carterPollardDeltaPaperShape_exp_eq_factorized hm hk_lower hk_upper,
+      carterPollardLambda_exp_eq hm hk_lower hk_upper,
+      carterPollardEntropyDelta_exp_eq hm hk_lower hk_upper]
+    dsimp [F, E, C]
+    field_simp [hcoreN, hfactK, hfactNK]
+  have hC :
+      C =
+        (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) / 2) *
+          ((1 / 2 : ℝ) ^ (m - 1)) := by
+    dsimp [C]
+    exact carterPollard_delta_core_cancellation hm hk_lower hk_upper
+  have hnorm :
+      (1 + (carterPollardN m)⁻¹) * C = R := by
+    rw [hC]
+    dsimp [R]
+    simpa [mul_assoc] using carterPollard_delta_prefactor_normalization hm
+  rw [hraw, hpaper, hnorm]
+
 /-- Debt-free Robbins bounds available from the current local Stirling API.
 
 The paper has the sharper strict lower bound `(12*j+1)⁻¹ < λ_j`; TC19 only
@@ -642,6 +968,19 @@ lemma carterPollardDeltaRaw_exp_eq_prefactor
   unfold carterPollardDeltaRaw
   exact Real.exp_log (carterPollardPrefactorRaw_pos hm hk hkm)
 
+/-- TC22 exact raw/paper entropy-shape `Δ` equality in the Carter--Pollard
+non-extreme upper-half range. -/
+theorem carterPollardDeltaRaw_eq_deltaPaperShape
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    carterPollardDeltaRaw m k = carterPollardDeltaPaperShape m k := by
+  have hk : 1 ≤ k := by omega
+  have hkm : k ≤ m := by omega
+  have hm2 : 2 ≤ m := by omega
+  apply Real.exp_injective
+  rw [carterPollardDeltaRaw_exp_eq_prefactor hm2 hk hkm,
+    carterPollardPrefactorRaw_eq_exp_deltaPaperShape hm hk_lower hk_upper]
+
 /-- TC18 loose explicit upper bound for the exact raw `exp(Δ)` prefactor.
 
 This uses only the elementary in-tree bound
@@ -695,6 +1034,303 @@ theorem carterPollardDeltaRaw_le_log_stirling_prefactor
       exact_mod_cast (show 0 < m - 1 by omega)
     positivity
   exact (Real.le_log_iff_exp_le hrhs_pos).mpr hbound
+
+/-- TC24 direct Robbins upper bound for the Carter--Pollard
+`Λ = λ_N - λ_K - λ_(N-K)` term. -/
+theorem carterPollardLambda_le_robbins_upper_of_range
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    carterPollardLambda m k ≤ 1 / (12 * ((m - 1 : ℕ) : ℝ)) := by
+  rcases carterPollardLambdaTerm_bounds_of_range hm hk_lower hk_upper with
+    ⟨hN, hK, hNK⟩
+  unfold carterPollardLambda
+  linarith [hN.2, hK.1, hNK.1]
+
+/-- TC24 direct entropy-shape upper bound for the paper-shaped
+Carter--Pollard `Δ`, using only the Robbins upper bound for `Λ`. -/
+theorem carterPollardDeltaPaperShape_le_entropy_shape_robbins_upper
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    carterPollardDeltaPaperShape m k ≤
+      Real.log (1 + (carterPollardN m)⁻¹) +
+        1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+          (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+            carterPollardEntropyDelta m k := by
+  have hΛ := carterPollardLambda_le_robbins_upper_of_range hm hk_lower hk_upper
+  unfold carterPollardDeltaPaperShape
+  linarith
+
+/-- In the Carter--Pollard upper-half range, the instantiated `ε` is
+nonnegative. -/
+theorem carterPollardEps_nonneg_of_upper_half_range
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) :
+    0 ≤ carterPollardEps m k := by
+  unfold carterPollardEps
+  have hden_pos : 0 < (m : ℝ) - 1 := by
+    have hm_real : (1 : ℝ) < (m : ℝ) := by
+      exact_mod_cast (show (1 : ℕ) < m by omega)
+    linarith
+  have hnum_nat : m + 1 ≤ 2 * k := by omega
+  have hnum_nonneg : 0 ≤ (2 : ℝ) * (k : ℝ) - (m : ℝ) - 1 := by
+    have hcast : ((m + 1 : ℕ) : ℝ) ≤ ((2 * k : ℕ) : ℝ) := by
+      exact_mod_cast hnum_nat
+    norm_num at hcast ⊢
+    linarith
+  exact div_nonneg hnum_nonneg hden_pos.le
+
+/-- At the odd midpoint edge `2*k = m + 1`, the Carter--Pollard instantiated
+`ε` is exactly zero. This is the obstruction to using Mills truncation from
+the bare upper-half hypothesis alone. -/
+theorem carterPollardEps_eq_zero_of_two_mul_eq_succ
+    {m k : ℕ}
+    (hmid : 2 * k = m + 1) :
+    carterPollardEps m k = 0 := by
+  unfold carterPollardEps
+  have hnum_zero : (2 : ℝ) * (k : ℝ) - (m : ℝ) - 1 = 0 := by
+    have hcast : ((2 * k : ℕ) : ℝ) = ((m + 1 : ℕ) : ℝ) := by
+      exact_mod_cast hmid
+    norm_num at hcast ⊢
+    linarith
+  rw [hnum_zero]
+  simp
+
+/-- Strict positivity of the Carter--Pollard instantiated `ε` after excluding
+the midpoint edge. -/
+theorem carterPollardEps_pos_of_succ_lt_two_mul
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hstrict : m + 1 < 2 * k) :
+    0 < carterPollardEps m k := by
+  unfold carterPollardEps
+  have hden_pos : 0 < (m : ℝ) - 1 := by
+    have hm_real : (1 : ℝ) < (m : ℝ) := by
+      exact_mod_cast (show (1 : ℕ) < m by omega)
+    linarith
+  have hnum_pos : 0 < (2 : ℝ) * (k : ℝ) - (m : ℝ) - 1 := by
+    have hcast : ((m + 1 : ℕ) : ℝ) < ((2 * k : ℕ) : ℝ) := by
+      exact_mod_cast hstrict
+    norm_num at hcast ⊢
+    linarith
+  exact div_pos hnum_pos hden_pos
+
+/-- Strict positivity of the Mills-truncation argument
+`sqrt(N) * ε`, under the strengthened threshold excluding the midpoint edge. -/
+theorem carterPollard_sqrtN_mul_eps_pos_of_succ_lt_two_mul
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hstrict : m + 1 < 2 * k) :
+    0 < Real.sqrt (carterPollardN m) * carterPollardEps m k := by
+  have hN_pos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show 0 < m - 1 by omega)
+  have hsqrt_pos : 0 < Real.sqrt (carterPollardN m) := Real.sqrt_pos_of_pos hN_pos
+  have hε_pos := carterPollardEps_pos_of_succ_lt_two_mul (m := m) (k := k) hm hstrict
+  positivity
+
+/-! ### TC35 scalar-event audit lemmas -/
+
+/-- TC35 audit algebra: the Carter--Pollard affine center represented by
+`Nε/2` is the real midpoint gap `k - (m + 1)/2`. -/
+theorem carterPollard_N_mul_eps_div_two_eq_real_center
+    {m k : ℕ}
+    (hm : 28 ≤ m) :
+    carterPollardN m * carterPollardEps m k / 2 =
+      (k : ℝ) - ((m : ℝ) + 1) / 2 := by
+  have hm1 : 1 ≤ m := by omega
+  have hden : (m : ℝ) - 1 ≠ 0 := by
+    have hm_real : (1 : ℝ) < (m : ℝ) := by
+      exact_mod_cast (show (1 : ℕ) < m by omega)
+    linarith
+  unfold carterPollardN carterPollardEps
+  rw [Nat.cast_sub hm1]
+  field_simp [hden]
+  ring_nf
+
+/-- TC35 audit algebra, even case: with `m = 2n`, the real Carter--Pollard
+center is half a unit below the natural midpoint gap `k - n`. -/
+theorem carterPollard_N_mul_eps_div_two_eq_even_nat_center_sub_half
+    {n k : ℕ}
+    (hn : 14 ≤ n) :
+    carterPollardN (2 * n) * carterPollardEps (2 * n) k / 2 =
+      (k : ℝ) - (n : ℝ) - 1 / 2 := by
+  rw [carterPollard_N_mul_eps_div_two_eq_real_center
+    (m := 2 * n) (k := k) (by omega)]
+  have hcast : (((2 * n : ℕ) : ℝ)) = 2 * (n : ℝ) := by norm_num
+  rw [hcast]
+  ring
+
+/-- TC35 audit algebra, odd case: with `m = 2n + 1`, the real
+Carter--Pollard center is exactly the natural midpoint gap. -/
+theorem carterPollard_N_mul_eps_div_two_eq_odd_nat_center
+    {n k : ℕ}
+    (hn : 14 ≤ n) :
+    carterPollardN (2 * n + 1) * carterPollardEps (2 * n + 1) k / 2 =
+      (k : ℝ) - ((n + 1 : ℕ) : ℝ) := by
+  rw [carterPollard_N_mul_eps_div_two_eq_real_center
+    (m := 2 * n + 1) (k := k) (by omega)]
+  have hcast_m : (((2 * n + 1 : ℕ) : ℝ)) = 2 * (n : ℝ) + 1 := by norm_num
+  have hcast_n : (((n + 1 : ℕ) : ℝ)) = (n : ℝ) + 1 := by norm_num
+  rw [hcast_m, hcast_n]
+  ring
+
+/-- The stated Tusnády event hypothesis only gives that `z` lies strictly
+below the natural midpoint gap. It does not by itself bound the strict
+Carter--Pollard quadratic envelope by the Gaussian tail. -/
+theorem carterPollard_event_implies_z_lt_nat_center_gap
+    {m k : ℕ} {z : ℝ}
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (((m + 1) / 2 : ℕ) : ℝ) ≤
+        ((k : ℝ) - (((m + 1) / 2 : ℕ) : ℝ))) :
+    z < ((k : ℝ) - (((m + 1) / 2 : ℕ) : ℝ)) := by
+  have hquad_nonneg :
+      0 ≤ z ^ 2 / (((m + 1) / 2 : ℕ) : ℝ) := by
+    positivity
+  linarith
+
+/-- The stated Tusnády event hypothesis forces the natural midpoint gap to be
+positive. This is the maximal unconditional scalar consequence used by the
+TC35 diagnostic. -/
+theorem carterPollard_event_implies_nat_center_gap_pos
+    {m k : ℕ} {z : ℝ}
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (((m + 1) / 2 : ℕ) : ℝ) ≤
+        ((k : ℝ) - (((m + 1) / 2 : ℕ) : ℝ))) :
+    0 < ((k : ℝ) - (((m + 1) / 2 : ℕ) : ℝ)) := by
+  exact lt_trans hz_pos
+    (carterPollard_event_implies_z_lt_nat_center_gap
+      (m := m) (k := k) (z := z) hz_pos hz_event)
+
+/-- Even-base TC35 audit: in the `m = 2n` case used by
+`tusnady_base_polynomial`, the `0.6` slack in the event hypothesis places `z`
+strictly below the real Carter--Pollard center `Nε/2`. This center comparison
+is true, but it is still not enough to make the quadratic envelope a Gaussian
+tail lower bound near the midpoint. -/
+theorem carterPollard_even_event_implies_z_lt_N_mul_eps_div_two
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤
+        ((k : ℝ) - (n : ℝ))) :
+    z < carterPollardN (2 * n) * carterPollardEps (2 * n) k / 2 := by
+  have hquad_nonneg : 0 ≤ z ^ 2 / (n : ℝ) := by positivity
+  have hz_center : z < (k : ℝ) - (n : ℝ) - 1 / 2 := by
+    nlinarith
+  rw [carterPollard_N_mul_eps_div_two_eq_even_nat_center_sub_half
+    (n := n) (k := k) hn]
+  exact hz_center
+
+/-! ### TC40 scaled Gaussian-tail correction -/
+
+/-- TC40 raw-tail monotonicity, derived from the local standard-Gaussian CDF
+bridge and `cdf` monotonicity. -/
+theorem gaussianTailRaw_le_of_le {x y : ℝ} (hxy : x ≤ y) :
+    gaussianTailRaw y ≤ gaussianTailRaw x := by
+  have hcdf := (ProbabilityTheory.monotone_cdf (gaussianReal 0 (1 : ℝ≥0))) hxy
+  rw [gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw,
+    gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw] at hcdf
+  linarith
+
+/-- TC40 antitone form of raw standard-Gaussian upper-tail monotonicity. -/
+theorem gaussianTailRaw_antitone : Antitone gaussianTailRaw := by
+  intro x y hxy
+  exact gaussianTailRaw_le_of_le hxy
+
+/-- TC40 scaled Gaussian CDF bridge for the actual variance `n/2` appearing in
+`tusnady_base_polynomial`.
+
+The proof uses the Gaussian scaling map and then the local standard-tail CDF
+bridge; it does not use `Real.Gaussian.compl_cdf`. -/
+theorem gaussianReal_zero_nat_half_cdf_eq_one_sub_scaled_gaussianTailRaw
+    {n : ℕ} (hn : 0 < n) (z : ℝ) :
+    cdf (gaussianReal 0 (((n : ℝ≥0) / (2 : ℝ≥0)))) z =
+      1 - gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) := by
+  let σ : ℝ := Real.sqrt ((n : ℝ) / 2)
+  have hσ_pos : 0 < σ := by
+    dsimp [σ]
+    positivity
+  have hσ_sq_nonneg : 0 ≤ σ ^ 2 := sq_nonneg σ
+  have hvar_eq :
+      (⟨σ ^ 2, hσ_sq_nonneg⟩ : ℝ≥0) = ((n : ℝ≥0) / (2 : ℝ≥0)) := by
+    apply Subtype.ext
+    change σ ^ 2 = (n : ℝ) / 2
+    dsimp [σ]
+    rw [Real.sq_sqrt (by positivity : 0 ≤ (n : ℝ) / 2)]
+  have hmap :
+      MeasureTheory.Measure.map (fun x : ℝ => σ * x) (gaussianReal 0 (1 : ℝ≥0)) =
+        gaussianReal 0 (((n : ℝ≥0) / (2 : ℝ≥0))) := by
+    rw [gaussianReal_map_const_mul (μ := 0) (v := (1 : ℝ≥0)) σ]
+    simp [hvar_eq]
+  rw [← hmap]
+  haveI : MeasureTheory.IsProbabilityMeasure
+      (MeasureTheory.Measure.map (fun x : ℝ => σ * x) (gaussianReal 0 (1 : ℝ≥0))) :=
+    MeasureTheory.Measure.isProbabilityMeasure_map (by fun_prop : AEMeasurable (fun x : ℝ => σ * x)
+      (gaussianReal 0 (1 : ℝ≥0)))
+  rw [ProbabilityTheory.cdf_eq_real]
+  rw [MeasureTheory.map_measureReal_apply (by fun_prop) measurableSet_Iic]
+  have hpre : (fun x : ℝ => σ * x) ⁻¹' Set.Iic z = Set.Iic (z / σ) := by
+    ext x
+    simp only [Set.mem_preimage, Set.mem_Iic]
+    exact (le_div_iff₀' hσ_pos).symm
+  rw [hpre]
+  rw [← ProbabilityTheory.cdf_eq_real (gaussianReal 0 (1 : ℝ≥0)) (z / σ)]
+  rw [gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw]
+
+/-- TC40 even-case standardized threshold algebra. The corrected event
+threshold implies that the physical Gaussian value `z` standardized by the
+base variance `n/2` lies below the Carter--Pollard threshold
+`sqrt(N) * ε`. -/
+theorem carterPollard_even_event_implies_scaled_z_le_sqrtN_eps
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (_hk_upper : k ≤ 2 * n - 1)
+    (_hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ))) :
+    z / Real.sqrt ((n : ℝ) / 2) ≤
+      Real.sqrt (carterPollardN (2 * n)) * carterPollardEps (2 * n) k := by
+  let σ : ℝ := Real.sqrt ((n : ℝ) / 2)
+  let N : ℝ := carterPollardN (2 * n)
+  let ε : ℝ := carterPollardEps (2 * n) k
+  have hσ_pos : 0 < σ := by
+    dsimp [σ]
+    positivity
+  have hN_pos : 0 < N := by
+    dsimp [N, carterPollardN]
+    exact_mod_cast (show 0 < 2 * n - 1 by omega)
+  have hε_pos : 0 < ε := by
+    dsimp [ε]
+    exact carterPollardEps_pos_of_succ_lt_two_mul
+      (m := 2 * n) (k := k) (by omega) (by omega)
+  have hz_center :
+      z < carterPollardN (2 * n) * carterPollardEps (2 * n) k / 2 :=
+    carterPollard_even_event_implies_z_lt_N_mul_eps_div_two
+      (n := n) (k := k) (z := z) hn hz_event
+  have hz_div :
+      z / σ < (N * ε / 2) / σ := by
+    exact div_lt_div_of_pos_right (by simpa [N, ε] using hz_center) hσ_pos
+  have hN_eq : N = (2 * (n : ℝ)) - 1 := by
+    dsimp [N]
+    rw [carterPollardN_eq_sub_one (m := 2 * n) (by omega)]
+    norm_num
+  have hbase_sq :
+      (N / 2) ^ 2 ≤ (Real.sqrt N * σ) ^ 2 := by
+    rw [mul_pow, Real.sq_sqrt hN_pos.le]
+    dsimp [σ]
+    rw [Real.sq_sqrt (by positivity : 0 ≤ (n : ℝ) / 2)]
+    rw [hN_eq]
+    have hn_real : (1 : ℝ) ≤ n := by exact_mod_cast (show (1 : ℕ) ≤ n by omega)
+    nlinarith
+  have hbase_nonneg : 0 ≤ N / 2 := by positivity
+  have hright_nonneg : 0 ≤ Real.sqrt N * σ := by positivity
+  have hbase_le : N / 2 ≤ Real.sqrt N * σ := by
+    have h := (sq_le_sq.mp hbase_sq)
+    simpa [abs_of_nonneg hbase_nonneg, abs_of_nonneg hright_nonneg] using h
+  have hmul : N * ε / 2 ≤ (Real.sqrt N * ε) * σ := by
+    have hmul' := mul_le_mul_of_nonneg_right hbase_le hε_pos.le
+    nlinarith
+  have hcenter_scaled : (N * ε / 2) / σ ≤ Real.sqrt N * ε := by
+    exact (div_le_iff₀ hσ_pos).mpr (by simpa [mul_assoc, mul_left_comm, mul_comm] using hmul)
+  exact (le_of_lt hz_div).trans (by simpa [N, ε, σ] using hcenter_scaled)
 
 /-- TC17 normalized Gaussian-tail version of the TC16 raw bound.
 
@@ -751,5 +1387,1052 @@ theorem binomialPolyTail_half_le_exp_delta_mul_gaussian_tail_instantiated
     ring
   rw [hnorm] at hraw_def
   exact hraw_def
+
+/-- TC23 normalized Gaussian-tail route with the exact paper-shaped
+entropy `Δ` exposed.
+
+This is only the TC17 normalized tail theorem rewritten through the TC22
+identity `Δ_raw = Δ_paperShape`; it does not bound `Δ_paperShape` and does not
+perform any normal-tail comparison or quantile inversion. -/
+theorem binomialPolyTail_half_le_exp_deltaPaperShape_mul_gaussian_tail_instantiated
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      Real.exp (carterPollardDeltaPaperShape m k) *
+        gaussianTailRaw
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k) := by
+  have hm2 : 2 ≤ m := by omega
+  have hk : 1 ≤ k := by omega
+  have hkm : k ≤ m := by omega
+  have hε0 := carterPollardEps_nonneg_of_upper_half_range hm hk_lower
+  have htail :=
+    binomialPolyTail_half_le_exp_delta_mul_gaussian_tail_instantiated
+      (m := m) (k := k) hm2 hk hkm hε0
+  simpa [carterPollardDeltaRaw_eq_deltaPaperShape hm hk_lower hk_upper] using htail
+
+/-- TC40 corrected scaled-tail transport for the existing paper-shaped
+Carter--Pollard bound.
+
+This is the strongest direct composition currently available without proving a
+new Carter--Pollard tail-ratio theorem: the binomial tail is bounded by the
+existing `exp(Δ_paperShape)` factor times the corrected scaled Gaussian tail.
+Removing that visible factor is the remaining analytic TC41 consumer. -/
+theorem binomialPolyTail_half_le_exp_deltaPaperShape_mul_scaled_gaussian_tail_of_event
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ))) :
+    Erdos524.Helpers.binomialPolyTail (2 * n) k (1 / 2 : ℝ) ≤
+      Real.exp (carterPollardDeltaPaperShape (2 * n) k) *
+        gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) := by
+  have hm : 28 ≤ 2 * n := by omega
+  have hk_cp_lower : (2 * n) / 2 < k := by omega
+  have hk_cp_upper : k ≤ 2 * n - 1 := hk_upper
+  have htail :=
+    binomialPolyTail_half_le_exp_deltaPaperShape_mul_gaussian_tail_instantiated
+      (m := 2 * n) (k := k) hm hk_cp_lower hk_cp_upper
+  have hscaled :
+      z / Real.sqrt ((n : ℝ) / 2) ≤
+        Real.sqrt (carterPollardN (2 * n)) * carterPollardEps (2 * n) k :=
+    carterPollard_even_event_implies_scaled_z_le_sqrtN_eps
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event
+  have htail_mono :
+      gaussianTailRaw
+          (Real.sqrt (carterPollardN (2 * n)) * carterPollardEps (2 * n) k) ≤
+        gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) :=
+    gaussianTailRaw_le_of_le hscaled
+  have hmul := mul_le_mul_of_nonneg_left htail_mono
+    (Real.exp_pos (carterPollardDeltaPaperShape (2 * n) k)).le
+  exact le_trans htail hmul
+
+/-- Nonnegativity of the raw normalized Gaussian upper tail. -/
+theorem gaussianTailRaw_nonneg (x : ℝ) :
+    0 ≤ gaussianTailRaw x := by
+  unfold gaussianTailRaw
+  have hint_nonneg :
+      0 ≤ ∫ t in Set.Ioi x, Real.exp (-t ^ 2 / 2) := by
+    exact MeasureTheory.integral_nonneg fun t => by positivity
+  positivity
+
+/-- The raw normalized Gaussian tail used by the Carter--Pollard bridge is
+exactly the local Mills ratio times the standard Gaussian density. -/
+theorem gaussianTailRaw_eq_millsRatio_mul_pdf (x : ℝ) :
+    gaussianTailRaw x =
+      Erdos524.Helpers.gaussianMillsRatioReal x * gaussianPDFReal 0 1 x := by
+  set c : ℝ := (Real.sqrt (2 * Real.pi))⁻¹ with hc_def
+  have hpdf_unfold : ∀ t : ℝ, gaussianPDFReal 0 1 t = c * Real.exp (-t ^ 2 / 2) := by
+    intro t
+    show (Real.sqrt (2 * Real.pi * ((1 : ℝ≥0) : ℝ)))⁻¹ *
+         Real.exp (-(t - 0) ^ 2 / (2 * ((1 : ℝ≥0) : ℝ))) = c * Real.exp (-t ^ 2 / 2)
+    rw [hc_def, NNReal.coe_one]
+    ring_nf
+  have htail_pdf :
+      ∫ t in Set.Ioi x, gaussianPDFReal 0 1 t =
+        c * ∫ t in Set.Ioi x, Real.exp (-t ^ 2 / 2) := by
+    have hfun :
+        (fun t : ℝ => gaussianPDFReal 0 1 t) =
+          fun t : ℝ => c * Real.exp (-t ^ 2 / 2) := by
+      funext t
+      exact hpdf_unfold t
+    rw [hfun, MeasureTheory.integral_const_mul]
+  have hpdf_pos : 0 < gaussianPDFReal 0 1 x :=
+    gaussianPDFReal_pos 0 1 x (by norm_num)
+  unfold gaussianTailRaw Erdos524.Helpers.gaussianMillsRatioReal
+  rw [htail_pdf]
+  field_simp [hpdf_pos.ne']
+  rw [hc_def]
+  field_simp [show Real.sqrt (2 * Real.pi) ≠ 0 by positivity]
+
+/-- Strict positivity of the raw normalized Gaussian upper tail at positive
+arguments. -/
+theorem gaussianTailRaw_pos_of_pos {x : ℝ} (hx : 0 < x) :
+    0 < gaussianTailRaw x := by
+  rw [gaussianTailRaw_eq_millsRatio_mul_pdf]
+  exact mul_pos
+    (Erdos524.Helpers.gaussianMillsRatioReal_pos hx)
+    (gaussianPDFReal_pos 0 1 x (by norm_num))
+
+/-- Explicit density form of the standard-Gaussian PDF used in the
+Carter--Pollard envelope. -/
+theorem gaussianPDFReal_zero_one_eq_inv_sqrt_mul_exp (x : ℝ) :
+    gaussianPDFReal 0 1 x =
+      (Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-x ^ 2 / 2) := by
+  show (Real.sqrt (2 * Real.pi * ((1 : ℝ≥0) : ℝ)))⁻¹ *
+       Real.exp (-(x - 0) ^ 2 / (2 * ((1 : ℝ≥0) : ℝ))) =
+      (Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-x ^ 2 / 2)
+  rw [NNReal.coe_one]
+  ring_nf
+
+/-- Mills antitonicity gives the density-ratio part of a Gaussian tail-ratio
+comparison. This is true but, near the midpoint edge, not strong enough by
+itself to absorb the Carter--Pollard `exp(Δ)` factor. -/
+theorem gaussianTailRaw_exp_sq_diff_div_two_mul_le_of_pos_le
+    {x y : ℝ} (hy : 0 < y) (hyx : y ≤ x) :
+    Real.exp ((x ^ 2 - y ^ 2) / 2) * gaussianTailRaw x ≤
+      gaussianTailRaw y := by
+  have hmills :
+      Erdos524.Helpers.gaussianMillsRatioReal x ≤
+        Erdos524.Helpers.gaussianMillsRatioReal y :=
+    Erdos524.Helpers.gaussianMillsRatioReal_antitone hy hyx
+  have hpdf :
+      Real.exp ((x ^ 2 - y ^ 2) / 2) * gaussianPDFReal 0 1 x =
+        gaussianPDFReal 0 1 y := by
+    rw [gaussianPDFReal_zero_one_eq_inv_sqrt_mul_exp x,
+      gaussianPDFReal_zero_one_eq_inv_sqrt_mul_exp y]
+    calc
+      Real.exp ((x ^ 2 - y ^ 2) / 2) *
+          ((Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-x ^ 2 / 2)) =
+          (Real.sqrt (2 * Real.pi))⁻¹ *
+            (Real.exp ((x ^ 2 - y ^ 2) / 2) * Real.exp (-x ^ 2 / 2)) := by ring
+      _ = (Real.sqrt (2 * Real.pi))⁻¹ *
+            Real.exp (((x ^ 2 - y ^ 2) / 2) + (-x ^ 2 / 2)) := by
+        rw [Real.exp_add]
+      _ = (Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-y ^ 2 / 2) := by
+        congr 1
+        ring_nf
+  rw [gaussianTailRaw_eq_millsRatio_mul_pdf x,
+    gaussianTailRaw_eq_millsRatio_mul_pdf y]
+  calc
+    Real.exp ((x ^ 2 - y ^ 2) / 2) *
+        (Erdos524.Helpers.gaussianMillsRatioReal x * gaussianPDFReal 0 1 x) =
+        Erdos524.Helpers.gaussianMillsRatioReal x *
+          (Real.exp ((x ^ 2 - y ^ 2) / 2) * gaussianPDFReal 0 1 x) := by ring
+    _ = Erdos524.Helpers.gaussianMillsRatioReal x * gaussianPDFReal 0 1 y := by
+      rw [hpdf]
+    _ ≤ Erdos524.Helpers.gaussianMillsRatioReal y * gaussianPDFReal 0 1 y :=
+      mul_le_mul_of_nonneg_right hmills (gaussianPDFReal_nonneg 0 1 y)
+
+/-- A log-density-ratio sufficient condition for absorbing a multiplicative
+factor into a raw Gaussian tail. -/
+theorem gaussianTailRaw_exp_mul_le_of_delta_le_sq_diff_div_two
+    {δ x y : ℝ} (hy : 0 < y) (hyx : y ≤ x)
+    (hδ : δ ≤ (x ^ 2 - y ^ 2) / 2) :
+    Real.exp δ * gaussianTailRaw x ≤ gaussianTailRaw y := by
+  have hexp : Real.exp δ ≤ Real.exp ((x ^ 2 - y ^ 2) / 2) :=
+    Real.exp_le_exp.mpr hδ
+  exact le_trans
+    (mul_le_mul_of_nonneg_right hexp (gaussianTailRaw_nonneg x))
+    (gaussianTailRaw_exp_sq_diff_div_two_mul_le_of_pos_le hy hyx)
+
+/-- Tail-ratio adapter: if the multiplicative factor is bounded by the exact
+raw-tail ratio, then it can be absorbed into the larger tail. -/
+theorem gaussianTailRaw_exp_mul_le_of_exp_le_tail_ratio
+    {δ x y : ℝ} (hx : 0 < x)
+    (hδ :
+      Real.exp δ ≤ gaussianTailRaw y / gaussianTailRaw x) :
+    Real.exp δ * gaussianTailRaw x ≤ gaussianTailRaw y := by
+  have htail_pos := gaussianTailRaw_pos_of_pos hx
+  exact (le_div_iff₀ htail_pos).mp hδ
+
+/-- Log-tail-ratio adapter, convenient for Carter--Pollard `Δ` estimates. -/
+theorem gaussianTailRaw_exp_mul_le_of_delta_le_log_tail_ratio
+    {δ x y : ℝ} (hx : 0 < x) (hy : 0 < y)
+    (hδ :
+      δ ≤ Real.log (gaussianTailRaw y / gaussianTailRaw x)) :
+    Real.exp δ * gaussianTailRaw x ≤ gaussianTailRaw y := by
+  have htail_x_pos := gaussianTailRaw_pos_of_pos hx
+  have htail_y_pos := gaussianTailRaw_pos_of_pos hy
+  have hratio_pos :
+      0 < gaussianTailRaw y / gaussianTailRaw x :=
+    div_pos htail_y_pos htail_x_pos
+  have hexp :
+      Real.exp δ ≤ gaussianTailRaw y / gaussianTailRaw x := by
+    calc
+      Real.exp δ ≤ Real.exp (Real.log (gaussianTailRaw y / gaussianTailRaw x)) :=
+        Real.exp_le_exp.mpr hδ
+      _ = gaussianTailRaw y / gaussianTailRaw x :=
+        Real.exp_log hratio_pos
+  exact gaussianTailRaw_exp_mul_le_of_exp_le_tail_ratio hx hexp
+
+/-! ### TC42 Mills-gain log decomposition -/
+
+/-- Explicit standard-Gaussian density ratio. -/
+theorem gaussianPDFReal_zero_one_div_eq_exp_sq_diff_div_two
+    {x y : ℝ} :
+    gaussianPDFReal 0 1 y / gaussianPDFReal 0 1 x =
+      Real.exp ((x ^ 2 - y ^ 2) / 2) := by
+  rw [gaussianPDFReal_zero_one_eq_inv_sqrt_mul_exp y,
+    gaussianPDFReal_zero_one_eq_inv_sqrt_mul_exp x]
+  have hsqrt_ne : (Real.sqrt (2 * Real.pi))⁻¹ ≠ 0 := by positivity
+  have hexp_ne : Real.exp (-x ^ 2 / 2) ≠ 0 := (Real.exp_pos _).ne'
+  field_simp [hsqrt_ne, hexp_ne]
+  rw [← Real.exp_add]
+  congr 1
+  ring
+
+/-- TC42 route-B decomposition: the log Gaussian-tail ratio is exactly the
+density-ratio exponent plus the logarithmic Mills-ratio gain. -/
+theorem gaussianTailRaw_log_ratio_eq_sq_diff_div_two_add_log_millsRatio_ratio
+    {x y : ℝ} (hx : 0 < x) (hy : 0 < y) :
+    Real.log (gaussianTailRaw y / gaussianTailRaw x) =
+      (x ^ 2 - y ^ 2) / 2 +
+        Real.log
+          (Erdos524.Helpers.gaussianMillsRatioReal y /
+            Erdos524.Helpers.gaussianMillsRatioReal x) := by
+  have htail_x_pos := gaussianTailRaw_pos_of_pos hx
+  have hmills_x_pos := Erdos524.Helpers.gaussianMillsRatioReal_pos hx
+  have hmills_y_pos := Erdos524.Helpers.gaussianMillsRatioReal_pos hy
+  have hpdf_x_pos : 0 < gaussianPDFReal 0 1 x :=
+    gaussianPDFReal_pos 0 1 x (by norm_num)
+  have hratio :
+      gaussianTailRaw y / gaussianTailRaw x =
+        (Erdos524.Helpers.gaussianMillsRatioReal y /
+            Erdos524.Helpers.gaussianMillsRatioReal x) *
+          Real.exp ((x ^ 2 - y ^ 2) / 2) := by
+    rw [gaussianTailRaw_eq_millsRatio_mul_pdf y,
+      gaussianTailRaw_eq_millsRatio_mul_pdf x]
+    rw [← gaussianPDFReal_zero_one_div_eq_exp_sq_diff_div_two (x := x) (y := y)]
+    field_simp [hmills_x_pos.ne', hpdf_x_pos.ne']
+  rw [hratio]
+  have hmills_ratio_pos :
+      0 <
+        Erdos524.Helpers.gaussianMillsRatioReal y /
+          Erdos524.Helpers.gaussianMillsRatioReal x :=
+    div_pos hmills_y_pos hmills_x_pos
+  rw [Real.log_mul hmills_ratio_pos.ne' (Real.exp_pos _).ne', Real.log_exp]
+  ring
+
+/-- Existing Mills antitonicity contributes only the nonnegative part of the
+Mills-gain term, recovering the TC41 density-ratio lower bound in log form. -/
+theorem gaussianTailRaw_log_ratio_ge_sq_diff_div_two_of_pos_le
+    {x y : ℝ} (hy : 0 < y) (hyx : y ≤ x) :
+    (x ^ 2 - y ^ 2) / 2 ≤
+      Real.log (gaussianTailRaw y / gaussianTailRaw x) := by
+  have hx : 0 < x := lt_of_lt_of_le hy hyx
+  have hdecomp :=
+    gaussianTailRaw_log_ratio_eq_sq_diff_div_two_add_log_millsRatio_ratio
+      (x := x) (y := y) hx hy
+  have hmills_x_pos := Erdos524.Helpers.gaussianMillsRatioReal_pos hx
+  have hmills_mono :
+      Erdos524.Helpers.gaussianMillsRatioReal x ≤
+        Erdos524.Helpers.gaussianMillsRatioReal y :=
+    Erdos524.Helpers.gaussianMillsRatioReal_antitone hy hyx
+  have hratio_ge_one :
+      1 ≤
+        Erdos524.Helpers.gaussianMillsRatioReal y /
+          Erdos524.Helpers.gaussianMillsRatioReal x := by
+    exact (le_div_iff₀ hmills_x_pos).mpr (by simpa using hmills_mono)
+  have hlog_nonneg :
+      0 ≤
+        Real.log
+          (Erdos524.Helpers.gaussianMillsRatioReal y /
+            Erdos524.Helpers.gaussianMillsRatioReal x) :=
+    Real.log_nonneg hratio_ge_one
+  linarith
+
+/-! ### TC41 delta/tail-ratio scaffold -/
+
+/-- TC41 event data needed for the remaining Carter--Pollard tail-ratio
+hypothesis: in the even base case, both standardized thresholds are positive
+and the scaled physical threshold lies to the left of the Carter--Pollard
+threshold. -/
+theorem carterPollard_even_event_tail_ratio_thresholds
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ))) :
+    0 < z / Real.sqrt ((n : ℝ) / 2) ∧
+      0 <
+        Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k ∧
+      z / Real.sqrt ((n : ℝ) / 2) ≤
+        Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k := by
+  have hσ_pos : 0 < Real.sqrt ((n : ℝ) / 2) := by
+    positivity
+  have hy_pos : 0 < z / Real.sqrt ((n : ℝ) / 2) :=
+    div_pos hz_pos hσ_pos
+  have hx_pos :
+      0 <
+        Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k :=
+    carterPollard_sqrtN_mul_eps_pos_of_succ_lt_two_mul
+      (m := 2 * n) (k := k) (by omega) (by omega)
+  have hle :
+      z / Real.sqrt ((n : ℝ) / 2) ≤
+        Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k :=
+    carterPollard_even_event_implies_scaled_z_le_sqrtN_eps
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event
+  exact ⟨hy_pos, hx_pos, hle⟩
+
+/-- TC41 fallback close: the desired Carter--Pollard `exp(Δ)` absorption
+under the single remaining explicit log tail-ratio hypothesis.
+
+This theorem intentionally keeps the analytic obstruction isolated as
+`h_delta_log_ratio`; proving that hypothesis from the Carter--Pollard
+paper-shaped bounds is the exact next consumer. -/
+theorem carterPollard_exp_deltaPaperShape_mul_tail_le_scaled_tail_of_event_of_delta_le_log_tail_ratio
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ)))
+    (h_delta_log_ratio :
+      carterPollardDeltaPaperShape (2 * n) k ≤
+        Real.log
+          (gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) /
+            gaussianTailRaw
+              (Real.sqrt (carterPollardN (2 * n)) *
+                carterPollardEps (2 * n) k))) :
+    Real.exp (carterPollardDeltaPaperShape (2 * n) k) *
+      gaussianTailRaw
+        (Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k) ≤
+      gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) := by
+  rcases carterPollard_even_event_tail_ratio_thresholds
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event with
+    ⟨hy_pos, hx_pos, _hle⟩
+  exact gaussianTailRaw_exp_mul_le_of_delta_le_log_tail_ratio
+    (δ := carterPollardDeltaPaperShape (2 * n) k)
+    (x :=
+      Real.sqrt (carterPollardN (2 * n)) *
+        carterPollardEps (2 * n) k)
+    (y := z / Real.sqrt ((n : ℝ) / 2))
+    hx_pos hy_pos h_delta_log_ratio
+
+/-- TC41 fallback composition with the TC40 Carter--Pollard scaled-tail
+transport, again under the single explicit log tail-ratio hypothesis. -/
+theorem binomialPolyTail_half_le_scaled_gaussian_event_tail_of_event_of_delta_le_log_tail_ratio
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ)))
+    (h_delta_log_ratio :
+      carterPollardDeltaPaperShape (2 * n) k ≤
+        Real.log
+          (gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) /
+            gaussianTailRaw
+              (Real.sqrt (carterPollardN (2 * n)) *
+                carterPollardEps (2 * n) k))) :
+    Erdos524.Helpers.binomialPolyTail (2 * n) k (1 / 2 : ℝ) ≤
+      gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) := by
+  have hcp :=
+    binomialPolyTail_half_le_exp_deltaPaperShape_mul_gaussian_tail_instantiated
+      (m := 2 * n) (k := k) (by omega) (by omega) hk_upper
+  exact le_trans hcp
+    (carterPollard_exp_deltaPaperShape_mul_tail_le_scaled_tail_of_event_of_delta_le_log_tail_ratio
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event h_delta_log_ratio)
+
+/-! ### TC42 Carter--Pollard Mills-gain scaffold -/
+
+/-- TC42 conditional scalar close under the exact remaining Mills-gain
+inequality exposed by the route-B decomposition. -/
+theorem carterPollardDeltaPaperShape_even_le_log_tail_ratio_of_event_of_remainder_le_mills_gain
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ)))
+    (h_mills_gain :
+      carterPollardDeltaPaperShape (2 * n) k -
+          (((Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k) ^ 2 -
+            (z / Real.sqrt ((n : ℝ) / 2)) ^ 2) / 2) ≤
+        Real.log
+          (Erdos524.Helpers.gaussianMillsRatioReal
+              (z / Real.sqrt ((n : ℝ) / 2)) /
+            Erdos524.Helpers.gaussianMillsRatioReal
+              (Real.sqrt (carterPollardN (2 * n)) *
+                carterPollardEps (2 * n) k))) :
+    carterPollardDeltaPaperShape (2 * n) k ≤
+      Real.log
+        (gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) /
+          gaussianTailRaw
+            (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k)) := by
+  rcases carterPollard_even_event_tail_ratio_thresholds
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event with
+    ⟨hy_pos, hx_pos, _hyx⟩
+  have hdecomp :=
+    gaussianTailRaw_log_ratio_eq_sq_diff_div_two_add_log_millsRatio_ratio
+      (x :=
+        Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k)
+      (y := z / Real.sqrt ((n : ℝ) / 2)) hx_pos hy_pos
+  rw [hdecomp]
+  linarith
+
+/-- TC42 conditional composition: the corrected scaled binomial/Gaussian event
+theorem follows from the exact remaining Mills-gain scalar inequality. -/
+theorem binomialPolyTail_half_le_scaled_gaussian_event_tail_of_event_of_remainder_le_mills_gain
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ)))
+    (h_mills_gain :
+      carterPollardDeltaPaperShape (2 * n) k -
+          (((Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k) ^ 2 -
+            (z / Real.sqrt ((n : ℝ) / 2)) ^ 2) / 2) ≤
+        Real.log
+          (Erdos524.Helpers.gaussianMillsRatioReal
+              (z / Real.sqrt ((n : ℝ) / 2)) /
+            Erdos524.Helpers.gaussianMillsRatioReal
+              (Real.sqrt (carterPollardN (2 * n)) *
+                carterPollardEps (2 * n) k))) :
+    Erdos524.Helpers.binomialPolyTail (2 * n) k (1 / 2 : ℝ) ≤
+      gaussianTailRaw (z / Real.sqrt ((n : ℝ) / 2)) := by
+  have hlog :=
+    carterPollardDeltaPaperShape_even_le_log_tail_ratio_of_event_of_remainder_le_mills_gain
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event h_mills_gain
+  exact binomialPolyTail_half_le_scaled_gaussian_event_tail_of_event_of_delta_le_log_tail_ratio
+    (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event hlog
+
+/-- TC43 reduction: the quantitative Mills-gain bound reduces the exact
+remaining Mills-gain consumer to a finite Carter--Pollard scalar gap estimate.
+
+The additional hypothesis is precisely
+`Δ <= m(0)⁻¹ * (x - y)`, where
+`x = sqrt(N) * eps` and `y = z / sqrt(n/2)`. Under this hypothesis, the
+density-ratio term cancels against the quadratic part of the Mills-gain lower
+bound. -/
+theorem carterPollardDeltaPaperShape_even_remainder_le_mills_gain_of_event_of_delta_le_zero_value_gap
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ)))
+    (h_delta_gap :
+      carterPollardDeltaPaperShape (2 * n) k ≤
+        (Erdos524.Helpers.gaussianMillsRatioReal 0)⁻¹ *
+          (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k -
+            z / Real.sqrt ((n : ℝ) / 2))) :
+    carterPollardDeltaPaperShape (2 * n) k -
+        (((Real.sqrt (carterPollardN (2 * n)) *
+            carterPollardEps (2 * n) k) ^ 2 -
+          (z / Real.sqrt ((n : ℝ) / 2)) ^ 2) / 2) ≤
+      Real.log
+        (Erdos524.Helpers.gaussianMillsRatioReal
+            (z / Real.sqrt ((n : ℝ) / 2)) /
+          Erdos524.Helpers.gaussianMillsRatioReal
+            (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k)) := by
+  rcases carterPollard_even_event_tail_ratio_thresholds
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event with
+    ⟨hy_pos, _hx_pos, hyx⟩
+  have hgain :=
+    Erdos524.Helpers.gaussianMillsRatioReal_log_ratio_ge_zero_value_bound
+      (x :=
+        Real.sqrt (carterPollardN (2 * n)) *
+          carterPollardEps (2 * n) k)
+      (y := z / Real.sqrt ((n : ℝ) / 2)) hy_pos hyx
+  linarith
+
+/-- TC44 sufficient finite scalar gap: the exact TC43 zero-value gap follows
+from the stronger rational gap bound with constant `3/4`.
+
+This isolates the remaining Carter--Pollard scalar work after the Mills
+constant has been made explicit. -/
+theorem carterPollardDeltaPaperShape_even_le_zero_value_gap_of_gap_bound
+    {n k : ℕ} {z : ℝ}
+    (hn : 14 ≤ n) (hk_lower : n < k) (hk_upper : k ≤ 2 * n - 1)
+    (hz_pos : 0 < z)
+    (hz_event :
+      z + (0.6 : ℝ) + z ^ 2 / (n : ℝ) ≤ ((k : ℝ) - (n : ℝ)))
+    (h_gap_bound :
+      carterPollardDeltaPaperShape (2 * n) k ≤
+        (3 / 4 : ℝ) *
+          (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k -
+            z / Real.sqrt ((n : ℝ) / 2))) :
+    carterPollardDeltaPaperShape (2 * n) k ≤
+      (Erdos524.Helpers.gaussianMillsRatioReal 0)⁻¹ *
+        (Real.sqrt (carterPollardN (2 * n)) *
+            carterPollardEps (2 * n) k -
+          z / Real.sqrt ((n : ℝ) / 2)) := by
+  rcases carterPollard_even_event_tail_ratio_thresholds
+      (n := n) (k := k) (z := z) hn hk_lower hk_upper hz_pos hz_event with
+    ⟨_hy_pos, _hx_pos, hyx⟩
+  have hgap_nonneg :
+      0 ≤
+        Real.sqrt (carterPollardN (2 * n)) *
+            carterPollardEps (2 * n) k -
+          z / Real.sqrt ((n : ℝ) / 2) := by
+    exact sub_nonneg.mpr hyx
+  have hconst :
+      (3 / 4 : ℝ) ≤ (Erdos524.Helpers.gaussianMillsRatioReal 0)⁻¹ :=
+    Erdos524.Helpers.gaussianMillsRatioReal_zero_inv_ge_three_fourths
+  have hmul :
+      (3 / 4 : ℝ) *
+          (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k -
+            z / Real.sqrt ((n : ℝ) / 2)) ≤
+        (Erdos524.Helpers.gaussianMillsRatioReal 0)⁻¹ *
+          (Real.sqrt (carterPollardN (2 * n)) *
+              carterPollardEps (2 * n) k -
+            z / Real.sqrt ((n : ℝ) / 2)) :=
+    mul_le_mul_of_nonneg_right hconst hgap_nonneg
+  exact le_trans h_gap_bound hmul
+
+/-- Explicit density-over-argument form after applying the first Mills
+truncation. -/
+theorem gaussianPDFReal_zero_one_div_eq_inv_sqrt_mul_exp_div (x : ℝ) :
+    gaussianPDFReal 0 1 x / x =
+      ((Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-x ^ 2 / 2)) / x := by
+  rw [gaussianPDFReal_zero_one_eq_inv_sqrt_mul_exp]
+
+/-- First one-sided Mills truncation consequence for the raw normalized
+Gaussian tail. -/
+theorem gaussianTailRaw_le_pdf_div_of_pos {x : ℝ} (hx : 0 < x) :
+    gaussianTailRaw x ≤ gaussianPDFReal 0 1 x / x := by
+  rw [gaussianTailRaw_eq_millsRatio_mul_pdf]
+  have htrunc := Erdos524.Helpers.gaussianMillsRatioReal_truncation hx
+  have hpdf_nonneg : 0 ≤ gaussianPDFReal 0 1 x := gaussianPDFReal_nonneg 0 1 x
+  have hmul := mul_le_mul_of_nonneg_right htrunc hpdf_nonneg
+  simpa [div_eq_mul_inv, mul_comm, mul_left_comm, mul_assoc] using hmul
+
+/-- TC24 normalized tail route after applying the direct Robbins upper bound
+to the paper-shaped entropy `Δ`.
+
+This keeps the entropy term explicit and does not introduce the optional
+`γ(ε)` rewrite or any normal-tail ratio estimate. -/
+theorem binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_gaussian_tail
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      Real.exp
+        (Real.log (1 + (carterPollardN m)⁻¹) +
+          1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+            (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+              carterPollardEntropyDelta m k) *
+        gaussianTailRaw
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k) := by
+  have htail :=
+    binomialPolyTail_half_le_exp_deltaPaperShape_mul_gaussian_tail_instantiated
+      (m := m) (k := k) hm hk_lower hk_upper
+  have hΔ := carterPollardDeltaPaperShape_le_entropy_shape_robbins_upper hm hk_lower hk_upper
+  have hmul :
+      Real.exp (carterPollardDeltaPaperShape m k) *
+          gaussianTailRaw
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k) ≤
+        Real.exp
+          (Real.log (1 + (carterPollardN m)⁻¹) +
+            1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+              (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+                carterPollardEntropyDelta m k) *
+          gaussianTailRaw
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k) := by
+    exact mul_le_mul_of_nonneg_right (Real.exp_le_exp.mpr hΔ)
+      (gaussianTailRaw_nonneg _)
+  exact le_trans htail hmul
+
+/-- TC25 Mills-ratio-ready form of the TC24 normal-tail bound.
+
+The Gaussian factor is now exposed as `Mills(x) * φ(x)`, where
+`x = sqrt(N) * ε`. This is the intended input shape for a later
+quantile/envelope round; no quantile inversion is performed here. -/
+theorem binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_millsRatio_pdf
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      Real.exp
+        (Real.log (1 + (carterPollardN m)⁻¹) +
+          1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+            (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+              carterPollardEntropyDelta m k) *
+        (Erdos524.Helpers.gaussianMillsRatioReal
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k) *
+          gaussianPDFReal 0 1
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k)) := by
+  have htail :=
+    binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_gaussian_tail
+      (m := m) (k := k) hm hk_lower hk_upper
+  rw [gaussianTailRaw_eq_millsRatio_mul_pdf] at htail
+  exact htail
+
+/-- TC25 first one-sided truncation of the TC24 normal-tail factor.
+
+This consumes the existing Mills truncation bound at
+`x = sqrt(N) * ε`; the positivity assumption is left explicit for TC26's
+quantile/envelope consumer. -/
+theorem binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_pdf_div
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hx : 0 < Real.sqrt (carterPollardN m) * carterPollardEps m k) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      Real.exp
+        (Real.log (1 + (carterPollardN m)⁻¹) +
+          1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+            (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+              carterPollardEntropyDelta m k) *
+        (gaussianPDFReal 0 1
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k) /
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k)) := by
+  have htail :=
+    binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_gaussian_tail
+      (m := m) (k := k) hm hk_lower hk_upper
+  have htail_factor :=
+    gaussianTailRaw_le_pdf_div_of_pos
+      (x := Real.sqrt (carterPollardN m) * carterPollardEps m k) hx
+  have hexp_nonneg :
+      0 ≤
+        Real.exp
+          (Real.log (1 + (carterPollardN m)⁻¹) +
+            1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+              (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+                carterPollardEntropyDelta m k) := by
+    positivity
+  exact le_trans htail (mul_le_mul_of_nonneg_left htail_factor hexp_nonneg)
+
+/-- TC26 version of the TC25 Mills-truncation tail theorem using the strict
+threshold that excludes the midpoint edge. -/
+theorem binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_pdf_div_of_succ_lt_two_mul
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      Real.exp
+        (Real.log (1 + (carterPollardN m)⁻¹) +
+          1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+            (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+              carterPollardEntropyDelta m k) *
+        (gaussianPDFReal 0 1
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k) /
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k)) := by
+  exact binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_pdf_div
+    (m := m) (k := k) hm hk_lower hk_upper
+    (carterPollard_sqrtN_mul_eps_pos_of_succ_lt_two_mul
+      (m := m) (k := k) hm hstrict)
+
+/-- TC26 expanded-density envelope shape after the first Mills truncation.
+
+This is the first form ready for a future envelope inequality: the Gaussian
+tail has been replaced by the explicit density divided by
+`sqrt(N) * ε`. -/
+theorem binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_exp_density_div
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      Real.exp
+        (Real.log (1 + (carterPollardN m)⁻¹) +
+          1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+            (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+              carterPollardEntropyDelta m k) *
+        (((Real.sqrt (2 * Real.pi))⁻¹ *
+            Real.exp (-(Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2)) /
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k)) := by
+  have htail :=
+    binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_pdf_div_of_succ_lt_two_mul
+      (m := m) (k := k) hm hk_lower hk_upper hstrict
+  simpa [gaussianPDFReal_zero_one_div_eq_inv_sqrt_mul_exp_div] using htail
+
+/-- TC27 exact cancellation of the Gaussian density exponent against the
+`+ N * ε^2 / 2` contribution inside `carterPollardEntropyDelta`.
+
+This is purely an algebraic refactor of the TC26 expanded-density right hand
+side; it does not introduce a gamma rewrite, endpoint handling, or quantile
+inversion. -/
+theorem carterPollard_entropy_density_exponent_cancel
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    Real.exp
+        (Real.log (1 + (carterPollardN m)⁻¹) +
+          1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+            (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+              carterPollardEntropyDelta m k) *
+        (((Real.sqrt (2 * Real.pi))⁻¹ *
+            Real.exp (-(Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2)) /
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k)) =
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+          Real.exp
+            (-(carterPollardN m / 2) *
+              ((1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+                (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k))) /
+            (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+              carterPollardEps m k *
+                Real.sqrt (1 - carterPollardEps m k ^ 2)) := by
+  have hN_pos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show 0 < m - 1 by omega)
+  have hN_ne : carterPollardN m ≠ 0 := hN_pos.ne'
+  have hsqrtN_ne : Real.sqrt (carterPollardN m) ≠ 0 := by positivity
+  have hε_pos := carterPollardEps_pos_of_succ_lt_two_mul
+    (m := m) (k := k) hm hstrict
+  have hε_ne : carterPollardEps m k ≠ 0 := hε_pos.ne'
+  have hlog_pos : 0 < 1 + (carterPollardN m)⁻¹ := by positivity
+  have hsq_pos := carterPollard_one_sub_eps_sq_pos hm hk_lower hk_upper
+  have hsqrt_sq_ne : Real.sqrt (1 - carterPollardEps m k ^ 2) ≠ 0 := by positivity
+  have hsqrt_two_pi_ne : Real.sqrt (2 * Real.pi) ≠ 0 := by positivity
+  have hdensity_sq :
+      (Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 =
+        carterPollardN m * carterPollardEps m k ^ 2 := by
+    rw [mul_pow, sq_sqrt hN_pos.le]
+  have hentropy_density :
+      carterPollardEntropyDelta m k -
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2 =
+        -(carterPollardN m / 2) *
+          ((1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+            (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k)) := by
+    unfold carterPollardEntropyDelta
+    rw [hdensity_sq]
+    ring
+  rw [show
+      Real.exp
+          (Real.log (1 + (carterPollardN m)⁻¹) +
+            1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+              (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+                carterPollardEntropyDelta m k) *
+          (((Real.sqrt (2 * Real.pi))⁻¹ *
+              Real.exp (-(Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2)) /
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k)) =
+        (Real.exp (Real.log (1 + (carterPollardN m)⁻¹)) *
+          Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+            Real.exp (-(1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2)) *
+              Real.exp
+                (carterPollardEntropyDelta m k -
+                  (Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2)) *
+          ((Real.sqrt (2 * Real.pi))⁻¹ /
+            (Real.sqrt (carterPollardN m) * carterPollardEps m k)) by
+      conv_lhs =>
+        rw [Real.exp_add]
+        rw [Real.exp_sub]
+        rw [Real.exp_add]
+      rw [show -(Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2 =
+          -((Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2) by ring]
+      rw [show -(1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) =
+          -((1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2)) by ring]
+      rw [Real.exp_sub]
+      rw [show
+          Real.exp (-((1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2))) =
+            (Real.exp ((1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2)))⁻¹ by
+        rw [Real.exp_neg]]
+      rw [show
+          Real.exp (-((Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2)) =
+            (Real.exp ((Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2))⁻¹ by
+        rw [Real.exp_neg]]
+      ring_nf]
+  rw [Real.exp_log hlog_pos, exp_neg_half_log_eq_inv_sqrt hsq_pos,
+    hentropy_density]
+  field_simp [hsqrt_two_pi_ne, hsqrtN_ne, hε_ne, hsqrt_sq_ne]
+
+/-- TC27 first factorized strict-tail Carter--Pollard envelope.
+
+This is the TC26 expanded-density envelope with the Gaussian density exponent
+cancelled into the entropy exponent. -/
+theorem carterPollard_first_envelope_factorized
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    Real.exp
+        (Real.log (1 + (carterPollardN m)⁻¹) +
+          1 / (12 * ((m - 1 : ℕ) : ℝ)) -
+            (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+              carterPollardEntropyDelta m k) *
+        (((Real.sqrt (2 * Real.pi))⁻¹ *
+            Real.exp (-(Real.sqrt (carterPollardN m) * carterPollardEps m k) ^ 2 / 2)) /
+          (Real.sqrt (carterPollardN m) * carterPollardEps m k)) =
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+          Real.exp
+            (-(carterPollardN m / 2) *
+              ((1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+                (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k))) /
+            (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+              carterPollardEps m k *
+                Real.sqrt (1 - carterPollardEps m k ^ 2)) := by
+  exact carterPollard_entropy_density_exponent_cancel
+    (m := m) (k := k) hm hk_lower hk_upper hstrict
+
+/-- TC27 binomial-tail consequence of the first factorized strict-tail
+Carter--Pollard envelope. -/
+theorem binomialPolyTail_half_le_carterPollard_first_factorized_envelope
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+          Real.exp
+            (-(carterPollardN m / 2) *
+              ((1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+                (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k))) /
+            (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+              carterPollardEps m k *
+                Real.sqrt (1 - carterPollardEps m k ^ 2)) := by
+  have htail :=
+    binomialPolyTail_half_le_exp_entropy_shape_robbins_upper_mul_exp_density_div
+      (m := m) (k := k) hm hk_lower hk_upper hstrict
+  rw [← carterPollard_entropy_density_exponent_cancel hm hk_lower hk_upper hstrict]
+  exact htail
+
+private lemma entropy_shape_ge_sq_of_nonneg_lt_one
+    {ε : ℝ} (hε0 : 0 ≤ ε) (hε1 : ε < 1) :
+    ε ^ 2 ≤
+      (1 + ε) * Real.log (1 + ε) +
+        (1 - ε) * Real.log (1 - ε) := by
+  let F : ℝ → ℝ := fun x =>
+    (1 + x) * Real.log (1 + x) +
+      (1 - x) * Real.log (1 - x) - x ^ 2
+  have hF_deriv :
+      ∀ y ∈ Set.Icc (0 : ℝ) ε,
+        HasDerivAt F
+          (Real.log (1 + y) - Real.log (1 - y) - 2 * y) y := by
+    intro y hy
+    have hy0 : 0 ≤ y := hy.1
+    have hy1 : y < 1 := lt_of_le_of_lt hy.2 hε1
+    have h_one_add_ne : 1 + y ≠ 0 := by linarith
+    have h_one_sub_ne : 1 - y ≠ 0 := by linarith
+    have h_add : HasDerivAt (fun x : ℝ => 1 + x) 1 y := by
+      simpa using (hasDerivAt_const (x := y) (c := (1 : ℝ))).add (hasDerivAt_id y)
+    have h_sub : HasDerivAt (fun x : ℝ => 1 - x) (-1) y := by
+      simpa using (hasDerivAt_const (x := y) (c := (1 : ℝ))).sub (hasDerivAt_id y)
+    have h_plus :
+        HasDerivAt (fun x : ℝ => (1 + x) * Real.log (1 + x))
+          (Real.log (1 + y) + 1) y := by
+      have h := (Real.hasDerivAt_mul_log h_one_add_ne).comp y h_add
+      convert h using 1
+      ring
+    have h_minus :
+        HasDerivAt (fun x : ℝ => (1 - x) * Real.log (1 - x))
+          (-(Real.log (1 - y) + 1)) y := by
+      have h := (Real.hasDerivAt_mul_log h_one_sub_ne).comp y h_sub
+      convert h using 1
+      ring
+    have h_sq : HasDerivAt (fun x : ℝ => x ^ 2) (2 * y) y := by
+      simpa using hasDerivAt_pow 2 y
+    have h := (h_plus.add h_minus).sub h_sq
+    convert h using 1
+    ring
+  have hF_mono : MonotoneOn F (Set.Icc (0 : ℝ) ε) := by
+    refine monotoneOn_of_hasDerivWithinAt_nonneg (convex_Icc (0 : ℝ) ε)
+      (fun y hy => (hF_deriv y hy).continuousAt.continuousWithinAt)
+      (fun y hy => (hF_deriv y (interior_subset hy)).hasDerivWithinAt) ?_
+    intro y hy
+    rw [interior_Icc] at hy
+    rcases hy with ⟨hy0, hyε⟩
+    have hy1 : y < 1 := lt_trans hyε hε1
+    have hsum := Real.sum_range_le_log_div hy0.le hy1 1
+    have hsum_eq :
+        (∑ i ∈ Finset.range 1, y ^ (2 * i + 1) / (2 * i + 1)) = y := by
+      norm_num
+    have hlogdiv :
+        Real.log ((1 + y) / (1 - y)) =
+          Real.log (1 + y) - Real.log (1 - y) := by
+      rw [Real.log_div (by linarith : 1 + y ≠ 0) (by linarith : 1 - y ≠ 0)]
+    rw [hsum_eq, hlogdiv] at hsum
+    linarith
+  have hF0 : F 0 = 0 := by
+    simp [F]
+  have hFε_nonneg : 0 ≤ F ε := by
+    have hmono := hF_mono ⟨le_rfl, hε0⟩ ⟨hε0, le_rfl⟩ hε0
+    simpa [hF0] using hmono
+  dsimp [F] at hFε_nonneg
+  linarith
+
+/-- TC28 scalar entropy lower bound in the strict Carter--Pollard upper-tail
+range. -/
+theorem carterPollard_entropy_shape_ge_eps_sq
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    carterPollardEps m k ^ 2 ≤
+      (1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+        (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k) := by
+  have hε0 : 0 ≤ carterPollardEps m k :=
+    (carterPollardEps_pos_of_succ_lt_two_mul (m := m) (k := k) hm hstrict).le
+  have hε1 : carterPollardEps m k < 1 := by
+    have h := carterPollard_one_sub_eps_pos hm hk_lower hk_upper
+    linarith
+  exact entropy_shape_ge_sq_of_nonneg_lt_one hε0 hε1
+
+/-- Positivity of the denominator in the TC27 factorized strict-tail envelope. -/
+theorem carterPollard_first_factorized_den_pos
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    0 <
+      Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+        carterPollardEps m k *
+          Real.sqrt (1 - carterPollardEps m k ^ 2) := by
+  have hN_pos : 0 < carterPollardN m := by
+    unfold carterPollardN
+    exact_mod_cast (show 0 < m - 1 by omega)
+  have hε_pos := carterPollardEps_pos_of_succ_lt_two_mul
+    (m := m) (k := k) hm hstrict
+  have hsq_pos := carterPollard_one_sub_eps_sq_pos hm hk_lower hk_upper
+  positivity
+
+/-- TC28 scalar comparison from the TC27 entropy-factorized envelope to the
+quadratic Gaussian envelope, using
+`ε² ≤ (1+ε)log(1+ε)+(1-ε)log(1-ε)`. -/
+theorem carterPollard_first_factorized_envelope_le_quadratic_envelope
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+          Real.exp
+            (-(carterPollardN m / 2) *
+              ((1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+                (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k))) /
+            (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+              carterPollardEps m k *
+                Real.sqrt (1 - carterPollardEps m k ^ 2)) ≤
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+          Real.exp (-(carterPollardN m * carterPollardEps m k ^ 2) / 2) /
+            (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+              carterPollardEps m k *
+                Real.sqrt (1 - carterPollardEps m k ^ 2)) := by
+  set A : ℝ :=
+    (1 + (carterPollardN m)⁻¹) *
+      Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ)))
+  set H : ℝ :=
+    (1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+      (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k)
+  set D : ℝ :=
+    Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+      carterPollardEps m k *
+        Real.sqrt (1 - carterPollardEps m k ^ 2)
+  have hN_nonneg : 0 ≤ carterPollardN m / 2 := by
+    unfold carterPollardN
+    positivity
+  have hH := carterPollard_entropy_shape_ge_eps_sq
+    (m := m) (k := k) hm hk_lower hk_upper hstrict
+  have hexp :
+      Real.exp (-(carterPollardN m / 2) * H) ≤
+        Real.exp (-(carterPollardN m * carterPollardEps m k ^ 2) / 2) := by
+    apply Real.exp_le_exp.mpr
+    dsimp [H] at hH ⊢
+    nlinarith [mul_le_mul_of_nonneg_left hH hN_nonneg]
+  have hA_nonneg : 0 ≤ A := by
+    have hN_pos : 0 < carterPollardN m := by
+      unfold carterPollardN
+      exact_mod_cast (show 0 < m - 1 by omega)
+    dsimp [A]
+    exact mul_nonneg (by positivity) (Real.exp_pos _).le
+  have hD_nonneg : 0 ≤ D :=
+    (carterPollard_first_factorized_den_pos hm hk_lower hk_upper hstrict).le
+  have hnum := mul_le_mul_of_nonneg_left hexp hA_nonneg
+  exact div_le_div_of_nonneg_right hnum hD_nonneg
+
+/-- TC28 first scalar strict-tail envelope with the entropy exponent bounded
+by its quadratic lower approximation. -/
+theorem binomialPolyTail_half_le_carterPollard_quadratic_strict_envelope
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k) :
+    Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+          Real.exp (-(carterPollardN m * carterPollardEps m k ^ 2) / 2) /
+            (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+              carterPollardEps m k *
+                Real.sqrt (1 - carterPollardEps m k ^ 2)) := by
+  exact le_trans
+    (binomialPolyTail_half_le_carterPollard_first_factorized_envelope
+      (m := m) (k := k) hm hk_lower hk_upper hstrict)
+    (carterPollard_first_factorized_envelope_le_quadratic_envelope
+      (m := m) (k := k) hm hk_lower hk_upper hstrict)
+
+/-! ### TC32 strict-tail event/quantile adapter -/
+
+/-- TC32 event bridge from the strict Carter--Pollard quadratic envelope to a
+shared-uniform upper-tail quantile comparison, conditional on the remaining
+scalar Gaussian event-tail comparison.
+
+The scalar hypothesis is exactly the analytic comparison still needed before
+the `tusnady_base_polynomial` scaffold can consume this adapter without an
+extra assumption. -/
+theorem carterPollard_quadratic_strict_envelope_event_quantile_gt
+    {m k : ℕ} {z u : ℝ} {qB qZ : ℝ → ℝ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1)
+    (hstrict : m + 1 < 2 * k)
+    (hu : u ∈ Set.Ioo (0 : ℝ) 1)
+    (hGaloisB :
+      ∀ u ∈ Set.Ioo (0 : ℝ) 1, ∀ x : ℝ,
+        qB u ≤ x ↔
+          u ≤ cdf
+            ((PMF.binomial (1 / 2 : ℝ≥0) (by norm_num) m).toMeasure.map
+              (fun (i : Fin (m + 1)) => (i.val : ℝ))) x)
+    (hGaloisZ :
+      ∀ u ∈ Set.Ioo (0 : ℝ) 1, ∀ x : ℝ,
+        qZ u ≤ x ↔ u ≤ cdf (gaussianReal 0 1) x)
+    (hscalar :
+      (1 + (carterPollardN m)⁻¹) *
+        Real.exp (1 / (12 * ((m - 1 : ℕ) : ℝ))) *
+          Real.exp (-(carterPollardN m * carterPollardEps m k ^ 2) / 2) /
+            (Real.sqrt (2 * Real.pi) * Real.sqrt (carterPollardN m) *
+              carterPollardEps m k *
+                Real.sqrt (1 - carterPollardEps m k ^ 2)) ≤
+          gaussianTailRaw z)
+    (hB_event : ((k - 1 : ℕ) : ℝ) < qB u) :
+    z < qZ u := by
+  have hk : 1 ≤ k := by omega
+  have hkm : k ≤ m := by omega
+  have hmeas_binomial_val : Measurable (fun (i : Fin (m + 1)) => (i.val : ℝ)) := by
+    fun_prop
+  let μB : MeasureTheory.Measure ℝ :=
+    (PMF.binomial (1 / 2 : ℝ≥0) (by norm_num) m).toMeasure.map
+      (fun (i : Fin (m + 1)) => (i.val : ℝ))
+  haveI : MeasureTheory.IsProbabilityMeasure μB :=
+    MeasureTheory.Measure.isProbabilityMeasure_map hmeas_binomial_val.aemeasurable
+  have htail :
+      Erdos524.Helpers.binomialPolyTail m k (1 / 2 : ℝ) ≤ gaussianTailRaw z := by
+    exact le_trans
+      (binomialPolyTail_half_le_carterPollard_quadratic_strict_envelope
+        (m := m) (k := k) hm hk_lower hk_upper hstrict)
+      hscalar
+  have hcdfB_lt : cdf μB ((k - 1 : ℕ) : ℝ) < u :=
+    (Erdos524.Helpers.Erdos524.Helpers.quantile_gt_iff_cdf_lt
+      (μ := μB) (q := qB) hGaloisB hu).mp hB_event
+  have hcdfZ_le_cdfB :
+      cdf (gaussianReal 0 1) z ≤ cdf μB ((k - 1 : ℕ) : ℝ) := by
+    dsimp [μB]
+    rw [gaussianReal_zero_one_cdf_eq_one_sub_gaussianTailRaw,
+      binomialReal_cdf_pred_eq_one_sub_binomialPolyTail_half (m := m) (k := k) hk hkm]
+    linarith
+  have hcdfZ_lt : cdf (gaussianReal 0 1) z < u :=
+    lt_of_le_of_lt hcdfZ_le_cdfB hcdfB_lt
+  exact Erdos524.Helpers.Erdos524.Helpers.quantile_gt_of_cdf_lt hGaloisZ hu hcdfZ_lt
 
 end FormalConjectures.ErdosProblems.Helpers.CarterPollardH

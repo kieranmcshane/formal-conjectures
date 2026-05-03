@@ -18,6 +18,7 @@ import Mathlib.Probability.Distributions.Gaussian.Real
 import Mathlib.MeasureTheory.Integral.Bochner.Set
 import Mathlib.MeasureTheory.Integral.IntegralEqImproper
 import Mathlib.Analysis.SpecialFunctions.Gaussian.GaussianIntegral
+import Mathlib.Analysis.Real.Pi.Bounds
 
 /-!
 # Mills ratio for the standard Gaussian (Track C round 5 infrastructure)
@@ -80,6 +81,66 @@ introducing the CDF first. The integral form is mathematically
 equivalent and matches Feller Vol. 2 §VII.1's notation. -/
 noncomputable def gaussianMillsRatioReal (x : ℝ) : ℝ :=
   (∫ t in Set.Ioi x, gaussianPDFReal 0 1 t) / gaussianPDFReal 0 1 x
+
+/-- The standard-Gaussian Mills ratio at zero is `sqrt(pi / 2)`. -/
+theorem gaussianMillsRatioReal_zero :
+    gaussianMillsRatioReal 0 = Real.sqrt (Real.pi / 2) := by
+  have hpdf_unfold :
+      ∀ t : ℝ, gaussianPDFReal 0 1 t =
+        (Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-(1 / 2 : ℝ) * t ^ 2) := by
+    intro t
+    show (Real.sqrt (2 * Real.pi * ((1 : ℝ≥0) : ℝ)))⁻¹ *
+         Real.exp (-(t - 0) ^ 2 / (2 * ((1 : ℝ≥0) : ℝ))) =
+      (Real.sqrt (2 * Real.pi))⁻¹ * Real.exp (-(1 / 2 : ℝ) * t ^ 2)
+    rw [NNReal.coe_one]
+    ring_nf
+  have hnum :
+      ∫ t in Set.Ioi (0 : ℝ), gaussianPDFReal 0 1 t =
+        (Real.sqrt (2 * Real.pi))⁻¹ * (Real.sqrt (Real.pi / (1 / 2 : ℝ)) / 2) := by
+    simp_rw [hpdf_unfold]
+    rw [integral_const_mul, integral_gaussian_Ioi (1 / 2 : ℝ)]
+  have hden :
+      gaussianPDFReal 0 1 0 = (Real.sqrt (2 * Real.pi))⁻¹ := by
+    rw [hpdf_unfold]
+    norm_num
+  unfold gaussianMillsRatioReal
+  rw [hnum, hden]
+  have hsqrt_two_pi_pos : 0 < Real.sqrt (2 * Real.pi) := by positivity
+  have hhalf_pos : 0 < Real.sqrt (Real.pi / (1 / 2 : ℝ)) / 2 := by positivity
+  have hsqrt_pi_div_two_pos : 0 < Real.sqrt (Real.pi / 2) := by positivity
+  apply (sq_eq_sq₀ (by positivity)
+      (Real.sqrt_nonneg (Real.pi / 2))).1
+  calc
+    (((Real.sqrt (2 * Real.pi))⁻¹ *
+          (Real.sqrt (Real.pi / (1 / 2 : ℝ)) / 2)) /
+        (Real.sqrt (2 * Real.pi))⁻¹) ^ 2
+        = (Real.sqrt (Real.pi / (1 / 2 : ℝ)) / 2) ^ 2 := by
+          field_simp [hsqrt_two_pi_pos.ne']
+    _ = Real.pi / 2 := by
+      rw [div_pow, Real.sq_sqrt (by positivity : 0 ≤ Real.pi / (1 / 2 : ℝ))]
+      ring
+    _ = (Real.sqrt (Real.pi / 2)) ^ 2 := by
+      rw [Real.sq_sqrt (by positivity : 0 ≤ Real.pi / 2)]
+
+/-- A rational lower bound for the reciprocal of the Mills ratio at zero. -/
+theorem gaussianMillsRatioReal_zero_inv_ge_three_fourths :
+    (3 / 4 : ℝ) ≤ (gaussianMillsRatioReal 0)⁻¹ := by
+  rw [gaussianMillsRatioReal_zero]
+  have hpos : 0 < Real.sqrt (Real.pi / 2) := by positivity
+  have hpi : Real.pi / 2 ≤ (16 / 9 : ℝ) := by
+    linarith [Real.pi_lt_d2]
+  have hsqrt_le : Real.sqrt (Real.pi / 2) ≤ (4 / 3 : ℝ) := by
+    have h := Real.sqrt_le_sqrt hpi
+    have hright : Real.sqrt (16 : ℝ) / Real.sqrt (9 : ℝ) = (4 / 3 : ℝ) := by
+      apply (sq_eq_sq₀ (by positivity) (by norm_num : 0 ≤ (4 / 3 : ℝ))).1
+      rw [div_pow, Real.sq_sqrt (by norm_num : 0 ≤ (16 : ℝ)),
+        Real.sq_sqrt (by norm_num : 0 ≤ (9 : ℝ))]
+      norm_num
+    simpa [Real.sqrt_div (Real.pi_pos.le) (2 : ℝ), hright] using h
+  have hinv : ((4 / 3 : ℝ)⁻¹) ≤ (Real.sqrt (Real.pi / 2))⁻¹ :=
+    (inv_le_inv₀ (by norm_num : 0 < (4 / 3 : ℝ)) hpos).mpr hsqrt_le
+  norm_num at hinv ⊢
+  exact hinv
 
 /-- **Positivity of the Mills ratio on `(0, ∞)`.**
 
@@ -346,12 +407,12 @@ private lemma gaussianTail_hasDerivAt (x : ℝ) :
     simpa using this
   exact h_add.congr_of_eventuallyEq hev
 
-/-- **Derivative of the Mills ratio on `(0, ∞)`.**
+/-- **Derivative of the standard-Gaussian Mills ratio.**
 
-For `x > 0`, `(d/dx) gaussianMillsRatioReal x = -1 + x · gaussianMillsRatioReal x`.
-Quotient rule applied to `m = F / φ` with `F u := ∫ t in Ioi u, φ t`,
-`F'(x) = -φ(x)`, `φ'(x) = -x · φ(x)`, `φ(x) > 0`. (TC8 helper.) -/
-private lemma gaussianMillsRatioReal_hasDerivAt {x : ℝ} (hx : 0 < x) :
+For every real `x`, `m'(x) = -1 + x * m(x)`, where
+`m = gaussianMillsRatioReal`. Quotient rule applied to `m = F / φ` with
+`F u := ∫ t in Ioi u, φ t`, `F'(x) = -φ(x)`, and `φ'(x) = -x * φ(x)`. -/
+theorem gaussianMillsRatioReal_hasDerivAt (x : ℝ) :
     HasDerivAt gaussianMillsRatioReal (-1 + x * gaussianMillsRatioReal x) x := by
   have hφ_pos : 0 < gaussianPDFReal 0 1 x := gaussianPDFReal_pos 0 1 x (by norm_num)
   have hφ_ne : gaussianPDFReal 0 1 x ≠ 0 := ne_of_gt hφ_pos
@@ -395,16 +456,16 @@ theorem gaussianMillsRatioReal_antitone {x y : ℝ} (hx : 0 < x) (hxy : x ≤ y)
     apply antitoneOn_of_deriv_nonpos (convex_Ioi 0)
     · -- ContinuousOn gaussianMillsRatioReal (Ioi 0)
       intro x₀ hx₀
-      exact (gaussianMillsRatioReal_hasDerivAt hx₀).continuousAt.continuousWithinAt
+      exact (gaussianMillsRatioReal_hasDerivAt x₀).continuousAt.continuousWithinAt
     · -- DifferentiableOn ℝ gaussianMillsRatioReal (interior (Ioi 0))
       rw [interior_Ioi]
       intro x₀ hx₀
-      exact (gaussianMillsRatioReal_hasDerivAt hx₀).differentiableAt.differentiableWithinAt
+      exact (gaussianMillsRatioReal_hasDerivAt x₀).differentiableAt.differentiableWithinAt
     · -- ∀ x ∈ interior (Ioi 0), deriv gaussianMillsRatioReal x ≤ 0
       rw [interior_Ioi]
       intro x₀ hx₀
       have hx₀' : 0 < x₀ := hx₀
-      have h_deriv := gaussianMillsRatioReal_hasDerivAt hx₀'
+      have h_deriv := gaussianMillsRatioReal_hasDerivAt x₀
       rw [h_deriv.deriv]
       have htrunc := gaussianMillsRatioReal_truncation hx₀'
       have hx₀_ne : x₀ ≠ 0 := ne_of_gt hx₀'
@@ -413,5 +474,153 @@ theorem gaussianMillsRatioReal_antitone {x y : ℝ} (hx : 0 < x) (hxy : x ≤ y)
       rw [mul_one_div, div_self hx₀_ne] at hmm
       linarith
   exact hM_anti hx (lt_of_lt_of_le hx hxy) hxy
+
+/-- The Mills ratio is antitone on the closed nonnegative half-line. -/
+theorem gaussianMillsRatioReal_antitone_nonneg {x y : ℝ} (hx : 0 ≤ x) (hxy : x ≤ y) :
+    gaussianMillsRatioReal y ≤ gaussianMillsRatioReal x := by
+  have hM_anti : AntitoneOn gaussianMillsRatioReal (Set.Ici 0) := by
+    apply antitoneOn_of_deriv_nonpos (convex_Ici 0)
+    · intro x₀ hx₀
+      exact (gaussianMillsRatioReal_hasDerivAt x₀).continuousAt.continuousWithinAt
+    · rw [interior_Ici]
+      intro x₀ hx₀
+      exact (gaussianMillsRatioReal_hasDerivAt x₀).differentiableAt.differentiableWithinAt
+    · rw [interior_Ici]
+      intro x₀ hx₀
+      have hx₀' : 0 < x₀ := hx₀
+      have h_deriv := gaussianMillsRatioReal_hasDerivAt x₀
+      rw [h_deriv.deriv]
+      have htrunc := gaussianMillsRatioReal_truncation hx₀'
+      have hx₀_ne : x₀ ≠ 0 := ne_of_gt hx₀'
+      have hmm : x₀ * gaussianMillsRatioReal x₀ ≤ x₀ * (1 / x₀) :=
+        mul_le_mul_of_nonneg_left htrunc (le_of_lt hx₀')
+      rw [mul_one_div, div_self hx₀_ne] at hmm
+      linarith
+  exact hM_anti hx (le_trans hx hxy) hxy
+
+/-- On the nonnegative half-line, the Mills ratio is bounded above by its
+value at zero. -/
+theorem gaussianMillsRatioReal_le_zero_value_of_nonneg {x : ℝ} (hx : 0 ≤ x) :
+    gaussianMillsRatioReal x ≤ gaussianMillsRatioReal 0 := by
+  exact gaussianMillsRatioReal_antitone_nonneg (x := 0) (y := x) le_rfl hx
+
+/-- Derivative of the logarithm of the Mills ratio on `(0, ∞)`. -/
+theorem gaussianMillsRatioReal_log_hasDerivAt {x : ℝ} (hx : 0 < x) :
+    HasDerivAt (fun t : ℝ => Real.log (gaussianMillsRatioReal t))
+      (x - (gaussianMillsRatioReal x)⁻¹) x := by
+  have hm_pos := gaussianMillsRatioReal_pos hx
+  have h := (gaussianMillsRatioReal_hasDerivAt x).log hm_pos.ne'
+  convert h using 1
+  field_simp [hm_pos.ne']
+  ring
+
+/-- Integral form of the logarithmic Mills-ratio gain. -/
+theorem gaussianMillsRatioReal_log_ratio_eq_integral_inv_sub
+    {x y : ℝ} (hy : 0 < y) (hyx : y ≤ x) :
+    Real.log (gaussianMillsRatioReal y / gaussianMillsRatioReal x) =
+      ∫ t in y..x, ((gaussianMillsRatioReal t)⁻¹ - t) := by
+  have hx : 0 < x := lt_of_lt_of_le hy hyx
+  have hm_y_pos := gaussianMillsRatioReal_pos hy
+  have hm_x_pos := gaussianMillsRatioReal_pos hx
+  let F : ℝ → ℝ := fun t => Real.log (gaussianMillsRatioReal t)
+  let f : ℝ → ℝ := fun t => t - (gaussianMillsRatioReal t)⁻¹
+  have hderiv : ∀ t ∈ Set.Ioo y x, HasDerivAt F (f t) t := by
+    intro t ht
+    exact gaussianMillsRatioReal_log_hasDerivAt (lt_trans hy ht.1)
+  have hcont : ContinuousOn F (Set.Icc y x) :=
+    fun t ht => (gaussianMillsRatioReal_log_hasDerivAt (lt_of_lt_of_le hy ht.1)).continuousAt.continuousWithinAt
+  have hm_ne_on : ∀ t ∈ Set.Icc y x, gaussianMillsRatioReal t ≠ 0 := by
+    intro t ht
+    exact (gaussianMillsRatioReal_pos (lt_of_lt_of_le hy ht.1)).ne'
+  have hm_cont : ContinuousOn gaussianMillsRatioReal (Set.Icc y x) :=
+    fun t ht => (gaussianMillsRatioReal_hasDerivAt t).continuousAt.continuousWithinAt
+  have hf_cont : ContinuousOn f (Set.Icc y x) := by
+    refine continuousOn_id.sub ?_
+    exact hm_cont.inv₀ hm_ne_on
+  have hf_int : IntervalIntegrable f volume y x :=
+    hf_cont.intervalIntegrable_of_Icc hyx
+  have hftc :
+      (∫ t in y..x, f t) = F x - F y :=
+    intervalIntegral.integral_eq_sub_of_hasDerivAt_of_le hyx hcont hderiv hf_int
+  rw [Real.log_div hm_y_pos.ne' hm_x_pos.ne']
+  have hneg :
+      (fun t : ℝ => (gaussianMillsRatioReal t)⁻¹ - t) = fun t : ℝ => -(f t) := by
+    funext t
+    dsimp [f]
+    ring
+  rw [hneg, intervalIntegral.integral_neg, hftc]
+  dsimp [F]
+  ring
+
+/-- Quantitative lower bound for the logarithmic Mills-ratio gain obtained by
+bounding `m(t)` above by `m(0)` on the nonnegative half-line. -/
+theorem gaussianMillsRatioReal_log_ratio_ge_zero_value_bound
+    {x y : ℝ} (hy : 0 < y) (hyx : y ≤ x) :
+    (gaussianMillsRatioReal 0)⁻¹ * (x - y) - (x ^ 2 - y ^ 2) / 2 ≤
+      Real.log (gaussianMillsRatioReal y / gaussianMillsRatioReal x) := by
+  have hx : 0 < x := lt_of_lt_of_le hy hyx
+  have hlog :=
+    gaussianMillsRatioReal_log_ratio_eq_integral_inv_sub (x := x) (y := y) hy hyx
+  let c : ℝ := (gaussianMillsRatioReal 0)⁻¹
+  let g : ℝ → ℝ := fun t => c - t
+  let h : ℝ → ℝ := fun t => (gaussianMillsRatioReal t)⁻¹ - t
+  have hm0_pos : 0 < gaussianMillsRatioReal 0 := by
+    unfold gaussianMillsRatioReal
+    have hφ0_pos : 0 < gaussianPDFReal 0 1 0 :=
+      gaussianPDFReal_pos 0 1 0 (by norm_num)
+    have hint : IntegrableOn (gaussianPDFReal 0 1) (Set.Ioi (0 : ℝ)) :=
+      (integrable_gaussianPDFReal 0 1).integrableOn
+    have hae : 0 ≤ᵐ[volume.restrict (Set.Ioi (0 : ℝ))] gaussianPDFReal 0 1 :=
+      Filter.Eventually.of_forall (fun t => gaussianPDFReal_nonneg 0 1 t)
+    have hsupp : Function.support (gaussianPDFReal 0 1) = Set.univ := by
+      ext t
+      simp only [Function.mem_support, Set.mem_univ, iff_true]
+      exact (gaussianPDFReal_pos 0 1 t (by norm_num)).ne'
+    have hsupp_inter :
+        Function.support (gaussianPDFReal 0 1) ∩ Set.Ioi (0 : ℝ) = Set.Ioi (0 : ℝ) := by
+      rw [hsupp, Set.univ_inter]
+    have hvol_Ioi : 0 < volume (Set.Ioi (0 : ℝ)) := by
+      rw [Real.volume_Ioi]; exact ENNReal.zero_lt_top
+    have hnum_pos : 0 < ∫ t in Set.Ioi (0 : ℝ), gaussianPDFReal 0 1 t := by
+      rw [setIntegral_pos_iff_support_of_nonneg_ae hae hint, hsupp_inter]
+      exact hvol_Ioi
+    exact div_pos hnum_pos hφ0_pos
+  have hg_cont : ContinuousOn g (Set.Icc y x) := by
+    exact continuousOn_const.sub continuousOn_id
+  have hh_cont : ContinuousOn h (Set.Icc y x) := by
+    have hinv_cont : ContinuousOn (fun t => (gaussianMillsRatioReal t)⁻¹) (Set.Icc y x) := by
+      have hm_ne_on : ∀ t ∈ Set.Icc y x, gaussianMillsRatioReal t ≠ 0 := by
+        intro t ht
+        exact (gaussianMillsRatioReal_pos (lt_of_lt_of_le hy ht.1)).ne'
+      have hm_cont : ContinuousOn gaussianMillsRatioReal (Set.Icc y x) :=
+        fun t ht => (gaussianMillsRatioReal_hasDerivAt t).continuousAt.continuousWithinAt
+      exact hm_cont.inv₀ hm_ne_on
+    exact hinv_cont.sub continuousOn_id
+  have hmono :
+      (∫ t in y..x, g t) ≤ ∫ t in y..x, h t := by
+    apply intervalIntegral.integral_mono_on hyx
+      (hg_cont.intervalIntegrable_of_Icc hyx) (hh_cont.intervalIntegrable_of_Icc hyx)
+    intro t ht
+    dsimp [g, h, c]
+    have ht_nonneg : 0 ≤ t := le_trans hy.le ht.1
+    have hm_le := gaussianMillsRatioReal_le_zero_value_of_nonneg ht_nonneg
+    have hm_t_pos := gaussianMillsRatioReal_pos (lt_of_lt_of_le hy ht.1)
+    exact sub_le_sub_right ((inv_le_inv₀ hm0_pos hm_t_pos).mpr hm_le) t
+  have hg_int :
+      (∫ t in y..x, g t) =
+        c * (x - y) - (x ^ 2 - y ^ 2) / 2 := by
+    have hint_const : IntervalIntegrable (fun _ : ℝ => c) volume y x :=
+      intervalIntegral.intervalIntegrable_const
+    have hint_id : IntervalIntegrable (fun t : ℝ => t) volume y x :=
+      continuous_id.intervalIntegrable y x
+    dsimp [g]
+    rw [intervalIntegral.integral_sub hint_const hint_id, intervalIntegral.integral_const,
+      integral_id]
+    rw [show (x - y) • c = (x - y) * c by exact smul_eq_mul (x - y) c]
+    ring
+  rw [hlog]
+  change c * (x - y) - (x ^ 2 - y ^ 2) / 2 ≤ ∫ t in y..x, h t
+  rw [← hg_int]
+  exact hmono
 
 end Erdos524.Helpers
