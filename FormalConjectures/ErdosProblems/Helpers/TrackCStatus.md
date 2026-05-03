@@ -1894,3 +1894,42 @@ Net debt change: 0.
 * No `Real.Gaussian.compl_cdf`.
 * Quantile inversion, endpoint/small-`m` cases, and the sharp
   paper-shaped `Δ` bound remain deferred.
+
+---
+
+# TC19 — sharp Δ λ/Λ infrastructure
+
+TC19 landed the T1.0 sharp-Δ audit in
+`TrackC_round19_T1_DeltaSharpAudit.md` and added the first paper-shaped
+Robbins layer for Carter-Pollard's `Δ`.
+
+New Lean artefacts:
+
+* `carterPollardK` and `carterPollardNK`, naming `K = k - 1` and
+  `N-K = m-k`.
+* `carterPollardStirlingCore`, matching `sqrt(2πj) * (j/e)^j`.
+* `carterPollardLambdaTerm`, matching paper formula (3):
+  `λ_j = log(j! / (sqrt(2πj) * (j/e)^j))`.
+* `carterPollardLambda = λ_N - λ_K - λ_(N-K)`.
+* `carterPollardEntropyDelta` and `carterPollardDeltaPaperShape`, stopping
+  at the entropy expression before the optional `γ(ε)` rewrite.
+* `carterPollard_lambda_indices_pos`, proving `N`, `K`, and `N-K` are all
+  positive in the range `28 ≤ m`, `m/2 < k`, `k ≤ m-1`.
+* `carterPollardLambdaTerm_exp_eq`.
+* `carterPollardLambdaTerm_nonneg_le`.
+* `carterPollardLambdaTerm_bounds_of_range`.
+
+Outcome: **diagnostic Full / sharp infrastructure Full**, not the final
+`Δ_raw = Δ_paper` theorem. The audit explains that the next algebraic bridge
+must prove the exact entropy-shape equality
+`carterPollardDeltaRaw = carterPollardDeltaPaperShape`; the `γ` rewrite is
+deferred because it needs a total removable-singularity definition at
+`ε = 0` plus a separate identity proof.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* No `Real.Gaussian.compl_cdf`.
+* Quantile inversion and `tusnady_base_polynomial` retirement remain out of
+  scope.

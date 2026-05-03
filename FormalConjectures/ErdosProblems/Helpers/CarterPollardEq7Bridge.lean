@@ -15,6 +15,7 @@ limitations under the License.
 -/
 
 import FormalConjectures.ErdosProblems.Helpers.CarterPollardHFunction
+import FormalConjectures.ErdosProblems.Helpers.StirlingTwoSided
 
 /-!
 # Carter--Pollard equation (7) bridge
@@ -258,6 +259,14 @@ noncomputable def carterPollardN (m : ℕ) : ℝ :=
 noncomputable def carterPollardEps (m k : ℕ) : ℝ :=
   (((2 : ℝ) * (k : ℝ) - (m : ℝ) - 1) / ((m : ℝ) - 1))
 
+/-- Carter--Pollard's shifted threshold `K = k - 1`. -/
+def carterPollardK (_m k : ℕ) : ℕ :=
+  k - 1
+
+/-- Carter--Pollard's complementary exponent `N - K = m - k`. -/
+def carterPollardNK (m k : ℕ) : ℕ :=
+  m - k
+
 /-- Raw normalized standard-Gaussian upper tail, kept as an interval integral. -/
 noncomputable def gaussianTailRaw (x : ℝ) : ℝ :=
   (Real.sqrt (2 * Real.pi))⁻¹ *
@@ -275,6 +284,113 @@ noncomputable def carterPollardPrefactorRaw (m k : ℕ) : ℝ :=
 Stirling-expanded `Δ` is bounded or identified. -/
 noncomputable def carterPollardDeltaRaw (m k : ℕ) : ℝ :=
   Real.log (carterPollardPrefactorRaw m k)
+
+/-- The positive Stirling core `√(2πj) * (j/e)^j` from formula (3). -/
+noncomputable def carterPollardStirlingCore (j : ℕ) : ℝ :=
+  Real.sqrt (2 * Real.pi * (j : ℝ)) * ((j : ℝ) / Real.exp 1) ^ j
+
+/-- Carter--Pollard's Robbins correction term `λ_j` from formula (3):
+`j! = √(2πj) * (j/e)^j * exp(λ_j)`. -/
+noncomputable def carterPollardLambdaTerm (j : ℕ) : ℝ :=
+  Real.log ((j.factorial : ℝ) / carterPollardStirlingCore j)
+
+/-- The `Λ = λ_N - λ_K - λ_(N-K)` combination used in equation (7). -/
+noncomputable def carterPollardLambda (m k : ℕ) : ℝ :=
+  carterPollardLambdaTerm (m - 1) -
+    carterPollardLambdaTerm (carterPollardK m k) -
+      carterPollardLambdaTerm (carterPollardNK m k)
+
+/-- Entropy part of the paper's Δ before introducing the auxiliary `γ(ε)`. -/
+noncomputable def carterPollardEntropyDelta (m k : ℕ) : ℝ :=
+  - (carterPollardN m / 2) *
+    (((1 + carterPollardEps m k) * Real.log (1 + carterPollardEps m k) +
+      (1 - carterPollardEps m k) * Real.log (1 - carterPollardEps m k)) -
+      carterPollardEps m k ^ 2)
+
+/-- Paper-shaped Δ with the entropy expression left explicit, before the
+optional rewrite through `γ(ε)`. -/
+noncomputable def carterPollardDeltaPaperShape (m k : ℕ) : ℝ :=
+  Real.log (1 + (carterPollardN m)⁻¹) +
+    carterPollardLambda m k -
+      (1 / 2 : ℝ) * Real.log (1 - carterPollardEps m k ^ 2) +
+        carterPollardEntropyDelta m k
+
+/-- In the Carter--Pollard upper-half non-extreme range, all three
+Stirling-correction indices `N`, `K`, and `N-K` are positive. -/
+theorem carterPollard_lambda_indices_pos
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    1 ≤ m - 1 ∧ 1 ≤ carterPollardK m k ∧ 1 ≤ carterPollardNK m k := by
+  dsimp [carterPollardK, carterPollardNK]
+  omega
+
+/-- The Stirling core in formula (3) is positive whenever `j ≥ 1`. -/
+theorem carterPollardStirlingCore_pos {j : ℕ} (hj : 1 ≤ j) :
+    0 < carterPollardStirlingCore j := by
+  unfold carterPollardStirlingCore
+  have hj_pos : (0 : ℝ) < (j : ℝ) := by exact_mod_cast hj
+  positivity
+
+/-- Formula (3), stated as an exponential identity for the local `λ_j`. -/
+theorem carterPollardLambdaTerm_exp_eq
+    {j : ℕ} (hj : 1 ≤ j) :
+    Real.exp (carterPollardLambdaTerm j) =
+      (j.factorial : ℝ) / carterPollardStirlingCore j := by
+  unfold carterPollardLambdaTerm
+  have hcore_pos := carterPollardStirlingCore_pos hj
+  have hratio_pos : 0 < (j.factorial : ℝ) / carterPollardStirlingCore j := by
+    positivity
+  exact Real.exp_log hratio_pos
+
+/-- Debt-free Robbins bounds available from the current local Stirling API.
+
+The paper has the sharper strict lower bound `(12*j+1)⁻¹ < λ_j`; TC19 only
+needs the nonnegative lower bound plus the sharp upper bound for infrastructure. -/
+theorem carterPollardLambdaTerm_nonneg_le
+    {j : ℕ} (hj : 1 ≤ j) :
+    0 ≤ carterPollardLambdaTerm j ∧
+      carterPollardLambdaTerm j ≤ 1 / (12 * (j : ℝ)) := by
+  have hcore_pos := carterPollardStirlingCore_pos hj
+  have hratio_pos : 0 < (j.factorial : ℝ) / carterPollardStirlingCore j := by
+    positivity
+  have hratio_ge_one :
+      1 ≤ (j.factorial : ℝ) / carterPollardStirlingCore j := by
+    have hlow := Erdos524.Helpers.sqrt_two_pi_mul_pow_le_factorial j
+    rw [show Real.sqrt (2 * Real.pi * (j : ℝ)) * ((j : ℝ) / Real.exp 1) ^ j =
+        carterPollardStirlingCore j by rfl] at hlow
+    exact (le_div_iff₀ hcore_pos).mpr (by simpa using hlow)
+  have hnonneg : 0 ≤ carterPollardLambdaTerm j := by
+    unfold carterPollardLambdaTerm
+    exact Real.log_nonneg hratio_ge_one
+  have hratio_le :
+      (j.factorial : ℝ) / carterPollardStirlingCore j ≤
+        Real.exp (1 / (12 * (j : ℝ))) := by
+    have hupper := Erdos524.Helpers.factorial_le_stirling_robbins (n := j) hj
+    rw [show Real.sqrt (2 * Real.pi * (j : ℝ)) * ((j : ℝ) / Real.exp 1) ^ j =
+        carterPollardStirlingCore j by rfl] at hupper
+    exact (div_le_iff₀ hcore_pos).mpr (by simpa [mul_comm, mul_left_comm, mul_assoc] using hupper)
+  have hle : carterPollardLambdaTerm j ≤ 1 / (12 * (j : ℝ)) := by
+    unfold carterPollardLambdaTerm
+    exact (Real.log_le_iff_le_exp hratio_pos).mpr hratio_le
+  exact ⟨hnonneg, hle⟩
+
+/-- Robbins bounds for all three `λ` terms that occur in
+`Λ = λ_N - λ_K - λ_(N-K)` in the Carter--Pollard range. -/
+theorem carterPollardLambdaTerm_bounds_of_range
+    {m k : ℕ}
+    (hm : 28 ≤ m) (hk_lower : m / 2 < k) (hk_upper : k ≤ m - 1) :
+    (0 ≤ carterPollardLambdaTerm (m - 1) ∧
+        carterPollardLambdaTerm (m - 1) ≤ 1 / (12 * ((m - 1 : ℕ) : ℝ))) ∧
+      (0 ≤ carterPollardLambdaTerm (carterPollardK m k) ∧
+        carterPollardLambdaTerm (carterPollardK m k) ≤
+          1 / (12 * ((carterPollardK m k : ℕ) : ℝ))) ∧
+      (0 ≤ carterPollardLambdaTerm (carterPollardNK m k) ∧
+        carterPollardLambdaTerm (carterPollardNK m k) ≤
+          1 / (12 * ((carterPollardNK m k : ℕ) : ℝ))) := by
+  rcases carterPollard_lambda_indices_pos hm hk_lower hk_upper with ⟨hN, hK, hNK⟩
+  exact ⟨carterPollardLambdaTerm_nonneg_le hN,
+    carterPollardLambdaTerm_nonneg_le hK,
+    carterPollardLambdaTerm_nonneg_le hNK⟩
 
 /-- Positivity of the exact raw Carter--Pollard prefactor in the nonempty
 binomial-tail range. -/
