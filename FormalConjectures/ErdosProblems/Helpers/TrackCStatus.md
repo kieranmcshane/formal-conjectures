@@ -1660,3 +1660,56 @@ These 3 are infrastructure-level (Mathlib API conventions), not math content. **
 * **Track C cluster status**: Round 11 of ~22-25 complete. **TC12 (paper §2 eq (7) reformulation + paper §4 bulk/tail split)** NOW UNBLOCKED — `carterPollardH_taylor_upper_bound` (TC11) is the cubic-bound Full input that §4 needs to rigorously drop the Taylor-3 remainder. TC12 forecast: 200-350 LOC (per brief preview).
 * **R52 hybrid (c) gate contribution**: TC11 is +0 retirement at gate-relevant scale (`carterPollardH_taylor_upper_bound` is a NEW Track C-internal Full theorem, NOT a mainline TAG'd-sorry/axiom retirement). TC11 cumulative since TC1: still +1 mainline-relevant retirement (TC2 Layer 2). TC14 forecast: +1 mainline-relevant if full Carter-Pollard assembly lands across TC11→TC14 and `tusnady_base_polynomial` retires.
 * **Cumulative misframing ledger**: 11 (was 8 from TC10; +3 from TC11 §11.5).
+
+---
+
+# Track C status — round 12 partial closure (TC12 Codex pass)
+
+**Round:** TC12 Carter--Pollard §2 eq. (7) / §4 bulk upper.
+**Date:** 2026-05-03. **Branch:** `tc12-cdx-bulk-upper`.
+**Outcome:** **Partial Full progress, no new sorries, no new axioms.**
+
+## TC12.1 Mandatory audit outcomes
+
+T1.0 paper recheck fetched Carter--Pollard 2004 (`arXiv:math/0508606`)
+before Lean edits. The §2 eq. (7) shape and §4 upper-bound paragraph match
+the dispatch brief: the paper rewrites the binomial tail as
+`e^∆ sqrt(N/(2π)) ∫_0^1 exp(N h(s) - Nε²/2) ds`, then uses
+`h(s) ≤ ε²/2 - (s+ε)²/2` plus nonnegativity beyond `1` to bound by the
+Gaussian tail.
+
+T1.1 local audit found one important branch-state mismatch: the declarations
+`bin_tail_beta_integral` and `bin_tail_h_integral` named in the TC12 brief do
+not exist as placeholders on `track-c-1dkmt` HEAD `efe78d7`. TC12 therefore
+adds declarations rather than replacing placeholder bodies. The audit is
+recorded in `TrackC_round12_T1_Eq7BulkUpperAudit.md`.
+
+## TC12.2 Full Lean artefacts landed
+
+| Artefact | Status | Notes |
+|---|---|---|
+| `bin_tail_beta_integral_half_poly` | Full | Specializes the existing `Erdos524.Helpers.binomial_tail_beta_integral` to `p = 1/2`, using the in-tree `binomialPolyTail` form. |
+| `carterPollardH_exp_bulk_upper_pointwise` | Full | Converts TC11's Taylor theorem into the pointwise integrand bound `exp(N*h - Nε²/2) ≤ exp(-(N*(s+ε)^2)/2)` for `0 ≤ N`, `0 ≤ ε`, `0 ≤ s < 1`. |
+
+The exact Gaussian-tail theorem from the brief was not stated because the
+brief's pseudocode name `Real.Gaussian.compl_cdf` does not exist at the
+project pin. The next pass should either define a local `gaussianTail` via
+`∫ t in Ioi x, gaussianPDFReal 0 1 t`, or reuse the Mills-ratio tail
+infrastructure already present in `GaussianMillsRatio.lean`.
+
+## TC12.3 Build verification
+
+```
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardHFunction
+```
+
+completed successfully after the edits (2654 jobs).
+
+## TC12.4 Net debt
+
+* **Axioms:** unchanged.
+* **Sorries:** unchanged.
+* **TC12 brief status:** not complete; this pass lands the audit plus two
+  Full local bridges and leaves raw-sum rewrites, eq. (7) prefactor assembly,
+  interval-integral monotonicity, and Gaussian-tail evaluation for the next
+  TC12 continuation.

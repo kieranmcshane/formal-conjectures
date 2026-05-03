@@ -21,6 +21,7 @@ import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
 import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Analysis.Calculus.Taylor
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+import FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta
 
 /-!
 # Carter–Pollard h-function and cubic Taylor bound (TC11)
@@ -56,6 +57,21 @@ verification table, and strategy choice (Strategy A: `taylor_mean_remainder_lagr
 namespace FormalConjectures.ErdosProblems.Helpers.CarterPollardH
 
 open Real Set
+
+/-- TC12 beta-integral bridge at `p = 1/2`.
+
+This specializes the TC9/TC10 binomial-tail beta identity to the symmetric
+binomial tail used in Carter--Pollard §2. A later algebra-only adapter can
+rewrite `binomialPolyTail n k (1/2)` as the raw `(1/2)^n * ∑ choose` form
+from the paper. -/
+theorem bin_tail_beta_integral_half_poly
+    (n k : ℕ) (hk : 1 ≤ k) (hkn : k ≤ n) :
+    Erdos524.Helpers.binomialPolyTail n k (1 / 2 : ℝ) =
+      ((n : ℝ) * ((n - 1).choose (k - 1) : ℝ)) *
+        Erdos524.Helpers.betaPartialIntegral n k (1 / 2) := by
+  simpa using
+    (Erdos524.Helpers.binomial_tail_beta_integral n k hk hkn
+      (p := (1 / 2 : ℝ)) (by norm_num) (by norm_num))
 
 /-- Carter–Pollard h-function (arXiv:math/0508606 §2 eq (8)).
 
@@ -391,5 +407,27 @@ theorem carterPollardH_taylor_upper_bound
   rw [htaylor] at hf_le
   have alg : (-ε * s - s^2 / 2 : ℝ) = ε^2 / 2 - (s + ε)^2 / 2 := by ring
   linarith [alg, hf_le]
+
+/-- TC12 pointwise bulk-upper integrand domination.
+
+This is the paper §4 upper-bound payload extracted from
+`carterPollardH_taylor_upper_bound`: after subtracting `Nε²/2` from the
+exponent, the Carter--Pollard integrand is bounded by the translated
+Gaussian kernel. The remaining TC12 work is the interval-integral monotonicity
+and Gaussian-tail evaluation step. -/
+theorem carterPollardH_exp_bulk_upper_pointwise
+    {N ε s : ℝ} (hN0 : 0 ≤ N) (hε0 : 0 ≤ ε) (hs0 : 0 ≤ s) (hs1 : s < 1) :
+    Real.exp (N * carterPollardH ε s - N * ε ^ 2 / 2) ≤
+      Real.exp (-(N * (s + ε) ^ 2) / 2) := by
+  have hh := carterPollardH_taylor_upper_bound (ε := ε) hε0 hs0 hs1
+  have hmul : N * carterPollardH ε s ≤
+      N * (ε ^ 2 / 2 - (s + ε) ^ 2 / 2) :=
+    mul_le_mul_of_nonneg_left hh hN0
+  apply Real.exp_le_exp.mpr
+  calc
+    N * carterPollardH ε s - N * ε ^ 2 / 2
+        ≤ N * (ε ^ 2 / 2 - (s + ε) ^ 2 / 2) - N * ε ^ 2 / 2 := by
+          linarith
+    _ = -(N * (s + ε) ^ 2) / 2 := by ring
 
 end FormalConjectures.ErdosProblems.Helpers.CarterPollardH
