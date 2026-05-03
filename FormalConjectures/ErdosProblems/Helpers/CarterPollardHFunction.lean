@@ -21,6 +21,7 @@ import Mathlib.Analysis.Calculus.IteratedDeriv.Lemmas
 import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Analysis.Calculus.Taylor
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+import Mathlib.Probability.Distributions.Gaussian.Real
 import FormalConjectures.ErdosProblems.Helpers.BinomialTailBeta
 
 /-!
@@ -535,5 +536,43 @@ theorem carterPollardH_exp_bulk_upper_full
   simpa [f, g] using
     (intervalIntegral.integral_mono_on_of_le_Ioo h01 hf_int hg_int (fun s hs => by
       exact carterPollardH_exp_bulk_upper_pointwise hN0 hε0 hs.1.le hs.2))
+
+/-- Standard-normal density rewrite for the translated Gaussian kernel used in
+TC13. This is the local adapter needed before the later change of variables
+`u = (s + ε) * sqrt N`. -/
+lemma exp_neg_quadratic_eq_sqrt_two_pi_mul_gaussianPDFReal
+    {N s ε : ℝ} (hN0 : 0 ≤ N) :
+    Real.exp (-(N * (s + ε) ^ 2) / 2) =
+      Real.sqrt (2 * Real.pi) * ProbabilityTheory.gaussianPDFReal 0 1 ((s + ε) * Real.sqrt N) := by
+  have hsqrt_sq : (Real.sqrt N) ^ 2 = N := by
+    rw [Real.sq_sqrt hN0]
+  unfold ProbabilityTheory.gaussianPDFReal
+  rw [NNReal.coe_one]
+  have hsqrt_ne : Real.sqrt (2 * Real.pi) ≠ 0 := by positivity
+  field_simp [hsqrt_ne]
+  congr 1
+  rw [show (((s + ε) * Real.sqrt N - 0) ^ 2 : ℝ) = N * (s + ε) ^ 2 by
+    rw [sub_zero, mul_pow, hsqrt_sq]
+    ring]
+
+/-- TC13 Gaussian-density form of the raw full-interval bulk upper bound.
+
+The right-hand side is still an interval integral, not a Gaussian CDF. It
+rewrites the kernel into Mathlib's `gaussianPDFReal` notation so the next
+round can focus only on the affine change of variables and tail extension. -/
+theorem carterPollardH_exp_bulk_upper_full_gaussianPDF
+    {N ε : ℝ} (hN0 : 0 ≤ N) (hε0 : 0 ≤ ε) :
+    ∫ s in (0 : ℝ)..1, Real.exp (N * carterPollardH ε s - N * ε ^ 2 / 2) ≤
+      Real.sqrt (2 * Real.pi) *
+        ∫ s in (0 : ℝ)..1, ProbabilityTheory.gaussianPDFReal 0 1 ((s + ε) * Real.sqrt N) := by
+  have hraw := carterPollardH_exp_bulk_upper_full hN0 hε0
+  have hkernel :
+      (∫ s in (0 : ℝ)..1, Real.exp (-(N * (s + ε) ^ 2) / 2)) =
+        Real.sqrt (2 * Real.pi) *
+          ∫ s in (0 : ℝ)..1, ProbabilityTheory.gaussianPDFReal 0 1 ((s + ε) * Real.sqrt N) := by
+    rw [← intervalIntegral.integral_const_mul]
+    refine intervalIntegral.integral_congr (fun s _hs => ?_)
+    exact exp_neg_quadratic_eq_sqrt_two_pi_mul_gaussianPDFReal (N := N) (s := s) (ε := ε) hN0
+  exact hraw.trans_eq hkernel
 
 end FormalConjectures.ErdosProblems.Helpers.CarterPollardH

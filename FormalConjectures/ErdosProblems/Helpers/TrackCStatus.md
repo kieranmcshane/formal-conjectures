@@ -1740,3 +1740,29 @@ Net debt change: 0.
 * No new sorries.
 * This advances the Carter-Pollard chain but does not yet close
   `tusnady_base_polynomial`.
+
+---
+
+# TC13 continuation — Gaussian-density rewrite
+
+Codex continuation on `tc12-cdx-bulk-upper` added two Full artefacts:
+
+| Artefact | Status | Notes |
+|---|---|---|
+| `exp_neg_quadratic_eq_sqrt_two_pi_mul_gaussianPDFReal` | Full | Rewrites `exp (-(N*(s+ε)^2)/2)` as `sqrt(2π) * gaussianPDFReal 0 1 ((s+ε)*sqrt N)` under `0 ≤ N`. |
+| `carterPollardH_exp_bulk_upper_full_gaussianPDF` | Full | Composes the TC13 raw full-interval bound with the density rewrite, leaving a standard-normal density integral on `[0,1]`. |
+
+Build:
+
+```
+lake build FormalConjectures.ErdosProblems.Helpers.CarterPollardHFunction
+```
+
+completed successfully.
+
+Net debt change: 0.
+
+* No new axioms.
+* No new sorries.
+* Next step is the affine change of variables
+  `u = (s + ε) * sqrt N`, followed by the interval-to-tail extension.
