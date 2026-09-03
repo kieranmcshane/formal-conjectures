@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -/
 
-import FormalConjectures.Util.ProblemImports
+import FormalConjectures.Wikipedia.LonelyRunnerConjecture.FiniteRigidity
 
 /-!
 # Lonely runner conjecture
@@ -193,6 +193,148 @@ theorem terminal_contradiction_of_finite_rigidity
     (hrigidity5 : FiniteRigidityCertificate 5 3 patterns) : False := by
   exact affine_mod_three_and_five_terminal_contradiction a hzero h3survives h5survives
     (hrigidity3 a hblocks5) (hrigidity5 a hblocks3)
+
+/-- Convert a bounded bit-vector modular identity into the corresponding
+identity in `ZMod`. The bounds record that the eight-bit calculations in the
+finite certificate do not overflow. -/
+@[category API, AMS 11]
+lemma bitVec_mod_eq_zmod {q : ℕ} (hq : 0 < q) (hq8 : q < 8) (x y k : ℕ)
+    (hk : k < 15)
+    (h : (BitVec.ofNat 3 (x % q)).zeroExtend 8 =
+      (BitVec.ofNat 3 (y % q)).zeroExtend 8 * BitVec.ofNat 8 k %
+        BitVec.ofNat 8 q) :
+    (x : ZMod q) = (y : ZMod q) * k := by
+  have hn := congrArg BitVec.toNat h
+  simp only [BitVec.toNat_setWidth, BitVec.toNat_ofNat, BitVec.toNat_mul,
+    BitVec.toNat_umod] at hn
+  have hq256 : q < 256 := lt_trans hq8 (by norm_num)
+  have hx8 : x % q < 8 := lt_trans (Nat.mod_lt _ hq) hq8
+  have hx256 : x % q < 256 := lt_trans (Nat.mod_lt _ hq) hq256
+  have hy8 : y % q < 8 := lt_trans (Nat.mod_lt _ hq) hq8
+  have hy256 : y % q < 256 := lt_trans (Nat.mod_lt _ hq) hq256
+  have hk256 : k < 256 := lt_trans hk (by norm_num)
+  have hprod : (y % q) * k < 256 := by
+    nlinarith [Nat.mod_lt y hq]
+  simp only [Nat.mod_eq_of_lt hq256, Nat.mod_eq_of_lt hx8, Nat.mod_eq_of_lt hx256,
+    Nat.mod_eq_of_lt hy8, Nat.mod_eq_of_lt hy256, Nat.mod_eq_of_lt hk256,
+    Nat.mod_eq_of_lt hprod] at hn
+  rw [← Nat.cast_mul, ZMod.natCast_eq_natCast_iff]
+  change x % q = y * k % q
+  simpa [Nat.mul_mod] using hn
+
+/-- Reduce the fourteen standard representatives modulo `q` into the
+three-bit representation used by the finite certificate. -/
+def residuesMod (q : ℕ) (a : ResidueVector) : BVResidueVector where
+  c0 := BitVec.ofNat 3 ((a 0).val % q)
+  c1 := BitVec.ofNat 3 ((a 1).val % q)
+  c2 := BitVec.ofNat 3 ((a 2).val % q)
+  c3 := BitVec.ofNat 3 ((a 3).val % q)
+  c4 := BitVec.ofNat 3 ((a 4).val % q)
+  c5 := BitVec.ofNat 3 ((a 5).val % q)
+  c6 := BitVec.ofNat 3 ((a 6).val % q)
+  c7 := BitVec.ofNat 3 ((a 7).val % q)
+  c8 := BitVec.ofNat 3 ((a 8).val % q)
+  c9 := BitVec.ofNat 3 ((a 9).val % q)
+  c10 := BitVec.ofNat 3 ((a 10).val % q)
+  c11 := BitVec.ofNat 3 ((a 11).val % q)
+  c12 := BitVec.ofNat 3 ((a 12).val % q)
+  c13 := BitVec.ofNat 3 ((a 13).val % q)
+
+@[category API, AMS 11]
+lemma residuesModThree_allLt (a : ResidueVector) : AllLt 3 (residuesMod 3 a) := by
+  have hthree : (3 : BitVec 3).toNat = 3 := by decide
+  simp only [AllLt, residuesMod, BitVec.ult_iff_toNat_lt, BitVec.toNat_ofNat,
+    hthree]
+  omega
+
+@[category API, AMS 11]
+lemma residuesModFive_allLt (a : ResidueVector) : AllLt 5 (residuesMod 5 a) := by
+  have hfive : (5 : BitVec 3).toNat = 5 := by decide
+  simp only [AllLt, residuesMod, BitVec.ult_iff_toNat_lt, BitVec.toNat_ofNat,
+    hfive]
+  omega
+
+/-- The bit-vector affine conclusion modulo three implies the semantic
+`ZMod 3` affine conclusion. -/
+@[category API, AMS 11]
+lemma affineModThree_to_isAffine (a : ResidueVector)
+    (h : AffineModThree (residuesMod 3 a)) :
+    IsAffineMod 3 a ((a 0).val : ZMod 3) := by
+  unfold AffineModThree at h
+  rcases h with
+    ⟨⟨⟨h0, h1, h2⟩, ⟨⟨h3, h4⟩, h5, h6⟩⟩,
+      ⟨⟨h7, h8, h9⟩, ⟨⟨h10, h11⟩, h12, h13⟩⟩⟩
+  intro i
+  have hbit :
+      (BitVec.ofNat 3 ((a i).val % 3)).zeroExtend 8 =
+        (BitVec.ofNat 3 ((a 0).val % 3)).zeroExtend 8 * BitVec.ofNat 8 (i.val + 1) %
+          BitVec.ofNat 8 3 := by
+    fin_cases i <;> simp only [residuesMod] at * <;> assumption
+  have hz := bitVec_mod_eq_zmod (by norm_num) (by norm_num) (a i).val (a 0).val
+    (i.val + 1) (by omega) hbit
+  simpa only [Nat.cast_add, Nat.cast_one] using hz
+
+/-- The bit-vector affine conclusion modulo five implies the semantic
+`ZMod 5` affine conclusion. -/
+@[category API, AMS 11]
+lemma affineModFive_to_isAffine (a : ResidueVector)
+    (h : AffineModFive (residuesMod 5 a)) :
+    IsAffineMod 5 a ((a 0).val : ZMod 5) := by
+  unfold AffineModFive at h
+  rcases h with
+    ⟨⟨⟨h0, h1, h2⟩, ⟨⟨h3, h4⟩, h5, h6⟩⟩,
+      ⟨⟨h7, h8, h9⟩, ⟨⟨h10, h11⟩, h12, h13⟩⟩⟩
+  intro i
+  have hbit :
+      (BitVec.ofNat 3 ((a i).val % 5)).zeroExtend 8 =
+        (BitVec.ofNat 3 ((a 0).val % 5)).zeroExtend 8 * BitVec.ofNat 8 (i.val + 1) %
+          BitVec.ofNat 8 5 := by
+    fin_cases i <;> simp only [residuesMod] at * <;> assumption
+  have hz := bitVec_mod_eq_zmod (by norm_num) (by norm_num) (a i).val (a 0).val
+    (i.val + 1) (by omega) hbit
+  simpa only [Nat.cast_add, Nat.cast_one] using hz
+
+/-- Concrete computational blocking condition for multiplier five. -/
+def BlocksCertifiedMultiplierFive (a : ResidueVector) : Prop :=
+  BlocksRobustMultiplierFive (residuesMod 3 a)
+
+/-- Concrete computational blocking condition for multiplier three. -/
+def BlocksCertifiedMultiplierThree (a : ResidueVector) : Prop :=
+  BlocksRobustMultiplierThree (residuesMod 5 a)
+
+/-- The verified multiplier-five certificate supplies the semantic affine
+conclusion modulo three. -/
+@[category research solved, AMS 11]
+theorem blocksCertifiedMultiplierFive_forces_affineModThree (a : ResidueVector)
+    (h : BlocksCertifiedMultiplierFive a) :
+    ∃ slope : ZMod 3, IsAffineMod 3 a slope := by
+  refine ⟨((a 0).val : ZMod 3), affineModThree_to_isAffine a ?_⟩
+  exact blocks_robust_multiplier_five_forces_affine_mod_three (residuesMod 3 a)
+    (residuesModThree_allLt a) h
+
+/-- The verified multiplier-three certificate supplies the semantic affine
+conclusion modulo five. -/
+@[category research solved, AMS 11]
+theorem blocksCertifiedMultiplierThree_forces_affineModFive (a : ResidueVector)
+    (h : BlocksCertifiedMultiplierThree a) :
+    ∃ slope : ZMod 5, IsAffineMod 5 a slope := by
+  refine ⟨((a 0).val : ZMod 5), affineModFive_to_isAffine a ?_⟩
+  exact blocks_robust_multiplier_three_forces_affine_mod_five (residuesMod 5 a)
+    (residuesModFive_allLt a) h
+
+/-- Terminal contradiction with the concrete 270-pattern certificates wired
+in. Unlike `terminal_contradiction_of_finite_rigidity`, this theorem has no
+abstract finite-rigidity hypotheses. -/
+@[category research solved, AMS 11]
+theorem terminal_contradiction_of_certified_patterns (a : ResidueVector)
+    (hzero : ∃ i, a i = 0)
+    (h3survives : SurvivesEveryOmission 3 a)
+    (h5survives : SurvivesEveryOmission 5 a)
+    (hblocks3 : BlocksCertifiedMultiplierThree a)
+    (hblocks5 : BlocksCertifiedMultiplierFive a) : False := by
+  exact affine_mod_three_and_five_terminal_contradiction a hzero h3survives h5survives
+    (blocksCertifiedMultiplierFive_forces_affineModThree a hblocks5)
+    (blocksCertifiedMultiplierThree_forces_affineModFive a hblocks3)
 
 end CompositeTerminalRigidity
 
