@@ -454,6 +454,99 @@ theorem terminal_contradiction_of_certified_patterns (a : ResidueVector)
     (blocksCertifiedMultiplierFive_forces_affineModThree a hblocks5)
     (blocksCertifiedMultiplierThree_forces_affineModFive a hblocks3)
 
+/-- The grid fraction `r / p` realizes a phase pattern when every fractional
+coordinate lies in the bin recorded by that pattern. This integral inequality
+form avoids any rounding convention at cell boundaries. -/
+def RealizesPhase (p r : ℕ) (b : PhasePattern) : Prop :=
+  ∀ i, (b i).val * p ≤ 15 * ((r * (i.val + 1)) % p) ∧
+    15 * ((r * (i.val + 1)) % p) < ((b i).val + 1) * p
+
+/-- A realized phase whose translated bins all lie between one and thirteen
+produces an actual level-fifteen grid witness. -/
+@[category API, AMS 11]
+lemma gridWitness_of_realized_good_phase {p s r : ℕ} (hp900 : 900 < p)
+    (u : LiftVector p) (htight : IsTightLift p u) (b : PhasePattern)
+    (hphase : RealizesPhase p r b)
+    (hgood : ∀ i, 1 ≤ (s * (liftResidues u i).val + (b i).val) % 15 ∧
+      (s * (liftResidues u i).val + (b i).val) % 15 ≤ 13) :
+    HasLevelFifteenGridWitness p u := by
+  have hp : 0 < p := by omega
+  let j : Fin (15 * p) :=
+    ⟨(s * p + 15 * r) % (15 * p), Nat.mod_lt _ (by nlinarith)⟩
+  refine ⟨j, ?_⟩
+  intro i
+  let a := (liftResidues u i).val
+  let v := (r * (i.val + 1)) % p
+  let d := 15 * v - (b i).val * p
+  let z := (s * a + (b i).val) % 15
+  have hi : i.val + 1 < p := by omega
+  have hup : (u i).val ≡ i.val + 1 [MOD p] := by
+    show (u i).val % p = (i.val + 1) % p
+    rw [Nat.mod_eq_of_lt hi]
+    exact htight i
+  have hua : (u i).val ≡ a [MOD 15] := by
+    exact (Nat.mod_modEq (u i).val 15).symm
+  have hfirst : s * p * (u i).val ≡ s * p * a [MOD 15 * p] := by
+    have h := (hua.mul_left' p).mul_left s
+    simpa only [Nat.mul_assoc, Nat.mul_comm, Nat.mul_left_comm] using h
+  have hsecond : 15 * r * (u i).val ≡ 15 * r * (i.val + 1) [MOD 15 * p] := by
+    have h := (hup.mul_left' 15).mul_left r
+    simpa only [Nat.mul_assoc, Nat.mul_comm, Nat.mul_left_comm] using h
+  have hrv : 15 * r * (i.val + 1) ≡ 15 * v [MOD 15 * p] := by
+    have h := (Nat.mod_modEq (r * (i.val + 1)) p).symm.mul_left' 15
+    simpa only [v, Nat.mul_assoc] using h
+  have htotal :
+      (s * p + 15 * r) * (u i).val ≡ s * p * a + 15 * v [MOD 15 * p] := by
+    have h := hfirst.add (hsecond.trans hrv)
+    simpa only [Nat.add_mul, Nat.mul_assoc] using h
+  have hreal := hphase i
+  change (b i).val * p ≤ 15 * v ∧ 15 * v < ((b i).val + 1) * p at hreal
+  have hd_eq : (b i).val * p + d = 15 * v := Nat.add_sub_of_le hreal.1
+  have hd_lt : d < p := by
+    have hupp : 15 * v < (b i).val * p + p := by nlinarith [hreal.2]
+    omega
+  have hz := hgood i
+  change 1 ≤ z ∧ z ≤ 13 at hz
+  have hdp : d < 15 * p := by nlinarith
+  have hsum_lt : p * z + d < 15 * p := by nlinarith
+  have hbase : (p * (s * a + (b i).val)) % (15 * p) = p * z := by
+    simpa only [z, Nat.mul_comm] using
+      Nat.mul_mod_mul_left p (s * a + (b i).val) 15
+  have hright : (s * p * a + 15 * v) % (15 * p) = p * z + d := by
+    have heq : s * p * a + 15 * v = p * (s * a + (b i).val) + d := by
+      rw [← hd_eq]
+      ring
+    rw [heq, Nat.add_mod, hbase, Nat.mod_eq_of_lt hdp, Nat.mod_eq_of_lt hsum_lt]
+  have hres : ((s * p + 15 * r) * (u i).val) % (15 * p) = p * z + d := by
+    unfold Nat.ModEq at htotal
+    rw [hright] at htotal
+    exact htotal
+  change p ≤ (j.val * (u i).val) % (15 * p) ∧
+    (j.val * (u i).val) % (15 * p) ≤ 14 * p
+  simp only [j, Nat.mod_mul_mod]
+  rw [hres]
+  constructor <;> nlinarith
+
+/-- Conversely, if a realized phase does not produce a grid witness, at least
+one coordinate must occupy boundary bin zero or fourteen. -/
+@[category API, AMS 11]
+lemma blocks_of_no_gridWitness_of_realizesPhase {p s r : ℕ} (hp900 : 900 < p)
+    (u : LiftVector p) (htight : IsTightLift p u) (b : PhasePattern)
+    (hphase : RealizesPhase p r b)
+    (hno : ¬ HasLevelFifteenGridWitness p u) :
+    Blocks s (liftResidues u) b := by
+  by_contra hblocks
+  apply hno
+  apply gridWitness_of_realized_good_phase (s := s) (r := r) hp900 u htight b hphase
+  intro i
+  rw [Blocks] at hblocks
+  push_neg at hblocks
+  have hi := hblocks i
+  have hmodlt :
+      (s * (liftResidues u i).val + (b i).val) % 15 < 15 :=
+    Nat.mod_lt _ (by norm_num)
+  constructor <;> omega
+
 /-- The remaining phase-realisation bridge for a modulus `p`: if a tight lift
 has no grid witness, its residue vector blocks all 270 certified patterns for
 both multipliers. -/
