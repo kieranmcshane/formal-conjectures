@@ -60,8 +60,110 @@ phase pattern forces an affine reduction modulo `q`. -/
 def FiniteRigidityCertificate (q multiplier : ℕ) (patterns : Set PhasePattern) : Prop :=
   ∀ a, BlocksEvery multiplier patterns a → ∃ slope : ZMod q, IsAffineMod q a slope
 
+/-- A fourteen-coordinate level-fifteen lift modulo `15 * p`. -/
+abbrev LiftVector (p : ℕ) := Fin 14 → Fin (15 * p)
+
+/-- A lift represents the tight row `(1, ..., 14)` modulo `p`. -/
+def IsTightLift (p : ℕ) (u : LiftVector p) : Prop :=
+  ∀ i, (u i).val % p = i.val + 1
+
+/-- A level-fifteen grid witness keeps every product residue in the closed
+interval from `p` to `14 * p`. -/
+def HasLevelFifteenGridWitness (p : ℕ) (u : LiftVector p) : Prop :=
+  ∃ j : Fin (15 * p), ∀ i,
+    p ≤ (j.val * (u i).val) % (15 * p) ∧
+      (j.val * (u i).val) % (15 * p) ≤ 14 * p
+
+/-- The level-fifteen gcd escape clause. Since the only prime factors of
+fifteen are three and five, this is the concrete form needed here. -/
+def HasLevelFifteenGcdEscape {p : ℕ} (u : LiftVector p) : Prop :=
+  ∃ omitted, (∀ i, i ≠ omitted → 3 ∣ (u i).val) ∨
+    (∀ i, i ≠ omitted → 5 ∣ (u i).val)
+
+/-- Properness at level fifteen: either the gcd clause or the finite-grid
+witness clause succeeds. -/
+def IsLevelFifteenProper (p : ℕ) (u : LiftVector p) : Prop :=
+  HasLevelFifteenGcdEscape u ∨ HasLevelFifteenGridWitness p u
+
+/-- Standard representatives modulo fifteen of a lifted vector. -/
+def liftResidues {p : ℕ} (u : LiftVector p) : ResidueVector :=
+  fun i ↦ ⟨(u i).val % 15, Nat.mod_lt _ (by norm_num)⟩
+
+@[simp, category API, AMS 11]
+lemma liftResidues_val {p : ℕ} (u : LiftVector p) (i : Fin 14) :
+    (liftResidues u i).val = (u i).val % 15 := rfl
+
+/-- If all residues modulo fifteen are nonzero, the grid point `j = p`
+(corresponding to time `1 / 15`) is already a witness. -/
+@[category API, AMS 11]
+theorem gridWitness_of_all_residues_nonzero {p : ℕ} (hp : 0 < p)
+    (u : LiftVector p) (hnonzero : ∀ i, liftResidues u i ≠ 0) :
+    HasLevelFifteenGridWitness p u := by
+  refine ⟨⟨p, by nlinarith⟩, ?_⟩
+  intro i
+  have hmodpos : 0 < (u i).val % 15 := by
+    have hne : (u i).val % 15 ≠ 0 := by
+      intro hzero
+      apply hnonzero i
+      apply Fin.ext
+      simpa only [liftResidues, Fin.val_zero] using hzero
+    omega
+  have hmodle : (u i).val % 15 ≤ 14 := by
+    have := Nat.mod_lt (u i).val (by norm_num : 0 < 15)
+    omega
+  have hproduct : (p * (u i).val) % (15 * p) = p * ((u i).val % 15) := by
+    simpa only [Nat.mul_comm] using Nat.mul_mod_mul_left p (u i).val 15
+  rw [hproduct]
+  constructor <;> nlinarith
+
+/-- Failure of the gcd escape clause implies the omission-survival condition
+modulo three for the residue vector. -/
+@[category API, AMS 11]
+lemma survivesModThree_of_no_gcdEscape {p : ℕ} {u : LiftVector p}
+    (hno : ¬ HasLevelFifteenGcdEscape u) :
+    SurvivesEveryOmission 3 (liftResidues u) := by
+  intro omitted
+  have hnotall : ¬ ∀ i, i ≠ omitted → 3 ∣ (u i).val := by
+    intro hall
+    exact hno ⟨omitted, Or.inl hall⟩
+  push_neg at hnotall
+  obtain ⟨i, hne, hndiv⟩ := hnotall
+  refine ⟨i, hne, ?_⟩
+  intro hzero
+  have hdmod : 3 ∣ (u i).val % 15 := by
+    exact (ZMod.natCast_eq_zero_iff ((u i).val % 15) 3).mp (by simpa using hzero)
+  apply hndiv
+  rw [Nat.dvd_iff_mod_eq_zero] at hdmod ⊢
+  calc
+    (u i).val % 3 = ((u i).val % 15) % 3 :=
+      (Nat.mod_mod_of_dvd (u i).val (by norm_num : 3 ∣ 15)).symm
+    _ = 0 := hdmod
+
+/-- Failure of the gcd escape clause implies the omission-survival condition
+modulo five for the residue vector. -/
+@[category API, AMS 11]
+lemma survivesModFive_of_no_gcdEscape {p : ℕ} {u : LiftVector p}
+    (hno : ¬ HasLevelFifteenGcdEscape u) :
+    SurvivesEveryOmission 5 (liftResidues u) := by
+  intro omitted
+  have hnotall : ¬ ∀ i, i ≠ omitted → 5 ∣ (u i).val := by
+    intro hall
+    exact hno ⟨omitted, Or.inr hall⟩
+  push_neg at hnotall
+  obtain ⟨i, hne, hndiv⟩ := hnotall
+  refine ⟨i, hne, ?_⟩
+  intro hzero
+  have hdmod : 5 ∣ (u i).val % 15 := by
+    exact (ZMod.natCast_eq_zero_iff ((u i).val % 15) 5).mp (by simpa using hzero)
+  apply hndiv
+  rw [Nat.dvd_iff_mod_eq_zero] at hdmod ⊢
+  calc
+    (u i).val % 5 = ((u i).val % 15) % 5 :=
+      (Nat.mod_mod_of_dvd (u i).val (by norm_num : 5 ∣ 15)).symm
+    _ = 0 := hdmod
+
 /-- A fourteen-coordinate vector modulo `15 * 17 = 255`. -/
-abbrev LiftVector17 := Fin 14 → Fin 255
+abbrev LiftVector17 := LiftVector 17
 
 /-- The explicit improper level-fifteen lift at `p = 17`. -/
 def counterexample17_lift : LiftVector17 :=
@@ -71,13 +173,13 @@ def counterexample17_lift : LiftVector17 :=
 `17` and `238`, inclusive. These are exactly the residues at circular distance
 at least `1 / 15` from zero modulo `255`. -/
 def HasLevelFifteenGridWitnessAt17 (u : LiftVector17) : Prop :=
-  ∃ j : Fin 255, ∀ i, 17 ≤ (j.val * (u i).val) % 255 ∧
-    (j.val * (u i).val) % 255 ≤ 238
+  HasLevelFifteenGridWitness 17 u
 
 /-- The displayed vector is a lift of `(1, ..., 14)` modulo seventeen. -/
 @[category test, AMS 11]
 theorem counterexample17_is_tight_lift :
-    ∀ i, (counterexample17_lift i).val % 17 = i.val + 1 := by
+    IsTightLift 17 counterexample17_lift := by
+  unfold IsTightLift counterexample17_lift
   native_decide
 
 /-- Exact exhaustive verification that the displayed vector has no witness on
@@ -85,8 +187,24 @@ the 255-point level-fifteen grid. -/
 @[category test, AMS 11]
 theorem counterexample17_has_no_grid_witness :
     ¬ HasLevelFifteenGridWitnessAt17 counterexample17_lift := by
-  unfold HasLevelFifteenGridWitnessAt17 counterexample17_lift
+  unfold HasLevelFifteenGridWitnessAt17 HasLevelFifteenGridWitness counterexample17_lift
   native_decide
+
+/-- Exact verification that the displayed lift also fails the gcd escape
+clause itself, stated directly on the lifted coordinates. -/
+@[category test, AMS 11]
+theorem counterexample17_has_no_gcd_escape :
+    ¬ HasLevelFifteenGcdEscape counterexample17_lift := by
+  unfold HasLevelFifteenGcdEscape counterexample17_lift
+  native_decide
+
+/-- The displayed vector is genuinely improper at level fifteen. -/
+@[category test, AMS 11]
+theorem counterexample17_is_improper :
+    ¬ IsLevelFifteenProper 17 counterexample17_lift := by
+  rw [IsLevelFifteenProper, not_or]
+  exact ⟨counterexample17_has_no_gcd_escape,
+    counterexample17_has_no_grid_witness⟩
 
 /-- Residues modulo fifteen of the explicit `p = 17` lift. -/
 def counterexample17_residues : ResidueVector :=
@@ -335,6 +453,33 @@ theorem terminal_contradiction_of_certified_patterns (a : ResidueVector)
   exact affine_mod_three_and_five_terminal_contradiction a hzero h3survives h5survives
     (blocksCertifiedMultiplierFive_forces_affineModThree a hblocks5)
     (blocksCertifiedMultiplierThree_forces_affineModFive a hblocks3)
+
+/-- The remaining phase-realisation bridge for a modulus `p`: if a tight lift
+has no grid witness, its residue vector blocks all 270 certified patterns for
+both multipliers. -/
+def CertifiedPhaseBridge (p : ℕ) : Prop :=
+  ∀ u : LiftVector p, IsTightLift p u → ¬ HasLevelFifteenGridWitness p u →
+    BlocksCertifiedMultiplierThree (liftResidues u) ∧
+      BlocksCertifiedMultiplierFive (liftResidues u)
+
+/-- Once the phase-realisation bridge is supplied, every tight lift is proper.
+This is the sharp conditional endpoint: all finite rigidity, coercion, gcd,
+and terminal arithmetic obligations are discharged internally. -/
+@[category research solved, AMS 11]
+theorem levelFifteenProper_of_certifiedPhaseBridge {p : ℕ} (hp : 0 < p)
+    (hbridge : CertifiedPhaseBridge p) (u : LiftVector p) (htight : IsTightLift p u) :
+    IsLevelFifteenProper p u := by
+  by_contra hproper
+  rw [IsLevelFifteenProper, not_or] at hproper
+  obtain ⟨hnoGcd, hnoGrid⟩ := hproper
+  have hzero : ∃ i, liftResidues u i = 0 := by
+    by_contra h
+    push_neg at h
+    exact hnoGrid (gridWitness_of_all_residues_nonzero hp u h)
+  obtain ⟨hblocks3, hblocks5⟩ := hbridge u htight hnoGrid
+  exact terminal_contradiction_of_certified_patterns (liftResidues u) hzero
+    (survivesModThree_of_no_gcdEscape hnoGcd)
+    (survivesModFive_of_no_gcdEscape hnoGcd) hblocks3 hblocks5
 
 end CompositeTerminalRigidity
 
