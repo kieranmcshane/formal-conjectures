@@ -420,6 +420,74 @@ def BlocksCertifiedMultiplierFive (a : ResidueVector) : Prop :=
 def BlocksCertifiedMultiplierThree (a : ResidueVector) : Prop :=
   BlocksRobustMultiplierThree (residuesMod 5 a)
 
+/-- For multiplier three, a boundary bin uniquely determines the residue
+modulo five; `none` marks bins that can never be boundary bins. -/
+def badResidueForThree : Fin 15 → Option (BitVec 3) :=
+  ![some 0, none, some 4, some 4, none, some 3, some 3, none,
+    some 2, some 2, none, some 1, some 1, none, some 0]
+
+/-- Bit-vector form of a boundary-bin event for multiplier three. -/
+def EncodedBadThree (x : ℕ) (b : Fin 15) : Prop :=
+  match badResidueForThree b with
+  | none => False
+  | some r => BitVec.ofNat 3 (x % 5) = r
+
+/-- A semantic boundary-bin event for multiplier three implies its compact
+bit-vector encoding. -/
+@[category API, AMS 11]
+lemma encodedBadThree_of_bad (x : ℕ) (b : Fin 15)
+    (h : (3 * x + b.val) % 15 = 0 ∨ (3 * x + b.val) % 15 = 14) :
+    EncodedBadThree x b := by
+  have hreduce : (3 * x + b.val) % 15 = (3 * (x % 5) + b.val) % 15 := by
+    have hmul : (3 * x) % 15 = 3 * (x % 5) := by
+      simpa using Nat.mul_mod_mul_left 3 x 5
+    rw [Nat.add_mod, hmul, Nat.add_mod]
+    omega
+  rw [hreduce] at h
+  have hx := Nat.mod_lt x (by norm_num : 0 < 5)
+  fin_cases b <;> simp [EncodedBadThree, badResidueForThree] at h ⊢
+  all_goals rcases h with h | h
+  all_goals try omega
+  all_goals
+    rw [← BitVec.toNat_inj]
+    simp only [BitVec.toNat_ofNat]
+    norm_num
+    omega
+
+/-- For multiplier five, a boundary bin uniquely determines the residue
+modulo three. -/
+def badResidueForFive : Fin 15 → Option (BitVec 3) :=
+  ![some 0, none, none, none, some 2, some 2, none, none,
+    none, some 1, some 1, none, none, none, some 0]
+
+/-- Bit-vector form of a boundary-bin event for multiplier five. -/
+def EncodedBadFive (x : ℕ) (b : Fin 15) : Prop :=
+  match badResidueForFive b with
+  | none => False
+  | some r => BitVec.ofNat 3 (x % 3) = r
+
+/-- A semantic boundary-bin event for multiplier five implies its compact
+bit-vector encoding. -/
+@[category API, AMS 11]
+lemma encodedBadFive_of_bad (x : ℕ) (b : Fin 15)
+    (h : (5 * x + b.val) % 15 = 0 ∨ (5 * x + b.val) % 15 = 14) :
+    EncodedBadFive x b := by
+  have hreduce : (5 * x + b.val) % 15 = (5 * (x % 3) + b.val) % 15 := by
+    have hmul : (5 * x) % 15 = 5 * (x % 3) := by
+      simpa only [Nat.mul_comm] using Nat.mul_mod_mul_right 5 x 3
+    rw [Nat.add_mod, hmul, Nat.add_mod]
+    omega
+  rw [hreduce] at h
+  have hx := Nat.mod_lt x (by norm_num : 0 < 3)
+  fin_cases b <;> simp [EncodedBadFive, badResidueForFive] at h ⊢
+  all_goals rcases h with h | h
+  all_goals try omega
+  all_goals
+    rw [← BitVec.toNat_inj]
+    simp only [BitVec.toNat_ofNat]
+    norm_num
+    omega
+
 /-- The verified multiplier-five certificate supplies the semantic affine
 conclusion modulo three. -/
 @[category research solved, AMS 11]

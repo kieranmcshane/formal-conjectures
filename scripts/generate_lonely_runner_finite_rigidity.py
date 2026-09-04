@@ -13,9 +13,16 @@ OUTPUT = (
     / "LonelyRunnerConjecture"
     / "FiniteRigidity.lean"
 )
+PHASE_OUTPUT = (
+    ROOT
+    / "FormalConjectures"
+    / "Wikipedia"
+    / "LonelyRunnerConjecture"
+    / "RobustPhaseRealization.lean"
+)
 
 
-def robust_patterns() -> list[tuple[int, ...]]:
+def robust_cells() -> list[tuple[Fraction, Fraction, tuple[int, ...], tuple[int, ...]]]:
     endpoints = sorted(
         {
             Fraction(a, 15 * i)
@@ -31,15 +38,20 @@ def robust_patterns() -> list[tuple[int, ...]]:
     assert len(endpoints) - 1 == 960
     assert len(cells) == 270
 
-    patterns = []
+    result = []
     for left, right in cells:
         theta = (left + right) / 2
         pattern = tuple(
             int(15 * ((i * theta) % 1))
             for i in range(1, 15)
         )
-        patterns.append(pattern)
-    return patterns
+        windings = tuple(int(i * theta) for i in range(1, 15))
+        result.append((left, right, pattern, windings))
+    return result
+
+
+def robust_patterns() -> list[tuple[int, ...]]:
+    return [pattern for _, _, pattern, _ in robust_cells()]
 
 
 def conjunction(lines: list[str], indent: str = "  ") -> str:
@@ -49,6 +61,15 @@ def conjunction(lines: list[str], indent: str = "  ") -> str:
     left = conjunction(lines[:midpoint], indent + "  ")
     right = conjunction(lines[midpoint:], indent + "  ")
     return f"({left} ∧\n{indent}{right})"
+
+
+def proof_tuple(terms: list[str], indent: str = "  ") -> str:
+    if len(terms) == 1:
+        return terms[0]
+    midpoint = len(terms) // 2
+    left = proof_tuple(terms[:midpoint], indent + "  ")
+    right = proof_tuple(terms[midpoint:], indent + "  ")
+    return f"⟨{left},\n{indent}{right}⟩"
 
 
 def blocking_clause(multiplier: int, modulus: int, pattern: tuple[int, ...]) -> str:
@@ -161,9 +182,163 @@ end LonelyRunnerConjecture.CompositeTerminalRigidity
 '''
 
 
+def phase_name(index: int) -> str:
+    return f"robustPhase{index:03d}"
+
+
+def phase_realization(index: int, left: Fraction, pattern: tuple[int, ...],
+                      windings: tuple[int, ...]) -> str:
+    name = phase_name(index)
+    numerator = left.numerator
+    denominator = left.denominator
+    bullets = []
+    for coordinate, winding in enumerate(windings, 1):
+        dividend = "r" if coordinate == 1 else f"r * {coordinate}"
+        bullets.append(f'''  · simp [{name}]
+    have hlo : {winding} * p ≤ r * {coordinate} := by omega
+    have hhi : r * {coordinate} < ({winding} + 1) * p := by omega
+    have hdiv : {dividend} / p = {winding} := by
+      simpa using Nat.div_eq_of_lt_le hlo hhi
+    rw [Nat.mod_eq_sub_mul_div, hdiv]
+    omega''')
+    vector = ", ".join(str(value) for value in pattern)
+    return f'''/-- Robust phase pattern {index}, for the cell beginning at `{left}`. -/
+def {name} : PhasePattern := ![{vector}]
+
+@[category research solved, AMS 11]
+theorem {name}_realized (p : ℕ) (hp : 900 < p) :
+    ∃ r, RealizesPhase p r {name} := by
+  let r := ({numerator} * p + {denominator - 1}) / {denominator}
+  refine ⟨r, ?_⟩
+  have hrupper : r * {denominator} ≤ {numerator} * p + {denominator - 1} := by
+    exact Nat.div_mul_le_self _ _
+  have hrlower : {numerator} * p ≤ r * {denominator} := by
+    dsimp only [r]
+    omega
+  intro i
+  fin_cases i
+{chr(10).join(bullets)}
+'''
+
+
+def semantic_clause(index: int, multiplier: int, modulus: int,
+                    pattern: tuple[int, ...]) -> str:
+    label = "Three" if multiplier == 3 else "Five"
+    encoded = "EncodedBadThree" if multiplier == 3 else "EncodedBadFive"
+    table = "badResidueForThree" if multiplier == 3 else "badResidueForFive"
+    clause = blocking_clause(multiplier, modulus, pattern).replace(
+        "c.", f"(residuesMod {modulus} a)."
+    )
+    name = phase_name(index)
+    return f'''@[category API, AMS 11]
+lemma semanticBlock{label}{index:03d} (a : ResidueVector)
+    (h : Blocks {multiplier} a {name}) : {clause} := by
+  rcases h with ⟨i, hi⟩
+  have henc := encodedBad{label}_of_bad (a i).val ({name} i) hi
+  fin_cases i <;>
+    simp [{name}, {encoded}, {table}, residuesMod] at henc ⊢ <;>
+    aesop
+'''
+
+
+def bridge_branch(multiplier: int, modulus: int,
+                  cells: list[tuple[Fraction, Fraction, tuple[int, ...], tuple[int, ...]]]) -> str:
+    label = "Three" if multiplier == 3 else "Five"
+    block_name = ("BlocksCertifiedMultiplierThree" if multiplier == 3
+                  else "BlocksCertifiedMultiplierFive")
+    robust_name = ("BlocksRobustMultiplierThree" if multiplier == 3
+                   else "BlocksRobustMultiplierFive")
+    hypotheses = []
+    names = []
+    for index, (_, _, pattern, _) in enumerate(cells):
+        clause = blocking_clause(multiplier, modulus, pattern).replace(
+            "c.", f"(residuesMod {modulus} (liftResidues u))."
+        )
+        hypothesis = f"hb{index:03d}"
+        names.append(hypothesis)
+        hypotheses.append(f'''    have {hypothesis} : {clause} := by
+      obtain ⟨r, hr⟩ := {phase_name(index)}_realized p hp
+      exact semanticBlock{label}{index:03d} (liftResidues u)
+        (blocks_of_no_gridWitness_of_realizesPhase (s := {multiplier}) (r := r)
+          hp u htight {phase_name(index)} hr hno)''')
+    result = proof_tuple(names, "      ")
+    return f'''  · unfold {block_name} {robust_name}
+{chr(10).join(hypotheses)}
+    exact {result}'''
+
+
+def generate_phase_realization() -> str:
+    cells = robust_cells()
+    phase_declarations = []
+    semantic_declarations = []
+    for index, (left, _, pattern, windings) in enumerate(cells):
+        phase_declarations.append(phase_realization(index, left, pattern, windings))
+        semantic_declarations.append(semantic_clause(index, 3, 5, pattern))
+        semantic_declarations.append(semantic_clause(index, 5, 3, pattern))
+    branch_three = bridge_branch(3, 5, cells)
+    branch_five = bridge_branch(5, 3, cells)
+    return f'''/-
+Copyright 2026 The Formal Conjectures Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    https://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-/
+
+import FormalConjectures.Wikipedia.LonelyRunnerConjecture
+
+/-!
+# Robust phase realization for the lonely runner terminal argument
+
+This file is generated by `scripts/generate_lonely_runner_finite_rigidity.py`.
+It proves that every one of the 270 exact breakpoint cells of length at least
+`1 / 900` is realized by a grid fraction whenever `p > 900`, and connects the
+semantic blocking statements to the bit-vector rigidity certificate.
+-/
+
+namespace LonelyRunnerConjecture.CompositeTerminalRigidity
+
+set_option maxRecDepth 100000
+set_option maxHeartbeats 4000000
+
+{chr(10).join(phase_declarations)}
+{chr(10).join(semantic_declarations)}
+
+/-- The exact 270-cell enumeration supplies the remaining phase bridge for
+every modulus greater than 900. -/
+@[category research solved, AMS 11]
+theorem certifiedPhaseBridge_of_large (p : ℕ) (hp : 900 < p) :
+    CertifiedPhaseBridge p := by
+  intro u htight hno
+  constructor
+{branch_three}
+{branch_five}
+
+/-- Composite terminal rigidity for the tight row at every modulus above
+900. Primality is not needed for this level-fifteen proposition. -/
+@[category research solved, AMS 11]
+theorem composite_terminal_rigidity (p : ℕ) (hp : 900 < p)
+    (u : LiftVector p) (htight : IsTightLift p u) :
+    IsLevelFifteenProper p u :=
+  levelFifteenProper_of_certifiedPhaseBridge (by omega)
+    (certifiedPhaseBridge_of_large p hp) u htight
+
+end LonelyRunnerConjecture.CompositeTerminalRigidity
+'''
+
+
 def main() -> None:
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(generate())
+    PHASE_OUTPUT.write_text(generate_phase_realization())
 
 
 if __name__ == "__main__":
